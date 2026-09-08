@@ -1,0 +1,159 @@
+export type CallStage = 'Cold Call' | 'First Discovery' | 'Follow-up';
+
+export type CoreOutcome = 'Meeting booked' | 'Dropped' | 'Rescheduled' | 'Unqualified' | 'Negotiation Pending';
+
+export type SandlerStatus = 'Pass' | 'Incomplete' | 'Fail';
+
+export type RepTrajectory = 'progressing' | 'stagnant' | 'regressing';
+
+export interface MissedOpportunity {
+  prospectOpening: string;
+  repSurrender: string;
+  whatToSayInstead: string;
+}
+
+export interface PriorityFix {
+  title: string;
+  description: string;
+}
+
+export interface CallEvaluation {
+  id: string;
+  callId: string;
+  repId: string;
+  repName: string;
+  callTypeDetected: CallStage;
+  coreOutcome: CoreOutcome | string;
+  bottomLine: string;
+  missedOpportunities: MissedOpportunity[];
+  sandlerBreakdown: {
+    pain: { status: SandlerStatus; evidence: string };
+    budget: { status: SandlerStatus; evidence: string };
+    decision: { status: SandlerStatus; evidence: string };
+    scriptAdherence: { score: number; feedback: string };
+  };
+  topFixes: [PriorityFix, PriorityFix];
+  rawMarkdown?: string;
+  createdAt: string;
+}
+
+export interface RepPersona {
+  id?: string;
+  repId: string;
+  experienceLevel: string;
+  coachingTone: string;
+  knownBlindspots: string[];
+  strengths: string[];
+  managerNotes: string;
+  targetQuota?: string;
+  updatedAt?: string;
+}
+
+export interface Rep {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string;
+  createdAt: string;
+  // Computed & Persona fields
+  trajectory?: RepTrajectory;
+  trajectoryReason?: string;
+  totalCalls?: number;
+  avgScriptScore?: number;
+  painPassRate?: number;
+  budgetPassRate?: number;
+  decisionPassRate?: number;
+  earlyFoldCount?: number;
+  bookedRate?: number;
+  persona?: RepPersona;
+}
+
+export interface Call {
+  id: string;
+  repId: string;
+  repName?: string;
+  prospectCompany: string;
+  prospectName: string;
+  callStage: CallStage;
+  coreOutcome: string;
+  durationSeconds: number;
+  transcriptText: string;
+  audioUrl?: string;
+  status: 'completed' | 'analyzing' | 'failed';
+  createdAt: string;
+  evaluation?: CallEvaluation;
+}
+
+export interface SalesScript {
+  id: string;
+  stage: CallStage;
+  title: string;
+  content: string;
+  keyMilestones: string[];
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface SuperAdminReport {
+  generatedAt: string;
+  totalCallsReviewed: number;
+  totalReps: number;
+  teamSandlerRates: {
+    painPassRate: number;
+    budgetPassRate: number;
+    decisionPassRate: number;
+    avgScriptAdherence: number;
+  };
+  repTrajectories: {
+    repId: string;
+    repName: string;
+    trajectory: RepTrajectory;
+    managerRationale: string;
+    topActiveStruggle: string;
+    recentScriptScore: number;
+    callsCount: number;
+  }[];
+  systemicTeamLeaks: {
+    title: string;
+    description: string;
+    frequency: string;
+    actionableTeamDirective: string;
+  }[];
+}
+
+export interface ExecutiveAnalytics {
+  totalCalls: number;
+  winRate: number;
+  avgCallDuration: number;
+  outcomesBreakdown: {
+    booked: number;
+    dropped: number;
+    unqualified: number;
+    rescheduled: number;
+  };
+  sandlerDistribution: {
+    pain: { pass: number; incomplete: number; fail: number };
+    budget: { pass: number; incomplete: number; fail: number };
+    decision: { pass: number; incomplete: number; fail: number };
+  };
+  topObjectionsCausingSurrender: {
+    objection: string;
+    surrenderCount: number;
+    percentage: number;
+    recommendedPivot: string;
+  }[];
+  repLeaderboard: {
+    repId: string;
+    repName: string;
+    role: string;
+    trajectory: RepTrajectory;
+    totalCalls: number;
+    meetingsBooked: number;
+    bookedRate: number;
+    avgScriptScore: number;
+    painPassRate: number;
+    budgetPassRate: number;
+    earlyFolds: number;
+  }[];
+}
