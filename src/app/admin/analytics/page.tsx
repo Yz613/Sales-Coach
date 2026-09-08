@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BarChart3, TrendingUp, AlertTriangle, ShieldCheck, Flame, Users, ArrowUpRight, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { apiPath } from "@/lib/utils";
 import type { ExecutiveAnalytics } from "@/types";
 
 export default function AnalyticsPage() {
@@ -10,7 +11,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/analytics")
+    fetch(apiPath("/api/admin/analytics"))
       .then((res) => res.json())
       .then((resData) => {
         setData(resData);

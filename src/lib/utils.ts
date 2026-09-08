@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Base path the app is served under (mirrors `basePath` in next.config.ts).
+// Next prepends this to <Link>/router and static assets automatically, but NOT
+// to client-side fetch(), so use apiPath() for all client API calls.
+export const BASE_PATH = "/app";
+
+export function apiPath(path: string): string {
+  return `${BASE_PATH}${path}`;
+}
+
 export function formatDate(dateString: string | Date | null | undefined): string {
   if (!dateString) return "N/A";
   const d = typeof dateString === "string" ? new Date(dateString) : dateString;

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Upload, FileText, Layers, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { apiPath } from "@/lib/utils";
 import type { Rep } from "@/types";
 
 interface UploadModalProps {
@@ -33,7 +34,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
     if (isOpen) {
       setBatchSuccessCount(null);
       setBatchProgress(null);
-      fetch("/api/reps")
+      fetch(apiPath("/api/reps"))
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
@@ -82,7 +83,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
         formData.append("file", singleFile);
       }
 
-      const res = await fetch("/api/calls/upload", {
+      const res = await fetch(apiPath("/api/calls/upload"), {
         method: "POST",
         body: formData,
       });
@@ -125,7 +126,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
         formData.append("files", f);
       });
 
-      const res = await fetch("/api/calls/batch-upload", {
+      const res = await fetch(apiPath("/api/calls/batch-upload"), {
         method: "POST",
         body: formData,
       });

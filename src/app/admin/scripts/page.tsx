@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { BookOpen, Plus, Edit2, Trash2, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
 import ScriptEditorModal from "@/components/ScriptEditorModal";
+import { apiPath } from "@/lib/utils";
 import type { SalesScript } from "@/types";
 
 export default function ScriptsPage() {
@@ -12,7 +13,7 @@ export default function ScriptsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchScripts = () => {
-    fetch("/api/admin/scripts")
+    fetch(apiPath("/api/admin/scripts"))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setScripts(data);
@@ -31,7 +32,7 @@ export default function ScriptsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this script?")) return;
     try {
-      await fetch(`/api/admin/scripts/${id}`, { method: "DELETE" });
+      await fetch(apiPath(`/api/admin/scripts/${id}`), { method: "DELETE" });
       fetchScripts();
     } catch (err) {
       console.error(err);

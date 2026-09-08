@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, CheckCircle2, Loader2, BookOpen } from "lucide-react";
+import { apiPath } from "@/lib/utils";
 import type { SalesScript, CallStage } from "@/types";
 
 interface ScriptEditorModalProps {
@@ -70,7 +71,7 @@ export default function ScriptEditorModal({
     const cleanedMilestones = milestones.map((m) => m.trim()).filter(Boolean);
 
     try {
-      const res = await fetch("/api/admin/scripts", {
+      const res = await fetch(apiPath("/api/admin/scripts"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

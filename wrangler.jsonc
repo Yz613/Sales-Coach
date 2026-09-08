@@ -7,6 +7,10 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"routes": [
+		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" }
+	],
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
