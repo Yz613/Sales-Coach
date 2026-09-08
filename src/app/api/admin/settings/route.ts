@@ -3,7 +3,7 @@ import { getAllSettings, setSetting } from "@/lib/db/service";
 
 export async function GET() {
   try {
-    const settings = getAllSettings();
+    const settings = await getAllSettings();
     // Mask key for safety
     const maskedKey = settings["gemini_api_key"]
       ? `${settings["gemini_api_key"].slice(0, 6)}••••••••${settings["gemini_api_key"].slice(-4)}`
@@ -27,20 +27,20 @@ export async function POST(req: Request) {
 
     if (body.geminiApiKey !== undefined) {
       if (body.geminiApiKey.trim().length > 0) {
-        setSetting("gemini_api_key", body.geminiApiKey.trim());
+        await setSetting("gemini_api_key", body.geminiApiKey.trim());
       }
     }
 
     if (body.activeModel !== undefined) {
-      setSetting("active_model", body.activeModel);
+      await setSetting("active_model", body.activeModel);
     }
 
     if (body.cloudflareAccountId !== undefined) {
-      setSetting("cloudflare_account_id", body.cloudflareAccountId);
+      await setSetting("cloudflare_account_id", body.cloudflareAccountId);
     }
 
     if (body.cloudflareDatabaseId !== undefined) {
-      setSetting("cloudflare_database_id", body.cloudflareDatabaseId);
+      await setSetting("cloudflare_database_id", body.cloudflareDatabaseId);
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });

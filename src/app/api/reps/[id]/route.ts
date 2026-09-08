@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = getRepById(id);
+    const data = await getRepById(id);
     if (!data.rep) {
       return NextResponse.json({ error: "Rep not found" }, { status: 404 });
     }

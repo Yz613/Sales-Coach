@@ -8,7 +8,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const call = getCallById(id);
+    const call = await getCallById(id);
     if (!call) {
       return NextResponse.json({ error: "Call not found" }, { status: 404 });
     }

@@ -14,17 +14,17 @@ interface EvaluationInput {
 }
 
 export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluation> {
-  const rep = db.select().from(reps).where(eq(reps.id, input.repId)).get();
+  const rep = await db.select().from(reps).where(eq(reps.id, input.repId)).get();
   const repName = rep?.name || "Rep";
 
   // 1. Ingest rep persona & manager notes
-  const persona = getRepPersona(input.repId);
+  const persona = await getRepPersona(input.repId);
 
   // 2. Ingest active prescribed script/playbook for this stage
-  const activeScript = getActiveScriptForStage(input.callStage);
+  const activeScript = await getActiveScriptForStage(input.callStage);
 
   // 3. Ingest historical context (last 3 calls)
-  const previousEvals = db
+  const previousEvals = await db
     .select()
     .from(evaluations)
     .where(eq(evaluations.repId, input.repId))
@@ -32,7 +32,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     .limit(3)
     .all();
 
-  const pastFixesSummary = previousEvals.map((e, idx) => {
+  const pastFixesSummary = previousEvals.map((e: any, idx: number) => {
     try {
       const fixes = JSON.parse(e.topFixes) as PriorityFix[];
       return `Call -${idx + 1} Fixes: ${fixes.map((f) => f.title).join("; ")}`;
@@ -42,7 +42,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   }).filter(Boolean).join("\n");
 
   // Check for GEMINI API KEY in app_settings table first, then environment
-  const geminiApiKey = getSetting("gemini_api_key") || process.env.GEMINI_API_KEY;
+  const geminiApiKey = (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
 
@@ -59,7 +59,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   // Save evaluation to database
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  db.insert(evaluations).values({
+  await db.insert(evaluations).values({
     id: evaluationId,
     callId: input.callId,
     repId: input.repId,
@@ -79,13 +79,13 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   }).run();
 
   // Update Call status
-  db.update(calls)
+  await db.update(calls)
     .set({ status: "completed", coreOutcome: evaluationResult.coreOutcome })
     .where(eq(calls.id, input.callId))
     .run();
 
   // Recalculate Rep Progression Snapshot
-  updateRepProgressionSnapshot(input.repId, repName, evaluationResult);
+  await updateRepProgressionSnapshot(input.repId, repName, evaluationResult);
 
   return {
     id: evaluationId,
@@ -294,12 +294,12 @@ function generateRuleBasedEvaluation(
   };
 }
 
-function updateRepProgressionSnapshot(
+async function updateRepProgressionSnapshot(
   repId: string,
   repName: string,
   latestEval: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">
 ) {
-  const allRepEvals = db
+  const allRepEvals = await db
     .select()
     .from(evaluations)
     .where(eq(evaluations.repId, repId))
@@ -315,7 +315,7 @@ function updateRepProgressionSnapshot(
     rationale = `${repName} logged an initial baseline call. Script adherence is at ${latestEval.sandlerBreakdown.scriptAdherence.score}/10. Needs to tighten up objection handling.`;
     struggle = latestEval.topFixes[0].title;
   } else {
-    const scores = allRepEvals.map((e) => e.scriptAdherenceScore);
+    const scores = allRepEvals.map((e: any) => e.scriptAdherenceScore);
     const recent = scores[0];
     const previous = scores[1];
 
@@ -334,10 +334,10 @@ function updateRepProgressionSnapshot(
     }
   }
 
-  const existingSnapshot = db.select().from(repSnapshots).where(eq(repSnapshots.repId, repId)).get();
+  const existingSnapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, repId)).get();
 
   if (existingSnapshot) {
-    db.update(repSnapshots)
+    await db.update(repSnapshots)
       .set({
         overallTrajectory: trajectory,
         managerRationale: rationale,
@@ -348,7 +348,7 @@ function updateRepProgressionSnapshot(
       .where(eq(repSnapshots.repId, repId))
       .run();
   } else {
-    db.insert(repSnapshots).values({
+    await db.insert(repSnapshots).values({
       id: `snap_${Date.now()}`,
       repId,
       overallTrajectory: trajectory,

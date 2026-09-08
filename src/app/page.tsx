@@ -5,9 +5,10 @@ import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default function SuperAdminDashboard() {
-  const report = getSuperAdminReport();
-  const recentCalls = getAllCalls().slice(0, 6);
+export default async function SuperAdminDashboard() {
+  const report = await getSuperAdminReport();
+  const allCalls = await getAllCalls();
+  const recentCalls = allCalls.slice(0, 6);
 
   const progressingCount = report.repTrajectories.filter((r) => r.trajectory === "progressing").length;
   const stagnantCount = report.repTrajectories.filter((r) => r.trajectory === "stagnant").length;

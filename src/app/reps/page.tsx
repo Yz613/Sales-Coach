@@ -4,8 +4,8 @@ import { CheckCircle2, Clock, XCircle, ArrowUpRight, TrendingUp, ShieldCheck } f
 
 export const dynamic = "force-dynamic";
 
-export default function RepsPage() {
-  const reps = getAllReps();
+export default async function RepsPage() {
+  const reps = await getAllReps();
 
   return (
     <div className="space-y-6">
