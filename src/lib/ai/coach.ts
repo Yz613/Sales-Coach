@@ -44,12 +44,13 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   // Check for GEMINI API KEY in app_settings table first, then environment
   const geminiApiKey = (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
+  const activeModel = (await getSetting("active_model")) || "gemini-3.8-flash";
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
 
   if (geminiApiKey && geminiApiKey.trim().length > 0) {
     try {
-      evaluationResult = await callGeminiAPI(input, repName, pastFixesSummary, persona, activeScript, geminiApiKey.trim());
+      evaluationResult = await callGeminiAPI(input, repName, pastFixesSummary, persona, activeScript, geminiApiKey.trim(), activeModel);
     } catch (err) {
       console.error("Gemini API error, falling back to intelligent rule-based evaluator:", err);
       evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript);
@@ -106,7 +107,8 @@ async function callGeminiAPI(
   pastFixes: string,
   persona: RepPersona | null,
   script: SalesScript | null,
-  apiKey: string
+  apiKey: string,
+  model: string
 ) {
   const personaContext = persona
     ? `
@@ -184,7 +186,7 @@ Return a strictly valid JSON object with this exact schema:
 }
 `;
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

@@ -12,9 +12,7 @@ export async function GET() {
     return NextResponse.json({
       hasKey: Boolean(settings["gemini_api_key"] || process.env.GEMINI_API_KEY),
       maskedKey,
-      activeModel: settings["active_model"] || "gemini-2.5-flash",
-      cloudflareAccountId: settings["cloudflare_account_id"] || "",
-      cloudflareDatabaseId: settings["cloudflare_database_id"] || "",
+      activeModel: settings["active_model"] || "gemini-3.8-flash",
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -33,14 +31,6 @@ export async function POST(req: Request) {
 
     if (body.activeModel !== undefined) {
       await setSetting("active_model", body.activeModel);
-    }
-
-    if (body.cloudflareAccountId !== undefined) {
-      await setSetting("cloudflare_account_id", body.cloudflareAccountId);
-    }
-
-    if (body.cloudflareDatabaseId !== undefined) {
-      await setSetting("cloudflare_database_id", body.cloudflareDatabaseId);
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });

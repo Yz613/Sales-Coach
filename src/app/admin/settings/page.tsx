@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Key, ShieldCheck, Database, CheckCircle2, AlertCircle, Loader2, Sparkles, Server } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { apiPath } from "@/lib/utils";
 
 export default function AdminSettingsPage() {
   const [apiKey, setApiKey] = useState("");
-  const [activeModel, setActiveModel] = useState("gemini-2.5-flash");
-  const [cfAccountId, setCfAccountId] = useState("");
-  const [cfDatabaseId, setCfDatabaseId] = useState("");
+  const [activeModel, setActiveModel] = useState("gemini-3.8-flash");
 
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [maskedKey, setMaskedKey] = useState("");
@@ -18,14 +17,12 @@ export default function AdminSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/settings")
+    fetch(apiPath("/api/admin/settings"))
       .then((res) => res.json())
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
         if (data.activeModel) setActiveModel(data.activeModel);
-        if (data.cloudflareAccountId) setCfAccountId(data.cloudflareAccountId);
-        if (data.cloudflareDatabaseId) setCfDatabaseId(data.cloudflareDatabaseId);
         setLoading(false);
       })
       .catch((err) => {
@@ -40,14 +37,12 @@ export default function AdminSettingsPage() {
     setSaveSuccess(false);
 
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetch(apiPath("/api/admin/settings"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           geminiApiKey: apiKey,
           activeModel,
-          cloudflareAccountId: cfAccountId,
-          cloudflareDatabaseId: cfDatabaseId,
         }),
       });
 
@@ -72,7 +67,7 @@ export default function AdminSettingsPage() {
     setTestResult(null);
 
     try {
-      const res = await fetch("/api/admin/settings/test-key", {
+      const res = await fetch(apiPath("/api/admin/settings/test-key"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: apiKey.trim() || undefined }),
@@ -110,7 +105,7 @@ export default function AdminSettingsPage() {
           System Settings & AI API Keys
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          Configure Google Gemini API keys for live AI call evaluations and Cloudflare D1 persistent storage credentials.
+          Configure the Google Gemini API key that powers live AI call evaluations.
         </p>
       </div>
 
@@ -184,50 +179,10 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setActiveModel(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
               >
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Ultra-low latency, optimal for sales call evaluation)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep reasoning, long 1-hour audio calls)</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Most intelligent Flash model — recommended)</option>
+                <option value="gemini-3.7-flash">Gemini 3.7 Flash (Fast agentic reasoning)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Legacy, ultra-low latency)</option>
               </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Cloudflare D1 Persistent Database */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-5">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Server className="h-5 w-5 text-amber-400" />
-            <div>
-              <h2 className="text-base font-bold text-white">Cloudflare D1 Storage Integration</h2>
-              <p className="text-xs text-slate-400">
-                Your database is currently running on local SQLite (D1 compatible). Enter Cloudflare credentials when ready to sync to the edge.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                Cloudflare Account ID
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. a7b8c9d0..."
-                value={cfAccountId}
-                onChange={(e) => setCfAccountId(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white font-mono placeholder-slate-600 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                Cloudflare D1 Database ID
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 550e8400-e29b-41d4-a716..."
-                value={cfDatabaseId}
-                onChange={(e) => setCfDatabaseId(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white font-mono placeholder-slate-600 focus:border-blue-500 focus:outline-none"
-              />
             </div>
           </div>
         </div>
