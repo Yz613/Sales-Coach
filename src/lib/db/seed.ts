@@ -16,7 +16,7 @@ export function seed() {
   // 1. App Settings
   db.insert(appSettings).values({
     key: "active_model",
-    value: "gemini-2.5-flash",
+    value: "gemini-3.8-flash",
     updatedAt: new Date().toISOString(),
   }).run();
 

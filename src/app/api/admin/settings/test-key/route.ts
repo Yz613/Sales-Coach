@@ -5,13 +5,14 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const apiKey = body.apiKey || (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
+    const model = (await getSetting("active_model")) || "gemini-3.8-flash";
 
     if (!apiKey) {
       return NextResponse.json({ success: false, error: "No Gemini API key provided or found." }, { status: 400 });
     }
 
     // Ping Gemini API with a test query
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "API Key verified successfully with Google Gemini!",
-      model: "gemini-2.5-flash"
+      model
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
