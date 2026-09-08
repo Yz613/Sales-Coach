@@ -11,7 +11,7 @@ export default function LandingFooter() {
           </p>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted)]">
-          <a href="#how" className="hover:text-[var(--ink)]">
+          <a href="/#how" className="hover:text-[var(--ink)]">
             How it works
           </a>
           <Link href="/sign-in" className="hover:text-[var(--ink)]">
