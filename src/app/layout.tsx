@@ -1,10 +1,36 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
-import Navigation from "@/components/Navigation";
+
+const sans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const serif = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Sales Coach AI — B2B Sales Management & Progression",
-  description: "Executive AI Sales Manager for evaluating call blocking & tackling, Sandler qualification, and rep pipeline progression.",
+  title: {
+    default: "RefreshQueue — Monday call queue for sales managers",
+    template: "%s · RefreshQueue",
+  },
+  description:
+    "Every Monday, the calls that leaked the most pipeline. RefreshQueue ranks folded conversations, tags the failure mode, and briefs the next fix. The coaching desk sits behind a login.",
+  metadataBase: new URL("https://refreshqueue.com"),
+  openGraph: {
+    title: "RefreshQueue — Monday call queue for sales managers",
+    description:
+      "Ranked by the calls that actually folded — not talk-time percent, not a sentiment score, not a dashboard you forget to open.",
+    url: "https://refreshqueue.com",
+    siteName: "RefreshQueue",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -13,13 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
-        <Navigation />
-        <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </main>
-      </body>
+    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

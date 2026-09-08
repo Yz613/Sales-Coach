@@ -11,17 +11,35 @@
 }
 
 body {
-  background-color: #0b0f19;
-  color: #e2e8f0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans), "IBM Plex Sans", "Segoe UI", sans-serif;
   letter-spacing: -0.01em;
 }
 
-/* Crisp corporate styling */
-.glass-panel {
-  background: #111827;
-  border: 1px solid #1f2937;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+.marketing {
+  --paper: #f3eee4;
+  --paper-2: #efe8db;
+  --ink: #161410;
+  --muted: #5c564c;
+  --rule: rgba(22, 20, 16, 0.12);
+  --rust: #c23a1a;
+  --rust-soft: #f3d7ce;
+  background-color: var(--paper);
+  background-image: radial-gradient(rgba(22, 20, 16, 0.045) 0.7px, transparent 0.7px);
+  background-size: 16px 16px;
+  color: var(--ink);
+  font-family: var(--font-sans), "IBM Plex Sans", sans-serif;
+}
+
+.marketing ::selection {
+  background: #c23a1a;
+  color: #f3eee4;
+}
+
+.marketing .font-serif,
+.marketing h1,
+.marketing h2,
+.marketing h3 {
+  font-family: var(--font-serif), Newsreader, Georgia, serif;
 }
 
 .table-header {
