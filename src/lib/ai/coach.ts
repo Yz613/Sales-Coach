@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
 import { getSetting, getActiveScriptForStage, getRepPersona } from "../db/service";
+import { computeScriptDivergence } from "../callInsights";
 import { eq, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
 
@@ -72,6 +73,9 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     decisionEvidence: evaluationResult.sandlerBreakdown.decision.evidence,
     scriptAdherenceScore: evaluationResult.sandlerBreakdown.scriptAdherence.score,
     scriptFeedback: evaluationResult.sandlerBreakdown.scriptAdherence.feedback,
+    scriptDivergence: evaluationResult.scriptDivergence
+      ? JSON.stringify(evaluationResult.scriptDivergence)
+      : null,
     missedOpportunities: JSON.stringify(evaluationResult.missedOpportunities),
     topFixes: JSON.stringify(evaluationResult.topFixes),
     rawMarkdown: evaluationResult.rawMarkdown || "",
@@ -146,6 +150,7 @@ ${input.transcriptText}
 """
 
 Evaluate this call strictly against blocking-and-tackling, early folding ("Fight for the Win"), stage-specific Sandler qualification (Pain, Budget, Decision), and adherence to the prescribed script above.
+For scriptDivergence, judge EVERY required milestone from the prescribed script above one-by-one and mark each Hit, Partial, or Missed with transcript evidence. Include one entry per milestone, using the milestone text verbatim.
 Tailor your feedback tone to the rep's coaching tone preference.
 
 Return a strictly valid JSON object with this exact schema:
@@ -165,6 +170,12 @@ Return a strictly valid JSON object with this exact schema:
     "budget": { "status": "Pass|Incomplete|Fail", "evidence": "evidence from transcript" },
     "decision": { "status": "Pass|Incomplete|Fail", "evidence": "evidence from transcript" },
     "scriptAdherence": { "score": 7, "feedback": "exact milestones missed or hit from the prescribed script" }
+  },
+  "scriptDivergence": {
+    "scriptTitle": "${script?.title || `Standard B2B ${input.callStage} framework`}",
+    "milestones": [
+      { "milestone": "exact text of the required milestone", "status": "Hit|Partial|Missed", "note": "1 sentence citing transcript evidence for why it was hit, partially done, or missed" }
+    ]
   },
   "topFixes": [
     { "title": "Fix #1 title", "description": "Specific tactical behavior to change" },
@@ -265,12 +276,15 @@ function generateRuleBasedEvaluation(
     }
   ];
 
+  const scriptDivergence = computeScriptDivergence(input.transcriptText, script, scriptScore);
+
   return {
     repName,
     callTypeDetected: input.callStage as any,
     coreOutcome,
     bottomLine,
     missedOpportunities,
+    scriptDivergence,
     sandlerBreakdown: {
       pain: {
         status: painStatus,

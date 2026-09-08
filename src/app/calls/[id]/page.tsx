@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCallById } from "@/lib/db/service";
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Flame, UserCheck, PhoneCall, Calendar, Clock, MessageSquareQuote } from "lucide-react";
+import { getCallById, getAllCalls, getActiveScriptForStage } from "@/lib/db/service";
+import { rankCalls, divergenceSummary } from "@/lib/callInsights";
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Flame, UserCheck, PhoneCall, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,13 @@ export default async function CallReviewPage({
   }
 
   const ev = call.evaluation;
+  const officialScript = await getActiveScriptForStage(call.callStage);
+  const divergence = ev?.scriptDivergence;
+  const divSummary = divergenceSummary(divergence);
+
+  // Where this call ranks against every other call in the bank.
+  const ranked = rankCalls(await getAllCalls());
+  const thisRank = ranked.find((r) => r.id === call.id);
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -71,7 +79,7 @@ export default async function CallReviewPage({
         </div>
 
         {/* Section 1 Metadata quick summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-xs">
           <div>
             <span className="text-slate-500 uppercase font-semibold text-[10px] block">Rep Name</span>
             <span className="text-slate-200 font-medium text-sm">{call.repName}</span>
@@ -84,6 +92,16 @@ export default async function CallReviewPage({
             <span className="text-slate-500 uppercase font-semibold text-[10px] block">Pipeline State</span>
             <span className="text-slate-200 font-medium text-sm">{call.coreOutcome}</span>
           </div>
+          {thisRank && (
+            <div>
+              <span className="text-slate-500 uppercase font-semibold text-[10px] block">Call Rank</span>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-white">
+                {thisRank.rank === 1 && <Trophy className="h-3.5 w-3.5 text-amber-300" />}
+                #{thisRank.rank} of {ranked.length}
+                <span className="text-slate-500 font-mono font-normal">({thisRank.score}/100)</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -246,11 +264,105 @@ export default async function CallReviewPage({
             </div>
           </div>
 
-          {/* 5. Top 2 Priority Fixes for Next Call */}
+          {/* 5. Official Script Divergence */}
+          <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-5">
+            <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
+                  <ClipboardList className="h-4 w-4" /> 5. Script Divergence
+                </div>
+                <h2 className="text-lg font-bold text-white mt-1">
+                  Measured Against: {divergence?.scriptTitle || officialScript?.title || `Standard ${call.callStage} Playbook`}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  The official prescribed playbook for a <span className="font-semibold text-slate-300">{call.callStage}</span>, checked milestone-by-milestone.
+                </p>
+              </div>
+
+              {divSummary.total > 0 && (
+                <div className="flex items-center gap-2 font-mono text-xs shrink-0">
+                  <span className="rounded bg-emerald-500/10 px-2 py-1 font-bold text-emerald-400 border border-emerald-500/20">
+                    {divSummary.hit} Hit
+                  </span>
+                  <span className="rounded bg-amber-500/10 px-2 py-1 font-bold text-amber-400 border border-amber-500/20">
+                    {divSummary.partial} Partial
+                  </span>
+                  <span className="rounded bg-rose-500/10 px-2 py-1 font-bold text-rose-400 border border-rose-500/20">
+                    {divSummary.missed} Missed
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {divergence && divergence.milestones.length > 0 ? (
+              <div className="space-y-3">
+                {divergence.milestones.map((m, idx) => {
+                  const tone =
+                    m.status === "Hit"
+                      ? {
+                          border: "border-emerald-500/30",
+                          bg: "bg-emerald-500/5",
+                          badge: "bg-emerald-500/20 text-emerald-400",
+                          icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
+                        }
+                      : m.status === "Partial"
+                      ? {
+                          border: "border-amber-500/30",
+                          bg: "bg-amber-500/5",
+                          badge: "bg-amber-500/20 text-amber-400",
+                          icon: <MinusCircle className="h-4 w-4 text-amber-400" />,
+                        }
+                      : {
+                          border: "border-rose-500/30",
+                          bg: "bg-rose-500/5",
+                          badge: "bg-rose-500/20 text-rose-400",
+                          icon: <XCircle className="h-4 w-4 text-rose-400" />,
+                        };
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`rounded-lg border ${tone.border} ${tone.bg} p-4 flex items-start gap-3`}
+                    >
+                      <div className="mt-0.5 shrink-0">{tone.icon}</div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold text-white">
+                            Milestone {idx + 1}: {m.milestone}
+                          </span>
+                          <span className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.badge}`}>
+                            {m.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed">{m.note}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 italic">
+                No milestone-level divergence recorded for this call yet.
+              </p>
+            )}
+
+            {officialScript?.content && (
+              <details className="rounded-lg border border-slate-800 bg-slate-950 p-4 group">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition list-none flex items-center gap-2">
+                  <ClipboardList className="h-3.5 w-3.5" /> View Full Prescribed Playbook
+                </summary>
+                <pre className="mt-3 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {officialScript.content}
+                </pre>
+              </details>
+            )}
+          </div>
+
+          {/* 6. Top 2 Priority Fixes for Next Call */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
             <div className="border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-                <CheckCircle2 className="h-4 w-4" /> 5. Top 2 Priority Fixes for Next Call
+                <CheckCircle2 className="h-4 w-4" /> 6. Top 2 Priority Fixes for Next Call
               </div>
               <h2 className="text-lg font-bold text-white mt-1">High-Leverage Blocking & Tackling Corrections</h2>
               <p className="text-xs text-slate-400">

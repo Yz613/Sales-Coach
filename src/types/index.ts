@@ -6,6 +6,20 @@ export type SandlerStatus = 'Pass' | 'Incomplete' | 'Fail';
 
 export type RepTrajectory = 'progressing' | 'stagnant' | 'regressing';
 
+export type MilestoneStatus = 'Hit' | 'Partial' | 'Missed';
+
+export interface MilestoneDivergence {
+  milestone: string;
+  status: MilestoneStatus;
+  note: string;
+}
+
+export interface ScriptDivergence {
+  scriptId?: string;
+  scriptTitle: string;
+  milestones: MilestoneDivergence[];
+}
+
 export interface MissedOpportunity {
   prospectOpening: string;
   repSurrender: string;
@@ -32,6 +46,7 @@ export interface CallEvaluation {
     decision: { status: SandlerStatus; evidence: string };
     scriptAdherence: { score: number; feedback: string };
   };
+  scriptDivergence?: ScriptDivergence;
   topFixes: [PriorityFix, PriorityFix];
   rawMarkdown?: string;
   createdAt: string;

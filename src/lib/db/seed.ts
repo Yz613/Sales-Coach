@@ -198,6 +198,32 @@ Greg: Fine, send the calendar invite to greg@example.com. Tuesday 9:30.`,
         decisionEvidence: "Locked down Greg as direct operational decision maker with a firm calendar slot.",
         scriptAdherenceScore: 9,
         scriptFeedback: "Benchmarked against 'Outbound Pattern Interrupt Playbook': Hit all 4 milestones including the disarm pivot.",
+        scriptDivergence: {
+          scriptId: "script_cold_call",
+          scriptTitle: "Outbound Pattern Interrupt & Disarm Playbook",
+          milestones: [
+            {
+              milestone: "Permission-based pattern interrupt in first 20 seconds",
+              status: "Hit",
+              note: "Opened with 'do you have 30 seconds to tell me if this is a bad time?' — textbook permission interrupt.",
+            },
+            {
+              milestone: "Acknowledge & validate existing vendor without arguing",
+              status: "Hit",
+              note: "Validated the competitor cleanly: 'Totally get that Greg, FreightPulse is solid.'",
+            },
+            {
+              milestone: "Introduce specific operational bottleneck question",
+              status: "Hit",
+              note: "Isolated the 4-hour customs delay and asked if it was fully eliminated or a daily headache.",
+            },
+            {
+              milestone: "Firm date/time close for 15-minute discovery",
+              status: "Hit",
+              note: "Locked a specific slot: 'How about Tuesday at 9:30 AM' and got confirmation.",
+            },
+          ],
+        },
         missedOpportunities: [
           {
             prospectOpening: "We already got a quote from FreightPulse last week and we're pretty set.",
@@ -245,6 +271,32 @@ Dr. Thorne: Thanks, bye.`,
         decisionEvidence: "Failed to qualify who evaluates lab software or how Benchling was selected.",
         scriptAdherenceScore: 3,
         scriptFeedback: "Missed Milestone 1 (Pattern interrupt) and folded completely on Milestone 2 (Vendor objection pivot).",
+        scriptDivergence: {
+          scriptId: "script_cold_call",
+          scriptTitle: "Outbound Pattern Interrupt & Disarm Playbook",
+          milestones: [
+            {
+              milestone: "Permission-based pattern interrupt in first 20 seconds",
+              status: "Missed",
+              note: "Used a generic telemarketer opener ('How are you today?') instead of a permission-based interrupt.",
+            },
+            {
+              milestone: "Acknowledge & validate existing vendor without arguing",
+              status: "Missed",
+              note: "When Benchling was named, he asked a passive question and folded instead of validating and pivoting.",
+            },
+            {
+              milestone: "Introduce specific operational bottleneck question",
+              status: "Missed",
+              note: "Led with a generic 40% throughput feature claim; never surfaced a specific operational pain.",
+            },
+            {
+              milestone: "Firm date/time close for 15-minute discovery",
+              status: "Missed",
+              note: "No close attempted — accepted 'send me an email' and ended the call.",
+            },
+          ],
+        },
         missedOpportunities: [
           {
             prospectOpening: "We already have a LIMS system and we don't need anything new right now.",
@@ -300,6 +352,32 @@ Chloe: Great, I'll email that proposal today!`,
         decisionEvidence: "Did not identify who the boss is, what the procurement review process requires, or timeline.",
         scriptAdherenceScore: 5,
         scriptFeedback: "Violated Milestone 3: Launched into demo without qualifying budget bracket first.",
+        scriptDivergence: {
+          scriptId: "script_discovery",
+          scriptTitle: "Sandler 3-Step Pain & Budget Qualification",
+          milestones: [
+            {
+              milestone: "Up-front contract established in first 3 minutes",
+              status: "Missed",
+              note: "Opened with 'excited to show you what we've built' — no agenda, duration, or mutual outcome set.",
+            },
+            {
+              milestone: "Probe emotional/business impact of pain before showing any software",
+              status: "Partial",
+              note: "Noticed the 14-approval bottleneck but jumped straight to a demo instead of probing the impact.",
+            },
+            {
+              milestone: "Qualify budget bracket ($25k–$40k) prior to product walk",
+              status: "Missed",
+              note: "Demoed for 20+ minutes first, then danced around pricing and capitulated to 'no budget'.",
+            },
+            {
+              milestone: "Identify economic buyer and legal approval requirements",
+              status: "Missed",
+              note: "Never identified 'the boss', the procurement review process, or a timeline.",
+            },
+          ],
+        },
         missedOpportunities: [
           {
             prospectOpening: "Currently our ERP requires 14 manual approvals per purchase order.",
@@ -352,6 +430,32 @@ Karen: Put it on our calendars. I'll bring Dan and Elena.`,
         decisionEvidence: "Identified GC and CFO and locked them directly into a joint calendar meeting.",
         scriptAdherenceScore: 10,
         scriptFeedback: "Hit 100% of milestones in 'Executive Decision & Implementation Alignment' playbook.",
+        scriptDivergence: {
+          scriptId: "script_closing",
+          scriptTitle: "Executive Decision & Implementation Alignment",
+          milestones: [
+            {
+              milestone: "Re-anchor to high-stakes deadline / cost of inaction",
+              status: "Hit",
+              note: "Anchored to the November HHS review and the October 15 go-live in the up-front agenda.",
+            },
+            {
+              milestone: "Directly resolve InfoSec / compliance hurdles",
+              status: "Hit",
+              note: "Resolved AES-256 encryption at rest and KMS integration on the spot and confirmed it cleared InfoSec.",
+            },
+            {
+              milestone: "State full contract value ($72k+) without discounting",
+              status: "Hit",
+              note: "Stated '$72,000 billed upfront' with peer authority and no preemptive discounting.",
+            },
+            {
+              milestone: "Lock decision makers (GC & CFO) into calendar sync",
+              status: "Hit",
+              note: "Booked a Thursday 2 PM executive briefing with GC Dan Vance and CFO Elena Rostova.",
+            },
+          ],
+        },
         missedOpportunities: [
           {
             prospectOpening: "InfoSec has a couple questions on data encryption at rest.",
@@ -390,6 +494,7 @@ Karen: Put it on our calendars. I'll bring Dan and Elena.`,
       decisionEvidence: evaluation.decisionEvidence,
       scriptAdherenceScore: evaluation.scriptAdherenceScore,
       scriptFeedback: evaluation.scriptFeedback,
+      scriptDivergence: JSON.stringify(evaluation.scriptDivergence),
       missedOpportunities: JSON.stringify(evaluation.missedOpportunities),
       topFixes: JSON.stringify(evaluation.topFixes),
       rawMarkdown: `### Manager's Take\n${evaluation.bottomLine}`,
