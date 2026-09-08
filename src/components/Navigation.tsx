@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { ShieldAlert, Users, PhoneCall, PlusCircle, BarChart3, BookOpen, Settings } from "lucide-react";
 import UploadModal from "./UploadModal";
 
@@ -57,8 +58,38 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Settings & Upload */}
+          {/* Right Actions: Auth, Settings & Upload */}
           <div className="flex items-center gap-3">
+            <Show when="signed-out">
+              <div className="flex items-center gap-2">
+                <SignInButton>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  >
+                    Sign in
+                  </button>
+                </SignInButton>
+                <SignUpButton>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-blue-500/40 bg-blue-600/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-300 transition hover:bg-blue-600 hover:text-white"
+                  >
+                    Sign up
+                  </button>
+                </SignUpButton>
+              </div>
+            </Show>
+            <Show when="signed-in">
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "h-8 w-8",
+                  },
+                }}
+              />
+            </Show>
+
             <Link
               href="/admin/settings"
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-300 transition ${
