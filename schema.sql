@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
   decision_evidence TEXT NOT NULL,
   script_adherence_score INTEGER NOT NULL,
   script_feedback TEXT NOT NULL,
+  script_divergence TEXT,
   missed_opportunities TEXT NOT NULL,
   top_fixes TEXT NOT NULL,
   raw_markdown TEXT,
