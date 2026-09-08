@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getAllCalls } from "@/lib/db/service";
+import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
 import { formatDate, formatDuration } from "@/lib/utils";
-import { PhoneCall, Filter, Search, ArrowUpRight } from "lucide-react";
+import { PhoneCall, Filter, Search, ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default function CallBankPage() {
-  const calls = getAllCalls();
+  const rankedCalls = rankCalls(getAllCalls());
 
   return (
     <div className="space-y-6">
@@ -18,40 +19,58 @@ export default function CallBankPage() {
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            All Ingested Calls & Evaluations
+            Ranked Calls & Evaluations
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Searchable repository of recorded and uploaded calls reviewed by the AI Sales Manager.
+            Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong.
           </p>
         </div>
 
         <div className="text-xs text-slate-400 font-mono">
-          Total Calls: <span className="font-bold text-white">{calls.length}</span>
+          Total Calls: <span className="font-bold text-white">{rankedCalls.length}</span>
         </div>
       </div>
 
-      {/* Calls Table */}
+      {/* Ranked Calls Table */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="table-header">
               <tr>
+                <th className="px-6 py-3.5">Rank</th>
                 <th className="px-6 py-3.5">Rep & Prospect</th>
                 <th className="px-6 py-3.5">Stage</th>
                 <th className="px-6 py-3.5">Sandler Badges</th>
                 <th className="px-6 py-3.5">Script Adherence</th>
+                <th className="px-6 py-3.5">Score</th>
+                <th className="px-6 py-3.5">What Went Wrong</th>
                 <th className="px-6 py-3.5">Outcome</th>
-                <th className="px-6 py-3.5">Date</th>
                 <th className="px-6 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {calls.map((call) => {
+              {rankedCalls.map((call) => {
                 const ev = call.evaluation;
                 const isBooked = call.coreOutcome.toLowerCase().includes("booked");
+                const issue = getPrimaryIssue(call);
+                const isTopThree = call.rank <= 3;
 
                 return (
                   <tr key={call.id} className="hover:bg-slate-800/30 transition">
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold font-mono border ${
+                          call.rank === 1
+                            ? "bg-amber-400/20 text-amber-300 border-amber-400/40"
+                            : isTopThree
+                            ? "bg-slate-700/50 text-slate-200 border-slate-600"
+                            : "bg-slate-800 text-slate-400 border-slate-700"
+                        }`}
+                      >
+                        {call.rank === 1 ? <Trophy className="h-4 w-4" /> : call.rank}
+                      </span>
+                    </td>
+
                     <td className="px-6 py-4">
                       <div className="font-semibold text-white">{call.repName}</div>
                       <div className="text-xs text-slate-400">
@@ -124,6 +143,47 @@ export default function CallBankPage() {
                       ) : (
                         "—"
                       )}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {ev ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                call.score >= 75
+                                  ? "bg-emerald-500"
+                                  : call.score >= 45
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500"
+                              }`}
+                              style={{ width: `${call.score}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs font-bold text-slate-200">{call.score}</span>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 max-w-[16rem]">
+                      <span
+                        className={`inline-flex items-start gap-1.5 text-xs font-medium ${
+                          issue.severity === "critical"
+                            ? "text-rose-300"
+                            : issue.severity === "warn"
+                            ? "text-amber-300"
+                            : "text-emerald-300"
+                        }`}
+                      >
+                        {issue.severity === "good" ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        )}
+                        {issue.text}
+                      </span>
                     </td>
 
                     <td className="px-6 py-4">
