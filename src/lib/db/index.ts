@@ -52,6 +52,7 @@ export function initDb() {
       decision_evidence TEXT NOT NULL,
       script_adherence_score INTEGER NOT NULL,
       script_feedback TEXT NOT NULL,
+      script_divergence TEXT,
       missed_opportunities TEXT NOT NULL,
       top_fixes TEXT NOT NULL,
       raw_markdown TEXT,
@@ -100,6 +101,21 @@ export function initDb() {
       FOREIGN KEY (rep_id) REFERENCES reps(id)
     );
   `);
+
+  runMigrations();
+}
+
+// Lightweight, idempotent column migrations for databases created before a
+// column was introduced. Uses CREATE TABLE IF NOT EXISTS semantics elsewhere,
+// so evolving columns must be added explicitly here.
+function runMigrations() {
+  const evalColumns = sqlite
+    .prepare("PRAGMA table_info(evaluations)")
+    .all() as { name: string }[];
+
+  if (!evalColumns.some((c) => c.name === "script_divergence")) {
+    sqlite.exec("ALTER TABLE evaluations ADD COLUMN script_divergence TEXT");
+  }
 }
 
 // Run table creation on import

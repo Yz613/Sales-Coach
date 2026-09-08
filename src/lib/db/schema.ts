@@ -36,6 +36,7 @@ export const evaluations = sqliteTable("evaluations", {
   decisionEvidence: text("decision_evidence").notNull(),
   scriptAdherenceScore: integer("script_adherence_score").notNull(), // 1 to 10
   scriptFeedback: text("script_feedback").notNull(),
+  scriptDivergence: text("script_divergence"), // JSON string: ScriptDivergence (per-milestone Hit/Partial/Missed)
   missedOpportunities: text("missed_opportunities").notNull(), // JSON string: MissedOpportunity[]
   topFixes: text("top_fixes").notNull(), // JSON string: [PriorityFix, PriorityFix]
   rawMarkdown: text("raw_markdown"),
