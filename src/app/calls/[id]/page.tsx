@@ -12,7 +12,7 @@ export default async function CallReviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const call = getCallById(id);
+  const call = await getCallById(id);
 
   if (!call) {
     notFound();

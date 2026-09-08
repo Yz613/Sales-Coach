@@ -4,7 +4,7 @@ import { getSetting } from "@/lib/db/service";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const apiKey = body.apiKey || getSetting("gemini_api_key") || process.env.GEMINI_API_KEY;
+    const apiKey = body.apiKey || (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ success: false, error: "No Gemini API key provided or found." }, { status: 400 });

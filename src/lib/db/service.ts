@@ -17,20 +17,20 @@ import type {
 } from "@/types";
 
 // --- Settings Service ---
-export function getSetting(key: string): string | null {
-  const row = db.select().from(appSettings).where(eq(appSettings.key, key)).get();
+export async function getSetting(key: string): Promise<string | null> {
+  const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   return row ? row.value : null;
 }
 
-export function setSetting(key: string, value: string): void {
-  const existing = db.select().from(appSettings).where(eq(appSettings.key, key)).get();
+export async function setSetting(key: string, value: string): Promise<void> {
+  const existing = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   if (existing) {
-    db.update(appSettings)
+    await db.update(appSettings)
       .set({ value, updatedAt: new Date().toISOString() })
       .where(eq(appSettings.key, key))
       .run();
   } else {
-    db.insert(appSettings).values({
+    await db.insert(appSettings).values({
       key,
       value,
       updatedAt: new Date().toISOString(),
@@ -38,19 +38,19 @@ export function setSetting(key: string, value: string): void {
   }
 }
 
-export function getAllSettings(): Record<string, string> {
-  const rows = db.select().from(appSettings).all();
+export async function getAllSettings(): Promise<Record<string, string>> {
+  const rows = await db.select().from(appSettings).all();
   const res: Record<string, string> = {};
-  rows.forEach((r) => {
+  rows.forEach((r: any) => {
     res[r.key] = r.value;
   });
   return res;
 }
 
 // --- Scripts / Playbooks Service ---
-export function getAllScripts(): SalesScript[] {
-  const rows = db.select().from(scripts).all();
-  return rows.map((r) => ({
+export async function getAllScripts(): Promise<SalesScript[]> {
+  const rows = await db.select().from(scripts).all();
+  return rows.map((r: any) => ({
     id: r.id,
     stage: r.stage as CallStage,
     title: r.title,
@@ -61,17 +61,17 @@ export function getAllScripts(): SalesScript[] {
   }));
 }
 
-export function getActiveScriptForStage(stage: string): SalesScript | null {
-  const all = getAllScripts();
+export async function getActiveScriptForStage(stage: string): Promise<SalesScript | null> {
+  const all = await getAllScripts();
   return all.find((s) => s.stage.toLowerCase() === stage.toLowerCase() && s.isActive) || null;
 }
 
-export function saveScript(scriptData: Omit<SalesScript, "updatedAt">): SalesScript {
+export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Promise<SalesScript> {
   const updatedAt = new Date().toISOString();
-  const existing = db.select().from(scripts).where(eq(scripts.id, scriptData.id)).get();
+  const existing = await db.select().from(scripts).where(eq(scripts.id, scriptData.id)).get();
 
   if (existing) {
-    db.update(scripts)
+    await db.update(scripts)
       .set({
         stage: scriptData.stage,
         title: scriptData.title,
@@ -83,7 +83,7 @@ export function saveScript(scriptData: Omit<SalesScript, "updatedAt">): SalesScr
       .where(eq(scripts.id, scriptData.id))
       .run();
   } else {
-    db.insert(scripts).values({
+    await db.insert(scripts).values({
       id: scriptData.id,
       stage: scriptData.stage,
       title: scriptData.title,
@@ -100,13 +100,13 @@ export function saveScript(scriptData: Omit<SalesScript, "updatedAt">): SalesScr
   };
 }
 
-export function deleteScript(id: string): void {
-  db.delete(scripts).where(eq(scripts.id, id)).run();
+export async function deleteScript(id: string): Promise<void> {
+  await db.delete(scripts).where(eq(scripts.id, id)).run();
 }
 
 // --- Rep Persona Service ---
-export function getRepPersona(repId: string): RepPersona | null {
-  const row = db.select().from(repPersonas).where(eq(repPersonas.repId, repId)).get();
+export async function getRepPersona(repId: string): Promise<RepPersona | null> {
+  const row = await db.select().from(repPersonas).where(eq(repPersonas.repId, repId)).get();
   if (!row) return null;
   return {
     id: row.id,
@@ -121,13 +121,13 @@ export function getRepPersona(repId: string): RepPersona | null {
   };
 }
 
-export function saveRepPersona(persona: RepPersona): RepPersona {
+export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
   const updatedAt = new Date().toISOString();
   const id = persona.id || `persona_${persona.repId}`;
-  const existing = db.select().from(repPersonas).where(eq(repPersonas.repId, persona.repId)).get();
+  const existing = await db.select().from(repPersonas).where(eq(repPersonas.repId, persona.repId)).get();
 
   if (existing) {
-    db.update(repPersonas)
+    await db.update(repPersonas)
       .set({
         experienceLevel: persona.experienceLevel,
         coachingTone: persona.coachingTone,
@@ -140,7 +140,7 @@ export function saveRepPersona(persona: RepPersona): RepPersona {
       .where(eq(repPersonas.repId, persona.repId))
       .run();
   } else {
-    db.insert(repPersonas).values({
+    await db.insert(repPersonas).values({
       id,
       repId: persona.repId,
       experienceLevel: persona.experienceLevel,
@@ -161,17 +161,19 @@ export function saveRepPersona(persona: RepPersona): RepPersona {
 }
 
 // --- Reps & Calls ---
-export function getAllReps(): Rep[] {
-  const allReps = db.select().from(reps).all();
-  const allCalls = db.select().from(calls).all();
-  const allEvals = db.select().from(evaluations).all();
-  const allSnapshots = db.select().from(repSnapshots).all();
+export async function getAllReps(): Promise<Rep[]> {
+  const allReps = await db.select().from(reps).all();
+  const allCalls = await db.select().from(calls).all();
+  const allEvals = await db.select().from(evaluations).all();
+  const allSnapshots = await db.select().from(repSnapshots).all();
 
-  return allReps.map((r) => {
-    const repCalls = allCalls.filter((c) => c.repId === r.id);
-    const repEvals = allEvals.filter((e) => e.repId === r.id);
-    const snapshot = allSnapshots.find((s) => s.repId === r.id);
-    const persona = getRepPersona(r.id);
+  const repsWithMetrics: Rep[] = [];
+
+  for (const r of allReps) {
+    const repCalls = allCalls.filter((c: any) => c.repId === r.id);
+    const repEvals = allEvals.filter((e: any) => e.repId === r.id);
+    const snapshot = allSnapshots.find((s: any) => s.repId === r.id);
+    const persona = await getRepPersona(r.id);
 
     let painPassCount = 0;
     let budgetPassCount = 0;
@@ -180,11 +182,11 @@ export function getAllReps(): Rep[] {
     let earlyFoldCount = 0;
     let bookedCount = 0;
 
-    repCalls.forEach((c) => {
+    repCalls.forEach((c: any) => {
       if (c.coreOutcome.toLowerCase().includes("booked")) bookedCount++;
     });
 
-    repEvals.forEach((e) => {
+    repEvals.forEach((e: any) => {
       if (e.painStatus === "Pass") painPassCount++;
       if (e.budgetStatus === "Pass") budgetPassCount++;
       if (e.decisionStatus === "Pass") decisionPassCount++;
@@ -196,10 +198,7 @@ export function getAllReps(): Rep[] {
       } catch {}
     });
 
-    const evalCount = repEvals.length || 1;
-    const callsCount = repCalls.length || 1;
-
-    return {
+    repsWithMetrics.push({
       id: r.id,
       name: r.name,
       email: r.email,
@@ -216,21 +215,23 @@ export function getAllReps(): Rep[] {
       earlyFoldCount,
       bookedRate: repCalls.length ? Math.round((bookedCount / repCalls.length) * 100) : 0,
       persona: persona || undefined,
-    };
-  });
+    });
+  }
+
+  return repsWithMetrics;
 }
 
-export function getRepById(id: string): { rep: Rep | null; calls: Call[]; snapshot: any | null } {
-  const repRecord = db.select().from(reps).where(eq(reps.id, id)).get();
+export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: Call[]; snapshot: any | null }> {
+  const repRecord = await db.select().from(reps).where(eq(reps.id, id)).get();
   if (!repRecord) return { rep: null, calls: [], snapshot: null };
 
-  const repCalls = db.select().from(calls).where(eq(calls.repId, id)).orderBy(desc(calls.createdAt)).all();
-  const repEvals = db.select().from(evaluations).where(eq(evaluations.repId, id)).all();
-  const snapshot = db.select().from(repSnapshots).where(eq(repSnapshots.repId, id)).get();
-  const persona = getRepPersona(id);
+  const repCalls = await db.select().from(calls).where(eq(calls.repId, id)).orderBy(desc(calls.createdAt)).all();
+  const repEvals = await db.select().from(evaluations).where(eq(evaluations.repId, id)).all();
+  const snapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, id)).get();
+  const persona = await getRepPersona(id);
 
-  const fullCalls: Call[] = repCalls.map((c) => {
-    const ev = repEvals.find((e) => e.callId === c.id);
+  const fullCalls: Call[] = repCalls.map((c: any) => {
+    const ev = repEvals.find((e: any) => e.callId === c.id);
     let evaluation: CallEvaluation | undefined = undefined;
     if (ev) {
       evaluation = {
@@ -271,7 +272,7 @@ export function getRepById(id: string): { rep: Rep | null; calls: Call[]; snapsh
     };
   });
 
-  const allRepsList = getAllReps();
+  const allRepsList = await getAllReps();
   const computedRep = allRepsList.find((r) => r.id === id) || {
     id: repRecord.id,
     name: repRecord.name,
@@ -284,14 +285,14 @@ export function getRepById(id: string): { rep: Rep | null; calls: Call[]; snapsh
   return { rep: computedRep, calls: fullCalls, snapshot };
 }
 
-export function getAllCalls(): Call[] {
-  const allCalls = db.select().from(calls).orderBy(desc(calls.createdAt)).all();
-  const allReps = db.select().from(reps).all();
-  const allEvals = db.select().from(evaluations).all();
+export async function getAllCalls(): Promise<Call[]> {
+  const allCalls = await db.select().from(calls).orderBy(desc(calls.createdAt)).all();
+  const allReps = await db.select().from(reps).all();
+  const allEvals = await db.select().from(evaluations).all();
 
-  return allCalls.map((c) => {
-    const rep = allReps.find((r) => r.id === c.repId);
-    const ev = allEvals.find((e) => e.callId === c.id);
+  return allCalls.map((c: any) => {
+    const rep = allReps.find((r: any) => r.id === c.repId);
+    const ev = allEvals.find((e: any) => e.callId === c.id);
     let evaluation: CallEvaluation | undefined = undefined;
 
     if (ev) {
@@ -334,12 +335,12 @@ export function getAllCalls(): Call[] {
   });
 }
 
-export function getCallById(id: string): Call | null {
-  const c = db.select().from(calls).where(eq(calls.id, id)).get();
+export async function getCallById(id: string): Promise<Call | null> {
+  const c = await db.select().from(calls).where(eq(calls.id, id)).get();
   if (!c) return null;
 
-  const rep = db.select().from(reps).where(eq(reps.id, c.repId)).get();
-  const ev = db.select().from(evaluations).where(eq(evaluations.callId, c.id)).get();
+  const rep = await db.select().from(reps).where(eq(reps.id, c.repId)).get();
+  const ev = await db.select().from(evaluations).where(eq(evaluations.callId, c.id)).get();
 
   let evaluation: CallEvaluation | undefined = undefined;
   if (ev) {
@@ -381,9 +382,9 @@ export function getCallById(id: string): Call | null {
   };
 }
 
-export function getSuperAdminReport(): SuperAdminReport {
-  const allReps = getAllReps();
-  const allCalls = getAllCalls();
+export async function getSuperAdminReport(): Promise<SuperAdminReport> {
+  const allReps = await getAllReps();
+  const allCalls = await getAllCalls();
   const completedCalls = allCalls.filter((c) => c.evaluation);
 
   const totalCalls = completedCalls.length;
@@ -399,9 +400,10 @@ export function getSuperAdminReport(): SuperAdminReport {
     totalScriptScore += c.evaluation?.sandlerBreakdown.scriptAdherence.score || 0;
   });
 
-  const repTrajectories = allReps.map((r) => {
-    const snapshot = db.select().from(repSnapshots).where(eq(repSnapshots.repId, r.id)).get();
-    return {
+  const repTrajectories = [];
+  for (const r of allReps) {
+    const snapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, r.id)).get();
+    repTrajectories.push({
       repId: r.id,
       repName: r.name,
       trajectory: (snapshot?.overallTrajectory as RepTrajectory) || r.trajectory || "stagnant",
@@ -409,8 +411,8 @@ export function getSuperAdminReport(): SuperAdminReport {
       topActiveStruggle: snapshot?.topActiveStruggle || "Handling early brush-offs",
       recentScriptScore: snapshot?.recentScriptScore || r.avgScriptScore || 5,
       callsCount: r.totalCalls || 0,
-    };
-  });
+    });
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -446,10 +448,9 @@ export function getSuperAdminReport(): SuperAdminReport {
   };
 }
 
-export function getExecutiveAnalytics(): ExecutiveAnalytics {
-  const allCalls = getAllCalls();
-  const allReps = getAllReps();
-  const completed = allCalls.filter((c) => c.evaluation);
+export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
+  const allCalls = await getAllCalls();
+  const allReps = await getAllReps();
 
   let booked = 0;
   let dropped = 0;

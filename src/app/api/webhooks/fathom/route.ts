@@ -10,8 +10,8 @@ export async function POST(req: Request) {
     
     // Fathom webhook payload schema mapping
     const repEmail = payload?.user?.email || payload?.rep_email;
-    const allReps = db.select().from(reps).all();
-    let rep = allReps.find((r) => r.email === repEmail);
+    const allReps = await db.select().from(reps).all();
+    let rep = allReps.find((r: any) => r.email === repEmail);
     if (!rep) rep = allReps[0];
 
     const transcript = payload?.transcript || payload?.text || "";
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     const callId = `fathom_${Date.now()}`;
-    db.insert(calls).values({
+    await db.insert(calls).values({
       id: callId,
       repId: rep.id,
       prospectCompany: payload?.company_name || "Enterprise Prospect",

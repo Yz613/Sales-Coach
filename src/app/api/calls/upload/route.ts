@@ -56,7 +56,8 @@ export async function POST(req: Request) {
 
     // If repId is empty or "new", create or find rep
     if (!repId || repId === "new") {
-      const existingRep = db.select().from(reps).all()[0];
+      const existingReps = await db.select().from(reps).all();
+      const existingRep = existingReps[0];
       repId = existingRep ? existingRep.id : "rep_marcus";
     }
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
 
     // Insert call
-    db.insert(calls).values({
+    await db.insert(calls).values({
       id: callId,
       repId,
       prospectCompany,

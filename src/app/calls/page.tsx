@@ -5,8 +5,8 @@ import { PhoneCall, Filter, Search, ArrowUpRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default function CallBankPage() {
-  const calls = getAllCalls();
+export default async function CallBankPage() {
+  const calls = await getAllCalls();
 
   return (
     <div className="space-y-6">

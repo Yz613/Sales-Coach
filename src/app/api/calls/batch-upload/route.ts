@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       const defaultRepId = (formData.get("defaultRepId") as string) || "";
       const defaultStage = (formData.get("defaultStage") as string) || "Cold Call";
 
-      const allReps = db.select().from(reps).all();
+      const allReps = await db.select().from(reps).all();
       const fallbackRep = allReps[0]?.id || "rep_marcus";
 
       for (let i = 0; i < files.length; i++) {
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       const callId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const now = new Date().toISOString();
 
-      db.insert(calls).values({
+      await db.insert(calls).values({
         id: callId,
         repId: item.repId,
         prospectCompany: item.prospectCompany || "Unknown Co",

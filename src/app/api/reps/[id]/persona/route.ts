@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const persona = getRepPersona(id);
+    const persona = await getRepPersona(id);
     return NextResponse.json(persona || {
       repId: id,
       experienceLevel: "Ramping AE",
@@ -29,7 +29,7 @@ export async function POST(
     const { id } = await params;
     const body = await req.json();
 
-    const saved = saveRepPersona({
+    const saved = await saveRepPersona({
       repId: id,
       experienceLevel: body.experienceLevel || "Ramping AE",
       coachingTone: body.coachingTone || "Tough Love / Direct VP",

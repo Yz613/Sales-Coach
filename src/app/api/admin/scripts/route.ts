@@ -3,7 +3,7 @@ import { getAllScripts, saveScript } from "@/lib/db/service";
 
 export async function GET() {
   try {
-    const scripts = getAllScripts();
+    const scripts = await getAllScripts();
     return NextResponse.json(scripts);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const id = body.id || `script_${Date.now()}`;
 
-    const saved = saveScript({
+    const saved = await saveScript({
       id,
       stage: body.stage,
       title: body.title,
