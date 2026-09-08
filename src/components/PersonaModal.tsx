@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, UserCheck, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import { apiPath } from "@/lib/utils";
 import type { RepPersona } from "@/types";
 
 interface PersonaModalProps {
@@ -33,7 +34,7 @@ export default function PersonaModal({
   useEffect(() => {
     if (isOpen && repId) {
       setLoading(true);
-      fetch(`/api/reps/${repId}/persona`)
+      fetch(apiPath(`/api/reps/${repId}/persona`))
         .then((res) => res.json())
         .then((data: RepPersona) => {
           if (data) {
@@ -82,7 +83,7 @@ export default function PersonaModal({
     setSaving(true);
 
     try {
-      const res = await fetch(`/api/reps/${repId}/persona`, {
+      const res = await fetch(apiPath(`/api/reps/${repId}/persona`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

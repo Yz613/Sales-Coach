@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Clock, XCircle, ArrowUpRight, ShieldCheck, Flame, PhoneCall, Calendar, UserCheck, Settings2, Loader2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, apiPath } from "@/lib/utils";
 import PersonaModal from "@/components/PersonaModal";
 import type { Rep, Call, RepPersona } from "@/types";
 
@@ -21,7 +21,7 @@ export default function RepDetailPage({
   const [isPersonaOpen, setIsPersonaOpen] = useState(false);
 
   const fetchRepData = () => {
-    fetch(`/api/reps/${id}`)
+    fetch(apiPath(`/api/reps/${id}`))
       .then((res) => res.json())
       .then((data) => {
         if (data.rep) {
