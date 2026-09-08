@@ -5,10 +5,10 @@ import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 
 const links = [
-  { href: "#how", label: "How it works" },
-  { href: "#queue", label: "The queue" },
-  { href: "#brief", label: "The brief" },
-  { href: "#access", label: "Sign in" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#queue", label: "The queue" },
+  { href: "/#brief", label: "The brief" },
+  { href: "/sign-in", label: "Sign in" },
 ];
 
 export default function LandingHeader() {
