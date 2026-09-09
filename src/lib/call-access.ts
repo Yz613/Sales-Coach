@@ -61,10 +61,7 @@ export function canViewCall(
   return ownRepIds(reps, viewer).has(call.repId) || isOwnRep({ name: call.repName }, viewer);
 }
 
-/**
- * Org members never see other people's calls, even if the preview cookie says admin.
- * Org admins can preview the member view via that cookie.
- */
+/** Org members never see other people's calls. */
 export function resolveCanViewAllCalls(input: {
   clerkConfigured: boolean;
   userId?: string | null;
@@ -77,7 +74,7 @@ export function resolveCanViewAllCalls(input: {
   }
   if (input.orgRole === "org:member") return false;
   if (input.hasOrgAdmin || input.orgRole === "org:admin") {
-    return input.isAdmin;
+    return true;
   }
   return false;
 }

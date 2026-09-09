@@ -13,10 +13,6 @@ import {
   Settings,
   Menu,
   X,
-  ShieldCheck,
-  User,
-  Check,
-  ChevronDown,
   GraduationCap,
   UserPlus,
 } from "lucide-react";
@@ -29,11 +25,10 @@ import { clerkAppearance } from "@/lib/clerk-ui";
 
 export default function Navigation() {
   const pathname = usePathname();
-  const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
+  const { isAdmin, isClerkConfigured } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
   // Admin sees full management suite including Coach; Members see only Call Bank
   const adminNavItems = [
@@ -52,13 +47,6 @@ export default function Navigation() {
   ];
 
   const currentNavItems = isAdmin ? adminNavItems : memberNavItems;
-
-  const handleRoleChange = async (newRole: "admin" | "member") => {
-    setIsRoleDropdownOpen(false);
-    if (newRole !== role) {
-      await switchRole(newRole);
-    }
-  };
 
   return (
     <>
@@ -117,75 +105,13 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Team, Role Preview, Settings, Upload & Profile */}
+          {/* Right Actions: Team, Settings, Upload & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
             {isClerkConfigured && (
               <div className="hidden sm:block">
                 <TeamSwitcher canManage={isAdmin} />
               </div>
             )}
-            {/* Interactive Role Switcher / Preview */}
-            <div className="relative">
-              <button
-                type="button"
-                suppressHydrationWarning
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                disabled={isLoading}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition"
-                title="Switch permissions view (Admin / Member)"
-              >
-                {isAdmin ? (
-                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                ) : (
-                  <User className="h-3.5 w-3.5 text-emerald-400" />
-                )}
-                <span className="hidden sm:inline">Role:</span>
-                <span suppressHydrationWarning className="font-semibold text-white capitalize">{role}</span>
-                <ChevronDown className="h-3 w-3 text-slate-500 ml-0.5" />
-              </button>
-
-              {/* Role Dropdown Menu */}
-              {isRoleDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-48 rounded-xl border border-slate-800 bg-slate-900/95 p-1.5 shadow-xl backdrop-blur-xl z-50">
-                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    Permissions Mode
-                  </div>
-                  <button
-                    onClick={() => handleRoleChange("admin")}
-                    className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
-                      isAdmin
-                        ? "bg-indigo-500/15 text-indigo-300 font-semibold"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                      Admin (Full Access)
-                    </span>
-                    {isAdmin && <Check className="h-3.5 w-3.5 text-indigo-400" />}
-                  </button>
-                  <button
-                    onClick={() => handleRoleChange("member")}
-                    className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
-                      !isAdmin
-                        ? "bg-emerald-500/15 text-emerald-300 font-semibold"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <User className="h-3.5 w-3.5 text-emerald-400" />
-                      Member (Calls Only)
-                    </span>
-                    {!isAdmin && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                  </button>
-                  {isClerkConfigured && (
-                    <div className="border-t border-slate-800 mt-1.5 pt-1.5 px-2 text-[10px] text-slate-500">
-                      Organization admins have full access
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
             {isClerkConfigured && (
               <button

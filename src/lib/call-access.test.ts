@@ -49,7 +49,7 @@ assert.equal(
     isAdmin: true,
   }),
   false,
-  "org members cannot elevate via preview cookie"
+  "org members cannot see the full call bank"
 );
 
 assert.equal(
@@ -60,8 +60,8 @@ assert.equal(
     hasOrgAdmin: true,
     isAdmin: false,
   }),
-  false,
-  "org admin previewing as member sees only their calls"
+  true,
+  "org admins keep the full call bank"
 );
 
 assert.equal(

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiPath } from "@/lib/utils";
 import type { UserRole } from "./auth";
 
@@ -14,7 +14,6 @@ interface AuthContextValue {
     email?: string;
     name?: string;
   } | null;
-  switchRole: (newRole: UserRole) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -24,7 +23,6 @@ const AuthContext = createContext<AuthContextValue>({
   isMember: false,
   isClerkConfigured: false,
   user: null,
-  switchRole: async () => {},
   isLoading: true,
 });
 
@@ -53,7 +51,6 @@ export function AuthContextProvider({
     }
   }, [clerkUser]);
 
-  // Sync role from server cookie or API on initial mount
   useEffect(() => {
     fetch(apiPath("/api/auth/role"))
       .then((res) => {
@@ -76,33 +73,12 @@ export function AuthContextProvider({
       .catch((err) => console.warn("Failed to fetch current role:", err));
   }, []);
 
-  const switchRole = useCallback(async (newRole: UserRole) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(apiPath("/api/auth/role"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
-      });
-      if (res.ok) {
-        setRole(newRole);
-        // Refresh page to apply server-side role changes & redirections
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error("Failed to switch role:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   const value: AuthContextValue = {
     role,
     isAdmin: role === "admin",
     isMember: role === "member",
     isClerkConfigured,
     user,
-    switchRole,
     isLoading,
   };
 
