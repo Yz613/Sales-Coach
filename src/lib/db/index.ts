@@ -11,6 +11,11 @@ export function getDb() {
     const ctx = getCloudflareContext();
     if (ctx && ctx.env && ctx.env.DB) {
       const { drizzle } = require("drizzle-orm/d1");
+      try {
+        ctx.env.DB.prepare("ALTER TABLE evaluations ADD COLUMN extended_review TEXT").run();
+      } catch {
+        // Column already exists, or D1 rejected a duplicate alter.
+      }
       _db = drizzle(ctx.env.DB, { schema });
       return _db;
     }
@@ -30,6 +35,14 @@ export function getDb() {
     const schemaPath = path.resolve(process.cwd(), "schema.sql");
     if (fs.existsSync(schemaPath)) {
       sqlite.exec(fs.readFileSync(schemaPath, "utf8"));
+    }
+    try {
+      const cols = sqlite.prepare("PRAGMA table_info(evaluations)").all();
+      if (!cols.some((c: { name: string }) => c.name === "extended_review")) {
+        sqlite.exec("ALTER TABLE evaluations ADD COLUMN extended_review TEXT");
+      }
+    } catch {
+      // Table may not exist yet; schema.sql creates it with the column.
     }
     _db = drizzle(sqlite, { schema });
     return _db;

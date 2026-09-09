@@ -2,12 +2,29 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCallById, getAllCalls, getActiveScriptForStage } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Flame, UserCheck, PhoneCall, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
 import TeachCoach from "@/components/TeachCoach";
+import CoachWalkthrough from "@/components/CoachWalkthrough";
+import ScorecardGrid from "@/components/ScorecardGrid";
+import TimestampedTranscript from "@/components/TimestampedTranscript";
 import { getServerAuth } from "@/lib/auth";
+import {
+  attachCitesToScorecard,
+  buildScorecardFromSandler,
+  buildWalkthroughFromTranscript,
+} from "@/lib/ai/review";
+import { formatUsd, getProvider } from "@/lib/ai/providers";
 
 export const dynamic = "force-dynamic";
+
+function clockToSeconds(stamp?: string): number {
+  if (!stamp) return 0;
+  const parts = stamp.split(":").map((p) => Number(p) || 0);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
 
 export default async function CallReviewPage({
   params,
@@ -26,6 +43,28 @@ export default async function CallReviewPage({
   const officialScript = await getActiveScriptForStage(call.callStage);
   const divergence = ev?.scriptDivergence;
   const divSummary = divergenceSummary(divergence);
+  const walkthrough = ev
+    ? (ev.walkthrough && ev.walkthrough.length > 0
+      ? ev.walkthrough
+      : buildWalkthroughFromTranscript(call.transcriptText, call.durationSeconds, ev.missedOpportunities, call.repName || "Rep"))
+    : [];
+  const scorecard = ev
+    ? (ev.scorecard && ev.scorecard.length > 0
+      ? ev.scorecard
+      : attachCitesToScorecard(
+        buildScorecardFromSandler({
+          pain: ev.sandlerBreakdown.pain,
+          budget: ev.sandlerBreakdown.budget,
+          decision: ev.sandlerBreakdown.decision,
+          scriptScore: ev.sandlerBreakdown.scriptAdherence.score,
+          missedCount: ev.missedOpportunities.length,
+          coreOutcome: ev.coreOutcome,
+          foldedEarly: ev.missedOpportunities.some((o) => !/none|leaned in|handled cleanly/i.test(o.repSurrender)),
+        }),
+        call.transcriptText,
+        call.durationSeconds
+      ))
+    : [];
 
   // Where this call ranks against every other call in the bank.
   const ranked = rankCalls(await getAllCalls());
@@ -125,7 +164,28 @@ export default async function CallReviewPage({
             <p className="text-base font-semibold text-slate-100 leading-relaxed">
               {ev.bottomLine}
             </p>
+            {ev.evaluatedWith && (
+              <p className="text-[11px] text-slate-400 font-mono">
+                Reviewed with {getProvider(ev.evaluatedWith.provider).name} · {ev.evaluatedWith.model}
+                {ev.evaluatedWith.estimatedCostUsd != null ? ` · ${formatUsd(ev.evaluatedWith.estimatedCostUsd)}` : ""}
+              </p>
+            )}
           </div>
+
+          {scorecard.length > 0 && (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
+              <div>
+                <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
+                  <ClipboardList className="h-4 w-4" /> Coaching scorecard
+                </div>
+                <h2 className="text-lg font-bold text-white mt-1">Eight metrics, each tied to a moment on the call</h2>
+                <p className="text-xs text-slate-400">Click a timestamp to jump to that line in the transcript.</p>
+              </div>
+              <ScorecardGrid metrics={scorecard} />
+            </div>
+          )}
+
+          {walkthrough.length > 0 && <CoachWalkthrough steps={walkthrough} />}
 
           {/* 3. Critical Missed Opportunities (The "Fight for the Win" Check) */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
@@ -147,13 +207,22 @@ export default async function CallReviewPage({
                   <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800">
                     {/* Left: What happened */}
                     <div className="p-4 space-y-3">
+                      {(opp.timestamp || opp.timestampSeconds != null) && (
+                        <a
+                          href={`#t-${opp.timestampSeconds ?? 0}`}
+                          className="inline-flex items-center gap-1.5 rounded bg-slate-900 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-slate-700 hover:border-blue-500"
+                        >
+                          <Clock className="h-3 w-3" />
+                          {opp.timestamp || formatDuration(opp.timestampSeconds)} on the call
+                        </a>
+                      )}
                       <div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                           <MessageSquareQuote className="h-3.5 w-3.5 text-slate-500" />
                           Prospect Opening / Soft Objection
                         </span>
                         <p className="text-sm font-semibold text-white mt-1 italic">
-                          "{opp.prospectOpening}"
+                          "{opp.prospectQuote || opp.prospectOpening}"
                         </p>
                       </div>
 
@@ -163,7 +232,7 @@ export default async function CallReviewPage({
                           Rep Surrender / Blunder
                         </span>
                         <p className="text-xs text-rose-300 mt-1 font-medium">
-                          "{opp.repSurrender}"
+                          "{opp.repQuote || opp.repSurrender}"
                         </p>
                       </div>
                     </div>
@@ -344,7 +413,13 @@ export default async function CallReviewPage({
                             {m.status}
                           </span>
                         </div>
+                        {m.timestamp && (
+                          <a href={`#t-${clockToSeconds(m.timestamp)}`} className="inline-flex font-mono text-[11px] text-blue-300">
+                            {m.timestamp}
+                          </a>
+                        )}
                         <p className="text-xs text-slate-400 leading-relaxed">{m.note}</p>
+                        {m.quote && <p className="text-xs text-slate-300 italic">“{m.quote}”</p>}
                       </div>
                     </div>
                   );
@@ -428,9 +503,7 @@ export default async function CallReviewPage({
           </h3>
         </div>
         <div className="p-6 bg-slate-950">
-          <pre className="font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
-            {call.transcriptText}
-          </pre>
+          <TimestampedTranscript transcriptText={call.transcriptText} durationSeconds={call.durationSeconds} />
         </div>
       </div>
     </div>

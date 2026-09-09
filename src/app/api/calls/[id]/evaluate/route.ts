@@ -20,6 +20,7 @@ export async function POST(
       callStage: call.callStage,
       prospectCompany: call.prospectCompany,
       prospectName: call.prospectName,
+      durationSeconds: call.durationSeconds,
     });
 
     return NextResponse.json({ success: true, evaluation });

@@ -1,5 +1,11 @@
 import { db } from "./index";
 import { reps, calls, evaluations, repSnapshots, scripts, repPersonas, appSettings } from "./schema";
+import {
+  attachCitesToScorecard,
+  buildScorecardFromSandler,
+  buildWalkthroughFromTranscript,
+  stampMissedOpportunities,
+} from "../ai/review";
 
 export function seed() {
   console.log("Seeding database with realistic sales reps, personas, playbooks, and calls...");
@@ -17,6 +23,11 @@ export function seed() {
   db.insert(appSettings).values({
     key: "active_model",
     value: "gemini-3.8-flash",
+    updatedAt: new Date().toISOString(),
+  }).run();
+  db.insert(appSettings).values({
+    key: "ai_provider",
+    value: "gemini",
     updatedAt: new Date().toISOString(),
   }).run();
 
@@ -484,6 +495,23 @@ Karen: Put it on our calendars. I'll bring Dan and Elena.`,
     const { evaluation, ...callData } = c;
     db.insert(calls).values(callData).run();
 
+    const missed = stampMissedOpportunities(evaluation.missedOpportunities, c.transcriptText, c.durationSeconds);
+    const foldedEarly = missed.some((o) => !/none|leaned in|handled cleanly/i.test(o.repSurrender));
+    const scorecard = attachCitesToScorecard(
+      buildScorecardFromSandler({
+        pain: { status: evaluation.painStatus as any, evidence: evaluation.painEvidence },
+        budget: { status: evaluation.budgetStatus as any, evidence: evaluation.budgetEvidence },
+        decision: { status: evaluation.decisionStatus as any, evidence: evaluation.decisionEvidence },
+        scriptScore: evaluation.scriptAdherenceScore,
+        missedCount: missed.filter((o) => !/none|leaned in|handled cleanly/i.test(o.repSurrender)).length,
+        coreOutcome: c.coreOutcome,
+        foldedEarly,
+      }),
+      c.transcriptText,
+      c.durationSeconds
+    );
+    const walkthrough = buildWalkthroughFromTranscript(c.transcriptText, c.durationSeconds, missed, seedReps.find((r) => r.id === c.repId)?.name || "Rep");
+
     db.insert(evaluations).values({
       id: `eval_${c.id}`,
       callId: c.id,
@@ -498,9 +526,10 @@ Karen: Put it on our calendars. I'll bring Dan and Elena.`,
       scriptAdherenceScore: evaluation.scriptAdherenceScore,
       scriptFeedback: evaluation.scriptFeedback,
       scriptDivergence: JSON.stringify(evaluation.scriptDivergence),
-      missedOpportunities: JSON.stringify(evaluation.missedOpportunities),
+      missedOpportunities: JSON.stringify(missed),
       topFixes: JSON.stringify(evaluation.topFixes),
       rawMarkdown: `### Manager's Take\n${evaluation.bottomLine}`,
+      extendedReview: JSON.stringify({ scorecard, walkthrough }),
       createdAt: c.createdAt,
     }).run();
   }

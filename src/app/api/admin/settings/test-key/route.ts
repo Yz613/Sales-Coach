@@ -1,39 +1,35 @@
 import { NextResponse } from "next/server";
-import { getSetting } from "@/lib/db/service";
+import { pingProvider } from "@/lib/ai/llm";
+import { resolveAiSettings } from "@/lib/ai/settings";
+import { getProvider, isProviderId, type ProviderId } from "@/lib/ai/providers";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const apiKey = body.apiKey || (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
-    const model = (await getSetting("active_model")) || "gemini-3.8-flash";
+    const stored = await resolveAiSettings(body.apiKey);
+    const providerId: ProviderId = isProviderId(body.provider) ? body.provider : stored.providerId;
+    const model = (body.model || stored.model || getProvider(providerId).models[0].id) as string;
+    const apiKey = (body.apiKey || stored.apiKey || "").trim();
 
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: "No Gemini API key provided or found." }, { status: 400 });
-    }
-
-    // Ping Gemini API with a test query
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: "Respond with the single word 'OK'." }] }]
-      })
-    });
-
-    const data = await res.json();
-    if (!res.ok || data.error) {
       return NextResponse.json({
         success: false,
-        error: data.error?.message || "Invalid API key or network error."
+        error: `No ${getProvider(providerId).name} API key provided or found.`,
       }, { status: 400 });
     }
 
+    await pingProvider(providerId, apiKey, model);
+
     return NextResponse.json({
       success: true,
-      message: "API Key verified successfully with Google Gemini!",
-      model
+      message: `API key verified with ${getProvider(providerId).name} (${model}).`,
+      provider: providerId,
+      model,
     });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      error: err.message || "Failed to verify API key",
+    }, { status: 400 });
   }
 }
