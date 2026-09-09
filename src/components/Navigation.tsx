@@ -18,10 +18,12 @@ import {
   Check,
   ChevronDown,
   GraduationCap,
+  UserPlus,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
 import TeamSwitcher from "./TeamSwitcher";
+import InviteTeammatesModal from "./InviteTeammatesModal";
 import { UserButton, Show, SignInButton, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-ui";
 
@@ -29,6 +31,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
@@ -40,6 +43,7 @@ export default function Navigation() {
     { label: "Reps", href: "/reps", icon: Users },
     { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
     { label: "Scripts", href: "/admin/scripts", icon: BookOpen },
+    { label: "Invite", href: "/invite", icon: UserPlus },
   ];
 
   const memberNavItems = [
@@ -182,6 +186,17 @@ export default function Navigation() {
               )}
             </div>
 
+            {isAdmin && isClerkConfigured && (
+              <button
+                type="button"
+                onClick={() => setIsInviteOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/20 transition"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Invite teammates</span>
+              </button>
+            )}
+
             {/* Admin-only Settings Icon */}
             {isAdmin && (
               <Link
@@ -291,6 +306,20 @@ export default function Navigation() {
                 );
               })}
 
+              {isAdmin && isClerkConfigured && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsInviteOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-sky-200 hover:bg-slate-900"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Invite teammates</span>
+                </button>
+              )}
+
               {isAdmin && (
                 <Link
                   href="/admin/settings"
@@ -315,6 +344,7 @@ export default function Navigation() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
       />
+      <InviteTeammatesModal open={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
     </>
   );
 }
