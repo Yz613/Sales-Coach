@@ -12,6 +12,15 @@
 		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" }
 	],
+	// Non-secret Clerk config (publishable key is public). The secret key is set
+	// separately via `wrangler secret put CLERK_SECRET_KEY` and is NOT committed.
+	"vars": {
+		"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsucmVmcmVzaHF1ZXVlLmNvbSQ",
+		"NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/app/sign-in",
+		"NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/app/sign-up",
+		"NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/app",
+		"NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/app"
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"

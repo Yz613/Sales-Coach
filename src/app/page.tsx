@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { getSuperAdminReport, getAllCalls } from "@/lib/db/service";
 import { TrendingUp, AlertTriangle, ShieldCheck, Flame, ArrowUpRight, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -6,6 +7,10 @@ import { formatDate } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboard() {
+  // Base-path root can bypass the middleware matcher under OpenNext, so enforce
+  // auth at the resource level here as well (Clerk's recommended approach).
+  await auth.protect();
+
   const report = await getSuperAdminReport();
   const allCalls = await getAllCalls();
   const recentCalls = allCalls.slice(0, 6);
