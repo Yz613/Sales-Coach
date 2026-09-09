@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldAlert, Users, PhoneCall, PlusCircle, BarChart3, BookOpen, Settings } from "lucide-react";
+import { ShieldAlert, Users, PhoneCall, PlusCircle, BarChart3, BookOpen, Settings, LogIn } from "lucide-react";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import UploadModal from "./UploadModal";
 
 export default function Navigation() {
@@ -79,6 +80,20 @@ export default function Navigation() {
               <PlusCircle className="h-4 w-4" />
               Upload Calls
             </button>
+
+            <Show
+              when="signed-in"
+              fallback={
+                <SignInButton mode="redirect">
+                  <button className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                    <LogIn className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="hidden sm:inline">Sign In</span>
+                  </button>
+                </SignInButton>
+              }
+            >
+              <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
+            </Show>
           </div>
         </div>
       </header>
