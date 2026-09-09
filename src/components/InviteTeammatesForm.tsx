@@ -33,6 +33,7 @@ export default function InviteTeammatesForm({
 
   const loadTeam = useCallback(async () => {
     if (!isSignedIn) return;
+    // Pending team-selection sessions are signed out on the server.
     setLoadingTeam(true);
     try {
       const res = await fetch(apiPath("/api/team"));
