@@ -1,4 +1,5 @@
 import { CreateOrganization } from "@clerk/nextjs";
+import ClerkGate from "@/components/ClerkGate";
 import { clerkAppearance, clerkUrl } from "@/lib/clerk-ui";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +11,13 @@ export default function CreateOrganizationPage() {
         <h1 className="text-xl font-bold text-white">Create an organization</h1>
         <p className="text-sm text-slate-400">Teams share reps, calls, scripts, and coach settings.</p>
       </div>
-      <CreateOrganization
-        routing="hash"
-        afterCreateOrganizationUrl={clerkUrl("/")}
-        appearance={clerkAppearance}
-      />
+      <ClerkGate>
+        <CreateOrganization
+          routing="hash"
+          afterCreateOrganizationUrl={clerkUrl("/")}
+          appearance={clerkAppearance}
+        />
+      </ClerkGate>
     </div>
   );
 }

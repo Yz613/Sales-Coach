@@ -1,4 +1,5 @@
 import { OrganizationList } from "@clerk/nextjs";
+import ClerkGate from "@/components/ClerkGate";
 import { clerkAppearance, clerkUrl } from "@/lib/clerk-ui";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +11,14 @@ export default function SelectOrganizationPage() {
         <h1 className="text-xl font-bold text-white">Choose your organization</h1>
         <p className="text-sm text-slate-400">Create or select a team workspace to continue.</p>
       </div>
-      <OrganizationList
-        hidePersonal
-        afterSelectOrganizationUrl={clerkUrl("/")}
-        afterCreateOrganizationUrl={clerkUrl("/")}
-        appearance={clerkAppearance}
-      />
+      <ClerkGate>
+        <OrganizationList
+          hidePersonal
+          afterSelectOrganizationUrl={clerkUrl("/")}
+          afterCreateOrganizationUrl={clerkUrl("/")}
+          appearance={clerkAppearance}
+        />
+      </ClerkGate>
     </div>
   );
 }
