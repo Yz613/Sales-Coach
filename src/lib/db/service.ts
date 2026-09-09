@@ -160,6 +160,50 @@ export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
   };
 }
 
+// Resolve a rep by id, or create one from a name (the app has no separate rep
+// CRUD, so uploads create reps on demand). Returns the rep id to attach calls to.
+export async function getOrCreateRep(
+  repId?: string,
+  repName?: string,
+  repRole?: string
+): Promise<string> {
+  if (repId && repId !== "new") {
+    const existing = await db.select().from(reps).where(eq(reps.id, repId)).get();
+    if (existing) return existing.id;
+  }
+
+  const name = (repName || "").trim();
+  if (name) {
+    const all = await db.select().from(reps).all();
+    const match = all.find(
+      (r: any) => r.name.toLowerCase() === name.toLowerCase()
+    );
+    if (match) return match.id;
+  }
+
+  const slug =
+    (name || "rep")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 24) || "rep";
+  const id = `rep_${slug}_${Date.now().toString(36)}`;
+
+  await db
+    .insert(reps)
+    .values({
+      id,
+      name: name || "New Rep",
+      email: `${slug}@company.io`,
+      role: (repRole || "").trim() || "Sales Rep",
+      avatarUrl: null,
+      createdAt: new Date().toISOString(),
+    })
+    .run();
+
+  return id;
+}
+
 // --- Reps & Calls ---
 export async function getAllReps(): Promise<Rep[]> {
   const allReps = await db.select().from(reps).all();

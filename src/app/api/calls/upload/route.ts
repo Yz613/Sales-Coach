@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { calls, reps } from "@/lib/db/schema";
+import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
+import { getOrCreateRep } from "@/lib/db/service";
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +10,7 @@ export async function POST(req: Request) {
 
     let repId = "";
     let repName = "";
+    let repRole = "";
     let prospectCompany = "";
     let prospectName = "";
     let callStage = "Cold Call";
@@ -19,6 +21,7 @@ export async function POST(req: Request) {
       const formData = await req.formData();
       repId = (formData.get("repId") as string) || "";
       repName = (formData.get("repName") as string) || "";
+      repRole = (formData.get("repRole") as string) || "";
       prospectCompany = (formData.get("prospectCompany") as string) || "Unknown Co";
       prospectName = (formData.get("prospectName") as string) || "Prospect";
       callStage = (formData.get("callStage") as string) || "Cold Call";
@@ -43,6 +46,7 @@ export async function POST(req: Request) {
       const body = await req.json();
       repId = body.repId || "";
       repName = body.repName || "";
+      repRole = body.repRole || "";
       prospectCompany = body.prospectCompany || "Unknown Co";
       prospectName = body.prospectName || "Prospect";
       callStage = body.callStage || "Cold Call";
@@ -54,12 +58,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transcript text or call file is required" }, { status: 400 });
     }
 
-    // If repId is empty or "new", create or find rep
-    if (!repId || repId === "new") {
-      const existingReps = await db.select().from(reps).all();
-      const existingRep = existingReps[0];
-      repId = existingRep ? existingRep.id : "rep_marcus";
-    }
+    // Resolve the rep (creating one from the provided name when needed).
+    repId = await getOrCreateRep(repId, repName, repRole);
 
     const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();

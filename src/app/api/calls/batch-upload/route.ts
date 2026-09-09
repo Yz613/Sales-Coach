@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { calls, reps } from "@/lib/db/schema";
+import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
+import { getOrCreateRep } from "@/lib/db/service";
 
 interface BatchItem {
   repId: string;
@@ -22,10 +23,11 @@ export async function POST(req: Request) {
       const formData = await req.formData();
       const files = formData.getAll("files") as File[];
       const defaultRepId = (formData.get("defaultRepId") as string) || "";
+      const defaultRepName = (formData.get("defaultRepName") as string) || "";
+      const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
       const defaultStage = (formData.get("defaultStage") as string) || "Cold Call";
 
-      const allReps = await db.select().from(reps).all();
-      const fallbackRep = allReps[0]?.id || "rep_marcus";
+      const resolvedRepId = await getOrCreateRep(defaultRepId, defaultRepName, defaultRepRole);
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
 
         const baseName = f.name.replace(/\.[^/.]+$/, "");
         itemsToProcess.push({
-          repId: defaultRepId || fallbackRep,
+          repId: resolvedRepId,
           prospectCompany: `Company from ${baseName}`,
           prospectName: `Contact (${baseName})`,
           callStage: defaultStage,
