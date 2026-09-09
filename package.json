@@ -7,7 +7,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/public-path.test.ts src/lib/clerk-env.test.ts && tsx src/lib/callStages.test.ts && tsx src/lib/roles.test.ts && tsx src/lib/inviteEmails.test.ts && tsx src/lib/ai/providers.test.ts && tsx src/lib/transcript.test.ts && tsx src/lib/ai/review.test.ts",
+    "test": "tsx --test src/lib/public-path.test.ts src/lib/clerk-env.test.ts && tsx src/lib/callStages.test.ts && tsx src/lib/roles.test.ts && tsx src/lib/inviteEmails.test.ts && tsx src/lib/ai/providers.test.ts && tsx src/lib/transcript.test.ts && tsx src/lib/ai/review.test.ts && tsx src/lib/dashboardLayout.test.ts",
     "db:seed": "tsx src/lib/db/seed.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
