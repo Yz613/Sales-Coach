@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 
 export type UserRole = "admin" | "member";
 
@@ -17,10 +18,7 @@ export interface AuthUser {
  * Check whether Clerk environment keys are present.
  */
 export function isClerkConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.trim() !== ""
-  );
+  return hasClerkPublishableKey();
 }
 
 /**
@@ -38,7 +36,9 @@ export async function getServerAuth(): Promise<AuthUser> {
   let name: string | undefined;
   let clerkRole: UserRole | undefined;
 
-  if (clerkConfigured) {
+  // Only call auth() when clerkMiddleware will also run. An inlined
+  // publishable key alone makes Clerk throw "can't detect clerkMiddleware".
+  if (hasClerkServerAuth()) {
     try {
       const { auth, currentUser } = await import("@clerk/nextjs/server");
       const authData = await auth();

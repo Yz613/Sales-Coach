@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { hasClerkServerAuth } from "@/lib/clerk-env";
 import {
   getPublicPath,
   toAppPath,
@@ -26,12 +27,7 @@ const isAdminApiRoute = createRouteMatcher([
   "/api/reps/(.*)/persona",
 ]);
 
-const hasClerkKey = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
-  // clerkMiddleware throws without a secret; the publishable key is inlined
-  // at build time so it is not a sufficient signal on its own.
-  process.env.CLERK_SECRET_KEY?.trim()
-);
+const hasClerkKey = hasClerkServerAuth();
 
 function redirectApexAliases(req: NextRequest): NextResponse | null {
   const alias = getApexAliasRedirect(req.url);
