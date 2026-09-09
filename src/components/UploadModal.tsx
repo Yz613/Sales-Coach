@@ -466,7 +466,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Apex Freight Logistics"
+                  placeholder="e.g. Acme Corp"
                   value={prospectCompany}
                   onChange={(e) => setProspectCompany(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
@@ -480,7 +480,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Greg Miller (VP Ops)"
+                  placeholder="e.g. Jane Doe (VP Operations)"
                   value={prospectName}
                   onChange={(e) => setProspectName(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
@@ -495,7 +495,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 </label>
                 <textarea
                   rows={8}
-                  placeholder={`Rep: Hey Greg, Marcus with CloudFlow here...\nProspect: We already got a quote from FreightPulse last week.\nRep: Totally get that, FreightPulse is solid. But usually when VP of Ops tell us that...`}
+                  placeholder={`Rep: Hi, this is [rep] from [your company]...\nProspect: We're already working with another vendor.\nRep: Totally understand. Quick question before I let you go — what's the one thing you'd change about how that's working today?`}
                   value={transcriptText}
                   onChange={(e) => setTranscriptText(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"

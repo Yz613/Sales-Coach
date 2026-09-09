@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         let text = "";
 
         if (f.name.endsWith(".mp3") || f.name.endsWith(".wav") || f.name.endsWith(".m4a")) {
-          text = `[Audio File Ingested: ${f.name}]\nProspect: Hello, who is this?\nRep: Calling from CloudFlow to check on your current pipeline delays.\nProspect: We are already using an existing vendor and don't need this.\nRep: Understood, thanks.`;
+          text = `[Audio file ingested: ${f.name}. Automatic transcription is not configured, so paste the transcript for a full evaluation.]`;
         } else {
           text = buffer.toString("utf-8");
         }

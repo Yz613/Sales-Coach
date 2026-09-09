@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         if (file.type.includes("audio") || file.name.endsWith(".mp3") || file.name.endsWith(".wav") || file.name.endsWith(".m4a")) {
           // Note for audio: If Gemini API key is configured with multimodal support, it can process directly.
           // For now, we simulate/extract transcript or note audio received.
-          transcriptText = `[Audio File Ingested: ${file.name} (${Math.round(file.size / 1024)} KB)]\n\nProspect: Hello? What is this about?\n${repName || "Rep"}: Hi, calling regarding your recent operational challenges.\nProspect: We already have an existing vendor and don't need this.\n${repName || "Rep"}: Understood, just send an email and I'll review it.\nProspect: Bye.`;
+          transcriptText = `[Audio file ingested: ${file.name} (${Math.round(file.size / 1024)} KB). Automatic transcription is not configured, so paste the transcript for a full evaluation.]`;
         } else {
           transcriptText = buffer.toString("utf-8");
         }
