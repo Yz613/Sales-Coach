@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	"main": "cloudflare/worker.js",
 	"name": "sales-coach",
 	"compatibility_date": "2026-09-08",
 	"compatibility_flags": [
@@ -10,7 +10,10 @@
 	"workers_dev": true,
 	"routes": [
 		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" }
+		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/calls", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/calls/*", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/favicon.ico", "zone_name": "refreshqueue.com" }
 	],
 	// Non-secret Clerk config (publishable key is public). The secret key is set
 	// separately via `wrangler secret put CLERK_SECRET_KEY` and is NOT committed.
