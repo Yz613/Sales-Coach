@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Mail, UserPlus, X } from "lucide-react";
 import { useOrganization, useUser } from "@clerk/nextjs";
@@ -26,8 +26,18 @@ export default function InviteTeammatesForm({
   const [emailText, setEmailText] = useState("");
   const [inviteRole, setInviteRole] = useState<"org:admin" | "org:member">("org:member");
   const [inviting, setInviting] = useState(false);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const canInvite = membership?.role === "org:admin";
+
+  useEffect(() => {
+    if (isLoaded) {
+      setLoadTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setLoadTimedOut(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [isLoaded]);
 
   const sendInvites = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +91,16 @@ export default function InviteTeammatesForm({
   };
 
   if (!isLoaded) {
+    if (loadTimedOut) {
+      return (
+        <div className="space-y-2 text-sm text-slate-300">
+          <p>Couldn’t load the team. Refresh, or pick a team and try again.</p>
+          <Link href="/select-organization" className="inline-flex text-sky-300 hover:text-sky-200">
+            Choose team
+          </Link>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center gap-2 text-sm text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin" />

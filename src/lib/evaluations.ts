@@ -1,4 +1,4 @@
-import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus } from "@/types";
+import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, ScriptDivergence } from "@/types";
 import { parseExtendedReview, stampMissedOpportunities } from "@/lib/ai/review";
 
 export interface EvaluationRow {
@@ -22,6 +22,26 @@ export interface EvaluationRow {
   createdAt: string;
 }
 
+function parseJsonArray<T>(raw: string | null | undefined, fallback: T[]): T[] {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseJsonObject<T>(raw: string | null | undefined): T | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function hydrateEvaluation(
   ev: EvaluationRow,
   extras: {
@@ -33,22 +53,12 @@ export function hydrateEvaluation(
   }
 ): CallEvaluation {
   const extended = parseExtendedReview(ev.extendedReview);
-  let missed: MissedOpportunity[] = [];
-  try {
-    missed = JSON.parse(ev.missedOpportunities || "[]");
-  } catch {
-    missed = [];
-  }
+  let missed = parseJsonArray<MissedOpportunity>(ev.missedOpportunities, []);
   if (extras.transcriptText) {
     missed = stampMissedOpportunities(missed, extras.transcriptText, extras.durationSeconds || 0);
   }
 
-  let topFixes: [PriorityFix, PriorityFix] | PriorityFix[] = [];
-  try {
-    topFixes = JSON.parse(ev.topFixes || "[]");
-  } catch {
-    topFixes = [];
-  }
+  const topFixes = parseJsonArray<PriorityFix>(ev.topFixes, []);
 
   return {
     id: ev.id,
@@ -65,7 +75,7 @@ export function hydrateEvaluation(
       decision: { status: ev.decisionStatus as SandlerStatus, evidence: ev.decisionEvidence },
       scriptAdherence: { score: ev.scriptAdherenceScore, feedback: ev.scriptFeedback },
     },
-    scriptDivergence: ev.scriptDivergence ? JSON.parse(ev.scriptDivergence) : undefined,
+    scriptDivergence: parseJsonObject<ScriptDivergence>(ev.scriptDivergence),
     topFixes: topFixes as [PriorityFix, PriorityFix],
     scorecard: extended?.scorecard,
     walkthrough: extended?.walkthrough,
