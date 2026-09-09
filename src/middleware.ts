@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
+import { resolveUserRole } from "@/lib/roles";
 import {
   getPublicPath,
   toAppPath,
@@ -71,18 +72,18 @@ const clerkHandler = hasClerkKey
       }
 
       const cookieRole = req.cookies.get("sc_role")?.value;
-      let role = cookieRole;
-
-      if (!role) {
-        const metadataRole = (authData.sessionClaims?.metadata as { role?: string } | undefined)?.role;
-        if (metadataRole === "admin" || metadataRole === "member") {
-          role = metadataRole;
-        } else if (authData.orgRole === "org:admin") {
-          role = "admin";
-        } else {
-          role = "member";
-        }
-      }
+      const metadataRole = (authData.sessionClaims?.metadata as { role?: string } | undefined)?.role;
+      const hasOrgAdmin =
+        (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
+        authData.orgRole === "org:admin";
+      const role = resolveUserRole({
+        cookieRole,
+        orgRole: authData.orgRole,
+        hasOrgAdmin,
+        metadataRole,
+        clerkConfigured: true,
+        userId: authData.userId,
+      });
 
       if (role === "member") {
         const denied = enforceMemberBoundaries(req);
@@ -101,8 +102,11 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     return clerkHandler(request, event);
   }
 
-  // Fallback when Clerk keys are not yet configured in .env:
-  const role = request.cookies.get("sc_role")?.value || "admin";
+  const role = resolveUserRole({
+    cookieRole: request.cookies.get("sc_role")?.value || "admin",
+    clerkConfigured: false,
+    userId: null,
+  });
   if (role === "member") {
     const denied = enforceMemberBoundaries(request);
     if (denied) return denied;

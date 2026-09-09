@@ -52,6 +52,10 @@ describe("route classifiers", () => {
     assert.equal(isPublicAuthRoute("/sign-in"), true);
     assert.equal(isPublicAuthRoute("/app/sign-in"), true);
     assert.equal(isPublicAuthRoute("/app/sign-up/continue"), true);
+    assert.equal(isPublicAuthRoute("/app/select-organization"), true);
+    assert.equal(isPublicAuthRoute("/app/create-organization"), true);
+    assert.equal(isPublicAuthRoute("/app/organization"), true);
+    assert.equal(isPublicAuthRoute("/app/user"), true);
     assert.equal(isPublicAuthRoute("/app/coach"), false);
   });
 

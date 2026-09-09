@@ -4,6 +4,7 @@ import React from "react";
 import { AuthContextProvider } from "@/lib/auth-context";
 import { ClerkProvider, useUser } from "@clerk/nextjs";
 import type { UserRole } from "@/lib/auth";
+import { CLERK_PATHS, clerkAppearance } from "@/lib/clerk-ui";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -12,7 +13,6 @@ interface AuthProviderProps {
   publishableKey?: string;
 }
 
-// Inner component used when ClerkProvider is active to link Clerk's useUser with our AuthContext
 function ClerkBridge({ children, initialRole = "admin" }: { children: React.ReactNode; initialRole?: UserRole }) {
   const { user } = useUser();
 
@@ -47,18 +47,19 @@ export default function AuthProvider({
     return (
       <ClerkProvider
         publishableKey={resolvedKey}
-        signInUrl="/app/sign-in"
-        signUpUrl="/app/sign-up"
-        signInFallbackRedirectUrl="/app"
-        signUpFallbackRedirectUrl="/app"
-        afterSignOutUrl="/app"
+        appearance={clerkAppearance}
+        signInUrl={CLERK_PATHS.signIn}
+        signUpUrl={CLERK_PATHS.signUp}
+        signInFallbackRedirectUrl={CLERK_PATHS.afterSignIn}
+        signUpFallbackRedirectUrl={CLERK_PATHS.afterSignIn}
+        afterSignOutUrl={CLERK_PATHS.afterSignOut}
+        taskUrls={{ "choose-organization": CLERK_PATHS.selectOrganization }}
       >
         <ClerkBridge initialRole={initialRole}>{children}</ClerkBridge>
       </ClerkProvider>
     );
   }
 
-  // Graceful fallback when Clerk keys are not yet configured in .env
   return (
     <AuthContextProvider initialRole={initialRole} isClerkConfigured={false}>
       {children}

@@ -33,3 +33,13 @@ body {
   letter-spacing: 0.05em;
   font-weight: 600;
 }
+
+/* Clerk popovers/modals must sit above the sticky app header (z-40). */
+.cl-modalBackdrop,
+.cl-modalContent,
+.cl-userButtonPopoverCard,
+.cl-organizationSwitcherPopoverCard,
+.cl-userButtonPopoverRootBox,
+.cl-organizationSwitcherPopoverRootBox {
+  z-index: 80 !important;
+}
