@@ -5,6 +5,7 @@ import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Flame, UserCheck, PhoneCall, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
 import TeachCoach from "@/components/TeachCoach";
+import { getServerAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function CallReviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const auth = await getServerAuth();
   const call = await getCallById(id);
 
   if (!call) {
@@ -61,7 +63,14 @@ export default async function CallReviewPage({
               Call with {call.prospectName}
             </h1>
             <p className="text-sm text-slate-400">
-              {call.prospectCompany} • Rep: <Link href={`/reps/${call.repId}`} className="text-blue-400 hover:underline font-medium">{call.repName}</Link>
+              {call.prospectCompany} • Rep:{" "}
+              {auth.isAdmin ? (
+                <Link href={`/reps/${call.repId}`} className="text-blue-400 hover:underline font-medium">
+                  {call.repName}
+                </Link>
+              ) : (
+                <span className="text-slate-200 font-medium">{call.repName}</span>
+              )}
             </p>
           </div>
 
