@@ -3,6 +3,7 @@ import { getAllCalls } from "@/lib/db/service";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { PhoneCall, Filter, Search, ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import InviteTeammatesCard from "@/components/InviteTeammatesCard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export default async function CallBankPage() {
 
   return (
     <div className="space-y-6">
+      <InviteTeammatesCard compact />
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">

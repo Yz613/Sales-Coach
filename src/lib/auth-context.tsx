@@ -47,6 +47,12 @@ export function AuthContextProvider({
   const [user, setUser] = useState(clerkUser);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (clerkUser?.id) {
+      setUser(clerkUser);
+    }
+  }, [clerkUser]);
+
   // Sync role from server cookie or API on initial mount
   useEffect(() => {
     fetch(apiPath("/api/auth/role"))

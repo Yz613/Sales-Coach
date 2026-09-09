@@ -43,3 +43,10 @@ body {
 .cl-organizationSwitcherPopoverRootBox {
   z-index: 80 !important;
 }
+
+/* Hide vendor footer branding on auth widgets. */
+.cl-footer,
+.cl-internal-b3fm6y,
+[class*="cl-footer"] {
+  display: none !important;
+}

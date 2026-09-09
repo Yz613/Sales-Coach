@@ -24,7 +24,13 @@ export default async function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-blue-600 selection:text-white" suppressHydrationWarning>
-        <AuthProvider initialRole={auth.role} publishableKey={publishableKey}>
+        <AuthProvider
+          initialRole={auth.role}
+          publishableKey={publishableKey}
+          initialUser={
+            auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
+          }
+        >
           <Navigation />
           <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
             {children}

@@ -48,6 +48,7 @@ export default function Navigation() {
 
   const memberNavItems = [
     { label: "Call Bank", href: "/calls", icon: PhoneCall },
+    { label: "Invite", href: "/invite", icon: UserPlus },
   ];
 
   const currentNavItems = isAdmin ? adminNavItems : memberNavItems;
@@ -186,14 +187,14 @@ export default function Navigation() {
               )}
             </div>
 
-            {isAdmin && isClerkConfigured && (
+            {isClerkConfigured && (
               <button
                 type="button"
                 onClick={() => setIsInviteOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/20 transition"
+                className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-sky-600/30 hover:bg-sky-500 transition"
               >
                 <UserPlus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Invite teammates</span>
+                <span>Invite teammates</span>
               </button>
             )}
 
@@ -306,7 +307,7 @@ export default function Navigation() {
                 );
               })}
 
-              {isAdmin && isClerkConfigured && (
+              {isClerkConfigured && (
                 <button
                   type="button"
                   onClick={() => {
