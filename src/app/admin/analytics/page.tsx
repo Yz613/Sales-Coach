@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BarChart3, TrendingUp, AlertTriangle, ShieldCheck, Flame, Users, ArrowUpRight, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
 import { apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 import type { ExecutiveAnalytics } from "@/types";
 
 export default function AnalyticsPage() {
+  const router = useRouter();
+  const { isAdmin, isLoading: authLoading } = useAppAuth();
   const [data, setData] = useState<ExecutiveAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/calls");
+    }
+  }, [isAdmin, authLoading, router]);
 
   useEffect(() => {
     fetch(apiPath("/api/admin/analytics"))

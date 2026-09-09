@@ -1,16 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Plus, Edit2, Trash2, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { useAppAuth } from "@/lib/auth-context";
 import ScriptEditorModal from "@/components/ScriptEditorModal";
 import { apiPath } from "@/lib/utils";
 import type { SalesScript } from "@/types";
 
 export default function ScriptsPage() {
+  const router = useRouter();
+  const { isAdmin, isLoading: authLoading } = useAppAuth();
   const [scripts, setScripts] = useState<SalesScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedScript, setSelectedScript] = useState<SalesScript | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/calls");
+    }
+  }, [isAdmin, authLoading, router]);
 
   const fetchScripts = () => {
     fetch(apiPath("/api/admin/scripts"))

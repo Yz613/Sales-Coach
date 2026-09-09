@@ -2,8 +2,10 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Clock, XCircle, ArrowUpRight, ShieldCheck, Flame, PhoneCall, Calendar, UserCheck, Settings2, Loader2 } from "lucide-react";
 import { formatDate, apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 import PersonaModal from "@/components/PersonaModal";
 import type { Rep, Call, RepPersona } from "@/types";
 
@@ -13,12 +15,20 @@ export default function RepDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { isAdmin, isLoading: authLoading } = useAppAuth();
   const [rep, setRep] = useState<Rep | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [snapshot, setSnapshot] = useState<any>(null);
   const [persona, setPersona] = useState<RepPersona | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPersonaOpen, setIsPersonaOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/calls");
+    }
+  }, [isAdmin, authLoading, router]);
 
   const fetchRepData = () => {
     fetch(apiPath(`/api/reps/${id}`))

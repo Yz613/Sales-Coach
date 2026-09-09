@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
+  const { isAdmin, isClerkConfigured, isLoading: authLoading } = useAppAuth();
   const [apiKey, setApiKey] = useState("");
   const [activeModel, setActiveModel] = useState("gemini-3.8-flash");
 
@@ -15,6 +19,12 @@ export default function AdminSettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/calls");
+    }
+  }, [isAdmin, authLoading, router]);
 
   useEffect(() => {
     fetch(apiPath("/api/admin/settings"))
@@ -187,6 +197,63 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
+        {/* Clerk Role-Based Access Control (RBAC) */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-5">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <Lock className="h-5 w-5 text-indigo-400" />
+            <div>
+              <h2 className="text-base font-bold text-white">Clerk Authentication & Role Permissions</h2>
+              <p className="text-xs text-slate-400">
+                Configure role access levels: Admins have complete access; Members are restricted to call uploads & scoring reviews.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 text-xs text-slate-300">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <span className="font-semibold text-white">Clerk Integration Status:</span>
+                <span className="text-slate-400">
+                  {isClerkConfigured ? "Connected (Keys detected in environment)" : "Ready to connect (Using local role emulator)"}
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                isClerkConfigured ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+              }`}>
+                {isClerkConfigured ? "ACTIVE" : "STANDBY"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3.5 rounded-lg border border-slate-800 bg-slate-950/60 space-y-2">
+                <div className="font-semibold text-indigo-400 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin Role
+                </div>
+                <p className="text-slate-400 leading-relaxed">
+                  Has unrestricted access to Super Admin overview, Executive Analytics, Prescribed Scripts, Rep Progression scorecards, Settings, and Call Bank.
+                </p>
+                <div className="font-mono text-[11px] text-slate-400 bg-slate-900 p-2 rounded border border-slate-800">
+                  Clerk User publicMetadata: &#123; "role": "admin" &#125; or Org Admin
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-lg border border-slate-800 bg-slate-950/60 space-y-2">
+                <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <Users className="h-4 w-4" />
+                  Member Role
+                </div>
+                <p className="text-slate-400 leading-relaxed">
+                  Restricted to uploading calls and viewing calls and scoring per call. Blocked from administrative metrics, confidential rep notes, and system configuration.
+                </p>
+                <div className="font-mono text-[11px] text-slate-400 bg-slate-900 p-2 rounded border border-slate-800">
+                  Default for authenticated users without admin metadata
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Submit */}
         <div className="flex justify-end pt-2">
           <button
