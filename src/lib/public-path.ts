@@ -45,7 +45,7 @@ export function isBareCallsPath(pathname: string): boolean {
 }
 
 export function isApexFaviconPath(pathname: string): boolean {
-  return pathname === "/favicon.ico";
+  return pathname === "/favicon.ico" || pathname === "/icon.svg";
 }
 
 export type ApexAliasRedirect = {
@@ -61,7 +61,7 @@ export type ApexAliasRedirect = {
 export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | null {
   const url = new URL(requestUrl);
   if (isApexFaviconPath(url.pathname)) {
-    return { location: new URL(toAppPath("/icon.svg"), url).href, status: 308 };
+    return { location: new URL(toAppPath("/icon.svg"), url.origin).href, status: 308 };
   }
   if (isBareCallsPath(url.pathname)) {
     const dest = new URL(toAppPath(url.pathname), url);

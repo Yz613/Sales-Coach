@@ -3,12 +3,13 @@ import "./globals.css";
 import Navigation from "@/components/Navigation";
 import AuthProvider from "@/components/AuthProvider";
 import { getServerAuth } from "@/lib/auth";
+import { toAppPath } from "@/lib/public-path";
 
 export const metadata: Metadata = {
   title: "Sales Coach AI — B2B Sales Management & Progression",
   description: "Executive AI Sales Manager for evaluating call blocking & tackling, Sandler qualification, and rep pipeline progression.",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [{ url: toAppPath("/icon.svg"), type: "image/svg+xml" }],
   },
 };
 
