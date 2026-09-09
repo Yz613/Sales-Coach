@@ -20,6 +20,8 @@ const isAdminRoute = createRouteMatcher([
   "/app/reps(.*)",
   "/coach(.*)",
   "/app/coach(.*)",
+  "/invite(.*)",
+  "/app/invite(.*)",
 ]);
 
 const isAdminApiRoute = createRouteMatcher([

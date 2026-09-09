@@ -23,7 +23,6 @@ import {
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
 import TeamSwitcher from "./TeamSwitcher";
-import InviteTeammatesModal from "./InviteTeammatesModal";
 import { UserButton, Show, SignInButton, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-ui";
 
@@ -31,7 +30,6 @@ export default function Navigation() {
   const pathname = usePathname();
   const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
@@ -114,11 +112,23 @@ export default function Navigation() {
       description: "API keys, model parameters & configs",
       badgeColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
     },
+    {
+      label: "Invite",
+      href: "/invite",
+      icon: UserPlus,
+      description: "Send join links from the invite page only",
+      badgeColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+    },
   ];
+
+  const visibleAdminMenuItems = adminMenuItems.filter(
+    (item) => item.href !== "/invite" || isClerkConfigured
+  );
 
   const isAdminActive =
     pathname.startsWith("/admin") ||
-    adminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    pathname.startsWith("/invite") ||
+    visibleAdminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   const handleRoleChange = async (newRole: "admin" | "member") => {
     setIsRoleDropdownOpen(false);
@@ -212,7 +222,7 @@ export default function Navigation() {
                         </span>
                       </div>
                       <div className="mt-1 space-y-0.5">
-                        {adminMenuItems.map((item) => {
+                        {visibleAdminMenuItems.map((item) => {
                           const Icon = item.icon;
                           const isItemActive =
                             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -247,28 +257,6 @@ export default function Navigation() {
                           );
                         })}
                       </div>
-
-                      {/* Invite teammates action in Admin dropdown */}
-                      {isClerkConfigured && (
-                        <div className="p-1 border-t border-slate-800/80 mt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsAdminDropdownOpen(false);
-                              setIsInviteOpen(true);
-                            }}
-                            className="w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 transition"
-                          >
-                            <span className="flex items-center gap-2">
-                              <UserPlus className="h-3.5 w-3.5 text-sky-400" />
-                              Invite teammates
-                            </span>
-                            <span className="text-[10px] text-sky-300 bg-sky-500/20 px-1.5 py-0.5 rounded">
-                              + Add
-                            </span>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -457,7 +445,7 @@ export default function Navigation() {
                   <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                     Admin Tools
                   </div>
-                  {adminMenuItems.map((item) => {
+                  {visibleAdminMenuItems.map((item) => {
                     const Icon = item.icon;
                     const isItemActive =
                       pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -478,20 +466,6 @@ export default function Navigation() {
                       </Link>
                     );
                   })}
-
-                  {isClerkConfigured && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setIsInviteOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-sky-200 hover:bg-slate-900 transition"
-                    >
-                      <UserPlus className="h-4 w-4 text-sky-400" />
-                      <span>Invite teammates</span>
-                    </button>
-                  )}
                 </div>
               )}
             </nav>
@@ -504,7 +478,6 @@ export default function Navigation() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
       />
-      <InviteTeammatesModal open={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
     </>
   );
 }
