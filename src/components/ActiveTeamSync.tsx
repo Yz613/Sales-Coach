@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useOrganization, useOrganizationList, useUser } from "@clerk/nextjs";
+import { useOrganization, useOrganizationList, useSession } from "@clerk/nextjs";
 import { apiPath } from "@/lib/utils";
 
 /** Attach the signed-in user to their team and make it the active session team. */
 export default function ActiveTeamSync() {
-  const { isSignedIn } = useUser();
+  const { session } = useSession();
+  const isActive = session?.status === "active";
   const { organization, isLoaded: orgLoaded } = useOrganization();
   const { isLoaded, setActive } = useOrganizationList();
   const syncedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isSignedIn || !isLoaded || !orgLoaded) return;
+    if (!isActive || !isLoaded || !orgLoaded) return;
     if (organization?.id) {
       syncedFor.current = organization.id;
       return;
@@ -37,7 +38,7 @@ export default function ActiveTeamSync() {
     return () => {
       cancelled = true;
     };
-  }, [isSignedIn, isLoaded, orgLoaded, organization?.id, setActive]);
+  }, [isActive, isLoaded, orgLoaded, organization?.id, setActive]);
 
   return null;
 }

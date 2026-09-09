@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AuthContextProvider } from "@/lib/auth-context";
-import { ClerkProvider, useUser } from "@clerk/nextjs";
+import { ClerkProvider, useSession, useUser } from "@clerk/nextjs";
 import type { UserRole } from "@/lib/auth";
 import { CLERK_PATHS, clerkAppearance, teamLocalization } from "@/lib/clerk-ui";
 import ActiveTeamSync from "@/components/ActiveTeamSync";
@@ -27,14 +27,16 @@ function ClerkBridge({
   initialUser?: AuthUserPreview;
 }) {
   const { user } = useUser();
+  const { session } = useSession();
 
-  const clerkUser = user
-    ? {
-        id: user.id,
-        email: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName || user.firstName || "User",
-      }
-    : initialUser;
+  const clerkUser =
+    user && session?.status === "active"
+      ? {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress,
+          name: user.fullName || user.firstName || "User",
+        }
+      : initialUser;
 
   return (
     <AuthContextProvider

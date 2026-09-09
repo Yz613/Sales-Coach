@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveUserRole } from "@/lib/roles";
+import { pendingTeamSelectionPath } from "@/lib/session-task";
 import {
   getPublicPath,
   toAppPath,
@@ -57,9 +58,22 @@ const clerkHandler = hasClerkKey
 
       const publicPath = getPublicPath(req);
 
+      const pendingAuth = await auth({ treatPendingAsSignedOut: false });
+      const pendingTeamPath = pendingTeamSelectionPath({
+        sessionStatus: pendingAuth.sessionStatus,
+        publicPath,
+      });
+      if (pendingTeamPath && !isApiRoute(publicPath) && !isPublicApiRoute(publicPath, req.method)) {
+        return NextResponse.redirect(new URL(pendingTeamPath, req.url));
+      }
+
       // Sign-in/up and a few APIs must not HTML-redirect (fetch() would parse HTML as JSON).
       if (isPublicAuthRoute(publicPath) || isPublicApiRoute(publicPath, req.method)) {
         return;
+      }
+
+      if (pendingTeamPath && isApiRoute(publicPath)) {
+        return NextResponse.json({ error: "Choose a team to finish signing in." }, { status: 401 });
       }
 
       const authData = await auth();
