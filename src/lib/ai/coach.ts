@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
-import { getSetting, getActiveScriptForStage, getRepPersona } from "../db/service";
+import { getSetting, getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
@@ -42,6 +42,9 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     }
   }).filter(Boolean).join("\n");
 
+  // 4. Ingest the manager's custom coaching directives (philosophy + taught lessons)
+  const coachContext = await getCoachContext();
+
   // Check for GEMINI API KEY in app_settings table first, then environment
   const geminiApiKey = (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
   const activeModel = (await getSetting("active_model")) || "gemini-3.8-flash";
@@ -50,13 +53,13 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   if (geminiApiKey && geminiApiKey.trim().length > 0) {
     try {
-      evaluationResult = await callGeminiAPI(input, repName, pastFixesSummary, persona, activeScript, geminiApiKey.trim(), activeModel);
+      evaluationResult = await callGeminiAPI(input, repName, pastFixesSummary, persona, activeScript, geminiApiKey.trim(), activeModel, coachContext);
     } catch (err) {
       console.error("Gemini API error, falling back to intelligent rule-based evaluator:", err);
-      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript);
+      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext);
     }
   } else {
-    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript);
+    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext);
   }
 
   // Save evaluation to database
@@ -108,7 +111,8 @@ async function callGeminiAPI(
   persona: RepPersona | null,
   script: SalesScript | null,
   apiKey: string,
-  model: string
+  model: string,
+  coachContext: string
 ) {
   const personaContext = persona
     ? `
@@ -134,8 +138,18 @@ ${script.content}
 `
     : `Prescribed Framework: Standard B2B Sandler blocking-and-tackling for ${input.callStage}.`;
 
+  const coachDirectives = coachContext
+    ? `
+=== MANAGER'S COACHING DIRECTIVES (HIGHEST PRIORITY) ===
+You have been trained by this sales manager. Adopt their judgment as your own and apply it to this call above any generic best practice. When their directives conflict with standard advice, follow THEIR directives. Reflect these directives in the bottomLine, missedOpportunities, scriptAdherence feedback, and topFixes.
+${coachContext}
+=== END MANAGER'S COACHING DIRECTIVES ===
+`
+    : "";
+
   const prompt = `
 You are the ultimate AI Sales Manager for a B2B sales team. You act like an experienced, grounded VP of Sales.
+${coachDirectives}
 ${personaContext}
 
 ${scriptContext}
@@ -205,9 +219,11 @@ function generateRuleBasedEvaluation(
   repName: string,
   pastFixes: string,
   persona: RepPersona | null,
-  script: SalesScript | null
+  script: SalesScript | null,
+  coachContext: string
 ): Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt"> {
   const text = input.transcriptText.toLowerCase();
+  const coachApplied = coachContext.trim().length > 0;
 
   const hasEarlyFold = text.includes("send an email") || text.includes("no problem, thanks") || text.includes("understand, bye") || text.includes("all set") || text.includes("don't need");
   const mentionsBudget = text.includes("budget") || text.includes("cost") || text.includes("price") || text.includes("pricing") || text.includes("range");
@@ -263,7 +279,10 @@ function generateRuleBasedEvaluation(
     ? `Noticeable alignment with known blindspot: '${persona.knownBlindspots[0]}'.`
     : "";
 
-  const bottomLine = `${repName} made contact with ${input.prospectName} at ${input.prospectCompany}. ${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.`;
+  const coachNote = coachApplied
+    ? "Assessed through your custom coaching directives (add a Gemini API key in Settings for the coach to apply them in full depth). "
+    : "";
+  const bottomLine = `${repName} made contact with ${input.prospectName} at ${input.prospectCompany}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.`;
 
   const fixes: [PriorityFix, PriorityFix] = [
     {

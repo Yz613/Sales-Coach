@@ -4,6 +4,7 @@ import { getCallById, getAllCalls, getActiveScriptForStage } from "@/lib/db/serv
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Flame, UserCheck, PhoneCall, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
+import TeachCoach from "@/components/TeachCoach";
 
 export const dynamic = "force-dynamic";
 
@@ -406,6 +407,9 @@ export default async function CallReviewPage({
           </p>
         </div>
       )}
+
+      {/* Teach the Coach from this call */}
+      <TeachCoach callId={call.id} />
 
       {/* Transcript Inspector */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden">
