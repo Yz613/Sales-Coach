@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -34,23 +34,91 @@ export default function Navigation() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
 
-  // Admin sees full management suite including Coach; Members see only Call Bank
-  const adminNavItems = [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    { label: "Call Bank", href: "/calls", icon: PhoneCall },
-    { label: "Coach", href: "/coach", icon: GraduationCap },
-    { label: "Reps", href: "/reps", icon: Users },
-    { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-    { label: "Scripts", href: "/admin/scripts", icon: BookOpen },
-    { label: "Invite", href: "/invite", icon: UserPlus },
+  const adminDropdownRef = useRef<HTMLDivElement>(null);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        adminDropdownRef.current &&
+        !adminDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsAdminDropdownOpen(false);
+      }
+      if (
+        roleDropdownRef.current &&
+        !roleDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsRoleDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAdminDropdownOpen(false);
+        setIsRoleDropdownOpen(false);
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  // Close dropdowns on route changes
+  useEffect(() => {
+    setIsAdminDropdownOpen(false);
+    setIsRoleDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Primary navigation items (core daily workflow)
+  const primaryNavItems = isAdmin
+    ? [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Call Bank", href: "/calls", icon: PhoneCall },
+        { label: "Coach", href: "/coach", icon: GraduationCap },
+        { label: "Reps", href: "/reps", icon: Users },
+      ]
+    : [
+        { label: "Call Bank", href: "/calls", icon: PhoneCall },
+      ];
+
+  // Admin dropdown menu items (consolidates Analytics, Scripts, and Settings)
+  const adminMenuItems = [
+    {
+      label: "Analytics",
+      href: "/admin/analytics",
+      icon: BarChart3,
+      description: "Team performance, scores & trends",
+      badgeColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    },
+    {
+      label: "Scripts",
+      href: "/admin/scripts",
+      icon: BookOpen,
+      description: "Evaluation rubrics & talk tracks",
+      badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    },
+    {
+      label: "Settings",
+      href: "/admin/settings",
+      icon: Settings,
+      description: "API keys, model parameters & configs",
+      badgeColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    },
   ];
 
-  const memberNavItems = [
-    { label: "Call Bank", href: "/calls", icon: PhoneCall },
-  ];
-
-  const currentNavItems = isAdmin ? adminNavItems : memberNavItems;
+  const isAdminActive =
+    pathname.startsWith("/admin") ||
+    adminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   const handleRoleChange = async (newRole: "admin" | "member") => {
     setIsRoleDropdownOpen(false);
@@ -64,34 +132,22 @@ export default function Navigation() {
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           {/* Left: Brand Logo & Navigation */}
-          <div className="flex items-center gap-6 lg:gap-8">
+          <div className="flex items-center gap-5 lg:gap-7">
             <Link
               href={isAdmin ? "/" : "/calls"}
-              className="flex items-center gap-2.5 group transition"
+              className="flex items-center gap-2.5 group transition shrink-0"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
                 SC
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-white tracking-tight text-sm sm:text-base">
-                  Sales Coach
-                </span>
-                <span
-                  suppressHydrationWarning
-                  className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                    isAdmin
-                      ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                  }`}
-                >
-                  {isAdmin ? "Admin" : "Member"}
-                </span>
-              </div>
+              <span className="font-semibold text-white tracking-tight text-sm sm:text-base">
+                Sales Coach
+              </span>
             </Link>
 
             {/* Desktop Navigation Links */}
             <nav className="hidden md:flex items-center space-x-1">
-              {currentNavItems.map((item) => {
+              {primaryNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                   item.href === "/"
@@ -113,24 +169,132 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+
+              {/* Admin Tools Dropdown Menu */}
+              {isAdmin && (
+                <div className="relative" ref={adminDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminDropdownOpen((prev) => !prev);
+                      setIsRoleDropdownOpen(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      isAdminActive || isAdminDropdownOpen
+                        ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs ring-1 ring-indigo-500/30"
+                        : "text-slate-400 hover:bg-slate-900/60 hover:text-slate-200"
+                    }`}
+                    aria-expanded={isAdminDropdownOpen}
+                    aria-haspopup="true"
+                  >
+                    <ShieldCheck
+                      className={`h-3.5 w-3.5 ${
+                        isAdminActive ? "text-indigo-400" : "text-slate-400"
+                      }`}
+                    />
+                    <span>Admin</span>
+                    <ChevronDown
+                      className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+                        isAdminDropdownOpen ? "rotate-180 text-white" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* Dropdown Menu Popover */}
+                  {isAdminDropdownOpen && (
+                    <div className="absolute left-0 mt-2 w-72 rounded-xl border border-slate-800/90 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="px-2.5 py-1.5 pb-2 border-b border-slate-800/80 flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Admin Controls
+                        </span>
+                        <span className="text-[10px] text-indigo-400 font-medium bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
+                          Full Access
+                        </span>
+                      </div>
+                      <div className="mt-1 space-y-0.5">
+                        {adminMenuItems.map((item) => {
+                          const Icon = item.icon;
+                          const isItemActive =
+                            pathname === item.href || pathname.startsWith(`${item.href}/`);
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setIsAdminDropdownOpen(false)}
+                              className={`flex items-start gap-2.5 rounded-lg p-2 transition ${
+                                isItemActive
+                                  ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs"
+                                  : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                              }`}
+                            >
+                              <div
+                                className={`p-1.5 rounded-lg border shrink-0 mt-0.5 ${item.badgeColor}`}
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold">{item.label}</span>
+                                  {isItemActive && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400"></span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                  {item.description}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+
+                      {/* Invite teammates action in Admin dropdown */}
+                      {isClerkConfigured && (
+                        <div className="p-1 border-t border-slate-800/80 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAdminDropdownOpen(false);
+                              setIsInviteOpen(true);
+                            }}
+                            className="w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 transition"
+                          >
+                            <span className="flex items-center gap-2">
+                              <UserPlus className="h-3.5 w-3.5 text-sky-400" />
+                              Invite teammates
+                            </span>
+                            <span className="text-[10px] text-sky-300 bg-sky-500/20 px-1.5 py-0.5 rounded">
+                              + Add
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
           </div>
 
-          {/* Right Actions: Team, Role Preview, Settings, Upload & Profile */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right Actions: Team Switcher, Role Switcher, Upload Calls & Profile */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isClerkConfigured && (
               <div className="hidden sm:block">
                 <TeamSwitcher canManage={isAdmin} />
               </div>
             )}
-            {/* Interactive Role Switcher / Preview */}
-            <div className="relative">
+
+            {/* Interactive Role Switcher / View Preview */}
+            <div className="relative" ref={roleDropdownRef}>
               <button
                 type="button"
                 suppressHydrationWarning
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                onClick={() => {
+                  setIsRoleDropdownOpen((prev) => !prev);
+                  setIsAdminDropdownOpen(false);
+                }}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition hover:border-slate-700"
                 title="Switch permissions view (Admin / Member)"
               >
                 {isAdmin ? (
@@ -138,14 +302,20 @@ export default function Navigation() {
                 ) : (
                   <User className="h-3.5 w-3.5 text-emerald-400" />
                 )}
-                <span className="hidden sm:inline">Role:</span>
-                <span suppressHydrationWarning className="font-semibold text-white capitalize">{role}</span>
-                <ChevronDown className="h-3 w-3 text-slate-500 ml-0.5" />
+                <span className="hidden sm:inline text-slate-400">Role:</span>
+                <span suppressHydrationWarning className="font-semibold text-white capitalize">
+                  {role}
+                </span>
+                <ChevronDown
+                  className={`h-3 w-3 text-slate-500 ml-0.5 transition-transform duration-200 ${
+                    isRoleDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
               {/* Role Dropdown Menu */}
               {isRoleDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-48 rounded-xl border border-slate-800 bg-slate-900/95 p-1.5 shadow-xl backdrop-blur-xl z-50">
+                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-800 bg-slate-900/95 p-1.5 shadow-xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                     Permissions Mode
                   </div>
@@ -186,33 +356,7 @@ export default function Navigation() {
               )}
             </div>
 
-            {isAdmin && isClerkConfigured && (
-              <button
-                type="button"
-                onClick={() => setIsInviteOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/20 transition"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Invite teammates</span>
-              </button>
-            )}
-
-            {/* Admin-only Settings Icon */}
-            {isAdmin && (
-              <Link
-                href="/admin/settings"
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                  pathname === "/admin/settings"
-                    ? "border-blue-500/40 bg-blue-500/10 text-white"
-                    : "border-slate-800 bg-slate-900/70 text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-                title="Admin Settings & API Keys"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </Link>
-            )}
-
-            {/* Upload Calls Action Button (Available to both Admin & Member) */}
+            {/* Upload Calls Action Button */}
             <button
               onClick={() => setIsUploadOpen(true)}
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-blue-600/30 transition active:scale-95"
@@ -260,7 +404,7 @@ export default function Navigation() {
 
         {/* Mobile Dropdown Drawer */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 space-y-2 backdrop-blur-xl">
+          <div className="md:hidden border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 space-y-3 backdrop-blur-xl">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
               <span className="text-xs text-slate-400">Current Role:</span>
               <span
@@ -281,8 +425,9 @@ export default function Navigation() {
               </div>
             )}
 
+            {/* Primary navigation items */}
             <nav className="space-y-1">
-              {currentNavItems.map((item) => {
+              {primaryNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                   item.href === "/"
@@ -306,33 +451,48 @@ export default function Navigation() {
                 );
               })}
 
-              {isAdmin && isClerkConfigured && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setIsInviteOpen(true);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-sky-200 hover:bg-slate-900"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Invite teammates</span>
-                </button>
-              )}
-
+              {/* Admin suite section on mobile */}
               {isAdmin && (
-                <Link
-                  href="/admin/settings"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
-                    pathname === "/admin/settings"
-                      ? "bg-slate-800 text-white border border-slate-700/60"
-                      : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                  }`}
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>Admin Settings</span>
-                </Link>
+                <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-1">
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Admin Tools
+                  </div>
+                  {adminMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isItemActive =
+                      pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isItemActive
+                            ? "bg-slate-800 text-white border border-slate-700/60"
+                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+
+                  {isClerkConfigured && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsInviteOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-sky-200 hover:bg-slate-900 transition"
+                    >
+                      <UserPlus className="h-4 w-4 text-sky-400" />
+                      <span>Invite teammates</span>
+                    </button>
+                  )}
+                </div>
               )}
             </nav>
           </div>
