@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCallById } from "@/lib/db/service";
 import { evaluateCall } from "@/lib/ai/coach";
+import { getVisibleCallById } from "@/lib/viewer-calls";
 
 export async function POST(
   req: Request,
@@ -8,7 +8,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const call = await getCallById(id);
+    const { call } = await getVisibleCallById(id);
     if (!call) {
       return NextResponse.json({ error: "Call not found" }, { status: 404 });
     }

@@ -1,18 +1,19 @@
 import Link from "next/link";
-import { getAllCalls } from "@/lib/db/service";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { PhoneCall, Filter, Search, ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import InviteTeammatesCard from "@/components/InviteTeammatesCard";
+import { getVisibleCalls } from "@/lib/viewer-calls";
 
 export const dynamic = "force-dynamic";
 
 export default async function CallBankPage() {
-  const rankedCalls = rankCalls(await getAllCalls());
+  const { auth, calls } = await getVisibleCalls();
+  const rankedCalls = rankCalls(calls);
 
   return (
     <div className="space-y-6">
-      <InviteTeammatesCard compact />
+      {auth.canViewAllCalls && <InviteTeammatesCard compact />}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
@@ -22,10 +23,12 @@ export default async function CallBankPage() {
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Ranked Calls & Evaluations
+            {auth.canViewAllCalls ? "Ranked Calls & Evaluations" : "Your Calls"}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong.
+            {auth.canViewAllCalls
+              ? "Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong."
+              : "Only your calls. Teammates cannot see these, and you cannot see theirs."}
           </p>
         </div>
 
@@ -52,6 +55,15 @@ export default async function CallBankPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
+              {rankedCalls.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-400">
+                    {auth.canViewAllCalls
+                      ? "No calls have been uploaded yet."
+                      : "You have not uploaded any calls yet. Use Upload Calls to add your own."}
+                  </td>
+                </tr>
+              )}
               {rankedCalls.map((call) => {
                 const ev = call.evaluation;
                 const isBooked = call.coreOutcome.toLowerCase().includes("booked");

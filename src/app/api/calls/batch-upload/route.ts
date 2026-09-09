@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { addCallStage, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
+import { getServerAuth } from "@/lib/auth";
+import { resolveUploadRepId } from "@/lib/viewer-calls";
 
 interface BatchItem {
   repId: string;
@@ -16,6 +18,11 @@ interface BatchItem {
 
 export async function POST(req: Request) {
   try {
+    const auth = await getServerAuth();
+    if (auth.isClerkConfigured && !auth.userId) {
+      return NextResponse.json({ error: "Sign in to upload calls." }, { status: 401 });
+    }
+
     const contentType = req.headers.get("content-type") || "";
 
     let itemsToProcess: BatchItem[] = [];
@@ -34,7 +41,11 @@ export async function POST(req: Request) {
         // Stage list is best-effort.
       }
 
-      const resolvedRepId = await getOrCreateRep(defaultRepId, defaultRepName, defaultRepRole);
+      const resolvedRepId = await resolveUploadRepId(auth, {
+        repId: defaultRepId,
+        repName: defaultRepName,
+        repRole: defaultRepRole,
+      });
       if (defaultRepFocus.trim()) {
         await setRepFocus(resolvedRepId, defaultRepFocus);
       }
@@ -63,6 +74,13 @@ export async function POST(req: Request) {
     } else {
       const body = await req.json();
       itemsToProcess = body.calls || [];
+    }
+
+    const forcedRepId = auth.canViewAllCalls
+      ? null
+      : await resolveUploadRepId(auth, {});
+    if (forcedRepId) {
+      itemsToProcess = itemsToProcess.map((item) => ({ ...item, repId: forcedRepId }));
     }
 
     if (!itemsToProcess.length) {
