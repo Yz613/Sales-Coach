@@ -48,6 +48,12 @@ const nextConfig: NextConfig = {
         permanent: true,
         basePath: false,
       },
+      {
+        source: "/icon.svg",
+        destination: `${APP_BASE_PATH}/icon.svg`,
+        permanent: true,
+        basePath: false,
+      },
     ];
   },
 };

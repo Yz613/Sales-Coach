@@ -74,6 +74,7 @@ describe("route classifiers", () => {
     assert.equal(isBareCallsPath("/calls/abc"), true);
     assert.equal(isBareCallsPath("/app/calls"), false);
     assert.equal(isApexFaviconPath("/favicon.ico"), true);
+    assert.equal(isApexFaviconPath("/icon.svg"), true);
     assert.equal(isApexFaviconPath("/app/icon.svg"), false);
     assert.equal(APP_BASE_PATH, "/app");
   });
@@ -88,6 +89,9 @@ describe("route classifiers", () => {
 
     const icon = getApexAliasRedirect("https://refreshqueue.com/favicon.ico");
     assert.equal(icon?.location, "https://refreshqueue.com/app/icon.svg");
+
+    const bareIcon = getApexAliasRedirect("https://refreshqueue.com/icon.svg");
+    assert.equal(bareIcon?.location, "https://refreshqueue.com/app/icon.svg");
 
     assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/calls"), null);
     assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/coach"), null);

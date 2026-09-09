@@ -3,3 +3,4 @@
 /calls /app/calls 308
 /calls/* /app/calls/:splat 308
 /favicon.ico /app/icon.svg 308
+/icon.svg /app/icon.svg 308
