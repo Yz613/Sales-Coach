@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveUserRole, type UserRole } from "@/lib/roles";
 
-export type UserRole = "admin" | "member";
+export type { UserRole } from "@/lib/roles";
 
 export interface AuthUser {
   userId: string | null;
@@ -9,6 +10,8 @@ export interface AuthUser {
   isAdmin: boolean;
   isMember: boolean;
   isClerkConfigured: boolean;
+  orgId?: string | null;
+  orgRole?: string | null;
   email?: string;
   name?: string;
 }
@@ -25,8 +28,8 @@ export function isClerkConfigured(): boolean {
 
 /**
  * Get the current user and their role on the server.
- * Reads role from Clerk session metadata (publicMetadata.role or orgRole)
- * with support for dev preview role cookie ("sc_role").
+ * Reads role from the active Clerk organization, then publicMetadata.role,
+ * with support for the dev preview role cookie ("sc_role").
  */
 export async function getServerAuth(): Promise<AuthUser> {
   const clerkConfigured = isClerkConfigured();
@@ -36,29 +39,28 @@ export async function getServerAuth(): Promise<AuthUser> {
   let userId: string | null = null;
   let email: string | undefined;
   let name: string | undefined;
-  let clerkRole: UserRole | undefined;
+  let orgId: string | null | undefined;
+  let orgRole: string | null | undefined;
+  let hasOrgAdmin = false;
+  let metadataRole: string | undefined;
 
   if (clerkConfigured) {
     try {
       const { auth, currentUser } = await import("@clerk/nextjs/server");
       const authData = await auth();
       userId = authData.userId;
+      orgId = authData.orgId;
+      orgRole = authData.orgRole;
+      hasOrgAdmin =
+        (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
+        authData.orgRole === "org:admin";
 
       if (userId) {
         const user = await currentUser();
         if (user) {
           email = user.emailAddresses?.[0]?.emailAddress;
           name = user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined;
-          
-          // Role from publicMetadata or organization role
-          const metadataRole = (user.publicMetadata as Record<string, unknown>)?.role as string | undefined;
-          if (metadataRole === "admin" || metadataRole === "member") {
-            clerkRole = metadataRole;
-          } else if (authData.orgRole === "org:admin") {
-            clerkRole = "admin";
-          } else if (authData.orgRole === "org:member") {
-            clerkRole = "member";
-          }
+          metadataRole = (user.publicMetadata as Record<string, unknown>)?.role as string | undefined;
         }
       }
     } catch (err) {
@@ -66,24 +68,21 @@ export async function getServerAuth(): Promise<AuthUser> {
     }
   }
 
-  // Active role hierarchy:
-  // 1. Cookie override (allows testing/switching between Admin and Member views)
-  // 2. Clerk metadata role (admin or member)
-  // 3. Default: "admin" in development / single-user setup, or "member" if authenticated without admin metadata
-  let effectiveRole: UserRole = "admin";
-  if (cookieRole === "admin" || cookieRole === "member") {
-    effectiveRole = cookieRole;
-  } else if (clerkRole) {
-    effectiveRole = clerkRole;
-  } else if (clerkConfigured && userId) {
-    // If Clerk is active and user is signed in but has no explicit role set, default to member
-    effectiveRole = "member";
-  }
+  const effectiveRole = resolveUserRole({
+    cookieRole,
+    orgRole,
+    hasOrgAdmin,
+    metadataRole,
+    clerkConfigured,
+    userId,
+  });
 
   return {
     userId,
     email,
     name,
+    orgId,
+    orgRole,
     role: effectiveRole,
     isAdmin: effectiveRole === "admin",
     isMember: effectiveRole === "member",

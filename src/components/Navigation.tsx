@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -21,16 +21,17 @@ import {
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
-import { UserButton, Show, SignInButton } from "@clerk/nextjs";
+import { UserButton, Show, SignInButton, OrganizationSwitcher } from "@clerk/nextjs";
+import { clerkAppearance } from "@/lib/clerk-ui";
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
-  // Admin sees full management suite including Coach; Members see only Call Bank
   const adminNavItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Call Bank", href: "/calls", icon: PhoneCall },
@@ -53,11 +54,15 @@ export default function Navigation() {
     }
   };
 
+  const goToSettings = () => {
+    setIsMobileMenuOpen(false);
+    router.push("/admin/settings");
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
-          {/* Left: Brand Logo & Navigation */}
           <div className="flex items-center gap-6 lg:gap-8">
             <Link
               href={isAdmin ? "/" : "/calls"}
@@ -83,7 +88,6 @@ export default function Navigation() {
               </div>
             </Link>
 
-            {/* Desktop Navigation Links */}
             <nav className="hidden md:flex items-center space-x-1">
               {currentNavItems.map((item) => {
                 const Icon = item.icon;
@@ -110,9 +114,20 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Role Preview, Settings, Upload & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Interactive Role Switcher / Preview */}
+            {isClerkConfigured && (
+              <Show when="signed-in">
+                <div className="hidden sm:block">
+                  <OrganizationSwitcher
+                    hidePersonal
+                    organizationProfileMode="modal"
+                    createOrganizationMode="modal"
+                    appearance={clerkAppearance}
+                  />
+                </div>
+              </Show>
+            )}
+
             <div className="relative">
               <button
                 type="button"
@@ -132,13 +147,13 @@ export default function Navigation() {
                 <ChevronDown className="h-3 w-3 text-slate-500 ml-0.5" />
               </button>
 
-              {/* Role Dropdown Menu */}
               {isRoleDropdownOpen && (
                 <div className="absolute right-0 mt-1.5 w-48 rounded-xl border border-slate-800 bg-slate-900/95 p-1.5 shadow-xl backdrop-blur-xl z-50">
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                     Permissions Mode
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleRoleChange("admin")}
                     className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
                       isAdmin
@@ -153,6 +168,7 @@ export default function Navigation() {
                     {isAdmin && <Check className="h-3.5 w-3.5 text-indigo-400" />}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleRoleChange("member")}
                     className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
                       !isAdmin
@@ -168,30 +184,31 @@ export default function Navigation() {
                   </button>
                   {isClerkConfigured && (
                     <div className="border-t border-slate-800 mt-1.5 pt-1.5 px-2 text-[10px] text-slate-500">
-                      Clerk authentication active
+                      Clerk organization admins have full access
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Admin-only Settings Icon */}
             {isAdmin && (
-              <Link
-                href="/admin/settings"
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+              <button
+                type="button"
+                onClick={goToSettings}
+                className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
                   pathname === "/admin/settings"
                     ? "border-blue-500/40 bg-blue-500/10 text-white"
                     : "border-slate-800 bg-slate-900/70 text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
                 title="Admin Settings & API Keys"
+                aria-label="Admin Settings"
               >
                 <Settings className="h-3.5 w-3.5" />
-              </Link>
+              </button>
             )}
 
-            {/* Upload Calls Action Button (Available to both Admin & Member) */}
             <button
+              type="button"
               onClick={() => setIsUploadOpen(true)}
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-blue-600/30 transition active:scale-95"
             >
@@ -199,31 +216,36 @@ export default function Navigation() {
               <span>Upload Calls</span>
             </button>
 
-            {/* Auth / User Profile */}
             {isClerkConfigured ? (
-              <div className="flex items-center ml-1">
+              <div className="relative z-10 flex items-center ml-1">
                 <Show
                   when="signed-in"
                   fallback={
                     <SignInButton mode="redirect">
-                      <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
+                      <button type="button" className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
                         Sign In
                       </button>
                     </SignInButton>
                   }
                 >
                   <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "h-7 w-7 ring-1 ring-slate-700",
-                      },
-                    }}
-                  />
+                    userProfileMode="modal"
+                    appearance={clerkAppearance}
+                  >
+                    {isAdmin && (
+                      <UserButton.MenuItems>
+                        <UserButton.Action
+                          label="Admin Settings"
+                          labelIcon={<Settings className="h-4 w-4" />}
+                          onClick={goToSettings}
+                        />
+                      </UserButton.MenuItems>
+                    )}
+                  </UserButton>
                 </Show>
               </div>
             ) : null}
 
-            {/* Mobile Hamburger Button */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -234,7 +256,6 @@ export default function Navigation() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Drawer */}
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 space-y-2 backdrop-blur-xl">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
@@ -250,6 +271,19 @@ export default function Navigation() {
                 {isAdmin ? "Admin (Full Access)" : "Member (Calls Only)"}
               </span>
             </div>
+
+            {isClerkConfigured && (
+              <div className="sm:hidden pb-2">
+                <Show when="signed-in">
+                  <OrganizationSwitcher
+                    hidePersonal
+                    organizationProfileMode="modal"
+                    createOrganizationMode="modal"
+                    appearance={clerkAppearance}
+                  />
+                </Show>
+              </div>
+            )}
 
             <nav className="space-y-1">
               {currentNavItems.map((item) => {
@@ -277,10 +311,10 @@ export default function Navigation() {
               })}
 
               {isAdmin && (
-                <Link
-                  href="/admin/settings"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                <button
+                  type="button"
+                  onClick={goToSettings}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
                     pathname === "/admin/settings"
                       ? "bg-slate-800 text-white border border-slate-700/60"
                       : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
@@ -288,14 +322,13 @@ export default function Navigation() {
                 >
                   <Settings className="h-4 w-4" />
                   <span>Admin Settings</span>
-                </Link>
+                </button>
               )}
             </nav>
           </div>
         )}
       </header>
 
-      {/* Upload Modal */}
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
