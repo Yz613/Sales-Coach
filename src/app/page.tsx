@@ -4,13 +4,15 @@ import { getSuperAdminReport, getAllCalls, getCoachInstructions } from "@/lib/db
 import { TrendingUp, AlertTriangle, ShieldCheck, Flame, ArrowUpRight, CheckCircle2, XCircle, Clock, GraduationCap } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
+import { hasClerkServerAuth } from "@/lib/clerk-env";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboard() {
   // Base-path root can bypass the middleware matcher under OpenNext, so enforce
   // auth at the resource level here as well (Clerk's recommended approach).
-  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+  // auth.protect() needs the secret, not just the inlined publishable key.
+  if (hasClerkServerAuth()) {
     await auth.protect();
   }
   await requireAdmin();

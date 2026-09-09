@@ -51,7 +51,8 @@ export function AuthContextProvider({
   useEffect(() => {
     fetch(apiPath("/api/auth/role"))
       .then((res) => {
-        if (!res.ok) return null;
+        const contentType = res.headers.get("content-type") || "";
+        if (!res.ok || !contentType.includes("application/json")) return null;
         return res.json();
       })
       .then((data) => {

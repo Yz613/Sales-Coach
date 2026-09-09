@@ -21,7 +21,9 @@ import {
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
-import { UserButton, Show, SignInButton } from "@clerk/nextjs";
+import TeamSwitcher from "./TeamSwitcher";
+import { UserButton, Show, SignInButton, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
+import { clerkAppearance } from "@/lib/clerk-ui";
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -110,8 +112,13 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Role Preview, Settings, Upload & Profile */}
+          {/* Right Actions: Team, Role Preview, Settings, Upload & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {isClerkConfigured && (
+              <div className="hidden sm:block">
+                <TeamSwitcher canManage={isAdmin} />
+              </div>
+            )}
             {/* Interactive Role Switcher / Preview */}
             <div className="relative">
               <button
@@ -168,7 +175,7 @@ export default function Navigation() {
                   </button>
                   {isClerkConfigured && (
                     <div className="border-t border-slate-800 mt-1.5 pt-1.5 px-2 text-[10px] text-slate-500">
-                      Clerk authentication active
+                      Organization admins have full access
                     </div>
                   )}
                 </div>
@@ -202,24 +209,26 @@ export default function Navigation() {
             {/* Auth / User Profile */}
             {isClerkConfigured ? (
               <div className="flex items-center ml-1">
-                <Show
-                  when="signed-in"
-                  fallback={
-                    <SignInButton mode="redirect">
-                      <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
-                        Sign In
-                      </button>
-                    </SignInButton>
-                  }
-                >
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "h-7 w-7 ring-1 ring-slate-700",
-                      },
-                    }}
-                  />
-                </Show>
+                <ClerkLoading>
+                  <div className="h-7 w-7 rounded-full bg-slate-800 ring-1 ring-slate-700" aria-hidden />
+                </ClerkLoading>
+                <ClerkLoaded>
+                  <Show
+                    when="signed-in"
+                    fallback={
+                      <SignInButton mode="redirect">
+                        <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
+                          Sign In
+                        </button>
+                      </SignInButton>
+                    }
+                  >
+                    <UserButton
+                      userProfileMode="modal"
+                      appearance={clerkAppearance}
+                    />
+                  </Show>
+                </ClerkLoaded>
               </div>
             ) : null}
 
@@ -250,6 +259,12 @@ export default function Navigation() {
                 {isAdmin ? "Admin (Full Access)" : "Member (Calls Only)"}
               </span>
             </div>
+
+            {isClerkConfigured && (
+              <div className="sm:hidden pb-2">
+                <TeamSwitcher canManage={isAdmin} />
+              </div>
+            )}
 
             <nav className="space-y-1">
               {currentNavItems.map((item) => {

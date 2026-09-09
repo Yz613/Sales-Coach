@@ -5,6 +5,7 @@ import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users 
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
+import OrganizationSettingsPanel from "@/components/OrganizationSettingsPanel";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -248,7 +249,7 @@ export default function AdminSettingsPage() {
                   Restricted to uploading calls and viewing calls and scoring per call. Blocked from administrative metrics, confidential rep notes, and system configuration.
                 </p>
                 <div className="font-mono text-[11px] text-slate-400 bg-slate-900 p-2 rounded border border-slate-800">
-                  Default for authenticated users without admin metadata
+                  Clerk org role: org:member
                 </div>
               </div>
             </div>
@@ -266,6 +267,8 @@ export default function AdminSettingsPage() {
           </button>
         </div>
       </form>
+
+      {isClerkConfigured && <OrganizationSettingsPanel />}
     </div>
   );
 }
