@@ -10,6 +10,7 @@ import {
   isApiRoute,
   isBareCallsPath,
   isApexFaviconPath,
+  getApexAliasRedirect,
 } from "./public-path";
 
 describe("toAppPath", () => {
@@ -75,5 +76,20 @@ describe("route classifiers", () => {
     assert.equal(isApexFaviconPath("/favicon.ico"), true);
     assert.equal(isApexFaviconPath("/app/icon.svg"), false);
     assert.equal(APP_BASE_PATH, "/app");
+  });
+
+  it("redirects apex /calls and /favicon.ico onto /app", () => {
+    const calls = getApexAliasRedirect("https://refreshqueue.com/calls?rep=1");
+    assert.equal(calls?.status, 308);
+    assert.equal(calls?.location, "https://refreshqueue.com/app/calls?rep=1");
+
+    const nested = getApexAliasRedirect("https://refreshqueue.com/calls/abc");
+    assert.equal(nested?.location, "https://refreshqueue.com/app/calls/abc");
+
+    const icon = getApexAliasRedirect("https://refreshqueue.com/favicon.ico");
+    assert.equal(icon?.location, "https://refreshqueue.com/app/icon.svg");
+
+    assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/calls"), null);
+    assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/coach"), null);
   });
 });

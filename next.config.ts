@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 import path from "path";
+import { APP_BASE_PATH } from "./src/lib/public-path";
 
 // Publishable key must be present at build time so the client bundle and SSR
 // tree both wrap the app in <ClerkProvider>. Falls back to the same public
@@ -24,6 +25,31 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: path.resolve(__dirname),
+  // Next middleware matchers are scoped to `basePath`, so apex /calls and
+  // /favicon.ico never hit `src/middleware.ts`. Config redirects with
+  // `basePath: false` run at the Next routing layer instead.
+  async redirects() {
+    return [
+      {
+        source: "/calls",
+        destination: `${APP_BASE_PATH}/calls`,
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/calls/:path*",
+        destination: `${APP_BASE_PATH}/calls/:path*`,
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/favicon.ico",
+        destination: `${APP_BASE_PATH}/icon.svg`,
+        permanent: true,
+        basePath: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

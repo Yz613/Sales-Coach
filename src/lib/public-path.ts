@@ -47,3 +47,26 @@ export function isBareCallsPath(pathname: string): boolean {
 export function isApexFaviconPath(pathname: string): boolean {
   return pathname === "/favicon.ico";
 }
+
+export type ApexAliasRedirect = {
+  location: string;
+  status: 308;
+};
+
+/**
+ * Apex paths that never enter Next middleware under `basePath: "/app"`.
+ * Used by next.config redirects, middleware (when it does run), and the
+ * Cloudflare worker wrapper in front of OpenNext.
+ */
+export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | null {
+  const url = new URL(requestUrl);
+  if (isApexFaviconPath(url.pathname)) {
+    return { location: new URL(toAppPath("/icon.svg"), url).href, status: 308 };
+  }
+  if (isBareCallsPath(url.pathname)) {
+    const dest = new URL(toAppPath(url.pathname), url);
+    dest.search = url.search;
+    return { location: dest.href, status: 308 };
+  }
+  return null;
+}

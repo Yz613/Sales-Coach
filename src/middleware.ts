@@ -6,8 +6,7 @@ import {
   isPublicAuthRoute,
   isPublicApiRoute,
   isApiRoute,
-  isBareCallsPath,
-  isApexFaviconPath,
+  getApexAliasRedirect,
 } from "@/lib/public-path";
 
 const isAdminRoute = createRouteMatcher([
@@ -28,23 +27,16 @@ const isAdminApiRoute = createRouteMatcher([
 ]);
 
 const hasClerkKey = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.trim() !== ""
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
+  // clerkMiddleware throws without a secret; the publishable key is inlined
+  // at build time so it is not a sufficient signal on its own.
+  process.env.CLERK_SECRET_KEY?.trim()
 );
 
 function redirectApexAliases(req: NextRequest): NextResponse | null {
-  const publicPath = getPublicPath(req);
-  if (isApexFaviconPath(publicPath)) {
-    return NextResponse.redirect(new URL(`${toAppPath("/icon.svg")}`, req.url), 308);
-  }
-  // Landing-site /calls never hits this worker unless wrangler routes it here.
-  // Always send those requests to the real Call Bank under /app.
-  if (isBareCallsPath(publicPath)) {
-    const dest = new URL(toAppPath(publicPath), req.url);
-    dest.search = new URL(req.url).search;
-    return NextResponse.redirect(dest);
-  }
-  return null;
+  const alias = getApexAliasRedirect(req.url);
+  if (!alias) return null;
+  return NextResponse.redirect(alias.location, alias.status);
 }
 
 function memberCallsRedirect(req: NextRequest): NextResponse {
