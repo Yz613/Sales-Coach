@@ -1,4 +1,5 @@
-export type CallStage = 'Cold Call' | 'First Discovery' | 'Follow-up';
+/** Call Stage Target — built-in defaults plus any custom script types a manager adds. */
+export type CallStage = string;
 
 export type CoreOutcome = 'Meeting booked' | 'Dropped' | 'Rescheduled' | 'Unqualified' | 'Negotiation Pending';
 

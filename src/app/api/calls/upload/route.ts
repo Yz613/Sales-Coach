@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { normalizeStageName } from "@/lib/callStages";
 
 export async function POST(req: Request) {
   try {
@@ -59,6 +60,13 @@ export async function POST(req: Request) {
 
     if (!transcriptText || transcriptText.trim().length === 0) {
       return NextResponse.json({ error: "Transcript text or call file is required" }, { status: 400 });
+    }
+
+    callStage = normalizeStageName(callStage) || "Cold Call";
+    try {
+      await addCallStage(callStage);
+    } catch {
+      // Stage list is best-effort; the call still records whatever stage was chosen.
     }
 
     // Resolve the rep (creating one from the provided name when needed).

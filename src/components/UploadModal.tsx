@@ -5,6 +5,8 @@ import { X, Upload, FileText, Layers, AlertCircle, Loader2, CheckCircle2 } from 
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
 import type { Rep } from "@/types";
+import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
+import CallStageSelect from "@/components/CallStageSelect";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -22,6 +24,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
   const [prospectCompany, setProspectCompany] = useState("");
   const [prospectName, setProspectName] = useState("");
   const [callStage, setCallStage] = useState("Cold Call");
+  const [stages, setStages] = useState<string[]>([...DEFAULT_CALL_STAGES]);
   const [transcriptText, setTranscriptText] = useState("");
   const [singleFile, setSingleFile] = useState<File | null>(null);
 
@@ -46,6 +49,17 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           } else {
             setReps([]);
             setSelectedRepId("new");
+          }
+        })
+        .catch(console.error);
+      fetch(apiPath("/api/stages"))
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data?.stages) && data.stages.length) {
+            setStages(data.stages);
+            setCallStage((current) =>
+              data.stages.some((s: string) => s === current) ? current : data.stages[0]
+            );
           }
         })
         .catch(console.error);
@@ -75,6 +89,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
 
     if (selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
+      return;
+    }
+
+    if (!callStage.trim()) {
+      setError("Please choose a Call Stage Target or type a new one.");
       return;
     }
 
@@ -134,6 +153,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
 
     if (selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
+      return;
+    }
+
+    if (!callStage.trim()) {
+      setError("Please choose a Call Stage Target or type a new one.");
       return;
     }
 
@@ -314,20 +338,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                  Call Stage (Default for batch)
-                </label>
-                <select
-                  value={callStage}
-                  onChange={(e) => setCallStage(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="Cold Call">Cold Call / Outbound</option>
-                  <option value="First Discovery">First Discovery / Demo</option>
-                  <option value="Follow-up">Follow-up / Closing</option>
-                </select>
-              </div>
+              <CallStageSelect
+                label="Call Stage Target (Default for batch)"
+                value={callStage}
+                stages={stages.includes(callStage) || !callStage ? stages : [...stages, callStage]}
+                onChange={setCallStage}
+              />
             </div>
 
             <div>
@@ -460,20 +476,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                  Call Stage
-                </label>
-                <select
-                  value={callStage}
-                  onChange={(e) => setCallStage(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="Cold Call">Cold Call / Outbound</option>
-                  <option value="First Discovery">First Discovery / Demo</option>
-                  <option value="Follow-up">Follow-up / Closing</option>
-                </select>
-              </div>
+              <CallStageSelect
+                label="Call Stage Target"
+                value={callStage}
+                stages={stages.includes(callStage) || !callStage ? stages : [...stages, callStage]}
+                onChange={setCallStage}
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
