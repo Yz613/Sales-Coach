@@ -15,7 +15,9 @@ interface UploadModalProps {
 export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const router = useRouter();
   const [reps, setReps] = useState<Rep[]>([]);
-  const [selectedRepId, setSelectedRepId] = useState("");
+  const [selectedRepId, setSelectedRepId] = useState("new");
+  const [newRepName, setNewRepName] = useState("");
+  const [newRepRole, setNewRepRole] = useState("");
   const [prospectCompany, setProspectCompany] = useState("");
   const [prospectName, setProspectName] = useState("");
   const [callStage, setCallStage] = useState("Cold Call");
@@ -40,6 +42,9 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           if (Array.isArray(data) && data.length > 0) {
             setReps(data);
             setSelectedRepId(data[0].id);
+          } else {
+            setReps([]);
+            setSelectedRepId("new");
           }
         })
         .catch(console.error);
@@ -67,12 +72,23 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
       return;
     }
 
+    if (selectedRepId === "new" && !newRepName.trim()) {
+      setError("Please enter the sales rep's name.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const formData = new FormData();
       formData.append("repId", selectedRepId);
-      formData.append("repName", reps.find((r) => r.id === selectedRepId)?.name || "Rep");
+      formData.append(
+        "repName",
+        selectedRepId === "new"
+          ? newRepName.trim()
+          : reps.find((r) => r.id === selectedRepId)?.name || "Rep"
+      );
+      formData.append("repRole", selectedRepId === "new" ? newRepRole.trim() : "");
       formData.append("prospectCompany", prospectCompany.trim());
       formData.append("prospectName", prospectName.trim() || "Lead Contact");
       formData.append("callStage", callStage);
@@ -114,6 +130,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
       return;
     }
 
+    if (selectedRepId === "new" && !newRepName.trim()) {
+      setError("Please enter the sales rep's name.");
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
     setBatchProgress({ current: 0, total: batchFiles.length });
@@ -121,6 +142,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
     try {
       const formData = new FormData();
       formData.append("defaultRepId", selectedRepId);
+      formData.append("defaultRepName", selectedRepId === "new" ? newRepName.trim() : "");
+      formData.append("defaultRepRole", selectedRepId === "new" ? newRepRole.trim() : "");
       formData.append("defaultStage", callStage);
       batchFiles.forEach((f) => {
         formData.append("files", f);
@@ -259,7 +282,26 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                       {r.name} ({r.role})
                     </option>
                   ))}
+                  <option value="new">＋ Add new rep…</option>
                 </select>
+                {selectedRepId === "new" && (
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Rep name (e.g. Jordan Lee)"
+                      value={newRepName}
+                      onChange={(e) => setNewRepName(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Role (optional, e.g. Account Executive)"
+                      value={newRepRole}
+                      onChange={(e) => setNewRepRole(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -379,7 +421,26 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                       {r.name} ({r.role})
                     </option>
                   ))}
+                  <option value="new">＋ Add new rep…</option>
                 </select>
+                {selectedRepId === "new" && (
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Rep name (e.g. Jordan Lee)"
+                      value={newRepName}
+                      onChange={(e) => setNewRepName(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Role (optional, e.g. Account Executive)"
+                      value={newRepRole}
+                      onChange={(e) => setNewRepRole(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
