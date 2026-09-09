@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { UserButton, Show, SignInButton } from "@clerk/nextjs";
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -198,24 +198,28 @@ export default function Navigation() {
             </button>
 
             {/* Auth / User Profile */}
-            <div className="flex items-center ml-1">
-              <SignedIn>
-                <UserButton
-                  appearance={{
-                    elements: {
-                      avatarBox: "h-7 w-7 ring-1 ring-slate-700",
-                    },
-                  }}
-                />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
-                    Sign In
-                  </button>
-                </SignInButton>
-              </SignedOut>
-            </div>
+            {isClerkConfigured ? (
+              <div className="flex items-center ml-1">
+                <Show
+                  when="signed-in"
+                  fallback={
+                    <SignInButton mode="redirect">
+                      <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
+                        Sign In
+                      </button>
+                    </SignInButton>
+                  }
+                >
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "h-7 w-7 ring-1 ring-slate-700",
+                      },
+                    }}
+                  />
+                </Show>
+              </div>
+            ) : null}
 
             {/* Mobile Hamburger Button */}
             <button
