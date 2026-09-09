@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, Mail, UserPlus, X } from "lucide-react";
-import { useOrganization } from "@clerk/nextjs";
+import { useOrganization, useUser } from "@clerk/nextjs";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 
 function roleLabel(role?: string | null) {
@@ -19,6 +19,7 @@ export default function InviteTeammatesForm({
   compact?: boolean;
   onClose?: () => void;
 }) {
+  const { isSignedIn } = useUser();
   const { isLoaded, organization, membership, invitations } = useOrganization({
     invitations: { infinite: true },
   });
@@ -86,6 +87,10 @@ export default function InviteTeammatesForm({
         Loading team…
       </div>
     );
+  }
+
+  if (!isSignedIn) {
+    return <p className="text-sm text-slate-300">Sign in first, then you can send invites.</p>;
   }
 
   if (!organization) {
