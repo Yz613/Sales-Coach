@@ -265,6 +265,23 @@ export async function getOrCreateRep(
   return id;
 }
 
+// Set what a rep should work on. Stored as the rep persona's manager notes,
+// which the coach already injects when evaluating that rep's calls.
+export async function setRepFocus(repId: string, focus: string): Promise<void> {
+  const text = (focus || "").trim();
+  if (!text) return;
+  const existing = await getRepPersona(repId);
+  await saveRepPersona({
+    repId,
+    experienceLevel: existing?.experienceLevel || "Not specified",
+    coachingTone: existing?.coachingTone || "Direct & tactical",
+    knownBlindspots: existing?.knownBlindspots || [],
+    strengths: existing?.strengths || [],
+    managerNotes: text,
+    targetQuota: existing?.targetQuota,
+  });
+}
+
 // --- Reps & Calls ---
 export async function getAllReps(): Promise<Rep[]> {
   const allReps = await db.select().from(reps).all();

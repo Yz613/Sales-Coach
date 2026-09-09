@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { getOrCreateRep } from "@/lib/db/service";
+import { getOrCreateRep, setRepFocus } from "@/lib/db/service";
 
 export async function POST(req: Request) {
   try {
@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     let repId = "";
     let repName = "";
     let repRole = "";
+    let repFocus = "";
     let prospectCompany = "";
     let prospectName = "";
     let callStage = "Cold Call";
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
       repId = (formData.get("repId") as string) || "";
       repName = (formData.get("repName") as string) || "";
       repRole = (formData.get("repRole") as string) || "";
+      repFocus = (formData.get("repFocus") as string) || "";
       prospectCompany = (formData.get("prospectCompany") as string) || "Unknown Co";
       prospectName = (formData.get("prospectName") as string) || "Prospect";
       callStage = (formData.get("callStage") as string) || "Cold Call";
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
       repId = body.repId || "";
       repName = body.repName || "";
       repRole = body.repRole || "";
+      repFocus = body.repFocus || "";
       prospectCompany = body.prospectCompany || "Unknown Co";
       prospectName = body.prospectName || "Prospect";
       callStage = body.callStage || "Cold Call";
@@ -60,6 +63,9 @@ export async function POST(req: Request) {
 
     // Resolve the rep (creating one from the provided name when needed).
     repId = await getOrCreateRep(repId, repName, repRole);
+    if (repFocus.trim()) {
+      await setRepFocus(repId, repFocus);
+    }
 
     const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
