@@ -26,6 +26,18 @@ export interface MissedOpportunity {
   whatToSayInstead: string;
 }
 
+export interface CoachLesson {
+  id: string;
+  text: string;
+  sourceCallId?: string;
+  createdAt: string;
+}
+
+export interface CoachConfig {
+  instructions: string;
+  lessons: CoachLesson[];
+}
+
 export interface PriorityFix {
   title: string;
   description: string;

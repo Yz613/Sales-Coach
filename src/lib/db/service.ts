@@ -13,7 +13,8 @@ import type {
   SalesScript,
   RepPersona,
   ExecutiveAnalytics,
-  CallStage
+  CallStage,
+  CoachLesson
 } from "@/types";
 
 // --- Settings Service ---
@@ -45,6 +46,66 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     res[r.key] = r.value;
   });
   return res;
+}
+
+// --- Coach Service (manager-authored coaching philosophy + lessons) ---
+// Stored in app_settings so no schema migration is required.
+export async function getCoachInstructions(): Promise<string> {
+  return (await getSetting("coach_instructions")) || "";
+}
+
+export async function setCoachInstructions(text: string): Promise<void> {
+  await setSetting("coach_instructions", text || "");
+}
+
+export async function getCoachLessons(): Promise<CoachLesson[]> {
+  const raw = await getSetting("coach_lessons");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CoachLesson[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveCoachLessons(lessons: CoachLesson[]): Promise<void> {
+  await setSetting("coach_lessons", JSON.stringify(lessons));
+}
+
+export async function addCoachLesson(text: string, sourceCallId?: string): Promise<CoachLesson> {
+  const lessons = await getCoachLessons();
+  const lesson: CoachLesson = {
+    id: `lesson_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    text: text.trim(),
+    sourceCallId,
+    createdAt: new Date().toISOString(),
+  };
+  lessons.unshift(lesson);
+  await saveCoachLessons(lessons);
+  return lesson;
+}
+
+export async function deleteCoachLesson(id: string): Promise<void> {
+  const lessons = await getCoachLessons();
+  await saveCoachLessons(lessons.filter((l) => l.id !== id));
+}
+
+// Builds the manager's coaching directives block injected into every evaluation.
+export async function getCoachContext(): Promise<string> {
+  const instructions = (await getCoachInstructions()).trim();
+  const lessons = await getCoachLessons();
+  const parts: string[] = [];
+  if (instructions) {
+    parts.push(`Coaching philosophy & what matters most to this manager:\n${instructions}`);
+  }
+  if (lessons.length) {
+    parts.push(
+      `Specific lessons the manager has taught (apply these when judging the call):\n` +
+        lessons.map((l, i) => `${i + 1}. ${l.text}`).join("\n")
+    );
+  }
+  return parts.join("\n\n");
 }
 
 // --- Scripts / Playbooks Service ---
@@ -461,6 +522,27 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
     });
   }
 
+  // Systemic leaks are derived from real qualification miss-rates, not hardcoded.
+  const teamLeaks: SuperAdminReport["systemicTeamLeaks"] = [];
+  if (totalCalls > 0) {
+    const dims = [
+      { key: "Pain", miss: totalCalls - totalPainPass, directive: "Coach reps to uncover and quantify business pain before pitching a solution." },
+      { key: "Budget", miss: totalCalls - totalBudgetPass, directive: "Require a budget-range conversation before any demo or proposal." },
+      { key: "Decision", miss: totalCalls - totalDecisionPass, directive: "Map the economic buyer and approval process on every qualified call." },
+    ];
+    dims
+      .filter((d) => d.miss / totalCalls >= 0.4)
+      .sort((a, b) => b.miss - a.miss)
+      .forEach((d) => {
+        teamLeaks.push({
+          title: `${d.key} qualification frequently missed`,
+          description: `${d.key} was not fully qualified (Incomplete or Fail) on ${d.miss} of ${totalCalls} reviewed call(s).`,
+          frequency: `${Math.round((d.miss / totalCalls) * 100)}% of reviewed calls`,
+          actionableTeamDirective: d.directive,
+        });
+      });
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     totalCallsReviewed: totalCalls,
@@ -472,26 +554,7 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
       avgScriptAdherence: totalCalls ? Math.round((totalScriptScore / totalCalls) * 10) / 10 : 0,
     },
     repTrajectories,
-    systemicTeamLeaks: [
-      {
-        title: "Immediate Surrender on 'Already Have a Vendor'",
-        description: "Reps are dropping cold calls immediately when prospects state they have an existing tool instead of asking what they would improve or how long they are locked in.",
-        frequency: "48% of cold calls",
-        actionableTeamDirective: "Mandate the 'Disarm & Pivot' script: 'Totally understand. Most folks we work with had [Competitor] in place. Quick question—are you 100% satisfied with their support responsiveness?'",
-      },
-      {
-        title: "Dancing Around Money in Discovery",
-        description: "Reps wait until the final 2 minutes of the demo to touch budget, leading to sticker shock and vague 'send a proposal' brush-offs.",
-        frequency: "62% of first discovery calls",
-        actionableTeamDirective: "Budget qualification must occur before the live software walk. Force reps to lock a budget bracket ($15k–$30k) before screen sharing.",
-      },
-      {
-        title: "Failing to Identify the Economic Buyer",
-        description: "Reps schedule demos with mid-level managers without mapping out the VP or C-suite approval process.",
-        frequency: "35% of qualification calls",
-        actionableTeamDirective: "Ask directly: 'When you've purchased software like this in the past, who else in finance or the executive team signed off on the PO?'",
-      },
-    ],
+    systemicTeamLeaks: teamLeaks,
   };
 }
 
@@ -509,12 +572,8 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
   const budgetCounts = { pass: 0, incomplete: 0, fail: 0 };
   const decisionCounts = { pass: 0, incomplete: 0, fail: 0 };
 
-  const objectionMap: Record<string, { count: number; pivot: string }> = {
-    "Already have a vendor": { count: 6, pivot: "Validate competitor, probe specific support/sync pain" },
-    "Send me an email": { count: 8, pivot: "State that vendor emails get buried; ask for 60 seconds" },
-    "No budget allocated": { count: 4, pivot: "Ask about cost of inaction before talking purchase orders" },
-    "Too busy / Call next quarter": { count: 3, pivot: "Clarify if it's bandwidth or lack of priority" },
-  };
+  // Objections are aggregated from real flagged missed opportunities, not hardcoded.
+  const objectionMap: Record<string, { count: number; pivot: string }> = {};
 
   allCalls.forEach((c) => {
     totalDuration += c.durationSeconds;
@@ -532,6 +591,13 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
       if (painCounts[p] !== undefined) painCounts[p]++;
       if (budgetCounts[b] !== undefined) budgetCounts[b]++;
       if (decisionCounts[d] !== undefined) decisionCounts[d]++;
+
+      for (const mo of c.evaluation.missedOpportunities || []) {
+        const key = (mo.prospectOpening || "").trim();
+        if (!key) continue;
+        if (!objectionMap[key]) objectionMap[key] = { count: 0, pivot: mo.whatToSayInstead || "" };
+        objectionMap[key].count++;
+      }
     }
   });
 
@@ -563,7 +629,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     surrenderCount: data.count,
     percentage: Math.round((data.count / totalSurrenders) * 100),
     recommendedPivot: data.pivot,
-  })).sort((a, b) => b.surrenderCount - a.surrenderCount);
+  })).sort((a, b) => b.surrenderCount - a.surrenderCount).slice(0, 5);
 
   return {
     totalCalls: allCalls.length,

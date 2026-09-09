@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldAlert, Users, PhoneCall, PlusCircle, BarChart3, BookOpen, Settings, LogIn } from "lucide-react";
+import { ShieldAlert, Users, PhoneCall, PlusCircle, BarChart3, BookOpen, Settings, LogIn, GraduationCap } from "lucide-react";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import UploadModal from "./UploadModal";
 
@@ -15,6 +15,7 @@ export default function Navigation() {
     { label: "Super Admin", href: "/", icon: ShieldAlert },
     { label: "Executive Analytics", href: "/admin/analytics", icon: BarChart3 },
     { label: "Prescribed Scripts", href: "/admin/scripts", icon: BookOpen },
+    { label: "Coach", href: "/coach", icon: GraduationCap },
     { label: "Rep Progression", href: "/reps", icon: Users },
     { label: "Call Bank", href: "/calls", icon: PhoneCall },
   ];
