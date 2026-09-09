@@ -96,6 +96,7 @@ export default function DashboardBoard({
   const sections: Record<SectionId, ReactNode> = {
     metrics: (
       <SortableBoard
+        scope="metrics"
         ids={metricOrder}
         onReorder={updateMetrics}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
@@ -398,12 +399,13 @@ export default function DashboardBoard({
       </div>
 
       <SortableBoard
+        scope="sections"
         ids={sectionOrder}
         onReorder={updateSections}
         className="space-y-8"
         renderItem={(id, handle) => (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
               {handle}
               <span>Drag to move {sectionTitles[id]}</span>
             </div>
