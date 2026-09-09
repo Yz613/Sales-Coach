@@ -8,6 +8,8 @@ import type { UserRole } from "@/lib/auth";
 interface AuthProviderProps {
   children: React.ReactNode;
   initialRole?: UserRole;
+  // Passed from the server layout so SSR and the client hydrate with the same key.
+  publishableKey?: string;
 }
 
 // Inner component used when ClerkProvider is active to link Clerk's useUser with our AuthContext
@@ -33,14 +35,18 @@ function ClerkBridge({ children, initialRole = "admin" }: { children: React.Reac
   );
 }
 
-export default function AuthProvider({ children, initialRole = "admin" }: AuthProviderProps) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  const isClerkReady = Boolean(publishableKey && publishableKey.trim() !== "");
+export default function AuthProvider({
+  children,
+  initialRole = "admin",
+  publishableKey,
+}: AuthProviderProps) {
+  const resolvedKey = (publishableKey || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "").trim();
+  const isClerkReady = Boolean(resolvedKey);
 
   if (isClerkReady) {
     return (
       <ClerkProvider
-        publishableKey={publishableKey}
+        publishableKey={resolvedKey}
         signInUrl="/app/sign-in"
         signUpUrl="/app/sign-up"
         signInFallbackRedirectUrl="/app"
