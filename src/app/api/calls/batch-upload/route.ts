@@ -94,6 +94,7 @@ export async function POST(req: Request) {
         callStage: item.callStage,
         prospectCompany: item.prospectCompany,
         prospectName: item.prospectName,
+        durationSeconds: item.durationSeconds || 300,
       });
 
       results.push({ callId, evaluation });

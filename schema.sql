@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
   missed_opportunities TEXT NOT NULL,
   top_fixes TEXT NOT NULL,
   raw_markdown TEXT,
+  extended_review TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (call_id) REFERENCES calls(id),
   FOREIGN KEY (rep_id) REFERENCES reps(id)

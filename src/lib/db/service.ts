@@ -18,6 +18,7 @@ import type {
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
+import { hydrateEvaluation } from "@/lib/evaluations";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -468,26 +469,13 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
     const ev = repEvals.find((e: any) => e.callId === c.id);
     let evaluation: CallEvaluation | undefined = undefined;
     if (ev) {
-      evaluation = {
-        id: ev.id,
-        callId: ev.callId,
-        repId: ev.repId,
+      evaluation = hydrateEvaluation(ev, {
         repName: repRecord.name,
-        callTypeDetected: c.callStage as any,
-        coreOutcome: c.coreOutcome as any,
-        bottomLine: ev.bottomLine,
-        missedOpportunities: JSON.parse(ev.missedOpportunities || "[]"),
-        sandlerBreakdown: {
-          pain: { status: ev.painStatus as SandlerStatus, evidence: ev.painEvidence },
-          budget: { status: ev.budgetStatus as SandlerStatus, evidence: ev.budgetEvidence },
-          decision: { status: ev.decisionStatus as SandlerStatus, evidence: ev.decisionEvidence },
-          scriptAdherence: { score: ev.scriptAdherenceScore, feedback: ev.scriptFeedback },
-        },
-        scriptDivergence: ev.scriptDivergence ? JSON.parse(ev.scriptDivergence) : undefined,
-        topFixes: JSON.parse(ev.topFixes || "[]"),
-        rawMarkdown: ev.rawMarkdown || undefined,
-        createdAt: ev.createdAt,
-      };
+        callStage: c.callStage,
+        coreOutcome: c.coreOutcome,
+        transcriptText: c.transcriptText,
+        durationSeconds: c.durationSeconds,
+      });
     }
 
     return {
@@ -531,26 +519,13 @@ export async function getAllCalls(): Promise<Call[]> {
     let evaluation: CallEvaluation | undefined = undefined;
 
     if (ev) {
-      evaluation = {
-        id: ev.id,
-        callId: ev.callId,
-        repId: ev.repId,
+      evaluation = hydrateEvaluation(ev, {
         repName: rep?.name || "Unknown Rep",
-        callTypeDetected: c.callStage as any,
-        coreOutcome: c.coreOutcome as any,
-        bottomLine: ev.bottomLine,
-        missedOpportunities: JSON.parse(ev.missedOpportunities || "[]"),
-        sandlerBreakdown: {
-          pain: { status: ev.painStatus as SandlerStatus, evidence: ev.painEvidence },
-          budget: { status: ev.budgetStatus as SandlerStatus, evidence: ev.budgetEvidence },
-          decision: { status: ev.decisionStatus as SandlerStatus, evidence: ev.decisionEvidence },
-          scriptAdherence: { score: ev.scriptAdherenceScore, feedback: ev.scriptFeedback },
-        },
-        scriptDivergence: ev.scriptDivergence ? JSON.parse(ev.scriptDivergence) : undefined,
-        topFixes: JSON.parse(ev.topFixes || "[]"),
-        rawMarkdown: ev.rawMarkdown || undefined,
-        createdAt: ev.createdAt,
-      };
+        callStage: c.callStage,
+        coreOutcome: c.coreOutcome,
+        transcriptText: c.transcriptText,
+        durationSeconds: c.durationSeconds,
+      });
     }
 
     return {
@@ -580,26 +555,13 @@ export async function getCallById(id: string): Promise<Call | null> {
 
   let evaluation: CallEvaluation | undefined = undefined;
   if (ev) {
-    evaluation = {
-      id: ev.id,
-      callId: ev.callId,
-      repId: ev.repId,
+    evaluation = hydrateEvaluation(ev, {
       repName: rep?.name || "Unknown Rep",
-      callTypeDetected: c.callStage as any,
-      coreOutcome: c.coreOutcome as any,
-      bottomLine: ev.bottomLine,
-      missedOpportunities: JSON.parse(ev.missedOpportunities || "[]"),
-      sandlerBreakdown: {
-        pain: { status: ev.painStatus as SandlerStatus, evidence: ev.painEvidence },
-        budget: { status: ev.budgetStatus as SandlerStatus, evidence: ev.budgetEvidence },
-        decision: { status: ev.decisionStatus as SandlerStatus, evidence: ev.decisionEvidence },
-        scriptAdherence: { score: ev.scriptAdherenceScore, feedback: ev.scriptFeedback },
-      },
-      scriptDivergence: ev.scriptDivergence ? JSON.parse(ev.scriptDivergence) : undefined,
-      topFixes: JSON.parse(ev.topFixes || "[]"),
-      rawMarkdown: ev.rawMarkdown || undefined,
-      createdAt: ev.createdAt,
-    };
+      callStage: c.callStage,
+      coreOutcome: c.coreOutcome,
+      transcriptText: c.transcriptText,
+      durationSeconds: c.durationSeconds,
+    });
   }
 
   return {

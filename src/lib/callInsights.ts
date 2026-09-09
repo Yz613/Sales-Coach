@@ -6,6 +6,7 @@ import type {
   SandlerStatus,
 } from "@/types";
 
+
 export interface RankedCall extends Call {
   rank: number;
   score: number;
@@ -46,8 +47,15 @@ export function computeCallScore(call: Call): number {
 
   const missedPenalty = Math.min(ev.missedOpportunities.length, 3) * 3; // 0-9
 
+  const extra = ev.scorecard?.filter((m) =>
+    m.key === "fightForTheWin" || m.key === "nextStep" || m.key === "discoveryDepth"
+  ) || [];
+  const extraPoints = extra.length
+    ? Math.round(extra.reduce((sum, m) => sum + Math.min(m.score, 10), 0) / extra.length)
+    : 0;
+
   const raw =
-    scriptPoints + sandlerPoints + outcomeBonus(call.coreOutcome) - missedPenalty;
+    scriptPoints + sandlerPoints + outcomeBonus(call.coreOutcome) + extraPoints - missedPenalty;
 
   return Math.max(0, Math.min(100, Math.round(raw)));
 }

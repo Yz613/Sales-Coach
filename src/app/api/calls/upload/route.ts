@@ -100,6 +100,7 @@ export async function POST(req: Request) {
       callStage,
       prospectCompany,
       prospectName,
+      durationSeconds,
     });
 
     return NextResponse.json({

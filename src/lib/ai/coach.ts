@@ -1,9 +1,21 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
-import { getSetting, getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
+import { getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
+import { completeJson } from "./llm";
+import { resolveAiSettings } from "./settings";
+import {
+  attachCitesToScorecard,
+  buildScorecardFromSandler,
+  buildWalkthroughFromTranscript,
+  stampMissedOpportunities,
+  type ExtendedReview,
+  type ScorecardMetric,
+  type CoachWalkthroughStep,
+} from "./review";
+import { parseTranscript } from "../transcript";
 
 interface EvaluationInput {
   callId: string;
@@ -12,19 +24,17 @@ interface EvaluationInput {
   callStage: string;
   prospectCompany: string;
   prospectName: string;
+  durationSeconds?: number;
 }
 
 export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluation> {
   const rep = await db.select().from(reps).where(eq(reps.id, input.repId)).get();
   const repName = rep?.name || "Rep";
+  const durationSeconds = input.durationSeconds ?? 0;
 
-  // 1. Ingest rep persona & manager notes
   const persona = await getRepPersona(input.repId);
-
-  // 2. Ingest active prescribed script/playbook for this stage
   const activeScript = await getActiveScriptForStage(input.callStage);
 
-  // 3. Ingest historical context (last 3 calls)
   const previousEvals = await db
     .select()
     .from(evaluations)
@@ -42,27 +52,56 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     }
   }).filter(Boolean).join("\n");
 
-  // 4. Ingest the manager's custom coaching directives (philosophy + taught lessons)
   const coachContext = await getCoachContext();
-
-  // Check for GEMINI API KEY in app_settings table first, then environment
-  const geminiApiKey = (await getSetting("gemini_api_key")) || process.env.GEMINI_API_KEY;
-  const activeModel = (await getSetting("active_model")) || "gemini-3.8-flash";
+  const ai = await resolveAiSettings();
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
 
-  if (geminiApiKey && geminiApiKey.trim().length > 0) {
+  if (ai.apiKey) {
     try {
-      evaluationResult = await callGeminiAPI(input, repName, pastFixesSummary, persona, activeScript, geminiApiKey.trim(), activeModel, coachContext);
+      evaluationResult = await callLlmEvaluation(
+        input,
+        repName,
+        pastFixesSummary,
+        persona,
+        activeScript,
+        ai.apiKey,
+        ai.providerId,
+        ai.model,
+        coachContext,
+        durationSeconds
+      );
     } catch (err) {
-      console.error("Gemini API error, falling back to intelligent rule-based evaluator:", err);
-      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext);
+      console.error("LLM evaluation error, falling back to rule-based evaluator:", err);
+      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
     }
   } else {
-    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext);
+    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
   }
 
-  // Save evaluation to database
+  evaluationResult.missedOpportunities = stampMissedOpportunities(
+    evaluationResult.missedOpportunities,
+    input.transcriptText,
+    durationSeconds
+  );
+  if (evaluationResult.scorecard) {
+    evaluationResult.scorecard = attachCitesToScorecard(evaluationResult.scorecard, input.transcriptText, durationSeconds);
+  }
+  if (!evaluationResult.walkthrough?.length) {
+    evaluationResult.walkthrough = buildWalkthroughFromTranscript(
+      input.transcriptText,
+      durationSeconds,
+      evaluationResult.missedOpportunities,
+      repName
+    );
+  }
+
+  const extendedReview: ExtendedReview = {
+    scorecard: evaluationResult.scorecard || [],
+    walkthrough: evaluationResult.walkthrough || [],
+    evaluatedWith: evaluationResult.evaluatedWith,
+  };
+
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   await db.insert(evaluations).values({
     id: evaluationId,
@@ -83,16 +122,15 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     missedOpportunities: JSON.stringify(evaluationResult.missedOpportunities),
     topFixes: JSON.stringify(evaluationResult.topFixes),
     rawMarkdown: evaluationResult.rawMarkdown || "",
+    extendedReview: JSON.stringify(extendedReview),
     createdAt: new Date().toISOString(),
   }).run();
 
-  // Update Call status
   await db.update(calls)
     .set({ status: "completed", coreOutcome: evaluationResult.coreOutcome })
     .where(eq(calls.id, input.callId))
     .run();
 
-  // Recalculate Rep Progression Snapshot
   await updateRepProgressionSnapshot(input.repId, repName, evaluationResult);
 
   return {
@@ -104,15 +142,23 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   };
 }
 
-async function callGeminiAPI(
+function timestampedTranscript(transcriptText: string, durationSeconds: number): string {
+  const turns = parseTranscript(transcriptText, durationSeconds);
+  if (!turns.length) return transcriptText;
+  return turns.map((t) => `[${t.timestamp}] ${t.speaker}: ${t.text}`).join("\n");
+}
+
+async function callLlmEvaluation(
   input: EvaluationInput,
   repName: string,
   pastFixes: string,
   persona: RepPersona | null,
   script: SalesScript | null,
   apiKey: string,
+  providerId: Parameters<typeof completeJson>[0]["providerId"],
   model: string,
-  coachContext: string
+  coachContext: string,
+  durationSeconds: number
 ) {
   const personaContext = persona
     ? `
@@ -141,14 +187,16 @@ ${script.content}
   const coachDirectives = coachContext
     ? `
 === MANAGER'S COACHING DIRECTIVES (HIGHEST PRIORITY) ===
-You have been trained by this sales manager. Adopt their judgment as your own and apply it to this call above any generic best practice. When their directives conflict with standard advice, follow THEIR directives. Reflect these directives in the bottomLine, missedOpportunities, scriptAdherence feedback, and topFixes.
+You have been trained by this sales manager. Adopt their judgment as your own and apply it to this call above any generic best practice. When their directives conflict with standard advice, follow THEIR directives. Reflect these directives in the bottomLine, missedOpportunities, scriptAdherence feedback, scorecard, walkthrough, and topFixes.
 ${coachContext}
 === END MANAGER'S COACHING DIRECTIVES ===
 `
     : "";
 
+  const stamped = timestampedTranscript(input.transcriptText, durationSeconds);
+
   const prompt = `
-You are the ultimate AI Sales Manager for a B2B sales team. You act like an experienced, grounded VP of Sales.
+You are the ultimate AI Sales Manager for a B2B sales team. You act like an experienced, grounded VP of Sales reviewing a call WITH a coach sitting next to you. Pick the call apart beat by beat.
 ${coachDirectives}
 ${personaContext}
 
@@ -156,62 +204,117 @@ ${scriptContext}
 
 Prospect: ${input.prospectName} from ${input.prospectCompany}
 Call Stage: ${input.callStage}
+Call duration: ${durationSeconds} seconds
 
 Past Coaching History (last calls):
 ${pastFixes || "None on record."}
 
-Call Transcript:
+Call Transcript (each line is prefixed with an estimated clock time [m:ss]):
 """
-${input.transcriptText}
+${stamped}
 """
 
-Evaluate this call strictly against blocking-and-tackling, early folding ("Fight for the Win"), stage-specific Sandler qualification (Pain, Budget, Decision), and adherence to the prescribed script above.
-For scriptDivergence, judge EVERY required milestone from the prescribed script above one-by-one and mark each Hit, Partial, or Missed with transcript evidence. Include one entry per milestone, using the milestone text verbatim.
-Tailor your feedback tone to the rep's coaching tone preference.
+EVIDENCE RULES (non-negotiable):
+- Every claim must cite the clock time from the transcript prefix AND the exact quote.
+- If you say they folded, write the timestamp (e.g. "1:12") and the exact sentence they said.
+- Never paraphrase a surrender. Quote it.
+- If the transcript already had timestamps, use those. Otherwise use the [m:ss] prefixes above.
+
+Evaluate against:
+1. Blocking-and-tackling / early folding ("Fight for the Win")
+2. Stage-specific Sandler qualification (Pain, Budget, Decision)
+3. Next-step firmness (calendar lock vs "I'll send something")
+4. Discovery depth (questions vs pitch)
+5. Control & pacing (who drove the call)
+6. Peer authority / tone
+7. Adherence to the prescribed script
+
+For scriptDivergence, judge EVERY required milestone one-by-one (Hit / Partial / Missed) with timestamp + quote.
+For walkthrough, produce 6–12 sequential coaching steps covering the WHOLE call — not just the disasters. Each step is one moment a coach would pause the tape: what happened, and exactly what they should have done HERE. If they did it right, verdict is "good" and shouldHaveDone is empty.
 
 Return a strictly valid JSON object with this exact schema:
 {
   "callTypeDetected": "${input.callStage}",
   "coreOutcome": "Meeting booked / Dropped / Rescheduled / Unqualified",
-  "bottomLine": "2-3 sentences candid summary of how the rep handled this call.",
+  "bottomLine": "2-3 sentences candid summary. Cite at least one [m:ss] timestamp.",
   "missedOpportunities": [
     {
+      "timestamp": "1:12",
+      "timestampSeconds": 72,
       "prospectOpening": "exact quote from prospect",
+      "prospectQuote": "exact quote from prospect",
       "repSurrender": "exact quote of rep folding",
-      "whatToSayInstead": "exact phrase rep should have said"
+      "repQuote": "exact quote of rep folding",
+      "whatToSayInstead": "exact phrase rep should have said at that timestamp"
     }
   ],
   "sandlerBreakdown": {
-    "pain": { "status": "Pass|Incomplete|Fail", "evidence": "evidence from transcript" },
-    "budget": { "status": "Pass|Incomplete|Fail", "evidence": "evidence from transcript" },
-    "decision": { "status": "Pass|Incomplete|Fail", "evidence": "evidence from transcript" },
-    "scriptAdherence": { "score": 7, "feedback": "exact milestones missed or hit from the prescribed script" }
+    "pain": { "status": "Pass|Incomplete|Fail", "evidence": "[m:ss] \\"exact quote\\" — interpretation" },
+    "budget": { "status": "Pass|Incomplete|Fail", "evidence": "[m:ss] \\"exact quote\\" — interpretation" },
+    "decision": { "status": "Pass|Incomplete|Fail", "evidence": "[m:ss] \\"exact quote\\" — interpretation" },
+    "scriptAdherence": { "score": 7, "feedback": "milestones hit or missed, each with a timestamp" }
   },
+  "scorecard": [
+    { "key": "pain", "label": "Pain", "status": "Pass|Incomplete|Fail", "score": 7, "evidence": "one sentence", "cite": { "timestamp": "0:42", "timestampSeconds": 42, "quote": "exact line" } },
+    { "key": "budget", "label": "Budget", "status": "Pass|Incomplete|Fail", "score": 4, "evidence": "one sentence", "cite": { "timestamp": "2:10", "timestampSeconds": 130, "quote": "exact line" } },
+    { "key": "decision", "label": "Decision", "status": "Pass|Incomplete|Fail", "score": 3, "evidence": "one sentence", "cite": { "timestamp": "2:40", "timestampSeconds": 160, "quote": "exact line" } },
+    { "key": "fightForTheWin", "label": "Fight for the Win", "status": "Fail", "score": 2, "evidence": "one sentence", "cite": { "timestamp": "1:12", "timestampSeconds": 72, "quote": "exact fold" } },
+    { "key": "nextStep", "label": "Next-step firmness", "status": "Fail", "score": 2, "evidence": "one sentence", "cite": { "timestamp": "1:40", "timestampSeconds": 100, "quote": "exact line" } },
+    { "key": "discoveryDepth", "label": "Discovery depth", "status": "Incomplete", "score": 4, "evidence": "one sentence", "cite": { "timestamp": "0:22", "timestampSeconds": 22, "quote": "exact line" } },
+    { "key": "controlAndPacing", "label": "Control & pacing", "status": "Incomplete", "score": 4, "evidence": "one sentence", "cite": { "timestamp": "0:04", "timestampSeconds": 4, "quote": "exact line" } },
+    { "key": "peerAuthority", "label": "Peer authority", "status": "Fail", "score": 3, "evidence": "one sentence", "cite": { "timestamp": "0:04", "timestampSeconds": 4, "quote": "exact line" } }
+  ],
+  "walkthrough": [
+    {
+      "step": 1,
+      "timestamp": "0:04",
+      "timestampSeconds": 4,
+      "speaker": "Rep name",
+      "quote": "exact transcript line",
+      "whatHappened": "one sentence a coach would say while pausing the tape",
+      "shouldHaveDone": "exact alternative, or empty string if they did it right",
+      "verdict": "good|coach|miss|fatal",
+      "category": "Opener|Objection|Pain|Budget|Decision|Close|Tone"
+    }
+  ],
   "scriptDivergence": {
     "scriptTitle": "${script?.title || `Standard B2B ${input.callStage} framework`}",
     "milestones": [
-      { "milestone": "exact text of the required milestone", "status": "Hit|Partial|Missed", "note": "1 sentence citing transcript evidence for why it was hit, partially done, or missed" }
+      { "milestone": "exact text of the required milestone", "status": "Hit|Partial|Missed", "note": "1 sentence with [m:ss] and quote", "timestamp": "0:18", "quote": "exact line" }
     ]
   },
   "topFixes": [
-    { "title": "Fix #1 title", "description": "Specific tactical behavior to change" },
-    { "title": "Fix #2 title", "description": "Specific phrasing or process correction" }
+    { "title": "Fix #1 title", "description": "Specific tactical behavior to change, citing the timestamp where it failed" },
+    { "title": "Fix #2 title", "description": "Specific phrasing or process correction, citing the timestamp" }
   ]
 }
 `;
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" }
-    })
-  });
+  const result = await completeJson({ providerId, apiKey, model, prompt });
+  const parsed = result.parsed || {};
 
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  return JSON.parse(text);
+  const missed: MissedOpportunity[] = Array.isArray(parsed.missedOpportunities) ? parsed.missedOpportunities : [];
+  const scorecard: ScorecardMetric[] | undefined = Array.isArray(parsed.scorecard) ? parsed.scorecard : undefined;
+  const walkthrough: CoachWalkthroughStep[] | undefined = Array.isArray(parsed.walkthrough) ? parsed.walkthrough : undefined;
+
+  return {
+    repName,
+    callTypeDetected: parsed.callTypeDetected || input.callStage,
+    coreOutcome: parsed.coreOutcome || "Dropped",
+    bottomLine: parsed.bottomLine || "",
+    missedOpportunities: missed,
+    sandlerBreakdown: parsed.sandlerBreakdown,
+    scriptDivergence: parsed.scriptDivergence,
+    topFixes: parsed.topFixes,
+    scorecard,
+    walkthrough,
+    evaluatedWith: {
+      provider: providerId,
+      model,
+      estimatedCostUsd: result.estimatedCostUsd,
+    },
+    rawMarkdown: `### Manager's Assessment for ${repName}\n${parsed.bottomLine || ""}`,
+  };
 }
 
 function generateRuleBasedEvaluation(
@@ -220,12 +323,14 @@ function generateRuleBasedEvaluation(
   pastFixes: string,
   persona: RepPersona | null,
   script: SalesScript | null,
-  coachContext: string
+  coachContext: string,
+  durationSeconds: number
 ): Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt"> {
   const text = input.transcriptText.toLowerCase();
   const coachApplied = coachContext.trim().length > 0;
+  const turns = parseTranscript(input.transcriptText, durationSeconds);
 
-  const hasEarlyFold = text.includes("send an email") || text.includes("no problem, thanks") || text.includes("understand, bye") || text.includes("all set") || text.includes("don't need");
+  const hasEarlyFold = text.includes("send an email") || text.includes("no problem, thanks") || text.includes("understand, bye") || text.includes("all set") || text.includes("don't need") || text.includes("i'll send that");
   const mentionsBudget = text.includes("budget") || text.includes("cost") || text.includes("price") || text.includes("pricing") || text.includes("range");
   const mentionsDecision = text.includes("decision") || text.includes("timeline") || text.includes("stakeholder") || text.includes("who else") || text.includes("procurement");
   const mentionsPain = text.includes("challenge") || text.includes("frustrat") || text.includes("problem") || text.includes("headache") || text.includes("struggle") || text.includes("delay");
@@ -243,19 +348,36 @@ function generateRuleBasedEvaluation(
 
   const missedOpportunities: MissedOpportunity[] = [];
 
+  const stampQuote = (quote: string) => {
+    const hit = turns.find((t) => t.text.toLowerCase().includes(quote.slice(0, 24).toLowerCase()));
+    return hit;
+  };
+
   if (text.includes("email") || text.includes("send me some info")) {
+    const prospect = stampQuote("send me an email") || stampQuote("email");
+    const surrender = stampQuote("i'll send") || stampQuote("absolutely");
     missedOpportunities.push({
-      prospectOpening: "Just send me an email with more information and I'll take a look.",
-      repSurrender: "Sure thing, I'll send that over right now. What's your email?",
-      whatToSayInstead: "I can definitely send info, but in my experience, emails like that usually get buried in 30 seconds. If I can take 60 seconds right now to share the one reason companies like yours switch to us, would that be fair?"
+      prospectOpening: prospect?.text || "Just send me an email with more information and I'll take a look.",
+      repSurrender: surrender?.text || "Sure thing, I'll send that over right now. What's your email?",
+      whatToSayInstead: "I can definitely send info, but in my experience, emails like that usually get buried in 30 seconds. If I can take 60 seconds right now to share the one reason companies like yours switch to us, would that be fair?",
+      timestamp: (surrender || prospect)?.timestamp,
+      timestampSeconds: (surrender || prospect)?.timestampSeconds,
+      prospectQuote: prospect?.text,
+      repQuote: surrender?.text,
     });
   }
 
-  if (text.includes("already have") || text.includes("already using") || text.includes("happy with") || text.includes("freightpulse") || text.includes("hubspot")) {
+  if (text.includes("already have") || text.includes("already using") || text.includes("happy with") || text.includes("freightpulse") || text.includes("hubspot") || text.includes("benchling")) {
+    const prospect = stampQuote("already have") || stampQuote("already");
+    const surrender = stampQuote("no problem") || stampQuote("no worries") || stampQuote("got it");
     missedOpportunities.push({
-      prospectOpening: "We already have a solution in place and we're good for now.",
-      repSurrender: "Got it, no worries at all! Keep us in mind when your contract expires.",
-      whatToSayInstead: "Glad you have that solved. We don't ask anyone to rip and replace what's working. Most leaders we talk with have that in place, but tell us they struggle with [specific gap]. Are you seeing that as well, or has your team managed to avoid that completely?"
+      prospectOpening: prospect?.text || "We already have a solution in place and we're good for now.",
+      repSurrender: surrender?.text || "Got it, no worries at all! Keep us in mind when your contract expires.",
+      whatToSayInstead: "Glad you have that solved. We don't ask anyone to rip and replace what's working. Most leaders we talk with have that in place, but tell us they struggle with [specific gap]. Are you seeing that as well, or has your team managed to avoid that completely?",
+      timestamp: (surrender || prospect)?.timestamp,
+      timestampSeconds: (surrender || prospect)?.timestampSeconds,
+      prospectQuote: prospect?.text,
+      repQuote: surrender?.text,
     });
   }
 
@@ -279,15 +401,20 @@ function generateRuleBasedEvaluation(
     ? `Noticeable alignment with known blindspot: '${persona.knownBlindspots[0]}'.`
     : "";
 
+  const foldTurn = turns.find((t) => /send (me )?an email|i'll send|no problem|absolutely/i.test(t.text));
+  const foldCite = foldTurn ? ` At ${foldTurn.timestamp} they said: "${foldTurn.text}"` : "";
+
   const coachNote = coachApplied
-    ? "Assessed through your custom coaching directives (add a Gemini API key in Settings for the coach to apply them in full depth). "
+    ? "Assessed through your custom coaching directives (add an AI API key in Settings for the coach to apply them in full depth). "
     : "";
-  const bottomLine = `${repName} made contact with ${input.prospectName} at ${input.prospectCompany}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.`;
+  const bottomLine = `${repName} made contact with ${input.prospectName} at ${input.prospectCompany}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.${foldCite}`;
 
   const fixes: [PriorityFix, PriorityFix] = [
     {
       title: "Disarm and Re-engage Brush-offs Instead of Surrendering",
-      description: "When the prospect offers a soft brush-off ('send info' / 'already have someone'), do not agree to hang up. Acknowledge and ask one provocative calibration question to buy the next 60 seconds."
+      description: foldTurn
+        ? `At ${foldTurn.timestamp} ("${foldTurn.text.slice(0, 80)}"), do not agree to hang up. Acknowledge and ask one provocative calibration question to buy the next 60 seconds.`
+        : "When the prospect offers a soft brush-off ('send info' / 'already have someone'), do not agree to hang up. Acknowledge and ask one provocative calibration question to buy the next 60 seconds."
     },
     {
       title: script?.keyMilestones?.[1] ? `Execute Milestone: ${script.keyMilestones[1]}` : "Direct Budget & Decision Thresholds Early",
@@ -298,6 +425,30 @@ function generateRuleBasedEvaluation(
   ];
 
   const scriptDivergence = computeScriptDivergence(input.transcriptText, script, scriptScore);
+  const scorecard = attachCitesToScorecard(
+    buildScorecardFromSandler({
+      pain: {
+        status: painStatus,
+        evidence: mentionsPain ? "Rep touched operational bottlenecks but stayed surface level." : "Failed to uncover real operational pain; accepted feature requests at face value."
+      },
+      budget: {
+        status: budgetStatus,
+        evidence: mentionsBudget ? "Mentioned ballpark investment brackets." : "Danced completely around budget. Did not qualify financial commitment."
+      },
+      decision: {
+        status: decisionStatus,
+        evidence: mentionsDecision ? "Asked about timeline and other participants." : "Did not identify who signs off or what the formal buying criteria looks like."
+      },
+      scriptScore,
+      missedCount: missedOpportunities.length,
+      coreOutcome,
+      foldedEarly: hasEarlyFold,
+    }),
+    input.transcriptText,
+    durationSeconds
+  );
+
+  const walkthrough = buildWalkthroughFromTranscript(input.transcriptText, durationSeconds, missedOpportunities, repName);
 
   return {
     repName,
@@ -325,6 +476,8 @@ function generateRuleBasedEvaluation(
       }
     },
     topFixes: fixes,
+    scorecard,
+    walkthrough,
     rawMarkdown: `### Manager's Assessment for ${repName}\n${bottomLine}`
   };
 }

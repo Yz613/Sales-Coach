@@ -1,3 +1,5 @@
+import type { CoachWalkthroughStep, EvaluatedWith, ScorecardMetric } from "@/lib/ai/review";
+
 /** Call Stage Target — built-in defaults plus any custom script types a manager adds. */
 export type CallStage = string;
 
@@ -13,6 +15,8 @@ export interface MilestoneDivergence {
   milestone: string;
   status: MilestoneStatus;
   note: string;
+  timestamp?: string;
+  quote?: string;
 }
 
 export interface ScriptDivergence {
@@ -25,6 +29,11 @@ export interface MissedOpportunity {
   prospectOpening: string;
   repSurrender: string;
   whatToSayInstead: string;
+  /** Clock time on the call, e.g. "0:42". */
+  timestamp?: string;
+  timestampSeconds?: number;
+  prospectQuote?: string;
+  repQuote?: string;
 }
 
 export interface CoachLesson {
@@ -61,6 +70,9 @@ export interface CallEvaluation {
   };
   scriptDivergence?: ScriptDivergence;
   topFixes: [PriorityFix, PriorityFix];
+  scorecard?: ScorecardMetric[];
+  walkthrough?: CoachWalkthroughStep[];
+  evaluatedWith?: EvaluatedWith;
   rawMarkdown?: string;
   createdAt: string;
 }

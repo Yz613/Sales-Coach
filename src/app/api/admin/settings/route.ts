@@ -1,18 +1,25 @@
 import { NextResponse } from "next/server";
-import { getAllSettings, setSetting } from "@/lib/db/service";
+import { setSetting } from "@/lib/db/service";
+import { resolveAiSettings } from "@/lib/ai/settings";
+import {
+  AI_PROVIDERS,
+  defaultModelForProvider,
+  detectProviderFromKey,
+  getProvider,
+  isProviderId,
+  type ProviderId,
+} from "@/lib/ai/providers";
 
 export async function GET() {
   try {
-    const settings = await getAllSettings();
-    // Mask key for safety
-    const maskedKey = settings["gemini_api_key"]
-      ? `${settings["gemini_api_key"].slice(0, 6)}••••••••${settings["gemini_api_key"].slice(-4)}`
-      : "";
+    const ai = await resolveAiSettings();
 
     return NextResponse.json({
-      hasKey: Boolean(settings["gemini_api_key"] || process.env.GEMINI_API_KEY),
-      maskedKey,
-      activeModel: settings["active_model"] || "gemini-3.8-flash",
+      hasKey: ai.hasKey,
+      maskedKey: ai.maskedKey,
+      provider: ai.providerId,
+      activeModel: ai.model,
+      providers: AI_PROVIDERS,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -23,14 +30,31 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (body.geminiApiKey !== undefined) {
-      if (body.geminiApiKey.trim().length > 0) {
-        await setSetting("gemini_api_key", body.geminiApiKey.trim());
+    let providerId: ProviderId | undefined;
+    if (body.provider !== undefined && isProviderId(body.provider)) {
+      providerId = body.provider;
+      await setSetting("ai_provider", body.provider);
+    }
+
+    const incomingKey = (body.apiKey ?? body.geminiApiKey ?? "").toString();
+    if (incomingKey.trim().length > 0) {
+      const key = incomingKey.trim();
+      await setSetting("ai_api_key", key);
+      const detected = detectProviderFromKey(key);
+      if (!providerId && detected) {
+        providerId = detected;
+        await setSetting("ai_provider", detected);
       }
     }
 
-    if (body.activeModel !== undefined) {
-      await setSetting("active_model", body.activeModel);
+    if (body.activeModel !== undefined && String(body.activeModel).trim()) {
+      await setSetting("active_model", String(body.activeModel).trim());
+    } else if (providerId) {
+      const current = (await resolveAiSettings()).model;
+      const belongs = getProvider(providerId).models.some((m) => m.id === current);
+      if (!belongs) {
+        await setSetting("active_model", defaultModelForProvider(providerId));
+      }
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });

@@ -40,6 +40,7 @@ export const evaluations = sqliteTable("evaluations", {
   missedOpportunities: text("missed_opportunities").notNull(), // JSON string: MissedOpportunity[]
   topFixes: text("top_fixes").notNull(), // JSON string: [PriorityFix, PriorityFix]
   rawMarkdown: text("raw_markdown"),
+  extendedReview: text("extended_review"), // JSON: scorecard + walkthrough + evaluatedWith
   createdAt: text("created_at").notNull(),
 });
 

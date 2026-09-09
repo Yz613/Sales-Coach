@@ -293,7 +293,7 @@ export default async function SuperAdminDashboard() {
           <div>
             <h2 className="text-base font-bold text-white tracking-tight">Recent Call Evaluations</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Live evaluations scored against the 5 coaching dimensions.
+              Live evaluations scored against the coaching scorecard (Sandler + fight-for-the-win, next step, discovery, pacing, authority).
             </p>
           </div>
           <Link
