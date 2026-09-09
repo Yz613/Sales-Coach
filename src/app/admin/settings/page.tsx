@@ -5,7 +5,6 @@ import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users 
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
-import OrganizationSettingsPanel from "@/components/OrganizationSettingsPanel";
 import {
   AI_PROVIDERS,
   DEFAULT_MODEL,
@@ -23,7 +22,7 @@ import {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
-  const { isAdmin, isClerkConfigured, isLoading: authLoading } = useAppAuth();
+  const { isAdmin, isLoading: authLoading } = useAppAuth();
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState<ProviderId>(DEFAULT_PROVIDER);
   const [activeModel, setActiveModel] = useState(DEFAULT_MODEL);
@@ -156,8 +155,6 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {isClerkConfigured && <OrganizationSettingsPanel />}
-
       <div className="border-b border-slate-800 pb-5">
         <div className="flex items-center gap-2 mb-1">
           <span className="rounded bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">

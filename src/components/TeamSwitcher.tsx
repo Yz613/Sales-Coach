@@ -35,8 +35,10 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
           )}
           <OrganizationSwitcher
             hidePersonal
-            organizationProfileMode="modal"
-            createOrganizationMode="modal"
+            organizationProfileMode="navigation"
+            organizationProfileUrl={CLERK_PATHS.organizationProfile}
+            createOrganizationMode="navigation"
+            createOrganizationUrl={CLERK_PATHS.createOrganization}
             afterSelectOrganizationUrl={CLERK_PATHS.afterSignIn}
             afterCreateOrganizationUrl={CLERK_PATHS.afterSignIn}
             appearance={clerkAppearance}
