@@ -18,6 +18,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
   const [selectedRepId, setSelectedRepId] = useState("new");
   const [newRepName, setNewRepName] = useState("");
   const [newRepRole, setNewRepRole] = useState("");
+  const [newRepFocus, setNewRepFocus] = useState("");
   const [prospectCompany, setProspectCompany] = useState("");
   const [prospectName, setProspectName] = useState("");
   const [callStage, setCallStage] = useState("Cold Call");
@@ -89,6 +90,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           : reps.find((r) => r.id === selectedRepId)?.name || "Rep"
       );
       formData.append("repRole", selectedRepId === "new" ? newRepRole.trim() : "");
+      formData.append("repFocus", selectedRepId === "new" ? newRepFocus.trim() : "");
       formData.append("prospectCompany", prospectCompany.trim());
       formData.append("prospectName", prospectName.trim() || "Lead Contact");
       formData.append("callStage", callStage);
@@ -144,6 +146,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
       formData.append("defaultRepId", selectedRepId);
       formData.append("defaultRepName", selectedRepId === "new" ? newRepName.trim() : "");
       formData.append("defaultRepRole", selectedRepId === "new" ? newRepRole.trim() : "");
+      formData.append("defaultRepFocus", selectedRepId === "new" ? newRepFocus.trim() : "");
       formData.append("defaultStage", callStage);
       batchFiles.forEach((f) => {
         formData.append("files", f);
@@ -300,6 +303,13 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                       onChange={(e) => setNewRepRole(e.target.value)}
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
                     />
+                    <textarea
+                      rows={2}
+                      placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
+                      value={newRepFocus}
+                      onChange={(e) => setNewRepFocus(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
                   </div>
                 )}
               </div>
@@ -437,6 +447,13 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                       placeholder="Role (optional, e.g. Account Executive)"
                       value={newRepRole}
                       onChange={(e) => setNewRepRole(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                    <textarea
+                      rows={2}
+                      placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
+                      value={newRepFocus}
+                      onChange={(e) => setNewRepFocus(e.target.value)}
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
                     />
                   </div>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { getOrCreateRep } from "@/lib/db/service";
+import { getOrCreateRep, setRepFocus } from "@/lib/db/service";
 
 interface BatchItem {
   repId: string;
@@ -25,9 +25,13 @@ export async function POST(req: Request) {
       const defaultRepId = (formData.get("defaultRepId") as string) || "";
       const defaultRepName = (formData.get("defaultRepName") as string) || "";
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
+      const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
       const defaultStage = (formData.get("defaultStage") as string) || "Cold Call";
 
       const resolvedRepId = await getOrCreateRep(defaultRepId, defaultRepName, defaultRepRole);
+      if (defaultRepFocus.trim()) {
+        await setRepFocus(resolvedRepId, defaultRepFocus);
+      }
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
