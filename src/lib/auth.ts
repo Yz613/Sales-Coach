@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveCanViewAllCalls } from "@/lib/call-access";
@@ -26,13 +25,10 @@ export function isClerkConfigured(): boolean {
 
 /**
  * Get the current user and their role on the server.
- * Reads role from the active Clerk organization, then publicMetadata.role,
- * with support for the dev preview role cookie ("sc_role").
+ * Reads role from the active team, then publicMetadata.role.
  */
 export async function getServerAuth(): Promise<AuthUser> {
   const clerkConfigured = isClerkConfigured();
-  const cookieStore = await cookies();
-  const cookieRole = cookieStore.get("sc_role")?.value as UserRole | undefined;
 
   let userId: string | null = null;
   let email: string | undefined;
@@ -71,7 +67,6 @@ export async function getServerAuth(): Promise<AuthUser> {
   }
 
   const effectiveRole = resolveUserRole({
-    cookieRole,
     orgRole,
     hasOrgAdmin,
     metadataRole,

@@ -206,7 +206,7 @@ export default function AdminSettingsPage() {
             <div>
               <h2 className="text-base font-bold text-white">Roles</h2>
               <p className="text-xs text-slate-400">
-                Admins have full access. Members can upload and review calls.
+                Roles come from the team. Members cannot switch themselves to admin.
               </p>
             </div>
           </div>

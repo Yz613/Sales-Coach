@@ -85,13 +85,11 @@ const clerkHandler = hasClerkKey
         return authData.redirectToSignIn();
       }
 
-      const cookieRole = req.cookies.get("sc_role")?.value;
       const metadataRole = (authData.sessionClaims?.metadata as { role?: string } | undefined)?.role;
       const hasOrgAdmin =
         (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
         authData.orgRole === "org:admin";
       const role = resolveUserRole({
-        cookieRole,
         orgRole: authData.orgRole,
         hasOrgAdmin,
         metadataRole,
@@ -117,7 +115,6 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   }
 
   const role = resolveUserRole({
-    cookieRole: request.cookies.get("sc_role")?.value || "admin",
     clerkConfigured: false,
     userId: null,
   });
