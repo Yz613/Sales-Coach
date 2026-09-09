@@ -1,8 +1,15 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-
-// Public authentication paths (tolerates optional /app basePath)
-const PUBLIC_PATH = /^(?:\/app)?\/(?:sign-in|sign-up)(?:\/|$)/;
+import { hasClerkServerAuth } from "@/lib/clerk-env";
+import { resolveUserRole } from "@/lib/roles";
+import {
+  getPublicPath,
+  toAppPath,
+  isPublicAuthRoute,
+  isPublicApiRoute,
+  isApiRoute,
+  getApexAliasRedirect,
+} from "@/lib/public-path";
 
 const isAdminRoute = createRouteMatcher([
   "/",
@@ -21,47 +28,66 @@ const isAdminApiRoute = createRouteMatcher([
   "/api/reps/(.*)/persona",
 ]);
 
-const hasClerkKey = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.trim() !== ""
-);
+const hasClerkKey = hasClerkServerAuth();
+
+function redirectApexAliases(req: NextRequest): NextResponse | null {
+  const alias = getApexAliasRedirect(req.url);
+  if (!alias) return null;
+  return NextResponse.redirect(alias.location, alias.status);
+}
+
+function memberCallsRedirect(req: NextRequest): NextResponse {
+  return NextResponse.redirect(new URL(toAppPath("/calls"), req.url));
+}
+
+function enforceMemberBoundaries(req: NextRequest): NextResponse | null {
+  if (isAdminRoute(req)) {
+    return memberCallsRedirect(req);
+  }
+  if (isAdminApiRoute(req)) {
+    return NextResponse.json({ error: "Forbidden: Admin permissions required" }, { status: 403 });
+  }
+  return null;
+}
 
 const clerkHandler = hasClerkKey
   ? clerkMiddleware(async (auth, req) => {
-      // Allow sign-in and sign-up freely
-      if (PUBLIC_PATH.test(req.nextUrl.pathname)) return;
+      const alias = redirectApexAliases(req);
+      if (alias) return alias;
+
+      const publicPath = getPublicPath(req);
+
+      // Sign-in/up and a few APIs must not HTML-redirect (fetch() would parse HTML as JSON).
+      if (isPublicAuthRoute(publicPath) || isPublicApiRoute(publicPath, req.method)) {
+        return;
+      }
 
       const authData = await auth();
 
-      // Enforce authentication on all protected routes
       if (!authData.userId) {
+        if (isApiRoute(publicPath)) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         return authData.redirectToSignIn();
       }
 
-      // Determine active role
       const cookieRole = req.cookies.get("sc_role")?.value;
-      let role = cookieRole;
+      const metadataRole = (authData.sessionClaims?.metadata as { role?: string } | undefined)?.role;
+      const hasOrgAdmin =
+        (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
+        authData.orgRole === "org:admin";
+      const role = resolveUserRole({
+        cookieRole,
+        orgRole: authData.orgRole,
+        hasOrgAdmin,
+        metadataRole,
+        clerkConfigured: true,
+        userId: authData.userId,
+      });
 
-      if (!role) {
-        const metadataRole = (authData.sessionClaims?.metadata as any)?.role;
-        if (metadataRole === "admin" || metadataRole === "member") {
-          role = metadataRole;
-        } else if (authData.orgRole === "org:admin") {
-          role = "admin";
-        } else {
-          role = "member";
-        }
-      }
-
-      // Enforce Member role boundaries (Members can only upload & view calls/scoring)
       if (role === "member") {
-        if (isAdminRoute(req)) {
-          const redirectUrl = req.nextUrl.pathname.startsWith("/app") ? "/app/calls" : "/calls";
-          return NextResponse.redirect(new URL(redirectUrl, req.url));
-        }
-        if (isAdminApiRoute(req)) {
-          return NextResponse.json({ error: "Forbidden: Admin permissions required" }, { status: 403 });
-        }
+        const denied = enforceMemberBoundaries(req);
+        if (denied) return denied;
       }
 
       return NextResponse.next();
@@ -69,20 +95,21 @@ const clerkHandler = hasClerkKey
   : null;
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  const alias = redirectApexAliases(request);
+  if (alias) return alias;
+
   if (clerkHandler) {
     return clerkHandler(request, event);
   }
 
-  // Fallback when Clerk keys are not yet configured in .env:
-  const role = request.cookies.get("sc_role")?.value || "admin";
+  const role = resolveUserRole({
+    cookieRole: request.cookies.get("sc_role")?.value || "admin",
+    clerkConfigured: false,
+    userId: null,
+  });
   if (role === "member") {
-    if (isAdminRoute(request)) {
-      const redirectUrl = request.nextUrl.pathname.startsWith("/app") ? "/app/calls" : "/calls";
-      return NextResponse.redirect(new URL(redirectUrl, request.url));
-    }
-    if (isAdminApiRoute(request)) {
-      return NextResponse.json({ error: "Forbidden: Admin permissions required" }, { status: 403 });
-    }
+    const denied = enforceMemberBoundaries(request);
+    if (denied) return denied;
   }
 
   return NextResponse.next();
@@ -92,6 +119,10 @@ export const config = {
   matcher: [
     // Base-path root ("/" → "/app"): without this, the exact root bypasses the matcher under basePath
     "/",
+    "/calls",
+    "/calls/:path*",
+    "/favicon.ico",
+    "/icon.svg",
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
