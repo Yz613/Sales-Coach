@@ -24,9 +24,20 @@ export function toAppPath(path: string): string {
   return `${APP_BASE_PATH}${pathname}`;
 }
 
+const PUBLIC_AUTH_PREFIXES = [
+  "/sign-in",
+  "/sign-up",
+  "/select-organization",
+  "/create-organization",
+  "/user",
+  "/organization",
+];
+
 export function isPublicAuthRoute(pathname: string): boolean {
   const normalized = stripAppBasePath(pathname);
-  return normalized.startsWith("/sign-in") || normalized.startsWith("/sign-up");
+  return PUBLIC_AUTH_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
 }
 
 export function isPublicApiRoute(pathname: string, method: string): boolean {
