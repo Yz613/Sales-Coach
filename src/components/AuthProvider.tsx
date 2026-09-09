@@ -11,8 +11,8 @@ interface AuthProviderProps {
 }
 
 // Inner component used when ClerkProvider is active to link Clerk's useUser with our AuthContext
-function ClerkBridge({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser();
+function ClerkBridge({ children, initialRole = "admin" }: { children: React.ReactNode; initialRole?: UserRole }) {
+  const { user } = useUser();
 
   const clerkUser = user
     ? {
@@ -22,11 +22,9 @@ function ClerkBridge({ children }: { children: React.ReactNode }) {
       }
     : null;
 
-  const metadataRole = (user?.publicMetadata as Record<string, unknown>)?.role as UserRole | undefined;
-
   return (
     <AuthContextProvider
-      initialRole={metadataRole || "member"}
+      initialRole={initialRole}
       isClerkConfigured={true}
       clerkUser={clerkUser}
     >
@@ -49,7 +47,7 @@ export default function AuthProvider({ children, initialRole = "admin" }: AuthPr
         signUpFallbackRedirectUrl="/app"
         afterSignOutUrl="/app"
       >
-        <ClerkBridge>{children}</ClerkBridge>
+        <ClerkBridge initialRole={initialRole}>{children}</ClerkBridge>
       </ClerkProvider>
     );
   }

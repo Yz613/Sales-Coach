@@ -71,6 +71,7 @@ export default function Navigation() {
                   Sales Coach
                 </span>
                 <span
+                  suppressHydrationWarning
                   className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
                     isAdmin
                       ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
@@ -115,6 +116,7 @@ export default function Navigation() {
             <div className="relative">
               <button
                 type="button"
+                suppressHydrationWarning
                 onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                 disabled={isLoading}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition"
@@ -126,7 +128,7 @@ export default function Navigation() {
                   <User className="h-3.5 w-3.5 text-emerald-400" />
                 )}
                 <span className="hidden sm:inline">Role:</span>
-                <span className="font-semibold text-white capitalize">{role}</span>
+                <span suppressHydrationWarning className="font-semibold text-white capitalize">{role}</span>
                 <ChevronDown className="h-3 w-3 text-slate-500 ml-0.5" />
               </button>
 
@@ -238,6 +240,7 @@ export default function Navigation() {
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
               <span className="text-xs text-slate-400">Current Role:</span>
               <span
+                suppressHydrationWarning
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
                   isAdmin
                     ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"

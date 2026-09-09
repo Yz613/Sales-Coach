@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { apiPath } from "@/lib/utils";
 import type { UserRole } from "./auth";
 
 interface AuthContextValue {
@@ -48,13 +49,16 @@ export function AuthContextProvider({
 
   // Sync role from server cookie or API on initial mount
   useEffect(() => {
-    fetch("/api/auth/role")
-      .then((res) => res.json())
+    fetch(apiPath("/api/auth/role"))
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then((data) => {
-        if (data.role) {
+        if (data?.role) {
           setRole(data.role);
         }
-        if (data.userId) {
+        if (data?.userId) {
           setUser({
             id: data.userId,
             email: data.email,
@@ -68,7 +72,7 @@ export function AuthContextProvider({
   const switchRole = useCallback(async (newRole: UserRole) => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/auth/role", {
+      const res = await fetch(apiPath("/api/auth/role"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
