@@ -2,6 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": "cloudflare/worker.js",
 	"name": "sales-coach",
+	"account_id": "8ca47af58f9e7de88c884c2903fc9f26",
 	"compatibility_date": "2026-09-08",
 	"compatibility_flags": [
 		"nodejs_compat",

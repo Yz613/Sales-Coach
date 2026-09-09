@@ -46,11 +46,6 @@ export function getDb() {
     const ctx = getCloudflareContext();
     if (ctx && ctx.env && ctx.env.DB) {
       const { drizzle } = require("drizzle-orm/d1");
-      try {
-        ctx.env.DB.prepare("ALTER TABLE evaluations ADD COLUMN extended_review TEXT").run();
-      } catch {
-        // Column already exists, or D1 rejected a duplicate alter.
-      }
       _db = drizzle(ctx.env.DB, { schema });
       return _db;
     }
