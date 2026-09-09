@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
+import { resolveCanViewAllCalls } from "@/lib/call-access";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
 
 export type { UserRole } from "@/lib/roles";
@@ -13,6 +14,8 @@ export interface AuthUser {
   isClerkConfigured: boolean;
   orgId?: string | null;
   orgRole?: string | null;
+  hasOrgAdmin?: boolean;
+  canViewAllCalls: boolean;
   email?: string;
   name?: string;
 }
@@ -55,8 +58,10 @@ export async function getServerAuth(): Promise<AuthUser> {
       if (userId) {
         const user = await currentUser();
         if (user) {
-          email = user.emailAddresses?.[0]?.emailAddress;
-          name = user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined;
+          email =
+            user.primaryEmailAddress?.emailAddress ||
+            user.emailAddresses?.[0]?.emailAddress;
+          name = user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined);
           metadataRole = (user.publicMetadata as Record<string, unknown>)?.role as string | undefined;
         }
       }
@@ -74,14 +79,23 @@ export async function getServerAuth(): Promise<AuthUser> {
     userId,
   });
 
+  const isAdmin = effectiveRole === "admin";
   return {
     userId,
     email,
     name,
     orgId,
     orgRole,
+    hasOrgAdmin,
+    canViewAllCalls: resolveCanViewAllCalls({
+      clerkConfigured,
+      userId,
+      orgRole,
+      hasOrgAdmin,
+      isAdmin,
+    }),
     role: effectiveRole,
-    isAdmin: effectiveRole === "admin",
+    isAdmin,
     isMember: effectiveRole === "member",
     isClerkConfigured: clerkConfigured,
   };

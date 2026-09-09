@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Upload, FileText, Layers, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 import type { Rep } from "@/types";
 import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
 import CallStageSelect from "@/components/CallStageSelect";
@@ -16,6 +17,8 @@ interface UploadModalProps {
 
 export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const router = useRouter();
+  const { isAdmin, user } = useAppAuth();
+  const lockToSelf = !isAdmin;
   const [reps, setReps] = useState<Rep[]>([]);
   const [selectedRepId, setSelectedRepId] = useState("new");
   const [newRepName, setNewRepName] = useState("");
@@ -49,6 +52,9 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           } else {
             setReps([]);
             setSelectedRepId("new");
+            if (lockToSelf) {
+              setNewRepName(user?.name || "");
+            }
           }
         })
         .catch(console.error);
@@ -64,7 +70,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
         })
         .catch(console.error);
     }
-  }, [isOpen]);
+  }, [isOpen, lockToSelf, user?.name]);
 
   if (!isOpen) return null;
 
@@ -87,7 +93,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
       return;
     }
 
-    if (selectedRepId === "new" && !newRepName.trim()) {
+    if (!lockToSelf && selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
       return;
     }
@@ -151,7 +157,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
       return;
     }
 
-    if (selectedRepId === "new" && !newRepName.trim()) {
+    if (!lockToSelf && selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
       return;
     }
@@ -273,15 +279,17 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
               >
                 Go to Call Bank
               </button>
-              <button
-                onClick={() => {
-                  onClose();
-                  router.push("/");
-                }}
-                className="rounded-lg bg-slate-800 border border-slate-700 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
-              >
-                View Super Admin Report
-              </button>
+              {!lockToSelf && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    router.push("/");
+                  }}
+                  className="rounded-lg bg-slate-800 border border-slate-700 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                >
+                  View Super Admin Report
+                </button>
+              )}
             </div>
           </div>
         ) : activeTab === "batch" ? (
@@ -299,6 +307,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
                   Assign Rep (Default for batch)
                 </label>
+                {lockToSelf ? (
+                  <div className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
+                    {user?.name || user?.email || "You"}
+                    <p className="mt-1 text-xs text-slate-500">Calls are saved to your account only.</p>
+                  </div>
+                ) : (
                 <select
                   value={selectedRepId}
                   onChange={(e) => setSelectedRepId(e.target.value)}
@@ -311,7 +325,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                   ))}
                   <option value="new">＋ Add new rep…</option>
                 </select>
-                {selectedRepId === "new" && (
+                )}
+                {!lockToSelf && selectedRepId === "new" && (
                   <div className="mt-2 grid grid-cols-1 gap-2">
                     <input
                       type="text"
@@ -437,6 +452,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
                   Sales Rep
                 </label>
+                {lockToSelf ? (
+                  <div className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
+                    {user?.name || user?.email || "You"}
+                    <p className="mt-1 text-xs text-slate-500">Only you can see these calls.</p>
+                  </div>
+                ) : (
                 <select
                   value={selectedRepId}
                   onChange={(e) => setSelectedRepId(e.target.value)}
@@ -449,7 +470,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                   ))}
                   <option value="new">＋ Add new rep…</option>
                 </select>
-                {selectedRepId === "new" && (
+                )}
+                {!lockToSelf && selectedRepId === "new" && (
                   <div className="mt-2 grid grid-cols-1 gap-2">
                     <input
                       type="text"

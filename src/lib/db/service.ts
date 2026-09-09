@@ -335,19 +335,34 @@ export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
 
 // Resolve a rep by id, or create one from a name (the app has no separate rep
 // CRUD, so uploads create reps on demand). Returns the rep id to attach calls to.
+export async function listRepIdentities(): Promise<{ id: string; name: string; email: string }[]> {
+  const rows = await db.select().from(reps).all();
+  return rows.map((r: { id: string; name: string; email: string }) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+  }));
+}
+
 export async function getOrCreateRep(
   repId?: string,
   repName?: string,
-  repRole?: string
+  repRole?: string,
+  repEmail?: string
 ): Promise<string> {
   if (repId && repId !== "new") {
     const existing = await db.select().from(reps).where(eq(reps.id, repId)).get();
     if (existing) return existing.id;
   }
 
+  const email = (repEmail || "").trim().toLowerCase();
   const name = (repName || "").trim();
+  const all = await db.select().from(reps).all();
+  if (email) {
+    const byEmail = all.find((r: any) => (r.email || "").toLowerCase() === email);
+    if (byEmail) return byEmail.id;
+  }
   if (name) {
-    const all = await db.select().from(reps).all();
     const match = all.find(
       (r: any) => r.name.toLowerCase() === name.toLowerCase()
     );
@@ -355,7 +370,7 @@ export async function getOrCreateRep(
   }
 
   const slug =
-    (name || "rep")
+    (name || email.split("@")[0] || "rep")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_|_$/g, "")
@@ -367,7 +382,7 @@ export async function getOrCreateRep(
     .values({
       id,
       name: name || "New Rep",
-      email: `${slug}@company.io`,
+      email: email || `${slug}@company.io`,
       role: (repRole || "").trim() || "Sales Rep",
       avatarUrl: null,
       createdAt: new Date().toISOString(),
