@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { getCoachInstructions, setCoachInstructions, getCoachLessons } from "@/lib/db/service";
+import { getCoachInstructions, setCoachInstructions, getCoachLessons, coachUsesDefaultSandler } from "@/lib/db/service";
 
 export async function GET() {
   try {
-    const [instructions, lessons] = await Promise.all([
+    const [instructions, lessons, isDefault] = await Promise.all([
       getCoachInstructions(),
       getCoachLessons(),
+      coachUsesDefaultSandler(),
     ]);
-    return NextResponse.json({ instructions, lessons });
+    return NextResponse.json({ instructions, lessons, isDefault });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
     if (typeof body.instructions === "string") {
       await setCoachInstructions(body.instructions);
     }
-    return NextResponse.json({ success: true });
+    const isDefault = await coachUsesDefaultSandler();
+    return NextResponse.json({ success: true, isDefault });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

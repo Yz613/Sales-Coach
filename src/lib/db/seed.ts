@@ -20,6 +20,9 @@ export function seed() {
     updatedAt: new Date().toISOString(),
   }).run();
 
+  // Sandler is the default coach. Leaving coach_instructions empty uses the
+  // built-in Sandler Selling System fallback so managers can tweak from there.
+
   // 2. Prescribed Playbooks / Scripts
   const seedScripts = [
     {
