@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GraduationCap, Sparkles, Plus, Trash2, CheckCircle2, Loader2, Lightbulb, ArrowRight, Pencil } from "lucide-react";
+import { GraduationCap, Sparkles, Plus, Trash2, CheckCircle2, Loader2, Lightbulb, ArrowRight, Pencil, RotateCcw } from "lucide-react";
 import { apiPath, formatDate } from "@/lib/utils";
 import type { CoachLesson } from "@/types";
+import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/sandlerCoach";
 
 type View = "loading" | "onboarding" | "editor";
 
@@ -33,7 +34,7 @@ const QUESTIONS: { key: string; label: string; hint: string; placeholder: string
     key: "methodology",
     label: "What methodology or framework do you run?",
     hint: "Optional — name it or describe your own.",
-    placeholder: "e.g. Sandler, MEDDIC, Challenger, or your own playbook",
+    placeholder: "e.g. Sandler Selling System (default) — tweak or replace",
   },
   {
     key: "outcomes",
@@ -65,20 +66,22 @@ export default function CoachPage() {
   const [instructions, setInstructions] = useState("");
   const [lessons, setLessons] = useState<CoachLesson[]>([]);
   const [newLesson, setNewLesson] = useState("");
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({ ...SANDLER_ONBOARDING_ANSWERS });
   const [savingInstructions, setSavingInstructions] = useState(false);
   const [savedInstructions, setSavedInstructions] = useState(false);
   const [building, setBuilding] = useState(false);
   const [addingLesson, setAddingLesson] = useState(false);
+  const [isDefault, setIsDefault] = useState(true);
 
   const load = () => {
     fetch(apiPath("/api/coach"))
       .then((res) => res.json())
       .then((data) => {
-        const instr = data.instructions || "";
+        const instr = data.instructions || DEFAULT_SANDLER_INSTRUCTIONS;
         setInstructions(instr);
+        setIsDefault(Boolean(data.isDefault));
         setLessons(Array.isArray(data.lessons) ? data.lessons : []);
-        setView(instr.trim() ? "editor" : "onboarding");
+        setView("editor");
       })
       .catch((err) => {
         console.error(err);
@@ -105,6 +108,7 @@ export default function CoachPage() {
     try {
       await saveInstructions(composed);
       setInstructions(composed);
+      setIsDefault(false);
       setView("editor");
     } catch (err) {
       console.error(err);
@@ -118,6 +122,7 @@ export default function CoachPage() {
     setSavedInstructions(false);
     try {
       await saveInstructions(instructions);
+      setIsDefault(instructions.trim() === DEFAULT_SANDLER_INSTRUCTIONS.trim() || !instructions.trim());
       setSavedInstructions(true);
       setTimeout(() => setSavedInstructions(false), 3000);
     } catch (err) {
@@ -174,14 +179,14 @@ export default function CoachPage() {
     <div className="border-b border-slate-800 pb-5">
       <div className="flex items-center gap-2 mb-1">
         <span className="rounded bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
-          Build Your Coach
+          {isDefault ? "Default: Sandler Selling System" : "Custom Coach"}
         </span>
       </div>
       <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
         <GraduationCap className="h-6 w-6 text-blue-400" /> Your AI Sales Coach
       </h1>
       <p className="text-sm text-slate-400 mt-1">
-        Teach the coach in your exact image. Everything here is applied to every call the AI evaluates.
+        Starts as Sandler. Tweak the philosophy below — every evaluation uses what you save here.
       </p>
     </div>
   );
@@ -194,7 +199,7 @@ export default function CoachPage() {
         {header}
 
         <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-slate-300">
-          Answer these questions to build your initial coach. You can refine everything afterward and keep teaching it from individual calls.
+          Pre-filled with Sandler Selling System. Edit any answer, then build — you can keep tweaking the full philosophy afterward.
         </div>
 
         <div className="space-y-6">
@@ -255,6 +260,12 @@ export default function CoachPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       {header}
 
+      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-slate-300">
+        {isDefault
+          ? "This coach defaults to the Sandler Selling System (Up-Front Contract, Pain Funnel, Budget, Decision, then Fulfillment). Edit the philosophy and save to make it yours."
+          : "You're running a customized coach. Reset to Sandler anytime, or keep teaching it with lessons from individual calls."}
+      </div>
+
       {/* Coaching philosophy */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
@@ -265,19 +276,42 @@ export default function CoachPage() {
               <p className="text-xs text-slate-400">Applied to every call the AI evaluates.</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setAnswers({});
-              setView("onboarding");
-            }}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
-          >
-            <Pencil className="h-3.5 w-3.5" /> Rebuild from questions
-          </button>
+          <div className="flex items-center gap-2">
+            {!isDefault && (
+              <button
+                onClick={async () => {
+                  setInstructions(DEFAULT_SANDLER_INSTRUCTIONS);
+                  setSavingInstructions(true);
+                  try {
+                    await saveInstructions("");
+                    setIsDefault(true);
+                    setSavedInstructions(true);
+                    setTimeout(() => setSavedInstructions(false), 3000);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setSavingInstructions(false);
+                  }
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reset to Sandler
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setAnswers({ ...SANDLER_ONBOARDING_ANSWERS });
+                setView("onboarding");
+              }}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Rebuild from questions
+            </button>
+          </div>
         </div>
 
         <textarea
-          rows={12}
+          rows={16}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Describe how you coach: what great looks like, non-negotiables, tone, and what to flag."

@@ -14,7 +14,7 @@ export const calls = sqliteTable("calls", {
   repId: text("rep_id").notNull().references(() => reps.id),
   prospectCompany: text("prospect_company").notNull(),
   prospectName: text("prospect_name").notNull(),
-  callStage: text("call_stage").notNull(), // 'Cold Call' | 'First Discovery' | 'Follow-up'
+  callStage: text("call_stage").notNull(), // Call Stage Target (built-in or custom)
   coreOutcome: text("core_outcome").notNull(),
   durationSeconds: integer("duration_seconds").notNull(),
   transcriptText: text("transcript_text").notNull(),
@@ -61,7 +61,7 @@ export const appSettings = sqliteTable("app_settings", {
 
 export const scripts = sqliteTable("scripts", {
   id: text("id").primaryKey(),
-  stage: text("stage").notNull(), // 'Cold Call' | 'First Discovery' | 'Follow-up'
+  stage: text("stage").notNull(), // Call Stage Target (built-in or custom)
   title: text("title").notNull(),
   content: text("content").notNull(),
   keyMilestones: text("key_milestones").notNull(), // JSON array of string requirements
