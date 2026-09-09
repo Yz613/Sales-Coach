@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Building2 } from "lucide-react";
-import { OrganizationSwitcher, Show, useOrganization } from "@clerk/nextjs";
-import { clerkAppearance, CLERK_PATHS } from "@/lib/clerk-ui";
+import { Show, useOrganization } from "@clerk/nextjs";
 
 function orgRoleLabel(role?: string | null) {
   if (role === "org:admin") return "Admin";
@@ -14,6 +12,7 @@ function orgRoleLabel(role?: string | null) {
 export default function TeamSwitcher({ canManage = false }: { canManage?: boolean }) {
   const { isLoaded, organization, membership } = useOrganization();
   const roleLabel = orgRoleLabel(membership?.role);
+  void canManage;
 
   return (
     <Show when="signed-in">
@@ -33,23 +32,7 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
               {roleLabel}
             </span>
           )}
-          <OrganizationSwitcher
-            hidePersonal
-            organizationProfileMode="modal"
-            createOrganizationMode="modal"
-            afterSelectOrganizationUrl={CLERK_PATHS.afterSignIn}
-            afterCreateOrganizationUrl={CLERK_PATHS.afterSignIn}
-            appearance={clerkAppearance}
-          />
         </div>
-        {canManage && !organization && isLoaded && (
-          <Link
-            href="/select-organization"
-            className="hidden sm:inline-flex rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20"
-          >
-            Set team
-          </Link>
-        )}
       </div>
     </Show>
   );

@@ -5,6 +5,7 @@ import { TrendingUp, AlertTriangle, ShieldCheck, Flame, ArrowUpRight, CheckCircl
 import { formatDate } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
+import InviteTeammatesCard from "@/components/InviteTeammatesCard";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export default async function SuperAdminDashboard() {
 
   return (
     <div className="space-y-8">
+      <InviteTeammatesCard compact />
+
       {needsCoachSetup && (
         <div className="rounded-xl border border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-slate-900 p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-5 justify-between">
