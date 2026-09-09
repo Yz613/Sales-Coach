@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { normalizeStageName } from "@/lib/callStages";
 
 interface BatchItem {
   repId: string;
@@ -26,7 +27,12 @@ export async function POST(req: Request) {
       const defaultRepName = (formData.get("defaultRepName") as string) || "";
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
       const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
-      const defaultStage = (formData.get("defaultStage") as string) || "Cold Call";
+      const defaultStage = normalizeStageName((formData.get("defaultStage") as string) || "") || "Cold Call";
+      try {
+        await addCallStage(defaultStage);
+      } catch {
+        // Stage list is best-effort.
+      }
 
       const resolvedRepId = await getOrCreateRep(defaultRepId, defaultRepName, defaultRepRole);
       if (defaultRepFocus.trim()) {

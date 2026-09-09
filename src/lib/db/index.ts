@@ -26,6 +26,11 @@ export function getDb() {
     const dbPath = path.resolve(process.cwd(), "sales_coach.db");
     const sqlite = new Database(dbPath);
     sqlite.pragma("journal_mode = WAL");
+    const fs = require("fs");
+    const schemaPath = path.resolve(process.cwd(), "schema.sql");
+    if (fs.existsSync(schemaPath)) {
+      sqlite.exec(fs.readFileSync(schemaPath, "utf8"));
+    }
     _db = drizzle(sqlite, { schema });
     return _db;
   } catch (e) {

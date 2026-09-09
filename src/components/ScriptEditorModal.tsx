@@ -3,13 +3,17 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, CheckCircle2, Loader2, BookOpen } from "lucide-react";
 import { apiPath } from "@/lib/utils";
-import type { SalesScript, CallStage } from "@/types";
+import type { SalesScript } from "@/types";
+import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
+import CallStageSelect from "@/components/CallStageSelect";
 
 interface ScriptEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   scriptToEdit?: SalesScript | null;
   onSaved: () => void;
+  stages?: string[];
+  initialStage?: string;
 }
 
 export default function ScriptEditorModal({
@@ -17,8 +21,12 @@ export default function ScriptEditorModal({
   onClose,
   scriptToEdit,
   onSaved,
+  stages,
+  initialStage,
 }: ScriptEditorModalProps) {
-  const [stage, setStage] = useState<CallStage>("Cold Call");
+  const stageOptions = stages && stages.length > 0 ? stages : [...DEFAULT_CALL_STAGES];
+  const defaultStage = initialStage || stageOptions[0] || "Cold Call";
+  const [stage, setStage] = useState(defaultStage);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [milestones, setMilestones] = useState<string[]>([""]);
@@ -34,13 +42,14 @@ export default function ScriptEditorModal({
       setMilestones(scriptToEdit.keyMilestones.length ? scriptToEdit.keyMilestones : [""]);
       setIsActive(scriptToEdit.isActive);
     } else {
-      setStage("Cold Call");
+      setStage(initialStage || stageOptions[0] || "Cold Call");
       setTitle("");
       setContent("");
       setMilestones([""]);
       setIsActive(true);
     }
-  }, [scriptToEdit, isOpen]);
+    setError(null);
+  }, [scriptToEdit, isOpen, initialStage]);
 
   if (!isOpen) return null;
 
@@ -62,6 +71,10 @@ export default function ScriptEditorModal({
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
       setError("Please provide a title and script content.");
+      return;
+    }
+    if (!stage.trim()) {
+      setError("Please choose a Call Stage Target or type a new one.");
       return;
     }
 
@@ -124,20 +137,12 @@ export default function ScriptEditorModal({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                Call Stage Target
-              </label>
-              <select
-                value={stage}
-                onChange={(e) => setStage(e.target.value as CallStage)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-              >
-                <option value="Cold Call">Cold Call / Outbound</option>
-                <option value="First Discovery">First Discovery / Demo</option>
-                <option value="Follow-up">Follow-up / Closing</option>
-              </select>
-            </div>
+            <CallStageSelect
+              value={stage}
+              stages={stageOptions.includes(stage) || !stage ? stageOptions : [...stageOptions, stage]}
+              onChange={setStage}
+              hint="Pick an existing type or add a new Call Stage Target (e.g. Demo, Renewal)."
+            />
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">

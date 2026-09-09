@@ -16,6 +16,8 @@ import type {
   CallStage,
   CoachLesson
 } from "@/types";
+import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
+import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -50,12 +52,24 @@ export async function getAllSettings(): Promise<Record<string, string>> {
 
 // --- Coach Service (manager-authored coaching philosophy + lessons) ---
 // Stored in app_settings so no schema migration is required.
-export async function getCoachInstructions(): Promise<string> {
+// Empty / unset instructions fall back to the Sandler Selling System default.
+export async function getStoredCoachInstructions(): Promise<string> {
   return (await getSetting("coach_instructions")) || "";
 }
 
+export async function getCoachInstructions(): Promise<string> {
+  const stored = await getStoredCoachInstructions();
+  return stored.trim() ? stored : DEFAULT_SANDLER_INSTRUCTIONS;
+}
+
 export async function setCoachInstructions(text: string): Promise<void> {
-  await setSetting("coach_instructions", text || "");
+  const trimmed = (text || "").trim();
+  // Saving empty resets to the Sandler default (stored as empty so fallback applies).
+  await setSetting("coach_instructions", trimmed === DEFAULT_SANDLER_INSTRUCTIONS.trim() ? "" : trimmed);
+}
+
+export async function coachUsesDefaultSandler(): Promise<boolean> {
+  return isDefaultSandlerInstructions(await getStoredCoachInstructions());
 }
 
 export async function getCoachLessons(): Promise<CoachLesson[]> {
@@ -129,6 +143,11 @@ export async function getActiveScriptForStage(stage: string): Promise<SalesScrip
 
 export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Promise<SalesScript> {
   const updatedAt = new Date().toISOString();
+  scriptData = { ...scriptData, stage: normalizeStageName(scriptData.stage) };
+  if (!scriptData.stage) {
+    throw new Error("Call Stage Target is required.");
+  }
+  await addCallStage(scriptData.stage);
   const existing = await db.select().from(scripts).where(eq(scripts.id, scriptData.id)).get();
 
   if (existing) {
@@ -163,6 +182,99 @@ export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Pr
 
 export async function deleteScript(id: string): Promise<void> {
   await db.delete(scripts).where(eq(scripts.id, id)).run();
+}
+
+const CALL_STAGES_KEY = "call_stages";
+
+async function getStoredCallStages(): Promise<string[] | null> {
+  const raw = await getSetting(CALL_STAGES_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.map((s) => normalizeStageName(String(s))).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+async function persistCallStages(stages: string[]): Promise<void> {
+  await setSetting(CALL_STAGES_KEY, JSON.stringify(stages));
+}
+
+export async function getCallStages(): Promise<string[]> {
+  const stored = await getStoredCallStages();
+  const allScripts = await getAllScripts();
+  const scriptStages = allScripts.map((s) => s.stage);
+  // Once a manager has saved a stage list, don't resurrect deleted types from old calls.
+  if (stored && stored.length > 0) {
+    return mergeCallStages(stored, scriptStages, []);
+  }
+  const allCalls = await db.select({ callStage: calls.callStage }).from(calls).all();
+  return mergeCallStages(
+    stored,
+    scriptStages,
+    allCalls.map((c: { callStage: string }) => c.callStage)
+  );
+}
+
+export async function addCallStage(name: string): Promise<string[]> {
+  const stage = normalizeStageName(name);
+  if (!stage) throw new Error("Call Stage Target is required.");
+  const current = await getCallStages();
+  if (current.some((s) => stagesEqual(s, stage))) return current;
+  const next = [...current, stage];
+  await persistCallStages(next);
+  return next;
+}
+
+export async function renameCallStage(from: string, to: string): Promise<string[]> {
+  const source = normalizeStageName(from);
+  const target = normalizeStageName(to);
+  if (!source) throw new Error("Current Call Stage Target is required.");
+  if (!target) throw new Error("Updated Call Stage Target is required.");
+  if (stagesEqual(source, target) && source === target) return getCallStages();
+
+  const current = await getCallStages();
+  if (!current.some((s) => stagesEqual(s, source))) {
+    throw new Error(`Unknown Call Stage Target: ${source}`);
+  }
+  if (!stagesEqual(source, target) && current.some((s) => stagesEqual(s, target))) {
+    throw new Error(`A Call Stage Target named "${target}" already exists.`);
+  }
+
+  const next = current.map((s) => (stagesEqual(s, source) ? target : s));
+  await persistCallStages(next);
+
+  const matchingScripts = (await getAllScripts()).filter((s) => stagesEqual(s.stage, source));
+  for (const script of matchingScripts) {
+    await db.update(scripts).set({ stage: target, updatedAt: new Date().toISOString() }).where(eq(scripts.id, script.id)).run();
+  }
+
+  const matchingCalls = await db.select().from(calls).all();
+  for (const call of matchingCalls) {
+    if (stagesEqual(call.callStage, source)) {
+      await db.update(calls).set({ callStage: target }).where(eq(calls.id, call.id)).run();
+    }
+  }
+
+  return next;
+}
+
+export async function deleteCallStage(name: string): Promise<string[]> {
+  const stage = normalizeStageName(name);
+  if (!stage) throw new Error("Call Stage Target is required.");
+  const allScripts = await getAllScripts();
+  if (allScripts.some((s) => stagesEqual(s.stage, stage))) {
+    throw new Error("Cannot remove a Call Stage Target that still has scripts. Move or delete those scripts first.");
+  }
+  const current = await getCallStages();
+  const next = current.filter((s) => !stagesEqual(s, stage));
+  if (next.length === 0) {
+    throw new Error("Keep at least one Call Stage Target.");
+  }
+  await persistCallStages(next);
+  return next;
 }
 
 // --- Rep Persona Service ---
