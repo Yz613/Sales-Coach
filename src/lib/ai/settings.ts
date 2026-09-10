@@ -39,7 +39,7 @@ export async function resolveAiSettings(overrideKey?: string): Promise<ResolvedA
   const settings = await getAllSettings();
   const storedKey = (settings["ai_api_key"] || settings["gemini_api_key"] || "").trim();
   const requestedProvider = settings["ai_provider"];
-  const storedModel = settings["active_model"] || DEFAULT_MODEL;
+  const storedModel = (settings["active_model"] || "").trim() || DEFAULT_MODEL;
 
   let providerId: ProviderId = isProviderId(requestedProvider) ? requestedProvider : DEFAULT_PROVIDER;
   let apiKey = (overrideKey || storedKey || envKeyFor(providerId) || "").trim();

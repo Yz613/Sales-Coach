@@ -38,6 +38,8 @@ export async function POST(
 
     return NextResponse.json({ success: true, evaluation, usedLlm, warning });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err?.message || "Failed to evaluate call";
+    const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
+    return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }

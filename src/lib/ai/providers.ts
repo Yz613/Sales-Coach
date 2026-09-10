@@ -85,6 +85,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       { id: "openai/gpt-4o-mini", label: "OpenAI GPT-4o mini", inputPerMTok: 0.15, outputPerMTok: 0.6 },
       { id: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5", inputPerMTok: 3.0, outputPerMTok: 15.0 },
+      { id: "google/gemini-3.8-flash", label: "Gemini 3.8 Flash", inputPerMTok: 0.5, outputPerMTok: 3.0 },
       { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", inputPerMTok: 0.3, outputPerMTok: 2.5 },
       { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", inputPerMTok: 0.12, outputPerMTok: 0.3 },
     ],

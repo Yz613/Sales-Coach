@@ -16,7 +16,7 @@ import {
   type ScorecardMetric,
   type CoachWalkthroughStep,
 } from "./review";
-import { parseTranscript } from "../transcript";
+import { parseTranscript, requireUsableTranscript } from "../transcript";
 
 interface EvaluationInput {
   callId: string;
@@ -29,6 +29,7 @@ interface EvaluationInput {
 }
 
 export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluation> {
+  requireUsableTranscript(input.transcriptText);
   const rep = await db.select().from(reps).where(eq(reps.id, input.repId)).get();
   const repName = rep?.name || "Rep";
   const durationSeconds = input.durationSeconds ?? 0;

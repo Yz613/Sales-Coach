@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [canTranscribe, setCanTranscribe] = useState(true);
 
   const providerMeta = getProvider(provider);
   const selectedModelId = providerMeta.allowsCustomModel && customModel.trim() ? customModel.trim() : activeModel;
@@ -57,6 +58,7 @@ export default function AdminSettingsPage() {
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
+        setCanTranscribe(data.canTranscribe !== false);
         if (data.provider) setProvider(data.provider);
         if (data.activeModel) {
           const p = getProvider(data.provider);
@@ -72,11 +74,34 @@ export default function AdminSettingsPage() {
       });
   }, []);
 
-  const handleProviderChange = (next: ProviderId) => {
+  const persistSelection = async (nextProvider: ProviderId, nextModel: string) => {
+    try {
+      await fetch(apiPath("/api/admin/settings"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: nextProvider,
+          activeModel: nextModel,
+        }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleProviderChange = (next: ProviderId, persist = false) => {
+    const nextModel = defaultModelForProvider(next);
     setProvider(next);
-    setActiveModel(defaultModelForProvider(next));
+    setActiveModel(nextModel);
     setCustomModel("");
     setTestResult(null);
+    if (persist) void persistSelection(next, nextModel);
+  };
+
+  const handleModelChange = (nextModel: string) => {
+    setActiveModel(nextModel);
+    setTestResult(null);
+    void persistSelection(provider, nextModel);
   };
 
   const handleKeyChange = (value: string) => {
@@ -166,11 +191,20 @@ export default function AdminSettingsPage() {
           System Settings & AI API Keys
         </h1>
         <p className="text-xs text-slate-400 mt-1.5">
-          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model that scores calls.
+          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model used to score calls. Gemini also transcribes audio with that same selected model. OpenAI and Groq use Whisper for recordings.
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {!canTranscribe && (
+          <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200 backdrop-blur-xl">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>
+              Audio uploads are blocked until you save a Gemini, OpenAI, or Groq key. Calls without a transcript are deleted and never sent to the coach.
+            </span>
+          </div>
+        )}
+
         {saveSuccess && (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300 space-y-1 backdrop-blur-xl">
             <div className="flex items-center gap-2">
@@ -193,7 +227,7 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <h2 className="text-base font-semibold text-white">AI Sales Coach Engine & API Key</h2>
-              <p className="text-xs text-slate-400">Powers live evaluation of blocking & tackling, early folding, and Sandler qualification.</p>
+              <p className="text-xs text-slate-400">Powers transcription of uploaded recordings and live evaluation of blocking & tackling, early folding, and Sandler qualification. The model you pick below is the one Gemini uses for both. Anthropic and OpenRouter score transcripts but cannot transcribe audio — keep a Gemini, OpenAI, or Groq key available for MP3/WAV/M4A uploads.</p>
             </div>
           </div>
 
@@ -207,7 +241,7 @@ export default function AdminSettingsPage() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => handleProviderChange(p.id)}
+                    onClick={() => handleProviderChange(p.id, true)}
                     className={`rounded-xl border px-3.5 py-3 text-left transition ${
                       provider === p.id
                         ? "border-blue-500/50 bg-blue-500/15 text-white shadow-sm"
@@ -269,7 +303,7 @@ export default function AdminSettingsPage() {
               </label>
               <select
                 value={providerMeta.models.some((m) => m.id === activeModel) ? activeModel : providerMeta.models[0]?.id}
-                onChange={(e) => setActiveModel(e.target.value)}
+                onChange={(e) => handleModelChange(e.target.value)}
                 className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
               >
                 {providerMeta.models.map((m) => (
@@ -278,6 +312,11 @@ export default function AdminSettingsPage() {
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-slate-400 mt-1.5">
+                {provider === "gemini"
+                  ? "This model is used immediately for call uploads and scoring — including audio transcription."
+                  : "This model is used immediately for call scoring. Audio still needs Gemini, OpenAI, or Groq to transcribe."}
+              </p>
               {providerMeta.allowsCustomModel && (
                 <input
                   type="text"
