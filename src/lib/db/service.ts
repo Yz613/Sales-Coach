@@ -19,6 +19,7 @@ import type {
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
+import { isUnusableTranscript } from "@/lib/transcript";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -397,6 +398,7 @@ export async function setRepFocus(repId: string, focus: string): Promise<void> {
 
 // --- Reps & Calls ---
 export async function getAllReps(): Promise<Rep[]> {
+  await deleteCallsWithoutTranscript();
   const allReps = await db.select().from(reps).all();
   const allCalls = await db.select().from(calls).all();
   const allEvals = await db.select().from(evaluations).all();
@@ -457,6 +459,7 @@ export async function getAllReps(): Promise<Rep[]> {
 }
 
 export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: Call[]; snapshot: any | null }> {
+  await deleteCallsWithoutTranscript();
   const repRecord = await db.select().from(reps).where(eq(reps.id, id)).get();
   if (!repRecord) return { rep: null, calls: [], snapshot: null };
 
@@ -508,7 +511,20 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
   return { rep: computedRep, calls: fullCalls, snapshot };
 }
 
+export async function deleteCallsWithoutTranscript(): Promise<string[]> {
+  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText }).from(calls).all();
+  const removed: string[] = [];
+  for (const row of rows) {
+    if (!isUnusableTranscript(row.transcriptText)) continue;
+    await db.delete(evaluations).where(eq(evaluations.callId, row.id)).run();
+    await db.delete(calls).where(eq(calls.id, row.id)).run();
+    removed.push(row.id);
+  }
+  return removed;
+}
+
 export async function getAllCalls(): Promise<Call[]> {
+  await deleteCallsWithoutTranscript();
   const allCalls = await db.select().from(calls).orderBy(desc(calls.createdAt)).all();
   const allReps = await db.select().from(reps).all();
   const allEvals = await db.select().from(evaluations).all();
@@ -549,6 +565,11 @@ export async function getAllCalls(): Promise<Call[]> {
 export async function getCallById(id: string): Promise<Call | null> {
   const c = await db.select().from(calls).where(eq(calls.id, id)).get();
   if (!c) return null;
+  if (isUnusableTranscript(c.transcriptText)) {
+    await db.delete(evaluations).where(eq(evaluations.callId, c.id)).run();
+    await db.delete(calls).where(eq(calls.id, c.id)).run();
+    return null;
+  }
 
   const rep = await db.select().from(reps).where(eq(reps.id, c.repId)).get();
   const ev = latestEvaluationRow(

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { setSetting } from "@/lib/db/service";
 import { resolveAiSettings } from "@/lib/ai/settings";
+import { getTranscriptionStatus } from "@/lib/ai/transcribe";
 import {
   AI_PROVIDERS,
   defaultModelForProvider,
@@ -13,6 +14,7 @@ import {
 export async function GET() {
   try {
     const ai = await resolveAiSettings();
+    const transcription = await getTranscriptionStatus();
 
     return NextResponse.json({
       hasKey: ai.hasKey,
@@ -20,6 +22,8 @@ export async function GET() {
       provider: ai.providerId,
       activeModel: ai.model,
       providers: AI_PROVIDERS,
+      canTranscribe: transcription.canTranscribe,
+      transcribeReason: transcription.reason || null,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

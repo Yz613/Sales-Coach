@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [canTranscribe, setCanTranscribe] = useState(true);
 
   const providerMeta = getProvider(provider);
   const selectedModelId = providerMeta.allowsCustomModel && customModel.trim() ? customModel.trim() : activeModel;
@@ -57,6 +58,7 @@ export default function AdminSettingsPage() {
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
+        setCanTranscribe(data.canTranscribe !== false);
         if (data.provider) setProvider(data.provider);
         if (data.activeModel) {
           const p = getProvider(data.provider);
@@ -166,11 +168,20 @@ export default function AdminSettingsPage() {
           System Settings & AI API Keys
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model that scores calls.
+          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model that scores calls. Audio uploads are transcribed with Gemini, OpenAI Whisper, or Groq Whisper.
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {!canTranscribe && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm text-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>
+              Audio uploads are blocked until you save a Gemini, OpenAI, or Groq key. Calls without a transcript are deleted and never sent to the coach.
+            </span>
+          </div>
+        )}
+
         {saveSuccess && (
           <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-sm text-emerald-400 space-y-1">
             <div className="flex items-center gap-2">
@@ -191,7 +202,7 @@ export default function AdminSettingsPage() {
             <Sparkles className="h-5 w-5 text-blue-400" />
             <div>
               <h2 className="text-base font-bold text-white">AI Sales Coach Engine & API Key</h2>
-              <p className="text-xs text-slate-400">Powers live evaluation of blocking & tackling, early folding, and Sandler qualification.</p>
+              <p className="text-xs text-slate-400">Powers transcription of uploaded recordings and live evaluation of blocking & tackling, early folding, and Sandler qualification. Anthropic and OpenRouter score transcripts but cannot transcribe audio — keep a Gemini, OpenAI, or Groq key available for MP3/WAV/M4A uploads.</p>
             </div>
           </div>
 

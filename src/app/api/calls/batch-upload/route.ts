@@ -4,6 +4,12 @@ import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
+import { ingestCallFile } from "@/lib/ingestCallFile";
+import { isAudioFile } from "@/lib/audio";
+import { requireUsableTranscript } from "@/lib/transcript";
+import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
+
+export const maxDuration = 300;
 
 interface BatchItem {
   repId: string;
@@ -52,6 +58,10 @@ export async function POST(req: Request) {
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
       const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
       const defaultStage = normalizeStageName((formData.get("defaultStage") as string) || "") || "Cold Call";
+      if (files.some((f) => isAudioFile(f))) {
+        await resolveTranscriptionBackend();
+      }
+
       try {
         await addCallStage(defaultStage);
       } catch {
@@ -65,21 +75,10 @@ export async function POST(req: Request) {
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const buffer = Buffer.from(await f.arrayBuffer());
         const baseName = f.name.replace(/\.[^/.]+$/, "");
 
-        if (f.name.endsWith(".mp3") || f.name.endsWith(".wav") || f.name.endsWith(".m4a")) {
-          const text = `[Audio file ingested: ${f.name}. Automatic transcription is not configured, so paste the transcript for a full evaluation.]`;
-          itemsToProcess.push({
-            repId: resolvedRepId,
-            prospectCompany: `Company from ${baseName}`,
-            prospectName: `Contact (${baseName})`,
-            callStage: defaultStage,
-            transcriptText: text,
-            durationSeconds: 300,
-          });
-        } else if (f.name.endsWith(".csv")) {
-          const content = buffer.toString("utf-8");
+        if (f.name.toLowerCase().endsWith(".csv")) {
+          const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
           const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
           if (lines.length > 1) {
             const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
@@ -101,41 +100,33 @@ export async function POST(req: Request) {
                   prospectCompany: company,
                   prospectName: contact,
                   callStage: stage,
-                  transcriptText: transcript,
+                  transcriptText: requireUsableTranscript(transcript),
                   durationSeconds: 300,
                 });
               }
-            } else {
-              itemsToProcess.push({
-                repId: resolvedRepId,
-                prospectCompany: `Company from ${baseName}`,
-                prospectName: `Contact (${baseName})`,
-                callStage: defaultStage,
-                transcriptText: content,
-                durationSeconds: 300,
-              });
+              continue;
             }
-          } else {
-            itemsToProcess.push({
-              repId: resolvedRepId,
-              prospectCompany: `Company from ${baseName}`,
-              prospectName: `Contact (${baseName})`,
-              callStage: defaultStage,
-              transcriptText: content,
-              durationSeconds: 300,
-            });
           }
-        } else {
-          const text = buffer.toString("utf-8");
           itemsToProcess.push({
             repId: resolvedRepId,
             prospectCompany: `Company from ${baseName}`,
             prospectName: `Contact (${baseName})`,
             callStage: defaultStage,
-            transcriptText: text,
+            transcriptText: requireUsableTranscript(content),
             durationSeconds: 300,
           });
+          continue;
         }
+
+        const ingested = await ingestCallFile(f);
+        itemsToProcess.push({
+          repId: resolvedRepId,
+          prospectCompany: `Company from ${baseName}`,
+          prospectName: `Contact (${baseName})`,
+          callStage: defaultStage,
+          transcriptText: requireUsableTranscript(ingested.transcriptText),
+          durationSeconds: ingested.durationSeconds || 300,
+        });
       }
     } else {
       const body = await req.json();
@@ -144,6 +135,10 @@ export async function POST(req: Request) {
 
     if (!itemsToProcess.length) {
       return NextResponse.json({ error: "No calls provided for batch processing" }, { status: 400 });
+    }
+
+    for (const item of itemsToProcess) {
+      requireUsableTranscript(item.transcriptText);
     }
 
     const results = [];
@@ -184,6 +179,8 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("Batch upload error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err?.message || "Batch upload failed";
+    const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
+    return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }
