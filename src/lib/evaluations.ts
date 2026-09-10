@@ -1,6 +1,30 @@
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, ScriptDivergence } from "@/types";
 import { parseExtendedReview, stampMissedOpportunities } from "@/lib/ai/review";
 
+export function latestEvaluationsByCall<T extends { callId: string; createdAt: string }>(
+  rows: T[]
+): T[] {
+  const latest = new Map<string, T>();
+  for (const row of rows) {
+    const existing = latest.get(row.callId);
+    if (!existing || row.createdAt > existing.createdAt) {
+      latest.set(row.callId, row);
+    }
+  }
+  return [...latest.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+}
+
+export function latestEvaluationRow<T extends { callId: string; createdAt: string }>(
+  rows: T[],
+  callId: string
+): T | undefined {
+  return latestEvaluationsByCall(rows.filter((row) => row.callId === callId))[0];
+}
+
+export function usedLlmReview(ev?: { evaluatedWith?: { provider?: string } | null } | null): boolean {
+  return Boolean(ev?.evaluatedWith?.provider);
+}
+
 export interface EvaluationRow {
   id: string;
   callId: string;

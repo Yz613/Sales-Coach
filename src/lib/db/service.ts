@@ -18,7 +18,7 @@ import type {
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
-import { hydrateEvaluation } from "@/lib/evaluations";
+import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -406,7 +406,7 @@ export async function getAllReps(): Promise<Rep[]> {
 
   for (const r of allReps) {
     const repCalls = allCalls.filter((c: any) => c.repId === r.id);
-    const repEvals = allEvals.filter((e: any) => e.repId === r.id);
+    const repEvals = latestEvaluationsByCall(allEvals.filter((e: any) => e.repId === r.id));
     const snapshot = allSnapshots.find((s: any) => s.repId === r.id);
     const persona = await getRepPersona(r.id);
 
@@ -466,7 +466,7 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
   const persona = await getRepPersona(id);
 
   const fullCalls: Call[] = repCalls.map((c: any) => {
-    const ev = repEvals.find((e: any) => e.callId === c.id);
+    const ev = latestEvaluationRow(repEvals, c.id);
     let evaluation: CallEvaluation | undefined = undefined;
     if (ev) {
       evaluation = hydrateEvaluation(ev, {
@@ -515,7 +515,7 @@ export async function getAllCalls(): Promise<Call[]> {
 
   return allCalls.map((c: any) => {
     const rep = allReps.find((r: any) => r.id === c.repId);
-    const ev = allEvals.find((e: any) => e.callId === c.id);
+    const ev = latestEvaluationRow(allEvals, c.id);
     let evaluation: CallEvaluation | undefined = undefined;
 
     if (ev) {
@@ -551,7 +551,10 @@ export async function getCallById(id: string): Promise<Call | null> {
   if (!c) return null;
 
   const rep = await db.select().from(reps).where(eq(reps.id, c.repId)).get();
-  const ev = await db.select().from(evaluations).where(eq(evaluations.callId, c.id)).get();
+  const ev = latestEvaluationRow(
+    await db.select().from(evaluations).where(eq(evaluations.callId, c.id)).all(),
+    c.id
+  );
 
   let evaluation: CallEvaluation | undefined = undefined;
   if (ev) {

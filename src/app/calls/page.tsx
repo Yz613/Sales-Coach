@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { getAllCalls } from "@/lib/db/service";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
-import { formatDate, formatDuration } from "@/lib/utils";
-import { PhoneCall, Filter, Search, ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import ReanalyzeCallsBar from "@/components/ReanalyzeCallsBar";
+import ReanalyzeButton from "@/components/ReanalyzeButton";
+import { resolveAiSettings } from "@/lib/ai/settings";
+import { getProvider } from "@/lib/ai/providers";
+import { usedLlmReview } from "@/lib/evaluations";
 
 export const dynamic = "force-dynamic";
 
 export default async function CallBankPage() {
   const rankedCalls = rankCalls(await getAllCalls());
+  const ai = await resolveAiSettings();
 
   return (
     <div className="space-y-6">
@@ -30,6 +35,15 @@ export default async function CallBankPage() {
           Total Calls: <span className="font-bold text-white">{rankedCalls.length}</span>
         </div>
       </div>
+
+      <ReanalyzeCallsBar
+        calls={rankedCalls.map((call) => ({
+          id: call.id,
+          usedLlm: usedLlmReview(call.evaluation),
+        }))}
+        hasApiKey={ai.hasKey}
+        providerName={getProvider(ai.providerId).name}
+      />
 
       {/* Ranked Calls Table */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden">
@@ -197,12 +211,20 @@ export default async function CallBankPage() {
                     </td>
 
                     <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`/calls/${call.id}`}
-                        className="rounded bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1"
-                      >
-                        Review <ArrowUpRight className="h-3 w-3" />
-                      </Link>
+                      <div className="inline-flex items-center justify-end gap-2">
+                        <ReanalyzeButton
+                          callId={call.id}
+                          variant="compact"
+                          hasApiKey={ai.hasKey}
+                          usedLlm={usedLlmReview(ev)}
+                        />
+                        <Link
+                          href={`/calls/${call.id}`}
+                          className="rounded bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1"
+                        >
+                          Review <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );
