@@ -1,10 +1,13 @@
-import { durationFromTranscript, isAudioFile } from "./audio";
+import { durationFromTranscript, isAudioFile, mimeTypeForAudio } from "./audio";
 import { transcribeAudio } from "./ai/transcribe";
 
 export interface IngestedCallFile {
   transcriptText: string;
   durationSeconds: number;
   source: "audio" | "text";
+  audioBytes?: Uint8Array;
+  audioMimeType?: string;
+  audioFileName?: string;
 }
 
 function decodeUtf8(bytes: Uint8Array): string {
@@ -89,6 +92,9 @@ export async function ingestCallFile(file: File): Promise<IngestedCallFile> {
       transcriptText: result.transcriptText,
       durationSeconds: result.durationSeconds,
       source: "audio",
+      audioBytes: bytes,
+      audioMimeType: mimeTypeForAudio(file),
+      audioFileName: file.name,
     };
   }
 
