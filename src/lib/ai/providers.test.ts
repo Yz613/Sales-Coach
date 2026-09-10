@@ -5,7 +5,14 @@ import {
   formatUsd,
   getProvider,
   defaultModelForProvider,
+  DEFAULT_MODEL,
 } from "./providers";
+import {
+  geminiGenerationConfig,
+  geminiModelsToTry,
+  geminiTextFromResponse,
+  isGemini3Model,
+} from "./gemini";
 
 assert.equal(detectProviderFromKey("sk-ant-abc"), "anthropic");
 assert.equal(detectProviderFromKey("gsk_abc"), "groq");
@@ -22,5 +29,37 @@ assert.equal(cost, 3);
 assert.equal(formatUsd(0.15), "$0.15");
 assert.equal(formatUsd(3), "$3.00");
 assert.equal(formatUsd(0.002), "$0.0020");
+
+assert.equal(isGemini3Model("gemini-3.8-flash"), true);
+assert.equal(isGemini3Model("gemini-3.7-flash"), true);
+assert.equal(isGemini3Model("google/gemini-3.8-flash"), true);
+assert.equal(isGemini3Model("gemini-2.5-flash"), false);
+assert.equal(DEFAULT_MODEL, "gemini-3.8-flash");
+assert.deepEqual(geminiModelsToTry("gemini-3.8-flash"), ["gemini-3.8-flash"]);
+assert.deepEqual(geminiModelsToTry("gemini-2.5-pro"), ["gemini-2.5-pro"]);
+assert.deepEqual(geminiModelsToTry(""), [DEFAULT_MODEL]);
+assert.deepEqual(geminiModelsToTry(undefined), [DEFAULT_MODEL]);
+
+const flash38 = geminiGenerationConfig("gemini-3.8-flash", { thinkingLevel: "low", temperature: 0.1 });
+assert.deepEqual(flash38.thinkingConfig, { thinkingLevel: "low" });
+assert.equal(flash38.temperature, undefined);
+
+const flash25 = geminiGenerationConfig("gemini-2.5-flash", { temperature: 0.1 });
+assert.equal(flash25.temperature, 0.1);
+assert.equal(flash25.thinkingConfig, undefined);
+
+assert.equal(
+  geminiTextFromResponse({
+    candidates: [{
+      content: {
+        parts: [
+          { thought: true, text: "I will transcribe this." },
+          { text: "[0:01] Rep: Hello" },
+        ],
+      },
+    }],
+  }),
+  "[0:01] Rep: Hello"
+);
 
 console.log("providers checks passed");

@@ -89,7 +89,7 @@ globalThis.fetch = (async (input: any, init?: any) => {
 
 async function run(): Promise<void> {
   try {
-    const geminiBackend: TranscriptionBackend = { kind: "gemini", apiKey: "AIza-test", model: "gemini-2.5-flash" };
+    const geminiBackend: TranscriptionBackend = { kind: "gemini", apiKey: "AIza-test", model: "gemini-3.8-flash" };
     const gemini = await transcribeAudio(
       { bytes: makeTinyWav(), fileName: "demo.wav", mimeType: "audio/wav" },
       geminiBackend
@@ -98,6 +98,12 @@ async function run(): Promise<void> {
     assert.match(gemini.transcriptText, /already have a vendor/);
     assert.equal(gemini.backend, "gemini");
     assert.ok(gemini.durationSeconds >= 8);
+    const geminiCall = calls.find((c) => c.url.includes("generateContent"));
+    assert.ok(geminiCall, "Gemini generateContent should be called");
+    assert.match(geminiCall.url, /models\/gemini-3\.8-flash:generateContent/);
+    assert.deepEqual(geminiCall.body?.generationConfig?.thinkingConfig, { thinkingLevel: "low" });
+    assert.equal(geminiCall.body?.generationConfig?.temperature, undefined);
+    assert.equal(calls.some((c) => c.url.includes("gemini-2.5")), false);
 
     const whisperBackend: TranscriptionBackend = { kind: "openai", apiKey: "sk-test" };
     const whisper = await transcribeAudio(
@@ -112,6 +118,28 @@ async function run(): Promise<void> {
       () => transcribeAudio({ bytes: new Uint8Array(), fileName: "empty.mp3", mimeType: "audio/mpeg" }, geminiBackend),
       /empty/i
     );
+
+    const fallbackCalls: string[] = [];
+    globalThis.fetch = (async (input: any) => {
+      const url = String(input);
+      fallbackCalls.push(url);
+      return new Response(
+        JSON.stringify({
+          error: { message: "models/gemini-3.8-flash is not found for API version v1beta" },
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    await assert.rejects(
+      () => transcribeAudio(
+        { bytes: makeTinyWav(), fileName: "legacy.wav", mimeType: "audio/wav" },
+        { kind: "gemini", apiKey: "AIza-test", model: "gemini-3.8-flash" }
+      ),
+      /gemini-3\.8-flash/
+    );
+    assert.equal(fallbackCalls.some((url) => url.includes("gemini-2.5")), false);
+    assert.equal(fallbackCalls.every((url) => url.includes("gemini-3.8-flash")), true);
   } finally {
     globalThis.fetch = originalFetch;
   }
