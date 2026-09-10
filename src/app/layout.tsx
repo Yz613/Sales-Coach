@@ -26,7 +26,7 @@ export default async function RootLayout({
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-blue-600 selection:text-white" suppressHydrationWarning>
         <AuthProvider initialRole={auth.role} publishableKey={publishableKey}>
           <Navigation />
-          <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>
         </AuthProvider>

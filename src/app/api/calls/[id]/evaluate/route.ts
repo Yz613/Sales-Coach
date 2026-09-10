@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCallById } from "@/lib/db/service";
 import { evaluateCall } from "@/lib/ai/coach";
+import { resolveAiSettings } from "@/lib/ai/settings";
+import { usedLlmReview } from "@/lib/evaluations";
+
+export const maxDuration = 120;
 
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -23,8 +27,19 @@ export async function POST(
       durationSeconds: call.durationSeconds,
     });
 
-    return NextResponse.json({ success: true, evaluation });
+    const ai = await resolveAiSettings();
+    const usedLlm = usedLlmReview(evaluation);
+    const warning =
+      ai.hasKey && !usedLlm
+        ? "The AI provider failed; this call was scored with the built-in rule engine."
+        : !ai.hasKey
+          ? "No API key configured; scored with the built-in rule engine."
+          : undefined;
+
+    return NextResponse.json({ success: true, evaluation, usedLlm, warning });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err?.message || "Failed to evaluate call";
+    const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
+    return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }

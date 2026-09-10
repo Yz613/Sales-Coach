@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, Clock, XCircle, ArrowUpRight, ShieldCheck, Fla
 import { formatDate, apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import PersonaModal from "@/components/PersonaModal";
+import ReanalyzeButton from "@/components/ReanalyzeButton";
 import type { Rep, Call, RepPersona } from "@/types";
 
 export default function RepDetailPage({
@@ -256,6 +257,12 @@ export default function RepDetailPage({
                       </span>
                     )}
 
+                    <ReanalyzeButton
+                      callId={c.id}
+                      variant="compact"
+                      usedLlm={Boolean(ev?.evaluatedWith)}
+                      onComplete={fetchRepData}
+                    />
                     <Link
                       href={`/calls/${c.id}`}
                       className="rounded bg-blue-600/10 border border-blue-500/30 px-3 py-1 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1"

@@ -20,6 +20,30 @@ interface BatchItem {
   durationSeconds?: number;
 }
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -51,15 +75,56 @@ export async function POST(req: Request) {
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const ingested = await ingestCallFile(f);
-        const transcriptText = requireUsableTranscript(ingested.transcriptText);
         const baseName = f.name.replace(/\.[^/.]+$/, "");
+
+        if (f.name.toLowerCase().endsWith(".csv")) {
+          const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
+          const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          if (lines.length > 1) {
+            const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+            const transcriptIdx = header.findIndex((h) => h.includes("transcript") || h.includes("text") || h.includes("dialogue") || h.includes("body"));
+            const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("prospect") || h.includes("account"));
+            const contactIdx = header.findIndex((h) => h.includes("contact") || h.includes("lead") || h.includes("name"));
+            const stageIdx = header.findIndex((h) => h.includes("stage"));
+
+            if (transcriptIdx !== -1) {
+              for (let j = 1; j < lines.length; j++) {
+                const row = parseCsvLine(lines[j]);
+                const transcript = row[transcriptIdx]?.trim();
+                if (!transcript) continue;
+                const company = (companyIdx !== -1 && row[companyIdx]?.trim()) || `Company ${j}`;
+                const contact = (contactIdx !== -1 && row[contactIdx]?.trim()) || `Lead (${company})`;
+                const stage = (stageIdx !== -1 && row[stageIdx]?.trim()) || defaultStage;
+                itemsToProcess.push({
+                  repId: resolvedRepId,
+                  prospectCompany: company,
+                  prospectName: contact,
+                  callStage: stage,
+                  transcriptText: requireUsableTranscript(transcript),
+                  durationSeconds: 300,
+                });
+              }
+              continue;
+            }
+          }
+          itemsToProcess.push({
+            repId: resolvedRepId,
+            prospectCompany: `Company from ${baseName}`,
+            prospectName: `Contact (${baseName})`,
+            callStage: defaultStage,
+            transcriptText: requireUsableTranscript(content),
+            durationSeconds: 300,
+          });
+          continue;
+        }
+
+        const ingested = await ingestCallFile(f);
         itemsToProcess.push({
           repId: resolvedRepId,
           prospectCompany: `Company from ${baseName}`,
           prospectName: `Contact (${baseName})`,
           callStage: defaultStage,
-          transcriptText,
+          transcriptText: requireUsableTranscript(ingested.transcriptText),
           durationSeconds: ingested.durationSeconds || 300,
         });
       }
