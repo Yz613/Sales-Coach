@@ -50,7 +50,7 @@ export default function ReanalyzeButton({
           onClick={run}
           disabled={loading}
           title={hasApiKey ? "Reanalyze this call with the current AI key" : "Reanalyze this call"}
-          className="rounded bg-slate-800 border border-slate-700 px-2 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition inline-flex items-center gap-1 disabled:opacity-50"
+          className="rounded-xl bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition inline-flex items-center gap-1.5 disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           {loading ? "Scoring…" : "Reanalyze"}
@@ -67,7 +67,7 @@ export default function ReanalyzeButton({
         type="button"
         onClick={run}
         disabled={loading}
-        className="rounded-lg bg-slate-800 border border-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition inline-flex items-center gap-1.5 disabled:opacity-50"
+        className="rounded-xl bg-white/[0.06] border border-white/[0.1] hover:bg-white/[0.12] px-3.5 py-1.5 text-xs font-semibold text-white transition inline-flex items-center gap-1.5 disabled:opacity-50 backdrop-blur-md shadow-sm"
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         {loading ? "Reanalyzing…" : usedLlm ? "Reanalyze call" : "Reanalyze with AI"}

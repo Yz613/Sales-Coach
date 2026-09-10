@@ -36,7 +36,7 @@ export default function CallStageSelect({
 
   return (
     <div>
-      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+      <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
         {label}
       </label>
       {hint && <p className="text-xs text-slate-400 mb-2">{hint}</p>}
@@ -52,7 +52,7 @@ export default function CallStageSelect({
           setMode("list");
           onChange(e.target.value);
         }}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+        className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
       >
         {stages.map((stage) => (
           <option key={stage} value={stage}>
@@ -72,7 +72,7 @@ export default function CallStageSelect({
             onChange(normalizeStageName(next));
           }}
           placeholder="e.g. Demo, Renewal, Executive Briefing"
-          className="mt-2 w-full rounded-lg border border-blue-500/40 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+          className="mt-2 w-full rounded-xl glass-inset border border-blue-500/30 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/60 focus:outline-none"
         />
       )}
     </div>

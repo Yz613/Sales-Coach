@@ -130,7 +130,7 @@ export default function Navigation() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-2xl shadow-sm shadow-black/20">
         <div className="mx-auto flex max-w-[1600px] w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           {/* Left: Brand Logo & Navigation */}
           <div className="flex items-center gap-5 lg:gap-7">
@@ -138,7 +138,7 @@ export default function Navigation() {
               href={isAdmin ? "/" : "/calls"}
               className="flex items-center gap-2.5 group transition shrink-0"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform border border-white/20">
                 SC
               </div>
               <span className="font-semibold text-white tracking-tight text-sm sm:text-base">
@@ -147,7 +147,7 @@ export default function Navigation() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-1">
+            <nav className="hidden md:flex items-center space-x-1.5">
               {primaryNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
@@ -159,10 +159,10 @@ export default function Navigation() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition ${
                       isActive
-                        ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs"
-                        : "text-slate-400 hover:bg-slate-900/60 hover:text-slate-200"
+                        ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs backdrop-blur-md"
+                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -177,10 +177,10 @@ export default function Navigation() {
                   <button
                     type="button"
                     onClick={() => setIsAdminDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition ${
                       isAdminActive || isAdminDropdownOpen
-                        ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs ring-1 ring-indigo-500/30"
-                        : "text-slate-400 hover:bg-slate-900/60 hover:text-slate-200"
+                        ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs ring-1 ring-indigo-500/30 backdrop-blur-md"
+                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
                     }`}
                     aria-expanded={isAdminDropdownOpen}
                     aria-haspopup="true"
@@ -200,16 +200,16 @@ export default function Navigation() {
 
                   {/* Dropdown Menu Popover */}
                   {isAdminDropdownOpen && (
-                    <div className="absolute left-0 mt-2 w-72 rounded-xl border border-slate-800/90 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <div className="px-2.5 py-1.5 pb-2 border-b border-slate-800/80 flex items-center justify-between">
+                    <div className="absolute left-0 mt-2.5 w-76 rounded-2xl border border-white/[0.1] bg-slate-900/90 p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="px-3 py-2 pb-2.5 border-b border-white/[0.08] flex items-center justify-between">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                           Admin Controls
                         </span>
-                        <span className="text-[10px] text-indigo-400 font-medium bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 border border-indigo-500/25 px-2 py-0.5 rounded-full">
                           Full Access
                         </span>
                       </div>
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-1.5 space-y-1">
                         {visibleAdminMenuItems.map((item) => {
                           const Icon = item.icon;
                           const isItemActive =
@@ -219,14 +219,14 @@ export default function Navigation() {
                               key={item.href}
                               href={item.href}
                               onClick={() => setIsAdminDropdownOpen(false)}
-                              className={`flex items-start gap-2.5 rounded-lg p-2 transition ${
+                              className={`flex items-start gap-3 rounded-xl p-2.5 transition ${
                                 isItemActive
-                                  ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs"
-                                  : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                                  ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs"
+                                  : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
                               }`}
                             >
                               <div
-                                className={`p-1.5 rounded-lg border shrink-0 mt-0.5 ${item.badgeColor}`}
+                                className={`p-2 rounded-xl border shrink-0 mt-0.5 ${item.badgeColor}`}
                               >
                                 <Icon className="h-3.5 w-3.5" />
                               </div>
@@ -234,7 +234,7 @@ export default function Navigation() {
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs font-semibold">{item.label}</span>
                                   {isItemActive && (
-                                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400"></span>
+                                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400"></span>
                                   )}
                                 </div>
                                 <p className="text-[11px] text-slate-400 truncate mt-0.5">
@@ -247,8 +247,8 @@ export default function Navigation() {
                       </div>
 
                       {/* Role Preview Switch in Admin dropdown */}
-                      <div className="p-2 border-t border-slate-800/80 mt-1">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5 px-1 flex items-center justify-between">
+                      <div className="p-2.5 border-t border-white/[0.08] mt-1.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1 flex items-center justify-between">
                           <span>Permissions Preview</span>
                           <span className="text-[9px] text-slate-400 capitalize">{role} view</span>
                         </div>
@@ -256,10 +256,10 @@ export default function Navigation() {
                           <button
                             type="button"
                             onClick={() => handleRoleChange("admin")}
-                            className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-xs font-medium transition ${
+                            className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-medium transition ${
                               isAdmin
                                 ? "bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
-                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
                             }`}
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
@@ -268,10 +268,10 @@ export default function Navigation() {
                           <button
                             type="button"
                             onClick={() => handleRoleChange("member")}
-                            className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-xs font-medium transition ${
+                            className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-medium transition ${
                               !isAdmin
                                 ? "bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30"
-                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
                             }`}
                           >
                             <User className="h-3.5 w-3.5" />
@@ -293,12 +293,12 @@ export default function Navigation() {
               <button
                 type="button"
                 onClick={() => handleRoleChange("admin")}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition"
+                className="flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition backdrop-blur-md"
                 title="You are previewing Member view. Click to return to Admin."
               >
                 <User className="h-3.5 w-3.5 text-amber-400" />
                 <span>Member View</span>
-                <span className="text-[9px] bg-amber-500/20 px-1 py-0.2 rounded font-semibold text-amber-200">Exit</span>
+                <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded-full font-semibold text-amber-200">Exit</span>
               </button>
             )}
 
@@ -314,7 +314,7 @@ export default function Navigation() {
                 setUploadInitialTab("paste");
                 setIsUploadOpen(true);
               }}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-blue-600/30 transition active:scale-95"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-600/20 transition active:scale-95"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Upload Calls</span>
@@ -324,14 +324,14 @@ export default function Navigation() {
             {isClerkConfigured ? (
               <div className="flex items-center ml-1">
                 <ClerkLoading>
-                  <div className="h-7 w-7 rounded-full bg-slate-800 ring-1 ring-slate-700" aria-hidden />
+                  <div className="h-7 w-7 rounded-full bg-slate-800 ring-1 ring-white/10" aria-hidden />
                 </ClerkLoading>
                 <ClerkLoaded>
                   <Show
                     when="signed-in"
                     fallback={
                       <SignInButton mode="redirect">
-                        <button className="text-xs text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 transition">
+                        <button className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.1] transition backdrop-blur-md">
                           Sign In
                         </button>
                       </SignInButton>
@@ -350,7 +350,7 @@ export default function Navigation() {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
+              className="md:hidden flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 hover:text-white transition"
             >
               {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -359,12 +359,12 @@ export default function Navigation() {
 
         {/* Mobile Dropdown Drawer */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 space-y-3 backdrop-blur-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+          <div className="md:hidden border-t border-white/[0.08] bg-slate-950/95 px-4 py-3 space-y-3 backdrop-blur-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
               <span className="text-xs text-slate-400">Current Role:</span>
               <span
                 suppressHydrationWarning
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
                   isAdmin
                     ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                     : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
@@ -394,10 +394,10 @@ export default function Navigation() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition ${
                       isActive
-                        ? "bg-slate-800 text-white border border-slate-700/60"
-                        : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                        ? "bg-white/[0.1] text-white border border-white/[0.12] shadow-xs"
+                        : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -408,7 +408,7 @@ export default function Navigation() {
 
               {/* Admin suite section on mobile */}
               {isAdmin && (
-                <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-1">
+                <div className="pt-2.5 mt-2 border-t border-white/[0.08] space-y-1">
                   <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                     Admin Tools
                   </div>
@@ -422,10 +422,10 @@ export default function Navigation() {
                         key={item.href}
                         href={item.href}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                        className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition ${
                           isItemActive
-                            ? "bg-slate-800 text-white border border-slate-700/60"
-                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                            ? "bg-white/[0.1] text-white border border-white/[0.12] shadow-xs"
+                            : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
                         }`}
                       >
                         <Icon className="h-4 w-4" />
