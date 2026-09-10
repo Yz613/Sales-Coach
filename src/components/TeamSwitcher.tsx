@@ -18,21 +18,11 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
   return (
     <Show when="signed-in">
       <div className="flex items-center gap-1.5">
-        <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 px-2 py-1">
+        <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-800/90 bg-slate-900/60 px-2.5 py-1.5 hover:border-slate-700 transition">
           <Building2 className="h-3.5 w-3.5 shrink-0 text-sky-400" />
-          <div className="min-w-0 leading-tight">
-            <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
-              Team
-            </div>
-            <div className="max-w-[9rem] truncate text-[11px] font-semibold text-white sm:max-w-[12rem]">
-              {!isLoaded ? "…" : organization?.name || "None selected"}
-            </div>
-          </div>
-          {roleLabel && (
-            <span className="hidden rounded border border-slate-700 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-slate-400 lg:inline">
-              {roleLabel}
-            </span>
-          )}
+          <span className="max-w-[8rem] sm:max-w-[11rem] truncate text-xs font-medium text-slate-200">
+            {!isLoaded ? "…" : organization?.name || "Select Team"}
+          </span>
           <OrganizationSwitcher
             hidePersonal
             organizationProfileMode="navigation"

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import {
@@ -182,9 +183,17 @@ export default function AdminSettingsPage() {
         )}
 
         {saveSuccess && (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-sm text-emerald-400">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>Settings saved successfully. Changes are active immediately.</span>
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-sm text-emerald-400 space-y-1">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>Settings saved successfully. Changes are active immediately.</span>
+            </div>
+            {hasStoredKey && (
+              <p className="text-xs text-emerald-200/80 pl-6">
+                Already-uploaded calls keep their previous scores until you reanalyze them in the{" "}
+                <Link href="/calls" className="underline hover:text-white">Call Bank</Link>.
+              </p>
+            )}
           </div>
         )}
 
@@ -324,6 +333,24 @@ export default function AdminSettingsPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-blue-400" />
+            <div>
+              <h2 className="text-base font-bold text-white">Reanalyze uploaded calls</h2>
+              <p className="text-xs text-slate-400">
+                Calls ingested before this key was saved keep their old scores. Re-run them from the Call Bank with the current provider and model.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/calls"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition"
+          >
+            Open Call Bank
+          </Link>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-5">
