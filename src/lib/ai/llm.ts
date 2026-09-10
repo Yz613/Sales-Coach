@@ -1,3 +1,4 @@
+import { geminiGenerationConfig, geminiTextFromResponse } from "./gemini";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
 
 export interface LlmJsonResult {
@@ -30,7 +31,10 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" },
+        generationConfig: geminiGenerationConfig(model, {
+          responseMimeType: "application/json",
+          thinkingLevel: "low",
+        }),
       }),
     }
   );
@@ -38,7 +42,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   if (!res.ok || data.error) {
     throw new Error(data.error?.message || `Gemini request failed (${res.status})`);
   }
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text = geminiTextFromResponse(data);
   const usage = data?.usageMetadata
     ? {
         inputTokens: Number(data.usageMetadata.promptTokenCount || 0),

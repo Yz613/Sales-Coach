@@ -12,7 +12,8 @@ import {
   mimeTypeForAudio,
   type AudioChunk,
 } from "../audio";
-import { detectProviderFromKey, type ProviderId } from "./providers";
+import { DEFAULT_MODEL, detectProviderFromKey, type ProviderId } from "./providers";
+import { geminiGenerationConfig, geminiModelsToTry, geminiTextFromResponse } from "./gemini";
 import { resolveAiSettings } from "./settings";
 
 export type TranscriptionKind = "gemini" | "openai" | "groq";
@@ -35,8 +36,6 @@ export interface TranscribeAudioResult {
   backend: TranscriptionKind;
   chunkCount: number;
 }
-
-const GEMINI_TRANSCRIBE_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"];
 
 const TRANSCRIBE_PROMPT = `Transcribe this sales-call audio verbatim.
 
@@ -90,8 +89,9 @@ export function cleanModelTranscript(raw: string): string {
     .trim();
 }
 
-function geminiErrorMessage(data: any, status: number): string {
-  return data?.error?.message || `Gemini transcription failed (${status})`;
+function geminiErrorMessage(data: any, status: number, model?: string): string {
+  const detail = data?.error?.message || `Gemini transcription failed (${status})`;
+  return model ? `${detail} (model: ${model})` : detail;
 }
 
 async function callGeminiGenerate(
@@ -106,20 +106,20 @@ async function callGeminiGenerate(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: { temperature: 0.1 },
+        generationConfig: geminiGenerationConfig(model, {
+          thinkingLevel: "low",
+          temperature: 0.1,
+        }),
       }),
     }
   );
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.error) {
-    throw new Error(geminiErrorMessage(data, res.status));
+    throw new Error(geminiErrorMessage(data, res.status, model));
   }
-  const text = (data?.candidates?.[0]?.content?.parts || [])
-    .map((part: any) => part.text || "")
-    .join("\n");
-  const cleaned = cleanModelTranscript(text);
+  const cleaned = cleanModelTranscript(geminiTextFromResponse(data));
   if (!cleaned) {
-    throw new Error("Gemini returned an empty transcript for this audio chunk");
+    throw new Error(`Gemini returned an empty transcript for this audio chunk (model: ${model})`);
   }
   return cleaned;
 }
@@ -138,21 +138,13 @@ async function transcribeGeminiInline(
     { text: prompt },
   ];
 
-  const models = [backend.model, ...GEMINI_TRANSCRIBE_MODELS].filter(
-    (model, index, all): model is string => Boolean(model) && all.indexOf(model) === index
-  );
-
+  const models = geminiModelsToTry(backend.model);
   let lastError: Error | null = null;
   for (const model of models) {
     try {
       return await callGeminiGenerate(backend.apiKey, model, parts);
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      const message = lastError.message.toLowerCase();
-      if (message.includes("not found") || message.includes("unsupported") || message.includes("audio")) {
-        continue;
-      }
-      throw lastError;
     }
   }
   throw lastError || new Error("Gemini could not transcribe this audio");
@@ -227,9 +219,7 @@ async function transcribeGeminiFile(
     { fileData: { mimeType: uploaded.mimeType, fileUri: uploaded.uri } },
     { text: TRANSCRIBE_PROMPT },
   ];
-  const models = [backend.model, ...GEMINI_TRANSCRIBE_MODELS].filter(
-    (model, index, all): model is string => Boolean(model) && all.indexOf(model) === index
-  );
+  const models = geminiModelsToTry(backend.model);
   try {
     let lastError: Error | null = null;
     for (const model of models) {
@@ -322,7 +312,7 @@ export async function resolveTranscriptionBackend(): Promise<TranscriptionBacken
   }
 
   const envOrder: Array<{ kind: TranscriptionKind; env: string; model?: string }> = [
-    { kind: "gemini", env: "GEMINI_API_KEY", model: "gemini-2.5-flash" },
+    { kind: "gemini", env: "GEMINI_API_KEY", model: DEFAULT_MODEL },
     { kind: "openai", env: "OPENAI_API_KEY" },
     { kind: "groq", env: "GROQ_API_KEY" },
   ];
