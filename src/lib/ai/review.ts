@@ -44,6 +44,9 @@ export interface EvaluatedWith {
   provider: string;
   model: string;
   estimatedCostUsd?: number;
+  /** Present when the LLM call failed and the rule engine produced this score. */
+  fallback?: "rules";
+  error?: string;
 }
 
 export interface ExtendedReview {

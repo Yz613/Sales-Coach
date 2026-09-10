@@ -3,6 +3,7 @@ import {
   hydrateEvaluation,
   latestEvaluationRow,
   latestEvaluationsByCall,
+  ruleEngineNotice,
   usedLlmReview,
   type EvaluationRow,
 } from "./evaluations";
@@ -69,5 +70,20 @@ assert.deepEqual(
 assert.equal(usedLlmReview(undefined), false);
 assert.equal(usedLlmReview({ evaluatedWith: undefined }), false);
 assert.equal(usedLlmReview({ evaluatedWith: { provider: "openai" } }), true);
+assert.equal(usedLlmReview({ evaluatedWith: { provider: "openai", fallback: "rules" } }), false);
+
+assert.match(
+  ruleEngineNotice({ evaluatedWith: { provider: "gemini", model: "gemini-3.8-flash", fallback: "rules", error: "API key expired" } }, { hasKey: true, providerName: "Google Gemini" }) || "",
+  /API key expired/
+);
+assert.match(
+  ruleEngineNotice({}, { hasKey: true }) || "",
+  /before your API key was applied/
+);
+assert.match(
+  ruleEngineNotice({}, { hasKey: false }) || "",
+  /Add an API key/
+);
+assert.equal(ruleEngineNotice({ evaluatedWith: { provider: "openai" } }, { hasKey: true }), null);
 
 console.log("evaluations checks passed");

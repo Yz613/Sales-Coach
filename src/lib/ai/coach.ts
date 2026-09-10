@@ -76,8 +76,15 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
         durationSeconds
       );
     } catch (err) {
-      console.error("LLM evaluation error, falling back to rule-based evaluator:", err);
+      const message = llmErrorMessage(err);
+      console.error("LLM evaluation error, falling back to rule-based evaluator:", message);
       evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
+      evaluationResult.evaluatedWith = {
+        provider: ai.providerId,
+        model: ai.model,
+        fallback: "rules",
+        error: message,
+      };
     }
   } else {
     evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
@@ -309,9 +316,9 @@ Return a strictly valid JSON object with this exact schema:
     coreOutcome: parsed.coreOutcome || "Dropped",
     bottomLine: parsed.bottomLine || "",
     missedOpportunities: missed,
-    sandlerBreakdown: parsed.sandlerBreakdown,
+    sandlerBreakdown: normalizeSandlerBreakdown(parsed.sandlerBreakdown),
     scriptDivergence: parsed.scriptDivergence,
-    topFixes: parsed.topFixes,
+    topFixes: normalizeTopFixes(parsed.topFixes),
     scorecard,
     walkthrough,
     evaluatedWith: {
@@ -321,6 +328,45 @@ Return a strictly valid JSON object with this exact schema:
     },
     rawMarkdown: `### Manager's Assessment for ${repName}\n${parsed.bottomLine || ""}`,
   };
+}
+
+function llmErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 280) || "Provider request failed";
+}
+
+function normalizeSandlerStatus(value: unknown): SandlerStatus {
+  return value === "Pass" || value === "Fail" || value === "Incomplete" ? value : "Incomplete";
+}
+
+function normalizeSandlerBreakdown(raw: any): CallEvaluation["sandlerBreakdown"] {
+  const sb = raw && typeof raw === "object" ? raw : {};
+  const score = Number(sb.scriptAdherence?.score);
+  return {
+    pain: { status: normalizeSandlerStatus(sb.pain?.status), evidence: String(sb.pain?.evidence || "") },
+    budget: { status: normalizeSandlerStatus(sb.budget?.status), evidence: String(sb.budget?.evidence || "") },
+    decision: { status: normalizeSandlerStatus(sb.decision?.status), evidence: String(sb.decision?.evidence || "") },
+    scriptAdherence: {
+      score: Number.isFinite(score) ? Math.min(10, Math.max(1, Math.round(score))) : 5,
+      feedback: String(sb.scriptAdherence?.feedback || ""),
+    },
+  };
+}
+
+function normalizeTopFixes(raw: unknown): [PriorityFix, PriorityFix] {
+  const fixes = Array.isArray(raw) ? raw : [];
+  const first = fixes[0] && typeof fixes[0] === "object" ? fixes[0] : {};
+  const second = fixes[1] && typeof fixes[1] === "object" ? fixes[1] : {};
+  return [
+    {
+      title: String(first.title || "Tighten the next call"),
+      description: String(first.description || "Revisit the moments flagged on this tape."),
+    },
+    {
+      title: String(second.title || "Lock a next step"),
+      description: String(second.description || "Leave with a calendar commitment, not a vague follow-up."),
+    },
+  ];
 }
 
 function generateRuleBasedEvaluation(
