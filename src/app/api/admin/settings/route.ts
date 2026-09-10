@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { setSetting } from "@/lib/db/service";
-import { resolveAiSettings } from "@/lib/ai/settings";
+import { modelForProvider, resolveAiSettings } from "@/lib/ai/settings";
 import { getTranscriptionStatus } from "@/lib/ai/transcribe";
 import {
   AI_PROVIDERS,
-  defaultModelForProvider,
   detectProviderFromKey,
-  getProvider,
   isProviderId,
   type ProviderId,
 } from "@/lib/ai/providers";
@@ -21,6 +19,7 @@ export async function GET() {
       maskedKey: ai.maskedKey,
       provider: ai.providerId,
       activeModel: ai.model,
+      providerCorrected: Boolean(ai.providerCorrected),
       providers: AI_PROVIDERS,
       canTranscribe: transcription.canTranscribe,
       transcribeReason: transcription.reason || null,
@@ -45,20 +44,18 @@ export async function POST(req: Request) {
       const key = incomingKey.trim();
       await setSetting("ai_api_key", key);
       const detected = detectProviderFromKey(key);
-      if (!providerId && detected) {
+      if (detected && detected !== providerId) {
         providerId = detected;
         await setSetting("ai_provider", detected);
       }
     }
 
     if (body.activeModel !== undefined && String(body.activeModel).trim()) {
-      await setSetting("active_model", String(body.activeModel).trim());
+      const requested = String(body.activeModel).trim();
+      await setSetting("active_model", providerId ? modelForProvider(providerId, requested) : requested);
     } else if (providerId) {
       const current = (await resolveAiSettings()).model;
-      const belongs = getProvider(providerId).models.some((m) => m.id === current);
-      if (!belongs) {
-        await setSetting("active_model", defaultModelForProvider(providerId));
-      }
+      await setSetting("active_model", modelForProvider(providerId, current));
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });

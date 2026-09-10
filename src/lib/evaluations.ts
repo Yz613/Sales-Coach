@@ -21,8 +21,28 @@ export function latestEvaluationRow(
   return latestEvaluationsByCall(rows.filter((row) => row.callId === callId))[0];
 }
 
-export function usedLlmReview(ev?: { evaluatedWith?: { provider?: string } | null } | null): boolean {
-  return Boolean(ev?.evaluatedWith?.provider);
+export function usedLlmReview(
+  ev?: { evaluatedWith?: { provider?: string; fallback?: string } | null } | null
+): boolean {
+  return Boolean(ev?.evaluatedWith?.provider) && ev?.evaluatedWith?.fallback !== "rules";
+}
+
+export function ruleEngineNotice(
+  ev?: {
+    evaluatedWith?: { provider?: string; model?: string; fallback?: string; error?: string } | null;
+  } | null,
+  opts: { hasKey?: boolean; providerName?: string } = {}
+): string | null {
+  if (usedLlmReview(ev)) return null;
+  if (ev?.evaluatedWith?.error) {
+    const who = opts.providerName || ev.evaluatedWith.provider || "AI provider";
+    const model = ev.evaluatedWith.model ? ` · ${ev.evaluatedWith.model}` : "";
+    return `AI scoring failed (${who}${model}): ${ev.evaluatedWith.error} This score used the built-in rule engine.`;
+  }
+  if (opts.hasKey) {
+    return "This score was generated with the built-in rule engine before your API key was applied. Use Reanalyze with AI to score it with the connected key.";
+  }
+  return "This score used the built-in rule engine. Add an API key in Settings, then reanalyze.";
 }
 
 export interface EvaluationRow {

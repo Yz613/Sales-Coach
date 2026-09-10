@@ -1,9 +1,10 @@
 import { getAllSettings, getSetting } from "../db/service";
 import {
   AI_PROVIDERS,
-  DEFAULT_MODEL,
   DEFAULT_PROVIDER,
+  defaultModelForProvider,
   detectProviderFromKey,
+  getModel,
   getProvider,
   isProviderId,
   type ProviderId,
@@ -15,6 +16,8 @@ export interface ResolvedAiSettings {
   apiKey: string | null;
   hasKey: boolean;
   maskedKey: string;
+  /** True when the stored key prefix does not match the saved provider. */
+  providerCorrected?: boolean;
 }
 
 function maskKey(key: string): string {
@@ -22,48 +25,85 @@ function maskKey(key: string): string {
   return `${key.slice(0, 6)}••••••••${key.slice(-4)}`;
 }
 
-function envKeyFor(providerId: ProviderId): string | null {
+function envKeyFor(providerId: ProviderId, env: Record<string, string | undefined>): string | null {
   const envName = getProvider(providerId).envKey;
-  return process.env[envName] || null;
+  return env[envName] || null;
 }
 
-function firstEnvKey(): { providerId: ProviderId; apiKey: string } | null {
+function firstEnvKey(env: Record<string, string | undefined>): { providerId: ProviderId; apiKey: string } | null {
   for (const provider of AI_PROVIDERS) {
-    const value = process.env[provider.envKey];
+    const value = env[provider.envKey];
     if (value && value.trim()) return { providerId: provider.id, apiKey: value.trim() };
   }
   return null;
 }
 
-export async function resolveAiSettings(overrideKey?: string): Promise<ResolvedAiSettings> {
-  const settings = await getAllSettings();
+export function modelForProvider(providerId: ProviderId, requestedModel?: string | null): string {
+  const requested = (requestedModel || "").trim();
+  if (!requested) return defaultModelForProvider(providerId);
+  if (getModel(providerId, requested)) return requested;
+  if (getProvider(providerId).allowsCustomModel) return requested;
+  return defaultModelForProvider(providerId);
+}
+
+/**
+ * Pick the provider that can actually use this key.
+ * A Gemini key selected as OpenAI (or the reverse) used to call the wrong API,
+ * fail, and silently fall back to the built-in rule engine.
+ */
+export function providerForKey(
+  apiKey: string,
+  requestedProvider?: string | null
+): { providerId: ProviderId; corrected: boolean } {
+  const requested = isProviderId(requestedProvider || "") ? (requestedProvider as ProviderId) : undefined;
+  const detected = detectProviderFromKey(apiKey);
+  if (detected && requested && detected !== requested) {
+    return { providerId: detected, corrected: true };
+  }
+  if (detected) return { providerId: detected, corrected: false };
+  if (requested) return { providerId: requested, corrected: false };
+  return { providerId: DEFAULT_PROVIDER, corrected: false };
+}
+
+export function resolveAiSettingsFrom(
+  settings: Record<string, string>,
+  env: Record<string, string | undefined> = process.env,
+  overrideKey?: string
+): ResolvedAiSettings {
   const storedKey = (settings["ai_api_key"] || settings["gemini_api_key"] || "").trim();
   const requestedProvider = settings["ai_provider"];
-  const storedModel = (settings["active_model"] || "").trim() || DEFAULT_MODEL;
+  const storedModel = (settings["active_model"] || "").trim();
 
   let providerId: ProviderId = isProviderId(requestedProvider) ? requestedProvider : DEFAULT_PROVIDER;
-  let apiKey = (overrideKey || storedKey || envKeyFor(providerId) || "").trim();
+  let apiKey = (overrideKey || storedKey || envKeyFor(providerId, env) || "").trim();
+  let providerCorrected = false;
 
   if (!apiKey) {
-    const fallback = firstEnvKey();
+    const fallback = firstEnvKey(env);
     if (fallback) {
       providerId = fallback.providerId;
       apiKey = fallback.apiKey;
     }
   }
 
-  if (!isProviderId(requestedProvider) && apiKey) {
-    const detected = detectProviderFromKey(apiKey);
-    if (detected) providerId = detected;
+  if (apiKey) {
+    const matched = providerForKey(apiKey, requestedProvider);
+    providerId = matched.providerId;
+    providerCorrected = matched.corrected;
   }
 
   return {
     providerId,
-    model: storedModel,
+    model: modelForProvider(providerId, storedModel),
     apiKey: apiKey || null,
     hasKey: Boolean(apiKey),
     maskedKey: apiKey ? maskKey(apiKey) : "",
+    providerCorrected,
   };
+}
+
+export async function resolveAiSettings(overrideKey?: string): Promise<ResolvedAiSettings> {
+  return resolveAiSettingsFrom(await getAllSettings(), process.env, overrideKey);
 }
 
 export async function getStoredProvider(): Promise<ProviderId> {

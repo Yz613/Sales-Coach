@@ -6,10 +6,12 @@ import { getProvider, isProviderId, type ProviderId } from "@/lib/ai/providers";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const stored = await resolveAiSettings(body.apiKey);
-    const providerId: ProviderId = isProviderId(body.provider) ? body.provider : stored.providerId;
-    const model = (body.model || stored.model || getProvider(providerId).models[0].id) as string;
-    const apiKey = (body.apiKey || stored.apiKey || "").trim();
+    const incomingKey = (body.apiKey || "").toString().trim();
+    const stored = await resolveAiSettings(incomingKey || undefined);
+    const usingTypedKey = Boolean(incomingKey);
+    const providerId: ProviderId = usingTypedKey && isProviderId(body.provider) ? body.provider : stored.providerId;
+    const model = (usingTypedKey && body.model ? String(body.model) : stored.model) || getProvider(providerId).models[0].id;
+    const apiKey = incomingKey || stored.apiKey || "";
 
     if (!apiKey) {
       return NextResponse.json({
