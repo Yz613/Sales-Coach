@@ -165,7 +165,7 @@ export default function AdminSettingsPage() {
           System Settings & AI API Keys
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model that scores calls.
+          Bring any provider key — Gemini, OpenAI, Anthropic, Groq, or OpenRouter — then pick the model that scores calls. Audio uploads are transcribed with Gemini, OpenAI Whisper, or Groq Whisper.
         </p>
       </div>
 
@@ -182,7 +182,7 @@ export default function AdminSettingsPage() {
             <Sparkles className="h-5 w-5 text-blue-400" />
             <div>
               <h2 className="text-base font-bold text-white">AI Sales Coach Engine & API Key</h2>
-              <p className="text-xs text-slate-400">Powers live evaluation of blocking & tackling, early folding, and Sandler qualification.</p>
+              <p className="text-xs text-slate-400">Powers transcription of uploaded recordings and live evaluation of blocking & tackling, early folding, and Sandler qualification. Anthropic and OpenRouter score transcripts but cannot transcribe audio — keep a Gemini, OpenAI, or Groq key available for MP3/WAV/M4A uploads.</p>
             </div>
           </div>
 

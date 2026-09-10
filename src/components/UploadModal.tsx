@@ -7,6 +7,7 @@ import { apiPath } from "@/lib/utils";
 import type { Rep } from "@/types";
 import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
 import CallStageSelect from "@/components/CallStageSelect";
+import { isAudioFile } from "@/lib/audio";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -203,7 +204,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           <div>
             <h2 className="text-base font-bold text-white">Upload Calls for AI Coaching</h2>
             <p className="text-xs text-slate-400">
-              Evaluates blocking & tackling, early folding, and stage-specific Sandler qualification.
+              Audio is split and transcribed, then scored for blocking & tackling, early folding, and Sandler qualification.
             </p>
           </div>
           <button
@@ -356,12 +357,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                   Drop multiple files or click to browse
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Supports multiple .txt, .vtt, .srt, .json, .mp3, .wav, .m4a files
+                  MP3, WAV, M4A and other audio are transcribed automatically. Also .txt, .vtt, .srt, .json.
                 </p>
                 <input
                   type="file"
                   multiple
-                  accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a"
+                  accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*"
                   onChange={(e) => {
                     const files = Array.from(e.target.files || []);
                     setBatchFiles(files);
@@ -411,7 +412,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing {batchFiles.length} Calls in Batch...
+                    Transcribing & coaching {batchFiles.length} calls...
                   </>
                 ) : (
                   <>
@@ -537,11 +538,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                     {singleFile ? singleFile.name : "Select transcript or audio recording"}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Supports .txt, .vtt, .srt, .json, .mp3, .wav, .m4a
+                    Audio is broken into clips and transcribed. Also .txt, .vtt, .srt, .json.
                   </p>
                   <input
                     type="file"
-                    accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a"
+                    accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*"
                     onChange={(e) => setSingleFile(e.target.files?.[0] || null)}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
@@ -566,7 +567,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Coaching Call...
+                    {singleFile && isAudioFile(singleFile) ? "Transcribing & coaching..." : "Coaching Call..."}
                   </>
                 ) : (
                   <>

@@ -4,6 +4,9 @@ import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
+import { ingestCallFile } from "@/lib/ingestCallFile";
+
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
@@ -35,14 +38,10 @@ export async function POST(req: Request) {
       if (rawText && rawText.trim().length > 0) {
         transcriptText = rawText.trim();
       } else if (file) {
-        // If file is audio or text
-        const buffer = Buffer.from(await file.arrayBuffer());
-        if (file.type.includes("audio") || file.name.endsWith(".mp3") || file.name.endsWith(".wav") || file.name.endsWith(".m4a")) {
-          // Note for audio: If Gemini API key is configured with multimodal support, it can process directly.
-          // For now, we simulate/extract transcript or note audio received.
-          transcriptText = `[Audio file ingested: ${file.name} (${Math.round(file.size / 1024)} KB). Automatic transcription is not configured, so paste the transcript for a full evaluation.]`;
-        } else {
-          transcriptText = buffer.toString("utf-8");
+        const ingested = await ingestCallFile(file);
+        transcriptText = ingested.transcriptText;
+        if (ingested.durationSeconds > 0) {
+          durationSeconds = ingested.durationSeconds;
         }
       }
     } else {

@@ -4,6 +4,9 @@ import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
+import { ingestCallFile } from "@/lib/ingestCallFile";
+
+export const maxDuration = 300;
 
 interface BatchItem {
   repId: string;
@@ -41,23 +44,15 @@ export async function POST(req: Request) {
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const buffer = Buffer.from(await f.arrayBuffer());
-        let text = "";
-
-        if (f.name.endsWith(".mp3") || f.name.endsWith(".wav") || f.name.endsWith(".m4a")) {
-          text = `[Audio file ingested: ${f.name}. Automatic transcription is not configured, so paste the transcript for a full evaluation.]`;
-        } else {
-          text = buffer.toString("utf-8");
-        }
-
+        const ingested = await ingestCallFile(f);
         const baseName = f.name.replace(/\.[^/.]+$/, "");
         itemsToProcess.push({
           repId: resolvedRepId,
           prospectCompany: `Company from ${baseName}`,
           prospectName: `Contact (${baseName})`,
           callStage: defaultStage,
-          transcriptText: text,
-          durationSeconds: 300,
+          transcriptText: ingested.transcriptText,
+          durationSeconds: ingested.durationSeconds || 300,
         });
       }
     } else {
