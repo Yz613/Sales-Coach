@@ -68,7 +68,7 @@ export default function ReanalyzeCallsBar({
   if (!calls.length) return null;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-3">
+    <div className="rounded-2xl glass-card p-5 space-y-4">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-400">
@@ -90,7 +90,7 @@ export default function ReanalyzeCallsBar({
               onClick={() => {
                 cancelRef.current = true;
               }}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
+              className="rounded-xl border border-white/[0.1] bg-white/[0.05] hover:bg-white/[0.1] px-3.5 py-2 text-xs font-semibold text-slate-200 transition"
             >
               Stop
             </button>
@@ -100,7 +100,7 @@ export default function ReanalyzeCallsBar({
               type="button"
               onClick={() => run(withoutAi)}
               disabled={running}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-white/10 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/20 transition disabled:opacity-50"
             >
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Reanalyze {withoutAi.length} without AI
@@ -110,7 +110,7 @@ export default function ReanalyzeCallsBar({
             type="button"
             onClick={() => run(calls)}
             disabled={running}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.06] hover:bg-white/[0.12] px-4 py-2 text-xs font-semibold text-white transition backdrop-blur-md disabled:opacity-50"
           >
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Reanalyze all {calls.length}
@@ -124,9 +124,9 @@ export default function ReanalyzeCallsBar({
             <span>Scoring call {progress.current} of {progress.total}…</span>
             <span className="font-mono">{Math.round((progress.current / progress.total) * 100)}%</span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-slate-950/60 overflow-hidden border border-white/[0.06]">
             <div
-              className="h-full rounded-full bg-blue-500 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
               style={{ width: `${(progress.current / progress.total) * 100}%` }}
             />
           </div>
