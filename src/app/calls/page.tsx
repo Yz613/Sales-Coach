@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getAllCalls } from "@/lib/db/service";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
-import { ArrowUpRight, Trophy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, Trophy, AlertTriangle, CheckCircle2, Headphones } from "lucide-react";
 import CallBankActions from "@/components/CallBankActions";
 import ReanalyzeCallsBar from "@/components/ReanalyzeCallsBar";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
@@ -85,7 +85,10 @@ export default async function CallBankPage() {
                     </td>
 
                     <td className="px-3.5 py-3.5 min-w-[150px]">
-                      <div className="font-semibold text-white truncate max-w-[200px]">{call.repName}</div>
+                      <div className="font-semibold text-white truncate max-w-[200px] inline-flex items-center gap-1.5">
+                        {call.audioUrl ? <Headphones className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : null}
+                        <span className="truncate">{call.repName}</span>
+                      </div>
                       <div className="text-xs text-slate-400 truncate max-w-[200px]">
                         {call.prospectCompany} • {call.prospectName}
                       </div>

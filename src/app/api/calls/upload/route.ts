@@ -8,6 +8,7 @@ import { ingestCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { getTranscriptionStatus, resolveTranscriptionBackend } from "@/lib/ai/transcribe";
+import { saveCallAudio } from "@/lib/callAudioStore";
 
 export async function GET() {
   try {
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
     let callStage = "Cold Call";
     let transcriptText = "";
     let durationSeconds = 300;
+    let audioBytes: Uint8Array | undefined;
+    let audioMimeType: string | undefined;
+    let audioFileName: string | undefined;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -57,6 +61,11 @@ export async function POST(req: Request) {
         transcriptText = ingested.transcriptText;
         if (ingested.durationSeconds > 0) {
           durationSeconds = ingested.durationSeconds;
+        }
+        if (ingested.audioBytes?.byteLength) {
+          audioBytes = ingested.audioBytes;
+          audioMimeType = ingested.audioMimeType;
+          audioFileName = ingested.audioFileName;
         }
       }
     } else {
@@ -93,6 +102,9 @@ export async function POST(req: Request) {
 
     const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
+    const audioUrl = audioBytes
+      ? saveCallAudio(callId, audioBytes, audioMimeType, audioFileName)
+      : undefined;
 
     // Insert call
     await db.insert(calls).values({
@@ -104,6 +116,7 @@ export async function POST(req: Request) {
       coreOutcome: "Analyzing...",
       durationSeconds,
       transcriptText,
+      audioUrl,
       status: "analyzing",
       createdAt: now,
     }).run();

@@ -7,7 +7,7 @@ import { formatDate, formatDuration } from "@/lib/utils";
 import TeachCoach from "@/components/TeachCoach";
 import CoachWalkthrough from "@/components/CoachWalkthrough";
 import ScorecardGrid from "@/components/ScorecardGrid";
-import TimestampedTranscript from "@/components/TimestampedTranscript";
+import CallRecording from "@/components/CallRecording";
 import { getServerAuth } from "@/lib/auth";
 import {
   attachCitesToScorecard,
@@ -164,6 +164,12 @@ export default async function CallReviewPage({
           )}
         </div>
       </div>
+
+      <CallRecording
+        audioUrl={call.audioUrl}
+        transcriptText={call.transcriptText}
+        durationSeconds={call.durationSeconds}
+      />
 
       {ev ? (
         <>
@@ -515,18 +521,6 @@ export default async function CallReviewPage({
 
       {/* Teach the Coach from this call */}
       <TeachCoach callId={call.id} />
-
-      {/* Transcript Inspector */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden">
-        <div className="border-b border-slate-800 px-6 py-4">
-          <h3 className="text-sm font-bold text-white tracking-tight uppercase tracking-wider text-xs">
-            Full Call Transcript
-          </h3>
-        </div>
-        <div className="p-6 bg-slate-950">
-          <TimestampedTranscript transcriptText={call.transcriptText} durationSeconds={call.durationSeconds} />
-        </div>
-      </div>
     </div>
   );
 }

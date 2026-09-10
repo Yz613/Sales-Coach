@@ -193,13 +193,14 @@ export function seed() {
       prospectName: "Greg Miller (VP Ops)",
       callStage: "Cold Call",
       coreOutcome: "Meeting booked",
-      durationSeconds: 265,
-      transcriptText: `Marcus: Hey Greg, this is Marcus with CloudFlow. I know you weren't expecting my call, do you have 30 seconds to tell me if this is a bad time?
-Greg: Look, I'm literally walking into a warehouse meeting right now. We already got a quote from FreightPulse last week and we're pretty set.
-Marcus: Totally get that Greg, FreightPulse is solid. But usually when VP of Ops tell us they're set, they're still dealing with the 4-hour manual customs delay at the border. Is that something you guys have completely eliminated, or is it still a daily headache?
-Greg: Well, customs is always messy, honestly. We lose at least 3 hours on paperwork per haul.
-Marcus: That's exactly why I called. We automate that clearance in 8 minutes flat. I don't want to make you late for your meeting. How about Tuesday at 9:30 AM so I can show you how we saved SwiftTransit 14 hours a week?
-Greg: Fine, send the calendar invite to greg@example.com. Tuesday 9:30.`,
+      durationSeconds: 66,
+      audioUrl: "/recordings/call_01.mp3",
+      transcriptText: `[0:00] Marcus: Hey Greg, this is Marcus with CloudFlow. I know you weren't expecting my call, do you have 30 seconds to tell me if this is a bad time?
+[0:10] Greg: Look, I'm literally walking into a warehouse meeting right now. We already got a quote from FreightPulse last week and we're pretty set.
+[0:19] Marcus: Totally get that Greg, FreightPulse is solid. But usually when VP of Ops tell us they're set, they're still dealing with the 4-hour manual customs delay at the border. Is that something you guys have completely eliminated, or is it still a daily headache?
+[0:36] Greg: Well, customs is always messy, honestly. We lose at least 3 hours on paperwork per haul.
+[0:43] Marcus: That's exactly why I called. We automate that clearance in 8 minutes flat. I don't want to make you late for your meeting. How about Tuesday at 9:30 AM so I can show you how we saved SwiftTransit 14 hours a week?
+[0:59] Greg: Fine, send the calendar invite to greg@example.com. Tuesday 9:30.`,
       status: "completed",
       createdAt: "2026-09-07T14:30:00Z",
       evaluation: {
@@ -264,15 +265,16 @@ Greg: Fine, send the calendar invite to greg@example.com. Tuesday 9:30.`,
       prospectName: "Dr. Aris Thorne (Director of Lab Tech)",
       callStage: "Cold Call",
       coreOutcome: "Dropped",
-      durationSeconds: 110,
-      transcriptText: `David: Hi Dr. Thorne, my name is David Kim with LabSync. How are you today?
-Dr. Thorne: I'm busy. What is this regarding?
-David: I was calling to introduce our state of the art lab automation software that helps biotech labs increase throughput by 40%.
-Dr. Thorne: We already have a LIMS system and we don't need anything new right now.
-David: Oh okay, no problem! What system are you currently using if you don't mind me asking?
-Dr. Thorne: Benchling. Just send me an email with some brochures and I'll keep it on file.
-David: Absolutely Dr. Thorne, I'll send that right over to your inbox. Have a great day!
-Dr. Thorne: Thanks, bye.`,
+      durationSeconds: 44,
+      audioUrl: "/recordings/call_02.mp3",
+      transcriptText: `[0:00] David: Hi Dr. Thorne, my name is David Kim with LabSync. How are you today?
+[0:06] Dr. Thorne: I'm busy. What is this regarding?
+[0:09] David: I was calling to introduce our state of the art lab automation software that helps biotech labs increase throughput by 40%.
+[0:18] Dr. Thorne: We already have a LIMS system and we don't need anything new right now.
+[0:23] David: Oh okay, no problem! What system are you currently using if you don't mind me asking?
+[0:30] Dr. Thorne: Benchling. Just send me an email with some brochures and I'll keep it on file.
+[0:36] David: Absolutely Dr. Thorne, I'll send that right over to your inbox. Have a great day!
+[0:42] Dr. Thorne: Thanks, bye.`,
       status: "completed",
       createdAt: "2026-09-08T10:15:00Z",
       evaluation: {
@@ -342,18 +344,19 @@ Dr. Thorne: Thanks, bye.`,
       prospectName: "Rachel Cruz (VP Procurement)",
       callStage: "First Discovery",
       coreOutcome: "Unqualified",
-      durationSeconds: 1420,
-      transcriptText: `Chloe: Hi Rachel, thanks for joining today's discovery call. Excited to show you what we've built.
-Rachel: Thanks Chloe. We are looking to streamline our supplier procurement tracking. Currently our ERP requires 14 manual approvals per purchase order.
-Chloe: That sounds terrible! Let me pull up my slides and jump right into the demo to show you how our system eliminates approval bottlenecks...
-[20 minutes of feature demo walking through screens]
-Chloe: So as you can see, our workflow engine handles multi-tier approvals. What do you think?
-Rachel: It looks neat. What's the cost?
-Chloe: Well, it depends on the number of users and custom modules. Our standard tier starts around $35,000 annually, but we can work on pricing. What budget did you have allocated for this?
-Rachel: We don't have a specific budget approved yet for this fiscal quarter. We're just gathering vendor quotes to see what's out there.
-Chloe: Oh got it! Well, I can put together a formal quote and email it over to you. Then you can show your team?
-Rachel: Sure, send the PDF over and I'll review it with my boss if we decide to move forward.
-Chloe: Great, I'll email that proposal today!`,
+      durationSeconds: 82,
+      audioUrl: "/recordings/call_03.mp3",
+      transcriptText: `[0:00] Chloe: Hi Rachel, thanks for joining today's discovery call. Excited to show you what we've built.
+[0:07] Rachel: Thanks Chloe. We are looking to streamline our supplier procurement tracking. Currently our ERP requires 14 manual approvals per purchase order.
+[0:18] Chloe: That sounds terrible! Let me pull up my slides and jump right into the demo to show you how our system eliminates approval bottlenecks...
+[0:27] Narrator: Chloe then walked through a twenty minute product demo.
+[0:31] Chloe: So as you can see, our workflow engine handles multi-tier approvals. What do you think?
+[0:38] Rachel: It looks neat. What's the cost?
+[0:41] Chloe: Well, it depends on the number of users and custom modules. Our standard tier starts around $35,000 annually, but we can work on pricing. What budget did you have allocated for this?
+[0:55] Rachel: We don't have a specific budget approved yet for this fiscal quarter. We're just gathering vendor quotes to see what's out there.
+[1:05] Chloe: Oh got it! Well, I can put together a formal quote and email it over to you. Then you can show your team?
+[1:13] Rachel: Sure, send the PDF over and I'll review it with my boss if we decide to move forward.
+[1:19] Chloe: Great, I'll email that proposal today!`,
       status: "completed",
       createdAt: "2026-09-06T11:00:00Z",
       evaluation: {
@@ -423,15 +426,18 @@ Chloe: Great, I'll email that proposal today!`,
       prospectName: "Dr. Karen Walsh (Chief Compliance Officer)",
       callStage: "Follow-up",
       coreOutcome: "Meeting booked",
-      durationSeconds: 1850,
-      transcriptText: `Sarah: Karen, good to connect again. On our last call, you mentioned HIPAA audit logging was the primary risk keeping you awake ahead of your November HHS review. Today our goal is to align on security verification and map out the procurement timeline so you are protected by October 15. Fair agenda?
-Karen: That's fair, Sarah. We reviewed your SOC2 Type II report and InfoSec has a couple questions on data encryption at rest.
-Sarah: Understood. Let's resolve the encryption specifics right now. [Addresses AES-256 protocols and KMS integration]. Does that satisfy InfoSec's requirement?
-Karen: Yes, that clears the hurdle.
-Sarah: Excellent. Regarding commercial terms, our annual enterprise agreement is $72,000 billed upfront. Who else on the executive team or in legal needs to review the MSA for us to hit your October 15 go-live?
-Karen: Our General Counsel, Dan Vance, and CFO, Elena Rostova.
-Sarah: Perfect. Let's schedule a 20-minute executive briefing with Dan and Elena this Thursday. I'll provide redline-free standard clauses. Thursday 2 PM work for your team?
-Karen: Put it on our calendars. I'll bring Dan and Elena.`,
+      durationSeconds: 87,
+      audioUrl: "/recordings/call_04.mp3",
+      transcriptText: `[0:00] Sarah: Karen, good to connect again. On our last call, you mentioned HIPAA audit logging was the primary risk keeping you awake ahead of your November HHS review. Today our goal is to align on security verification and map out the procurement timeline so you are protected by October 15. Fair agenda?
+[0:21] Karen: That's fair, Sarah. We reviewed your SOC2 Type II report and InfoSec has a couple questions on data encryption at rest.
+[0:31] Sarah: Understood. Let's resolve the encryption specifics right now.
+[0:36] Narrator: Sarah addressed AES-256 protocols and KMS integration.
+[0:43] Sarah: Does that satisfy InfoSec's requirement?
+[0:46] Karen: Yes, that clears the hurdle.
+[0:49] Sarah: Excellent. Regarding commercial terms, our annual enterprise agreement is $72,000 billed upfront. Who else on the executive team or in legal needs to review the MSA for us to hit your October 15 go-live?
+[1:05] Karen: Our General Counsel, Dan Vance, and CFO, Elena Rostova.
+[1:10] Sarah: Perfect. Let's schedule a 20-minute executive briefing with Dan and Elena this Thursday. I'll provide redline-free standard clauses. Thursday 2 PM work for your team?
+[1:23] Karen: Put it on our calendars. I'll bring Dan and Elena.`,
       status: "completed",
       createdAt: "2026-09-08T13:00:00Z",
       evaluation: {

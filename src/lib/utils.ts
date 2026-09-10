@@ -14,6 +14,15 @@ export function apiPath(path: string): string {
   return `${BASE_PATH}${path}`;
 }
 
+/** Resolve a stored audio/media URL against the app base path. */
+export function mediaPath(url: string | null | undefined): string {
+  if (!url) return "";
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  const normalized = url.startsWith("/") ? url : `/${url}`;
+  if (normalized === BASE_PATH || normalized.startsWith(`${BASE_PATH}/`)) return normalized;
+  return `${BASE_PATH}${normalized}`;
+}
+
 export function formatDate(dateString: string | Date | null | undefined): string {
   if (!dateString) return "N/A";
   const d = typeof dateString === "string" ? new Date(dateString) : dateString;
