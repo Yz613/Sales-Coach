@@ -57,9 +57,9 @@ const good = hydrateEvaluation(
 assert.deepEqual(good.scriptDivergence, { offScript: [] });
 assert.deepEqual(good.walkthrough, []);
 
-const older = { callId: "call_1", createdAt: "2026-09-01T00:00:00.000Z" };
-const newer = { callId: "call_1", createdAt: "2026-09-10T12:00:00.000Z" };
-const other = { callId: "call_2", createdAt: "2026-09-11T00:00:00.000Z" };
+const older = { ...base, id: "eval_old", createdAt: "2026-09-01T00:00:00.000Z" };
+const newer = { ...base, id: "eval_new", createdAt: "2026-09-10T12:00:00.000Z" };
+const other = { ...base, id: "eval_other", callId: "call_2", createdAt: "2026-09-11T00:00:00.000Z" };
 assert.equal(latestEvaluationRow([older, newer, other], "call_1"), newer);
 assert.equal(latestEvaluationsByCall([older, other, newer])[0], other);
 assert.deepEqual(
