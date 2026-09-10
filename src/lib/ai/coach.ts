@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
 import { getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
+import { latestEvaluationsByCall } from "../evaluations";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
@@ -35,13 +36,15 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   const persona = await getRepPersona(input.repId);
   const activeScript = await getActiveScriptForStage(input.callStage);
 
-  const previousEvals = await db
+  const previousEvals = (await db
     .select()
     .from(evaluations)
     .where(eq(evaluations.repId, input.repId))
     .orderBy(desc(evaluations.createdAt))
-    .limit(3)
-    .all();
+    .limit(8)
+    .all())
+    .filter((e: { callId: string }) => e.callId !== input.callId)
+    .slice(0, 3);
 
   const pastFixesSummary = previousEvals.map((e: any, idx: number) => {
     try {
@@ -103,6 +106,8 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   };
 
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  // Replace the previous review for this call so reanalyze does not leave stale scores.
+  await db.delete(evaluations).where(eq(evaluations.callId, input.callId)).run();
   await db.insert(evaluations).values({
     id: evaluationId,
     callId: input.callId,
@@ -487,12 +492,14 @@ async function updateRepProgressionSnapshot(
   repName: string,
   latestEval: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">
 ) {
-  const allRepEvals = await db
-    .select()
-    .from(evaluations)
-    .where(eq(evaluations.repId, repId))
-    .orderBy(desc(evaluations.createdAt))
-    .all();
+  const allRepEvals = latestEvaluationsByCall(
+    await db
+      .select()
+      .from(evaluations)
+      .where(eq(evaluations.repId, repId))
+      .orderBy(desc(evaluations.createdAt))
+      .all()
+  );
 
   let trajectory: RepTrajectory = "stagnant";
   let rationale = "";
