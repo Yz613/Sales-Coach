@@ -12,9 +12,15 @@ interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (callId: string) => void;
+  initialTab?: "paste" | "single_file" | "batch";
 }
 
-export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
+export default function UploadModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialTab = "paste",
+}: UploadModalProps) {
   const router = useRouter();
   const [reps, setReps] = useState<Rep[]>([]);
   const [selectedRepId, setSelectedRepId] = useState("new");
@@ -30,16 +36,19 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
 
   // Multi-upload state
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<"paste" | "single_file" | "batch">("paste");
+  const [activeTab, setActiveTab] = useState<"paste" | "single_file" | "batch">(initialTab);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(initialTab);
       setBatchSuccessCount(null);
       setBatchProgress(null);
+      setError(null);
       fetch(apiPath("/api/reps"))
         .then((res) => res.json())
         .then((data) => {
@@ -348,23 +357,42 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-                Select Multiple Call Transcripts or Audio Files
+                Select Multiple Call Transcripts, CSVs, or Audio Files
               </label>
-              <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-950/60 p-8 text-center hover:border-blue-500 transition">
-                <Layers className="h-8 w-8 text-blue-400 mb-2" />
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const dropped = Array.from(e.dataTransfer.files);
+                    setBatchFiles((prev) => [...prev, ...dropped]);
+                  }
+                }}
+                className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition ${
+                  isDragging
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-slate-700 bg-slate-950/60 hover:border-blue-500"
+                }`}
+              >
+                <Layers className={`h-8 w-8 mb-2 ${isDragging ? "text-blue-300" : "text-blue-400"}`} />
                 <p className="text-sm font-semibold text-white">
-                  Drop multiple files or click to browse
+                  Drop multiple files here or click to browse
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Supports multiple .txt, .vtt, .srt, .json, .mp3, .wav, .m4a files
+                <p className="text-xs text-slate-400 mt-1">
+                  Supports multiple .txt, .vtt, .srt, .json, .csv, .mp3, .wav, .m4a files
                 </p>
                 <input
                   type="file"
                   multiple
-                  accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a"
+                  accept=".txt,.vtt,.srt,.json,.csv,.mp3,.wav,.m4a"
                   onChange={(e) => {
                     const files = Array.from(e.target.files || []);
-                    setBatchFiles(files);
+                    setBatchFiles((prev) => [...prev, ...files]);
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
@@ -374,23 +402,43 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
             {batchFiles.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Selected Files: <strong>{batchFiles.length}</strong></span>
+                  <span>Selected Files: <strong className="text-white">{batchFiles.length}</strong></span>
                   <button
                     type="button"
                     onClick={() => setBatchFiles([])}
-                    className="text-rose-400 hover:underline"
+                    className="text-rose-400 hover:text-rose-300 transition text-xs"
                   >
                     Clear All
                   </button>
                 </div>
-                <div className="max-h-32 overflow-y-auto space-y-1 rounded-lg border border-slate-800 bg-slate-950 p-2 font-mono text-xs">
+                <div className="max-h-36 overflow-y-auto space-y-1 rounded-lg border border-slate-800 bg-slate-950 p-2 font-mono text-xs">
                   {batchFiles.map((f, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1 px-2 text-slate-300 hover:bg-slate-900 rounded">
-                      <span className="truncate max-w-xs">{f.name}</span>
-                      <span className="text-slate-500 text-[10px]">{Math.round(f.size / 1024)} KB</span>
+                    <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-slate-300 hover:bg-slate-900 rounded group transition">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate max-w-[14rem] sm:max-w-xs">{f.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-slate-500 text-[10px]">{Math.round(f.size / 1024)} KB</span>
+                        <button
+                          type="button"
+                          onClick={() => setBatchFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition"
+                          title="Remove file"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {isSubmitting && (
+              <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-300">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-blue-400" />
+                <span>Evaluating {batchFiles.length} calls with the AI Sales Coach... Please wait.</span>
               </div>
             )}
 

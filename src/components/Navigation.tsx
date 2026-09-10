@@ -30,14 +30,13 @@ export default function Navigation() {
   const pathname = usePathname();
   const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadInitialTab, setUploadInitialTab] = useState<"paste" | "single_file" | "batch">("paste");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
 
   const adminDropdownRef = useRef<HTMLDivElement>(null);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns on outside click or Escape key
+  // Close dropdown on outside click or Escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -46,18 +45,11 @@ export default function Navigation() {
       ) {
         setIsAdminDropdownOpen(false);
       }
-      if (
-        roleDropdownRef.current &&
-        !roleDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsRoleDropdownOpen(false);
-      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAdminDropdownOpen(false);
-        setIsRoleDropdownOpen(false);
         setIsMobileMenuOpen(false);
       }
     };
@@ -70,10 +62,9 @@ export default function Navigation() {
     };
   }, []);
 
-  // Close dropdowns on route changes
+  // Close dropdown on route changes
   useEffect(() => {
     setIsAdminDropdownOpen(false);
-    setIsRoleDropdownOpen(false);
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
@@ -131,7 +122,7 @@ export default function Navigation() {
     visibleAdminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   const handleRoleChange = async (newRole: "admin" | "member") => {
-    setIsRoleDropdownOpen(false);
+    setIsAdminDropdownOpen(false);
     if (newRole !== role) {
       await switchRole(newRole);
     }
@@ -140,7 +131,7 @@ export default function Navigation() {
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+        <div className="mx-auto flex max-w-[1600px] w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           {/* Left: Brand Logo & Navigation */}
           <div className="flex items-center gap-5 lg:gap-7">
             <Link
@@ -185,10 +176,7 @@ export default function Navigation() {
                 <div className="relative" ref={adminDropdownRef}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsAdminDropdownOpen((prev) => !prev);
-                      setIsRoleDropdownOpen(false);
-                    }}
+                    onClick={() => setIsAdminDropdownOpen((prev) => !prev)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                       isAdminActive || isAdminDropdownOpen
                         ? "bg-slate-800/90 text-white border border-slate-700/60 shadow-xs ring-1 ring-indigo-500/30"
@@ -257,6 +245,40 @@ export default function Navigation() {
                           );
                         })}
                       </div>
+
+                      {/* Role Preview Switch in Admin dropdown */}
+                      <div className="p-2 border-t border-slate-800/80 mt-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5 px-1 flex items-center justify-between">
+                          <span>Permissions Preview</span>
+                          <span className="text-[9px] text-slate-400 capitalize">{role} view</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleRoleChange("admin")}
+                            className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-xs font-medium transition ${
+                              isAdmin
+                                ? "bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
+                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white"
+                            }`}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Admin View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRoleChange("member")}
+                            className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-xs font-medium transition ${
+                              !isAdmin
+                                ? "bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30"
+                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white"
+                            }`}
+                          >
+                            <User className="h-3.5 w-3.5" />
+                            Member View
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -264,89 +286,34 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Team Switcher, Role Switcher, Upload Calls & Profile */}
+          {/* Right Actions: Team Switcher, Member View Exit Pill, Upload Calls & Profile */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* If currently viewing as Member, provide quick exit button back to Admin */}
+            {!isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleRoleChange("admin")}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition"
+                title="You are previewing Member view. Click to return to Admin."
+              >
+                <User className="h-3.5 w-3.5 text-amber-400" />
+                <span>Member View</span>
+                <span className="text-[9px] bg-amber-500/20 px-1 py-0.2 rounded font-semibold text-amber-200">Exit</span>
+              </button>
+            )}
+
             {isClerkConfigured && (
               <div className="hidden sm:block">
                 <TeamSwitcher canManage={isAdmin} />
               </div>
             )}
 
-            {/* Interactive Role Switcher / View Preview */}
-            <div className="relative" ref={roleDropdownRef}>
-              <button
-                type="button"
-                suppressHydrationWarning
-                onClick={() => {
-                  setIsRoleDropdownOpen((prev) => !prev);
-                  setIsAdminDropdownOpen(false);
-                }}
-                disabled={isLoading}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/80 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition hover:border-slate-700"
-                title="Switch permissions view (Admin / Member)"
-              >
-                {isAdmin ? (
-                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                ) : (
-                  <User className="h-3.5 w-3.5 text-emerald-400" />
-                )}
-                <span className="hidden sm:inline text-slate-400">Role:</span>
-                <span suppressHydrationWarning className="font-semibold text-white capitalize">
-                  {role}
-                </span>
-                <ChevronDown
-                  className={`h-3 w-3 text-slate-500 ml-0.5 transition-transform duration-200 ${
-                    isRoleDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {/* Role Dropdown Menu */}
-              {isRoleDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-800 bg-slate-900/95 p-1.5 shadow-xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    Permissions Mode
-                  </div>
-                  <button
-                    onClick={() => handleRoleChange("admin")}
-                    className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
-                      isAdmin
-                        ? "bg-indigo-500/15 text-indigo-300 font-semibold"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                      Admin (Full Access)
-                    </span>
-                    {isAdmin && <Check className="h-3.5 w-3.5 text-indigo-400" />}
-                  </button>
-                  <button
-                    onClick={() => handleRoleChange("member")}
-                    className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition ${
-                      !isAdmin
-                        ? "bg-emerald-500/15 text-emerald-300 font-semibold"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <User className="h-3.5 w-3.5 text-emerald-400" />
-                      Member (Calls Only)
-                    </span>
-                    {!isAdmin && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                  </button>
-                  {isClerkConfigured && (
-                    <div className="border-t border-slate-800 mt-1.5 pt-1.5 px-2 text-[10px] text-slate-500">
-                      Organization admins have full access
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Upload Calls Action Button */}
             <button
-              onClick={() => setIsUploadOpen(true)}
+              onClick={() => {
+                setUploadInitialTab("paste");
+                setIsUploadOpen(true);
+              }}
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-blue-600/30 transition active:scale-95"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -477,6 +444,7 @@ export default function Navigation() {
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
+        initialTab={uploadInitialTab}
       />
     </>
   );
