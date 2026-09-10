@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { findTurnForQuote, parseLeadingTimestamp, parseTranscript } from "./transcript";
+import { findTurnForQuote, isUnusableTranscript, parseLeadingTimestamp, parseTranscript, requireUsableTranscript } from "./transcript";
 
 const stamped = parseLeadingTimestamp("[1:12] David: I'll send that");
 assert.ok(stamped);
@@ -29,5 +29,14 @@ assert.ok((fold?.text || "").includes("I'll send that right over"));
 
 const already = findTurnForQuote(turns, "We already have a LIMS system and we don't need anything new right now.");
 assert.equal(already?.speaker, "Dr. Thorne");
+
+assert.equal(isUnusableTranscript(""), true);
+assert.equal(isUnusableTranscript("[Audio file ingested: demo.mp3 (12 KB). Automatic transcription is not configured, so paste the transcript for a full evaluation.]"), true);
+assert.equal(isUnusableTranscript("No speech could be transcribed from call.mp3"), true);
+assert.equal(isUnusableTranscript("David: Hi Dr. Thorne, my name is David Kim with LabSync."), false);
+assert.throws(
+  () => requireUsableTranscript("[Audio file ingested: x.mp3. Automatic transcription is not configured.]"),
+  /no usable transcript/i
+);
 
 console.log("transcript checks passed");

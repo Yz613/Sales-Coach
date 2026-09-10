@@ -295,6 +295,22 @@ function isTranscribeCapable(id: ProviderId | null | undefined): id is Transcrip
   return id === "gemini" || id === "openai" || id === "groq";
 }
 
+export async function getTranscriptionStatus(): Promise<{
+  canTranscribe: boolean;
+  provider?: TranscriptionKind;
+  reason?: string;
+}> {
+  try {
+    const backend = await resolveTranscriptionBackend();
+    return { canTranscribe: true, provider: backend.kind };
+  } catch (err: any) {
+    return {
+      canTranscribe: false,
+      reason: err?.message || "Audio transcription is not configured.",
+    };
+  }
+}
+
 export async function resolveTranscriptionBackend(): Promise<TranscriptionBackend> {
   const ai = await resolveAiSettings();
   if (ai.apiKey && isTranscribeCapable(ai.providerId)) {

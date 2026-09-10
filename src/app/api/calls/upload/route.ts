@@ -5,6 +5,18 @@ import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestCallFile } from "@/lib/ingestCallFile";
+import { isAudioFile } from "@/lib/audio";
+import { requireUsableTranscript } from "@/lib/transcript";
+import { getTranscriptionStatus, resolveTranscriptionBackend } from "@/lib/ai/transcribe";
+
+export async function GET() {
+  try {
+    const status = await getTranscriptionStatus();
+    return NextResponse.json(status);
+  } catch (err: any) {
+    return NextResponse.json({ canTranscribe: false, reason: err?.message || "Unavailable" }, { status: 200 });
+  }
+}
 
 export const maxDuration = 300;
 
@@ -38,6 +50,9 @@ export async function POST(req: Request) {
       if (rawText && rawText.trim().length > 0) {
         transcriptText = rawText.trim();
       } else if (file) {
+        if (isAudioFile(file)) {
+          await resolveTranscriptionBackend();
+        }
         const ingested = await ingestCallFile(file);
         transcriptText = ingested.transcriptText;
         if (ingested.durationSeconds > 0) {
@@ -57,8 +72,10 @@ export async function POST(req: Request) {
       durationSeconds = body.durationSeconds || 300;
     }
 
-    if (!transcriptText || transcriptText.trim().length === 0) {
-      return NextResponse.json({ error: "Transcript text or call file is required" }, { status: 400 });
+    try {
+      transcriptText = requireUsableTranscript(transcriptText);
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message || "No usable transcript" }, { status: 422 });
     }
 
     callStage = normalizeStageName(callStage) || "Cold Call";
@@ -109,9 +126,8 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("Upload & Evaluation Error:", error);
-    return NextResponse.json(
-      { error: error?.message || "Failed to process call" },
-      { status: 500 }
-    );
+    const message = error?.message || "Failed to process call";
+    const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
+    return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }

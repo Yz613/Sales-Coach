@@ -5,6 +5,9 @@ import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestCallFile } from "@/lib/ingestCallFile";
+import { isAudioFile } from "@/lib/audio";
+import { requireUsableTranscript } from "@/lib/transcript";
+import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 
 export const maxDuration = 300;
 
@@ -31,6 +34,10 @@ export async function POST(req: Request) {
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
       const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
       const defaultStage = normalizeStageName((formData.get("defaultStage") as string) || "") || "Cold Call";
+      if (files.some((f) => isAudioFile(f))) {
+        await resolveTranscriptionBackend();
+      }
+
       try {
         await addCallStage(defaultStage);
       } catch {
@@ -45,13 +52,14 @@ export async function POST(req: Request) {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         const ingested = await ingestCallFile(f);
+        const transcriptText = requireUsableTranscript(ingested.transcriptText);
         const baseName = f.name.replace(/\.[^/.]+$/, "");
         itemsToProcess.push({
           repId: resolvedRepId,
           prospectCompany: `Company from ${baseName}`,
           prospectName: `Contact (${baseName})`,
           callStage: defaultStage,
-          transcriptText: ingested.transcriptText,
+          transcriptText,
           durationSeconds: ingested.durationSeconds || 300,
         });
       }
@@ -62,6 +70,10 @@ export async function POST(req: Request) {
 
     if (!itemsToProcess.length) {
       return NextResponse.json({ error: "No calls provided for batch processing" }, { status: 400 });
+    }
+
+    for (const item of itemsToProcess) {
+      requireUsableTranscript(item.transcriptText);
     }
 
     const results = [];
@@ -102,6 +114,8 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("Batch upload error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err?.message || "Batch upload failed";
+    const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
+    return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }

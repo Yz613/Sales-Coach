@@ -36,6 +36,21 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canTranscribe, setCanTranscribe] = useState(true);
+  const [transcribeReason, setTranscribeReason] = useState<string | null>(null);
+
+  const audioBlockedMessage =
+    transcribeReason ||
+    "Audio uploads are blocked until a Gemini, OpenAI, or Groq key is saved in Admin → Settings. Paste a transcript instead — coaching is not started, so no tokens are used.";
+
+  const rejectAudioIfBlocked = (file: File | null): file is File => {
+    if (!file) return false;
+    if (isAudioFile(file) && !canTranscribe) {
+      setError(audioBlockedMessage);
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +68,16 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
           }
         })
         .catch(console.error);
+      fetch(apiPath("/api/calls/upload"))
+        .then((res) => res.json())
+        .then((data) => {
+          setCanTranscribe(Boolean(data?.canTranscribe));
+          setTranscribeReason(data?.reason || null);
+        })
+        .catch(() => {
+          setCanTranscribe(false);
+          setTranscribeReason(null);
+        });
       fetch(apiPath("/api/stages"))
         .then((res) => res.json())
         .then((data) => {
@@ -80,6 +105,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
 
     if (activeTab === "single_file" && !singleFile) {
       setError("Please select a transcript or audio file to upload.");
+      return;
+    }
+
+    if (singleFile && isAudioFile(singleFile) && !canTranscribe) {
+      setError(audioBlockedMessage);
+      setSingleFile(null);
       return;
     }
 
@@ -149,6 +180,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
     e.preventDefault();
     if (!batchFiles.length) {
       setError("Please select at least 1 file to batch upload.");
+      return;
+    }
+
+    if (!canTranscribe && batchFiles.some((f) => isAudioFile(f))) {
+      setError(audioBlockedMessage);
+      setBatchFiles((current) => current.filter((f) => !isAudioFile(f)));
       return;
     }
 
@@ -294,6 +331,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                 <span>{error}</span>
               </div>
             )}
+            {!canTranscribe && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{audioBlockedMessage}</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -357,14 +400,22 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                   Drop multiple files or click to browse
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  MP3, WAV, M4A and other audio are transcribed automatically. Also .txt, .vtt, .srt, .json.
+                  {canTranscribe
+                    ? "MP3, WAV, M4A and other audio are transcribed automatically. Also .txt, .vtt, .srt, .json."
+                    : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Use .txt, .vtt, .srt, or .json."}
                 </p>
                 <input
                   type="file"
                   multiple
-                  accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*"
+                  accept={canTranscribe ? ".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*" : ".txt,.vtt,.srt,.json"}
                   onChange={(e) => {
                     const files = Array.from(e.target.files || []);
+                    const audio = files.filter((f) => isAudioFile(f));
+                    if (audio.length && !canTranscribe) {
+                      setError(audioBlockedMessage);
+                      setBatchFiles(files.filter((f) => !isAudioFile(f)));
+                      return;
+                    }
                     setBatchFiles(files);
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
@@ -430,6 +481,12 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
               <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
+              </div>
+            )}
+            {!canTranscribe && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{audioBlockedMessage}</span>
               </div>
             )}
 
@@ -538,12 +595,22 @@ export default function UploadModal({ isOpen, onClose, onSuccess }: UploadModalP
                     {singleFile ? singleFile.name : "Select transcript or audio recording"}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Audio is broken into clips and transcribed. Also .txt, .vtt, .srt, .json.
+                    {canTranscribe
+                      ? "Audio is broken into clips and transcribed. Also .txt, .vtt, .srt, .json."
+                      : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Upload a transcript file instead."}
                   </p>
                   <input
                     type="file"
-                    accept=".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*"
-                    onChange={(e) => setSingleFile(e.target.files?.[0] || null)}
+                    accept={canTranscribe ? ".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*" : ".txt,.vtt,.srt,.json"}
+                    onChange={(e) => {
+                      const next = e.target.files?.[0] || null;
+                      if (!rejectAudioIfBlocked(next) && next) {
+                        e.target.value = "";
+                        setSingleFile(null);
+                        return;
+                      }
+                      setSingleFile(next);
+                    }}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                 </div>

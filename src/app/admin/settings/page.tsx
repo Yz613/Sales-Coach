@@ -35,6 +35,7 @@ export default function AdminSettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [canTranscribe, setCanTranscribe] = useState(true);
 
   const providerMeta = getProvider(provider);
   const selectedModelId = providerMeta.allowsCustomModel && customModel.trim() ? customModel.trim() : activeModel;
@@ -56,6 +57,7 @@ export default function AdminSettingsPage() {
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
+        setCanTranscribe(data.canTranscribe !== false);
         if (data.provider) setProvider(data.provider);
         if (data.activeModel) {
           const p = getProvider(data.provider);
@@ -170,6 +172,15 @@ export default function AdminSettingsPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {!canTranscribe && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm text-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>
+              Audio uploads are blocked until you save a Gemini, OpenAI, or Groq key. Calls without a transcript are deleted and never sent to the coach.
+            </span>
+          </div>
+        )}
+
         {saveSuccess && (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-sm text-emerald-400">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
