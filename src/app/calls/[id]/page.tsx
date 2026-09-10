@@ -15,6 +15,9 @@ import {
   buildWalkthroughFromTranscript,
 } from "@/lib/ai/review";
 import { formatUsd, getProvider } from "@/lib/ai/providers";
+import { resolveAiSettings } from "@/lib/ai/settings";
+import { usedLlmReview } from "@/lib/evaluations";
+import ReanalyzeButton from "@/components/ReanalyzeButton";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +37,7 @@ export default async function CallReviewPage({
   const { id } = await params;
   const auth = await getServerAuth();
   const call = await getCallById(id);
+  const ai = await resolveAiSettings();
 
   if (!call) {
     notFound();
@@ -73,16 +77,23 @@ export default async function CallReviewPage({
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Back button & Stage Breadcrumb */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href="/calls"
           className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Call Bank
         </Link>
-        <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-          <Calendar className="h-3.5 w-3.5 text-slate-500" />
-          {formatDate(call.createdAt)}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+            <Calendar className="h-3.5 w-3.5 text-slate-500" />
+            {formatDate(call.createdAt)}
+          </div>
+          <ReanalyzeButton
+            callId={call.id}
+            hasApiKey={ai.hasKey}
+            usedLlm={usedLlmReview(ev)}
+          />
         </div>
       </div>
 
@@ -168,6 +179,13 @@ export default async function CallReviewPage({
               <p className="text-[11px] text-slate-400 font-mono">
                 Reviewed with {getProvider(ev.evaluatedWith.provider).name} · {ev.evaluatedWith.model}
                 {ev.evaluatedWith.estimatedCostUsd != null ? ` · ${formatUsd(ev.evaluatedWith.estimatedCostUsd)}` : ""}
+              </p>
+            )}
+            {!usedLlmReview(ev) && (
+              <p className="text-[11px] text-amber-300">
+                {ai.hasKey
+                  ? "This score was generated with the built-in rule engine. Reanalyze to apply your API key."
+                  : "This score used the built-in rule engine. Add an API key in Settings, then reanalyze."}
               </p>
             )}
           </div>
@@ -483,12 +501,15 @@ export default async function CallReviewPage({
           </div>
         </>
       ) : (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-6 text-center space-y-2">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-6 text-center space-y-3">
           <Clock className="h-8 w-8 text-amber-400 mx-auto animate-pulse" />
           <h3 className="text-base font-bold text-white">Call Evaluation In Progress</h3>
           <p className="text-xs text-amber-200/80 max-w-md mx-auto">
-            The AI Sales Manager is currently scanning this call against the 5 coaching dimensions. Refresh in a few seconds.
+            The AI Sales Manager is currently scanning this call against the 5 coaching dimensions. Refresh in a few seconds, or reanalyze now.
           </p>
+          <div className="flex justify-center">
+            <ReanalyzeButton callId={call.id} hasApiKey={ai.hasKey} usedLlm={false} />
+          </div>
         </div>
       )}
 
