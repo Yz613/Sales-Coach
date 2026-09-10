@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { hydrateEvaluation, type EvaluationRow } from "./evaluations";
+import {
+  hydrateEvaluation,
+  latestEvaluationRow,
+  latestEvaluationsByCall,
+  usedLlmReview,
+  type EvaluationRow,
+} from "./evaluations";
 
 const base: EvaluationRow = {
   id: "eval_1",
@@ -50,5 +56,18 @@ const good = hydrateEvaluation(
 );
 assert.deepEqual(good.scriptDivergence, { offScript: [] });
 assert.deepEqual(good.walkthrough, []);
+
+const older = { callId: "call_1", createdAt: "2026-09-01T00:00:00.000Z" };
+const newer = { callId: "call_1", createdAt: "2026-09-10T12:00:00.000Z" };
+const other = { callId: "call_2", createdAt: "2026-09-11T00:00:00.000Z" };
+assert.equal(latestEvaluationRow([older, newer, other], "call_1"), newer);
+assert.equal(latestEvaluationsByCall([older, other, newer])[0], other);
+assert.deepEqual(
+  latestEvaluationsByCall([older, other, newer]).map((row) => row.callId),
+  ["call_2", "call_1"]
+);
+assert.equal(usedLlmReview(undefined), false);
+assert.equal(usedLlmReview({ evaluatedWith: undefined }), false);
+assert.equal(usedLlmReview({ evaluatedWith: { provider: "openai" } }), true);
 
 console.log("evaluations checks passed");
