@@ -16,7 +16,7 @@ import {
 } from "@/lib/ai/review";
 import { formatUsd, getProvider } from "@/lib/ai/providers";
 import { resolveAiSettings } from "@/lib/ai/settings";
-import { usedLlmReview } from "@/lib/evaluations";
+import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
 
 export const dynamic = "force-dynamic";
@@ -175,7 +175,7 @@ export default async function CallReviewPage({
             <p className="text-base font-medium text-slate-100 leading-relaxed">
               {ev.bottomLine}
             </p>
-            {ev.evaluatedWith && (
+            {usedLlmReview(ev) && ev.evaluatedWith && (
               <p className="text-[11px] text-slate-400 font-mono">
                 Reviewed with {getProvider(ev.evaluatedWith.provider).name} · {ev.evaluatedWith.model}
                 {ev.evaluatedWith.estimatedCostUsd != null ? ` · ${formatUsd(ev.evaluatedWith.estimatedCostUsd)}` : ""}
@@ -183,9 +183,12 @@ export default async function CallReviewPage({
             )}
             {!usedLlmReview(ev) && (
               <p className="text-[11px] text-amber-300">
-                {ai.hasKey
-                  ? "This score was generated with the built-in rule engine. Reanalyze to apply your API key."
-                  : "This score used the built-in rule engine. Add an API key in Settings, then reanalyze."}
+                {ruleEngineNotice(ev, {
+                  hasKey: ai.hasKey,
+                  providerName: ev.evaluatedWith?.provider
+                    ? getProvider(ev.evaluatedWith.provider).name
+                    : undefined,
+                })}
               </p>
             )}
           </div>

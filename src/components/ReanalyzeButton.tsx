@@ -23,13 +23,16 @@ export default function ReanalyzeButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const run = async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
-      await postReanalyze(callId);
+      const result = await postReanalyze(callId);
+      if (result.warning) setWarning(result.warning);
       onComplete?.();
       router.refresh();
     } catch (err: any) {
@@ -53,6 +56,7 @@ export default function ReanalyzeButton({
           {loading ? "Scoring…" : "Reanalyze"}
         </button>
         {error && <span className="text-[10px] text-rose-400 max-w-[9rem] text-right">{error}</span>}
+        {warning && !error && <span className="text-[10px] text-amber-300 max-w-[12rem] text-right">{warning}</span>}
       </span>
     );
   }
@@ -69,6 +73,7 @@ export default function ReanalyzeButton({
         {loading ? "Reanalyzing…" : usedLlm ? "Reanalyze call" : "Reanalyze with AI"}
       </button>
       {error && <span className="text-[11px] text-rose-400">{error}</span>}
+      {warning && !error && <span className="text-[11px] text-amber-300 max-w-sm text-right">{warning}</span>}
     </div>
   );
 }

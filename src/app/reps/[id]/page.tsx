@@ -8,6 +8,7 @@ import { formatDate, apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import PersonaModal from "@/components/PersonaModal";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
+import { usedLlmReview } from "@/lib/evaluations";
 import type { Rep, Call, RepPersona } from "@/types";
 
 export default function RepDetailPage({
@@ -260,7 +261,7 @@ export default function RepDetailPage({
                     <ReanalyzeButton
                       callId={c.id}
                       variant="compact"
-                      usedLlm={Boolean(ev?.evaluatedWith)}
+                      usedLlm={usedLlmReview(ev)}
                       onComplete={fetchRepData}
                     />
                     <Link

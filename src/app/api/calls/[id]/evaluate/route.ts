@@ -29,9 +29,12 @@ export async function POST(
 
     const ai = await resolveAiSettings();
     const usedLlm = usedLlmReview(evaluation);
+    const providerError = evaluation.evaluatedWith?.error;
     const warning =
       ai.hasKey && !usedLlm
-        ? "The AI provider failed; this call was scored with the built-in rule engine."
+        ? providerError
+          ? `The AI provider failed (${evaluation.evaluatedWith?.provider}/${evaluation.evaluatedWith?.model}): ${providerError}`
+          : "The AI provider failed; this call was scored with the built-in rule engine."
         : !ai.hasKey
           ? "No API key configured; scored with the built-in rule engine."
           : undefined;
