@@ -176,16 +176,19 @@ export default function CoachPage() {
   }
 
   const header = (
-    <div className="border-b border-slate-800 pb-5">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="rounded bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
+    <div className="border-b border-white/[0.08] pb-5">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-blue-400 border border-blue-500/20">
           {isDefault ? "Default: Sandler Selling System" : "Custom Coach"}
         </span>
       </div>
-      <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-        <GraduationCap className="h-6 w-6 text-blue-400" /> Your AI Sales Coach
+      <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+          <GraduationCap className="h-5 w-5" />
+        </div>
+        Your AI Sales Coach
       </h1>
-      <p className="text-sm text-slate-400 mt-1">
+      <p className="text-xs text-slate-400 mt-1.5">
         Starts as Sandler. Tweak the philosophy below — every evaluation uses what you save here.
       </p>
     </div>
@@ -198,15 +201,15 @@ export default function CoachPage() {
       <div className="max-w-3xl mx-auto space-y-8">
         {header}
 
-        <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-slate-300">
+        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-4 text-xs text-blue-200/90">
           Pre-filled with Sandler Selling System. Edit any answer, then build — you can keep tweaking the full philosophy afterward.
         </div>
 
         <div className="space-y-6">
           {QUESTIONS.map((q, idx) => (
-            <div key={q.key} className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 space-y-2">
+            <div key={q.key} className="rounded-2xl glass-card p-5 space-y-2">
               <label className="block">
-                <span className="flex items-center gap-2 text-sm font-bold text-white">
+                <span className="flex items-center gap-2 text-sm font-semibold text-white">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-[11px] font-bold text-blue-400">
                     {idx + 1}
                   </span>
@@ -220,7 +223,7 @@ export default function CoachPage() {
                   value={answers[q.key] || ""}
                   onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
                   placeholder={q.placeholder}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 placeholder-slate-600 leading-relaxed focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-white/[0.08] p-3 text-xs text-slate-200 placeholder-slate-500 leading-relaxed focus:border-blue-500/50 focus:outline-none"
                 />
               ) : (
                 <input
@@ -228,7 +231,7 @@ export default function CoachPage() {
                   value={answers[q.key] || ""}
                   onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
                   placeholder={q.placeholder}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
                 />
               )}
             </div>
@@ -238,14 +241,14 @@ export default function CoachPage() {
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => setView("editor")}
-            className="text-xs font-semibold text-slate-400 hover:text-white transition"
+            className="text-xs font-medium text-slate-400 hover:text-white transition"
           >
             Skip — write it freeform instead
           </button>
           <button
             onClick={buildFromQuestions}
             disabled={building || !canBuild}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-500 transition disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
           >
             {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
             Build my coach
@@ -260,19 +263,21 @@ export default function CoachPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       {header}
 
-      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-slate-300">
+      <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-4 text-xs text-blue-200/90">
         {isDefault
           ? "This coach defaults to the Sandler Selling System (Up-Front Contract, Pain Funnel, Budget, Decision, then Fulfillment). Edit the philosophy and save to make it yours."
           : "You're running a customized coach. Reset to Sandler anytime, or keep teaching it with lessons from individual calls."}
       </div>
 
       {/* Coaching philosophy */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-blue-400" />
+      <div className="rounded-2xl glass-card p-6 space-y-5">
+        <div className="flex items-center justify-between gap-2 border-b border-white/[0.08] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <Sparkles className="h-5 w-5" />
+            </div>
             <div>
-              <h2 className="text-base font-bold text-white">Coaching Philosophy — What Matters</h2>
+              <h2 className="text-base font-semibold text-white">Coaching Philosophy — What Matters</h2>
               <p className="text-xs text-slate-400">Applied to every call the AI evaluates.</p>
             </div>
           </div>
@@ -293,7 +298,7 @@ export default function CoachPage() {
                     setSavingInstructions(false);
                   }
                 }}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/[0.08] hover:text-white transition"
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Reset to Sandler
               </button>
@@ -303,7 +308,7 @@ export default function CoachPage() {
                 setAnswers({ ...SANDLER_ONBOARDING_ANSWERS });
                 setView("onboarding");
               }}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/[0.08] hover:text-white transition"
             >
               <Pencil className="h-3.5 w-3.5" /> Rebuild from questions
             </button>
@@ -315,7 +320,7 @@ export default function CoachPage() {
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Describe how you coach: what great looks like, non-negotiables, tone, and what to flag."
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3.5 text-sm text-slate-200 placeholder-slate-600 leading-relaxed focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-xl glass-inset border border-white/[0.08] p-4 text-xs text-slate-200 placeholder-slate-500 leading-relaxed font-mono focus:border-blue-500/50 focus:outline-none"
         />
 
         <div className="flex items-center justify-end gap-3">
@@ -327,7 +332,7 @@ export default function CoachPage() {
           <button
             onClick={handleSaveInstructions}
             disabled={savingInstructions}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-500 transition disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
           >
             {savingInstructions ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Save Philosophy
@@ -336,11 +341,13 @@ export default function CoachPage() {
       </div>
 
       {/* Lessons */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-          <Lightbulb className="h-5 w-5 text-amber-400" />
+      <div className="rounded-2xl glass-card p-6 space-y-5">
+        <div className="flex items-center gap-3 border-b border-white/[0.08] pb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <Lightbulb className="h-5 w-5" />
+          </div>
           <div>
-            <h2 className="text-base font-bold text-white">Lessons You've Taught</h2>
+            <h2 className="text-base font-semibold text-white">Lessons You've Taught</h2>
             <p className="text-xs text-slate-400">
               Short, specific rules the coach applies to every call. You can also add these from any call ("Teach the coach").
             </p>
@@ -356,12 +363,12 @@ export default function CoachPage() {
               if (e.key === "Enter") addLesson();
             }}
             placeholder="e.g. If the prospect names a competitor, always ask what they'd improve before pitching."
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+            className="flex-1 rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
           />
           <button
             onClick={addLesson}
             disabled={addingLesson || !newLesson.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
           >
             {addingLesson ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
             Add Lesson
@@ -369,7 +376,7 @@ export default function CoachPage() {
         </div>
 
         {lessons.length === 0 ? (
-          <p className="text-sm text-slate-500 italic py-4 text-center">
+          <p className="text-xs text-slate-500 italic py-4 text-center">
             No lessons yet. Add your first rule above, or teach the coach from a specific call.
           </p>
         ) : (
@@ -377,12 +384,12 @@ export default function CoachPage() {
             {lessons.map((l) => (
               <div
                 key={l.id}
-                className="group flex items-start justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950 p-3.5"
+                className="group flex items-start justify-between gap-3 rounded-xl glass-inset border border-white/[0.08] p-3.5"
               >
                 <div className="flex items-start gap-2.5">
                   <Lightbulb className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-200 leading-relaxed">{l.text}</p>
+                    <p className="text-xs text-slate-200 leading-relaxed">{l.text}</p>
                     <p className="text-[10px] uppercase tracking-wider text-slate-500 mt-1 font-mono">
                       {formatDate(l.createdAt)}
                       {l.sourceCallId ? " • taught from a call" : ""}
@@ -391,7 +398,7 @@ export default function CoachPage() {
                 </div>
                 <button
                   onClick={() => deleteLesson(l.id)}
-                  className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition"
+                  className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition"
                   title="Remove lesson"
                 >
                   <Trash2 className="h-4 w-4" />

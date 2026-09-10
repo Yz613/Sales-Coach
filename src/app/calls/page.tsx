@@ -17,10 +17,10 @@ export default async function CallBankPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="rounded bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
+            <span className="rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
               Call Bank
             </span>
           </div>
@@ -45,23 +45,23 @@ export default async function CallBankPage() {
       />
 
       {/* Ranked Calls Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden shadow-xl">
+      <div className="rounded-2xl glass-card overflow-hidden shadow-2xl border border-white/[0.08]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="table-header">
               <tr>
-                <th className="px-3.5 py-3 text-center w-12 font-semibold">Rank</th>
-                <th className="px-3.5 py-3 min-w-[150px] font-semibold">Rep & Prospect</th>
-                <th className="px-3.5 py-3 whitespace-nowrap font-semibold">Stage</th>
-                <th className="px-3.5 py-3 whitespace-nowrap font-semibold">Sandler Badges</th>
-                <th className="px-3.5 py-3 whitespace-nowrap text-center font-semibold">Script</th>
-                <th className="px-3.5 py-3 whitespace-nowrap font-semibold">Score</th>
-                <th className="px-3.5 py-3 min-w-[200px] font-semibold">What Went Wrong</th>
-                <th className="px-3.5 py-3 whitespace-nowrap font-semibold">Outcome</th>
-                <th className="px-3.5 py-3 text-right whitespace-nowrap font-semibold">Action</th>
+                <th className="px-4 py-3.5 text-center w-12 font-semibold">Rank</th>
+                <th className="px-4 py-3.5 min-w-[150px] font-semibold">Rep & Prospect</th>
+                <th className="px-4 py-3.5 whitespace-nowrap font-semibold">Stage</th>
+                <th className="px-4 py-3.5 whitespace-nowrap font-semibold">Sandler Badges</th>
+                <th className="px-4 py-3.5 whitespace-nowrap text-center font-semibold">Script</th>
+                <th className="px-4 py-3.5 whitespace-nowrap font-semibold">Score</th>
+                <th className="px-4 py-3.5 min-w-[200px] font-semibold">What Went Wrong</th>
+                <th className="px-4 py-3.5 whitespace-nowrap font-semibold">Outcome</th>
+                <th className="px-4 py-3.5 text-right whitespace-nowrap font-semibold">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-white/[0.06]">
               {rankedCalls.map((call) => {
                 const ev = call.evaluation;
                 const isBooked = call.coreOutcome.toLowerCase().includes("booked");
@@ -69,40 +69,40 @@ export default async function CallBankPage() {
                 const isTopThree = call.rank <= 3;
 
                 return (
-                  <tr key={call.id} className="hover:bg-slate-800/30 transition">
-                    <td className="px-3.5 py-3.5 text-center">
+                  <tr key={call.id} className="hover:bg-white/[0.02] transition">
+                    <td className="px-4 py-3.5 text-center">
                       <span
                         className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold font-mono border ${
                           call.rank === 1
-                            ? "bg-amber-400/20 text-amber-300 border-amber-400/40"
+                            ? "bg-amber-400/20 text-amber-300 border-amber-400/40 shadow-xs shadow-amber-400/20"
                             : isTopThree
-                            ? "bg-slate-700/50 text-slate-200 border-slate-600"
-                            : "bg-slate-800 text-slate-400 border-slate-700"
+                            ? "bg-white/[0.08] text-slate-200 border-white/20"
+                            : "bg-white/[0.04] text-slate-400 border-white/[0.08]"
                         }`}
                       >
                         {call.rank === 1 ? <Trophy className="h-3.5 w-3.5" /> : call.rank}
                       </span>
                     </td>
 
-                    <td className="px-3.5 py-3.5 min-w-[150px]">
+                    <td className="px-4 py-3.5 min-w-[150px]">
                       <div className="font-semibold text-white truncate max-w-[200px]">{call.repName}</div>
                       <div className="text-xs text-slate-400 truncate max-w-[200px]">
                         {call.prospectCompany} • {call.prospectName}
                       </div>
                     </td>
 
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
-                      <span className="rounded bg-slate-800 px-2.5 py-0.5 text-xs text-slate-300 border border-slate-700">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-xs text-slate-300 border border-white/[0.08]">
                         {call.callStage}
                       </span>
                     </td>
 
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       {ev ? (
                         <div className="flex items-center gap-1.5 font-mono text-xs">
                           <span
                             title={`Pain: ${ev.sandlerBreakdown.pain.status}`}
-                            className={`px-1.5 py-0.5 rounded font-bold ${
+                            className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.pain.status === "Pass"
                                 ? "bg-emerald-500/20 text-emerald-400"
                                 : ev.sandlerBreakdown.pain.status === "Incomplete"
@@ -114,7 +114,7 @@ export default async function CallBankPage() {
                           </span>
                           <span
                             title={`Budget: ${ev.sandlerBreakdown.budget.status}`}
-                            className={`px-1.5 py-0.5 rounded font-bold ${
+                            className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.budget.status === "Pass"
                                 ? "bg-emerald-500/20 text-emerald-400"
                                 : ev.sandlerBreakdown.budget.status === "Incomplete"
@@ -126,7 +126,7 @@ export default async function CallBankPage() {
                           </span>
                           <span
                             title={`Decision: ${ev.sandlerBreakdown.decision.status}`}
-                            className={`px-1.5 py-0.5 rounded font-bold ${
+                            className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.decision.status === "Pass"
                                 ? "bg-emerald-500/20 text-emerald-400"
                                 : ev.sandlerBreakdown.decision.status === "Incomplete"
@@ -142,7 +142,7 @@ export default async function CallBankPage() {
                       )}
                     </td>
 
-                    <td className="px-3.5 py-3.5 whitespace-nowrap text-center">
+                    <td className="px-4 py-3.5 whitespace-nowrap text-center">
                       {ev ? (
                         <span className={`font-mono text-xs font-bold ${
                           ev.sandlerBreakdown.scriptAdherence.score >= 8
@@ -158,10 +158,10 @@ export default async function CallBankPage() {
                       )}
                     </td>
 
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       {ev ? (
                         <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-14 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-2 w-14 rounded-full bg-slate-950/60 overflow-hidden border border-white/[0.06]">
                             <div
                               className={`h-full rounded-full ${
                                 call.score >= 75
@@ -180,7 +180,7 @@ export default async function CallBankPage() {
                       )}
                     </td>
 
-                    <td className="px-3.5 py-3.5 min-w-[200px] max-w-[22rem] lg:max-w-md">
+                    <td className="px-4 py-3.5 min-w-[200px] max-w-[22rem] lg:max-w-md">
                       <span
                         className={`inline-flex items-start gap-1.5 text-xs font-medium leading-relaxed ${
                           issue.severity === "critical"
@@ -199,17 +199,17 @@ export default async function CallBankPage() {
                       </span>
                     </td>
 
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         isBooked
                           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-slate-800 text-slate-400 border border-slate-700"
+                          : "bg-white/[0.05] text-slate-400 border border-white/[0.08]"
                       }`}>
                         {call.coreOutcome}
                       </span>
                     </td>
 
-                    <td className="px-3.5 py-3.5 text-right whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center justify-end gap-2">
                         <ReanalyzeButton
                           callId={call.id}
@@ -219,7 +219,7 @@ export default async function CallBankPage() {
                         />
                         <Link
                           href={`/calls/${call.id}`}
-                          className="rounded bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1"
+                          className="rounded-xl bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1 backdrop-blur-md"
                         >
                           Review <ArrowUpRight className="h-3 w-3" />
                         </Link>

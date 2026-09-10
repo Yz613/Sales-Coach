@@ -108,19 +108,21 @@ export default function PersonaModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-2xl rounded-xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-blue-400" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+      <div className="relative w-full max-w-2xl rounded-3xl glass-panel border border-white/[0.1] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4 bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <UserCheck className="h-5 w-5" />
+            </div>
             <div>
-              <h2 className="text-base font-bold text-white">Tune Rep Coaching Persona: {repName}</h2>
+              <h2 className="text-base font-semibold text-white">Tune Rep Coaching Persona: {repName}</h2>
               <p className="text-xs text-slate-400">Configure coaching style, known blindspots, and private manager notes.</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -131,16 +133,16 @@ export default function PersonaModal({
             <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading Rep Persona...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+          <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
                   Experience & Role Level
                 </label>
                 <select
                   value={experienceLevel}
                   onChange={(e) => setExperienceLevel(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
                 >
                   <option value="Rookie Outbound SDR">Rookie Outbound SDR (Focus: Fundamentals)</option>
                   <option value="Senior SDR">Senior SDR (Focus: High conversion)</option>
@@ -150,13 +152,13 @@ export default function PersonaModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
                   AI Coaching Tone
                 </label>
                 <select
                   value={coachingTone}
                   onChange={(e) => setCoachingTone(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
                 >
                   <option value="Tough Love / Direct VP">Tough Love / Direct VP (Direct, candid, high urgency)</option>
                   <option value="Analytical & Tactical">Analytical & Tactical (Metrics & phrase calibration)</option>
@@ -167,7 +169,7 @@ export default function PersonaModal({
 
             {/* Known Blindspots */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
                 Known Blindspots & Bad Habits
               </label>
               <p className="text-xs text-slate-400 mb-2">
@@ -180,12 +182,12 @@ export default function PersonaModal({
                   value={newBlindspot}
                   onChange={(e) => setNewBlindspot(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddBlindspot(); } }}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                  className="flex-1 rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleAddBlindspot}
-                  className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                  className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-3.5 py-2 text-xs font-medium text-white hover:bg-white/[0.1] transition"
                 >
                   Add
                 </button>
@@ -194,7 +196,7 @@ export default function PersonaModal({
                 {blindspots.map((b, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 border border-rose-500/20"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-3 py-1 text-xs text-rose-300 border border-rose-500/20"
                   >
                     {b}
                     <button
@@ -211,7 +213,7 @@ export default function PersonaModal({
 
             {/* Strengths */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
                 Core Strengths
               </label>
               <div className="flex gap-2 mb-2">
@@ -221,12 +223,12 @@ export default function PersonaModal({
                   value={newStrength}
                   onChange={(e) => setNewStrength(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddStrength(); } }}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                  className="flex-1 rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleAddStrength}
-                  className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                  className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-3.5 py-2 text-xs font-medium text-white hover:bg-white/[0.1] transition"
                 >
                   Add
                 </button>
@@ -235,7 +237,7 @@ export default function PersonaModal({
                 {strengths.map((s, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300 border border-emerald-500/20"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 border border-emerald-500/20"
                   >
                     {s}
                     <button
@@ -252,7 +254,7 @@ export default function PersonaModal({
 
             {/* Manager 1-on-1 Notes */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
                 Manager's Private 1-on-1 Notes & Directives
               </label>
               <p className="text-xs text-slate-400 mb-1.5">
@@ -263,22 +265,22 @@ export default function PersonaModal({
                 placeholder="In our 1-on-1s, I've stressed that he must never let a prospect hang up without asking what they dislike about their current tool..."
                 value={managerNotes}
                 onChange={(e) => setManagerNotes(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-xl glass-inset border border-white/[0.08] p-3 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-white/[0.08] pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+                className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Save Persona
