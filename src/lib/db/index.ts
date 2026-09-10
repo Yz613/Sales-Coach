@@ -19,6 +19,9 @@ function initLocalSqlite() {
     if (!cols.some((c: { name: string }) => c.name === "extended_review")) {
       sqlite.exec("ALTER TABLE evaluations ADD COLUMN extended_review TEXT");
     }
+    if (!cols.some((c: { name: string }) => c.name === "script_divergence")) {
+      sqlite.exec("ALTER TABLE evaluations ADD COLUMN script_divergence TEXT");
+    }
   } catch {
     // Table may not exist yet; schema.sql creates it with the column.
   }

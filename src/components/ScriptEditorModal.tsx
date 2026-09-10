@@ -112,18 +112,20 @@ export default function ScriptEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-3xl rounded-xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-400" />
-            <h2 className="text-base font-bold text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+      <div className="relative w-full max-w-3xl rounded-3xl glass-panel border border-white/[0.1] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4 bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <h2 className="text-base font-semibold text-white">
               {scriptToEdit ? "Edit Prescribed Playbook" : "Upload New Sales Script & Milestones"}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -131,7 +133,7 @@ export default function ScriptEditorModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {error && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
               {error}
             </div>
           )}
@@ -145,7 +147,7 @@ export default function ScriptEditorModal({
             />
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
                 Script / Playbook Title
               </label>
               <input
@@ -153,14 +155,14 @@ export default function ScriptEditorModal({
                 placeholder="e.g. Standard Pattern Interrupt & Disarm Playbook"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
               Required Milestones for Adherence Scoring
             </label>
             <p className="text-xs text-slate-400 mb-2">
@@ -169,7 +171,7 @@ export default function ScriptEditorModal({
             <div className="space-y-2">
               {milestones.map((m, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-mono text-slate-400">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-mono text-slate-400">
                     {idx + 1}
                   </span>
                   <input
@@ -177,13 +179,13 @@ export default function ScriptEditorModal({
                     placeholder="e.g. Disarm with 30-second permission within first 20s"
                     value={m}
                     onChange={(e) => handleMilestoneChange(idx, e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                    className="flex-1 rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
                   />
                   {milestones.length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveMilestone(idx)}
-                      className="p-1 text-slate-500 hover:text-rose-400 transition"
+                      className="p-1.5 text-slate-500 hover:text-rose-400 transition"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -193,7 +195,7 @@ export default function ScriptEditorModal({
               <button
                 type="button"
                 onClick={handleAddMilestone}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 mt-1"
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 mt-1.5"
               >
                 <Plus className="h-3.5 w-3.5" /> Add Milestone Checkpoint
               </button>
@@ -201,7 +203,7 @@ export default function ScriptEditorModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
               Script Content & Objection Response Guidelines
             </label>
             <textarea
@@ -209,36 +211,36 @@ export default function ScriptEditorModal({
               placeholder={`Rep Opening:\n"Hey [Name], [Rep] here with [Company]. I know you weren't expecting my call, do you have 30 seconds...?"\n\nWhen Prospect says: "We already have a vendor"\nPivot: "Totally get that..."`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-xl glass-inset border border-white/[0.08] p-3.5 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
               required
             />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2.5 pt-1">
             <input
               type="checkbox"
               id="isActive"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-white/[0.1] bg-white/[0.04] text-blue-600 focus:ring-blue-500"
             />
             <label htmlFor="isActive" className="text-xs text-slate-300 font-medium">
               Set as Active Prescribed Script for this stage (Calls in this stage will be benchmarked against this script)
             </label>
           </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+          <div className="flex items-center justify-end gap-3 border-t border-white/[0.08] pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Save Prescribed Playbook

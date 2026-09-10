@@ -18,8 +18,8 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
   return (
     <Show when="signed-in">
       <div className="flex items-center gap-1.5">
-        <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-800/90 bg-slate-900/60 px-2.5 py-1.5 hover:border-slate-700 transition">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 hover:border-white/[0.15] hover:bg-white/[0.06] transition backdrop-blur-md">
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
           <span className="max-w-[8rem] sm:max-w-[11rem] truncate text-xs font-medium text-slate-200">
             {!isLoaded ? "…" : organization?.name || "Select Team"}
           </span>
@@ -37,7 +37,7 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
         {canManage && !organization && isLoaded && (
           <Link
             href="/select-organization"
-            className="hidden sm:inline-flex rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20"
+            className="hidden sm:inline-flex rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20 transition"
           >
             Set team
           </Link>
