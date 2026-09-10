@@ -47,6 +47,10 @@ Rules:
 - Do not summarize, coach, or omit talk. Include fillers only when they change meaning.
 - Return only the transcript lines, no markdown fences or commentary.`;
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 export function bytesToBase64(bytes: Uint8Array): string {
   if (typeof Buffer !== "undefined") {
     return Buffer.from(bytes).toString("base64");
@@ -190,7 +194,7 @@ async function uploadGeminiFile(
       "X-Goog-Upload-Offset": "0",
       "X-Goog-Upload-Command": "upload, finalize",
     },
-    body: bytes,
+    body: toArrayBuffer(bytes),
   });
   const payload = await uploaded.json().catch(() => ({}));
   if (!uploaded.ok || payload.error) {
@@ -261,7 +265,7 @@ async function transcribeWhisper(
     : "https://api.openai.com/v1/audio/transcriptions";
   const model = backend.kind === "groq" ? "whisper-large-v3" : "whisper-1";
   const form = new FormData();
-  const file = new File([chunk.bytes], fileName || `chunk.${chunk.mimeType.includes("wav") ? "wav" : "mp3"}`, {
+  const file = new File([toArrayBuffer(chunk.bytes)], fileName || `chunk.${chunk.mimeType.includes("wav") ? "wav" : "mp3"}`, {
     type: chunk.mimeType,
   });
   form.append("file", file);
