@@ -213,8 +213,9 @@ export default function AdminSettingsPage() {
             </div>
             {hasStoredKey && (
               <p className="text-xs text-emerald-200/80 pl-6">
-                Already-uploaded calls keep their previous scores until you reanalyze them in the{" "}
-                <Link href="/calls" className="underline hover:text-white">Call Bank</Link>.
+                Connecting a key does not rewrite existing scores. Open the{" "}
+                <Link href="/calls" className="underline hover:text-white">Call Bank</Link>{" "}
+                and use Reanalyze with AI so those calls stop showing the built-in rule-engine notice.
               </p>
             )}
           </div>
