@@ -14,10 +14,10 @@ export function latestEvaluationsByCall<T extends { callId: string; createdAt: s
   return [...latest.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
 }
 
-export function latestEvaluationRow<T extends { callId: string; createdAt: string }>(
-  rows: T[],
+export function latestEvaluationRow(
+  rows: EvaluationRow[],
   callId: string
-): T | undefined {
+): EvaluationRow | undefined {
   return latestEvaluationsByCall(rows.filter((row) => row.callId === callId))[0];
 }
 
