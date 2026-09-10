@@ -77,6 +77,38 @@ export function parseTranscript(transcriptText: string, durationSeconds = 0): Tr
   return turns;
 }
 
+const MISSING_TRANSCRIPT_RE =
+  /automatic transcription is not configured|audio file ingested|paste the transcript for a full evaluation|no (usable )?transcript|no speech could be transcribed|transcription (is )?(not |un)available|there('s| is) no transcription/i;
+
+function looksLikeBinaryGarbage(text: string): boolean {
+  const sample = text.slice(0, 2000);
+  let bad = 0;
+  for (let i = 0; i < sample.length; i += 1) {
+    const code = sample.charCodeAt(i);
+    if (code === 0 || code === 0xfffd || code < 9 || (code > 13 && code < 32)) bad += 1;
+  }
+  return bad >= 20;
+}
+
+/** True when the stored text is a stub, empty, or binary — not a real call dialogue. */
+export function isUnusableTranscript(text: string | null | undefined): boolean {
+  const raw = (text || "").trim();
+  if (!raw) return true;
+  if (MISSING_TRANSCRIPT_RE.test(raw)) return true;
+  if (looksLikeBinaryGarbage(raw)) return true;
+  return false;
+}
+
+export function requireUsableTranscript(text: string | null | undefined): string {
+  const raw = (text || "").trim();
+  if (isUnusableTranscript(raw)) {
+    throw new Error(
+      "This upload has no usable transcript, so coaching was not started and no tokens were used. Paste the dialogue, or add a Gemini, OpenAI, or Groq key in Admin → Settings before uploading audio."
+    );
+  }
+  return raw;
+}
+
 export function normalizeForSearch(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
