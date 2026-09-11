@@ -22,7 +22,7 @@ export default async function RepsPage() {
             Sales Rep Scorecards & Progression
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Detailed performance tracking, objection-handling discipline, and progression status.
+            Scorecards, progression, and a ready 1:1 talk track — four misses and four wins with examples from each rep&apos;s calls.
           </p>
         </div>
       </div>
@@ -93,10 +93,10 @@ export default async function RepsPage() {
 
               <div className="pt-2 flex justify-end">
                 <Link
-                  href={`/reps/${rep.id}`}
+                  href={`/reps/${rep.id}#talk-track`}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.06] hover:bg-white/[0.12] px-4 py-2 text-xs font-semibold text-white transition backdrop-blur-md"
                 >
-                  View Historical Calls & Fixes <ArrowUpRight className="h-3.5 w-3.5" />
+                  Open 1:1 talk track & call history <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </div>
