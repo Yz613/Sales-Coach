@@ -17,6 +17,7 @@ export const CLERK_PATHS = {
   userProfile: clerkUrl("/user"),
   organizationProfile: clerkUrl("/organization"),
   adminSettings: clerkUrl("/admin/settings"),
+  acceptInvite: clerkUrl("/accept-invite"),
 };
 
 export const clerkAppearance = {

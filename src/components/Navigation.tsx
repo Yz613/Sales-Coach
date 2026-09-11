@@ -107,7 +107,7 @@ export default function Navigation() {
       label: "Invite",
       href: "/invite",
       icon: UserPlus,
-      description: "Send join links from the invite page only",
+      description: "Email teammates a join link, with a copyable fallback",
       badgeColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
     },
   ];

@@ -31,6 +31,7 @@ const PUBLIC_AUTH_PREFIXES = [
   "/create-organization",
   "/user",
   "/organization",
+  "/accept-invite",
 ];
 
 export function isPublicAuthRoute(pathname: string): boolean {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiPath } from "@/lib/utils";
@@ -31,6 +31,9 @@ export default function AdminSettingsPage() {
 
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [maskedKey, setMaskedKey] = useState("");
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [hasResendKey, setHasResendKey] = useState(false);
+  const [maskedResendKey, setMaskedResendKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -58,6 +61,8 @@ export default function AdminSettingsPage() {
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
+        setHasResendKey(Boolean(data.hasResendKey));
+        setMaskedResendKey(data.maskedResendKey || "");
         setCanTranscribe(data.canTranscribe !== false);
         if (data.provider) setProvider(data.provider);
         if (data.activeModel) {
@@ -125,6 +130,7 @@ export default function AdminSettingsPage() {
           provider,
           apiKey,
           activeModel: selectedModelId,
+          resendApiKey,
         }),
       });
 
@@ -134,6 +140,11 @@ export default function AdminSettingsPage() {
           setHasStoredKey(true);
           setMaskedKey(`${apiKey.slice(0, 6)}••••••••${apiKey.slice(-4)}`);
           setApiKey("");
+        }
+        if (resendApiKey.trim()) {
+          setHasResendKey(true);
+          setMaskedResendKey(`${resendApiKey.slice(0, 6)}••••••••${resendApiKey.slice(-4)}`);
+          setResendApiKey("");
         }
         setTimeout(() => setSaveSuccess(false), 4000);
       }
@@ -384,6 +395,39 @@ export default function AdminSettingsPage() {
           >
             Open Call Bank
           </Link>
+        </div>
+
+        <div className="rounded-2xl glass-card p-6 space-y-5">
+          <div className="flex items-center gap-3 border-b border-white/[0.08] pb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-white">Invite emails</h2>
+              <p className="text-xs text-slate-400">
+                Clerk invite emails often never arrive. A Resend key sends join links from invites@refreshqueue.com instead. Pending invites still get a copyable link either way.
+              </p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+              Resend API key
+            </label>
+            <input
+              type="password"
+              placeholder={hasResendKey ? `Stored: ${maskedResendKey}` : "re_xxxxxxxx"}
+              value={resendApiKey}
+              onChange={(e) => setResendApiKey(e.target.value)}
+              className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono focus:border-blue-500/50 focus:outline-none"
+            />
+            <p className="text-xs text-slate-400 mt-1.5">
+              {hasResendKey ? (
+                <span className="text-emerald-400 font-medium">✓ Invite emails will send through Resend.</span>
+              ) : (
+                <span>Create a sending key at resend.com and paste it here, or set RESEND_API_KEY as a Worker secret.</span>
+              )}
+            </p>
+          </div>
         </div>
 
         <div className="rounded-2xl glass-card p-6 space-y-5">
