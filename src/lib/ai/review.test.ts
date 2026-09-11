@@ -49,4 +49,18 @@ const scorecard = buildScorecardFromSandler({
 assert.equal(scorecard.length, 8);
 assert.equal(scorecard.find((m) => m.key === "fightForTheWin")?.status, "Fail");
 
+const demoScorecard = buildScorecardFromSandler({
+  pain: { status: "Incomplete", evidence: "Touched shrink" },
+  budget: { status: "Fail", evidence: "Never asked" },
+  decision: { status: "Incomplete", evidence: "Agreed to a demo" },
+  scriptScore: 6,
+  missedCount: 1,
+  coreOutcome: "Demo agreed to",
+  foldedEarly: false,
+});
+const nextStep = demoScorecard.find((m) => m.key === "nextStep");
+assert.equal(nextStep?.status, "Incomplete");
+assert.match(nextStep?.evidence || "", /no calendar lock/);
+assert.ok((nextStep?.score || 0) < 8);
+
 console.log("review checks passed");
