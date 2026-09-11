@@ -8,8 +8,11 @@ import { formatDate, apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import PersonaModal from "@/components/PersonaModal";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
+import ManagerTalkTrackCard from "@/components/ManagerTalkTrack";
 import { usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
+import { callPartyLabel } from "@/lib/callLabel";
+import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { Rep, Call, RepPersona } from "@/types";
 
 export default function RepDetailPage({
@@ -24,6 +27,7 @@ export default function RepDetailPage({
   const [calls, setCalls] = useState<Call[]>([]);
   const [snapshot, setSnapshot] = useState<any>(null);
   const [persona, setPersona] = useState<RepPersona | null>(null);
+  const [talkTrack, setTalkTrack] = useState<ManagerTalkTrack | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPersonaOpen, setIsPersonaOpen] = useState(false);
 
@@ -42,6 +46,7 @@ export default function RepDetailPage({
           setCalls(data.calls || []);
           setSnapshot(data.snapshot || null);
           setPersona(data.rep.persona || null);
+          setTalkTrack(data.talkTrack || null);
         }
         setLoading(false);
       })
@@ -205,6 +210,8 @@ export default function RepDetailPage({
         </div>
       </div>
 
+      {talkTrack ? <ManagerTalkTrackCard repName={rep.name} talkTrack={talkTrack} /> : null}
+
       {/* Historical Calls & Accountability */}
       <div className="rounded-2xl glass-card overflow-hidden space-y-0">
         <div className="border-b border-white/[0.08] px-6 py-4.5 bg-white/[0.02]">
@@ -233,7 +240,10 @@ export default function RepDetailPage({
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-white">
-                      {c.prospectCompany} <span className="text-xs font-normal text-slate-400">({c.prospectName})</span>
+                      {callPartyLabel(c)}
+                      {c.prospectName && callPartyLabel(c) !== c.prospectName ? (
+                        <span className="text-xs font-normal text-slate-400"> ({c.prospectName})</span>
+                      ) : null}
                     </h3>
                   </div>
 

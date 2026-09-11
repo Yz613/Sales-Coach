@@ -21,6 +21,8 @@ import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStag
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
 import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
+import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
+import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -459,10 +461,15 @@ export async function getAllReps(): Promise<Rep[]> {
   return repsWithMetrics;
 }
 
-export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: Call[]; snapshot: any | null }> {
+export async function getRepById(id: string): Promise<{
+  rep: Rep | null;
+  calls: Call[];
+  snapshot: any | null;
+  talkTrack: ManagerTalkTrack | null;
+}> {
   await deleteCallsWithoutTranscript();
   const repRecord = await db.select().from(reps).where(eq(reps.id, id)).get();
-  if (!repRecord) return { rep: null, calls: [], snapshot: null };
+  if (!repRecord) return { rep: null, calls: [], snapshot: null, talkTrack: null };
 
   const repCalls = await db.select().from(calls).where(eq(calls.repId, id)).orderBy(desc(calls.createdAt)).all();
   const repEvals = await db.select().from(evaluations).where(eq(evaluations.repId, id)).all();
@@ -509,7 +516,12 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
     persona: persona || undefined,
   };
 
-  return { rep: computedRep, calls: fullCalls, snapshot };
+  return {
+    rep: computedRep,
+    calls: fullCalls,
+    snapshot,
+    talkTrack: buildManagerTalkTrack(computedRep.name, fullCalls),
+  };
 }
 
 export async function deleteCallsWithoutTranscript(): Promise<string[]> {

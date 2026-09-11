@@ -16,6 +16,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import type { Call, SuperAdminReport } from "@/types";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
+import { callPartySubtitle } from "@/lib/callLabel";
 import SortableBoard from "./SortableBoard";
 import {
   DASHBOARD_METRIC_STORAGE_KEY,
@@ -262,7 +263,7 @@ export default function DashboardBoard({
                   <tr key={call.id} className="hover:bg-white/[0.02] transition">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-white">{call.repName}</div>
-                      <div className="text-xs text-slate-400">{call.prospectCompany} • {call.prospectName}</div>
+                      <div className="text-xs text-slate-400">{callPartySubtitle(call)}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-xs text-slate-300 border border-white/[0.08]">{call.callStage}</span>

@@ -18,6 +18,7 @@ import { formatUsd, getProvider } from "@/lib/ai/providers";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
+import { callPartyLabel, hasKnownCompany } from "@/lib/callLabel";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
 
 export const dynamic = "force-dynamic";
@@ -111,10 +112,10 @@ export default async function CallReviewPage({
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              Call with {call.prospectName}
+              Call with {call.prospectName || callPartyLabel(call)}
             </h1>
             <p className="text-sm text-slate-400 mt-0.5">
-              {call.prospectCompany} • Rep:{" "}
+              {hasKnownCompany(call.prospectCompany) ? `${call.prospectCompany} • ` : ""}Rep:{" "}
               {auth.isAdmin ? (
                 <Link href={`/reps/${call.repId}`} className="text-blue-400 hover:underline font-medium">
                   {call.repName}

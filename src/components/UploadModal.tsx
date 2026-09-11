@@ -134,11 +134,6 @@ export default function UploadModal({
       return;
     }
 
-    if (!prospectCompany.trim()) {
-      setError("Please specify the prospect's company.");
-      return;
-    }
-
     if (selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
       return;
@@ -603,15 +598,14 @@ export default function UploadModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
-                  Prospect Company
+                  Prospect Company <span className="normal-case tracking-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Acme Corp"
+                  placeholder="Leave blank if you don't know it"
                   value={prospectCompany}
                   onChange={(e) => setProspectCompany(e.target.value)}
                   className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                  required
                 />
               </div>
 
