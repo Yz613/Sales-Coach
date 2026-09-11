@@ -1,5 +1,6 @@
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, ScriptDivergence } from "@/types";
 import { parseExtendedReview, stampMissedOpportunities } from "@/lib/ai/review";
+import { normalizeCoreOutcome } from "@/lib/coreOutcome";
 
 export function latestEvaluationsByCall<T extends { callId: string; createdAt: string }>(
   rows: T[]
@@ -110,7 +111,7 @@ export function hydrateEvaluation(
     repId: ev.repId,
     repName: extras.repName,
     callTypeDetected: extras.callStage,
-    coreOutcome: extras.coreOutcome,
+    coreOutcome: normalizeCoreOutcome(extras.coreOutcome),
     bottomLine: ev.bottomLine,
     missedOpportunities: missed,
     sandlerBreakdown: {

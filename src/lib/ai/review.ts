@@ -1,5 +1,6 @@
 import type { MissedOpportunity, SandlerStatus } from "@/types";
 import { findTurnForQuote, parseTranscript, type TranscriptTurn } from "../transcript";
+import { isDemoAgreed, isMeetingBooked } from "../coreOutcome";
 
 export type ScorecardKey =
   | "pain"
@@ -292,8 +293,14 @@ export function buildScorecardFromSandler(input: {
     score >= 8 ? "Pass" : score >= 5 ? "Incomplete" : "Fail";
 
   const fightScore = input.foldedEarly ? 2 : input.missedCount === 0 ? 8 : Math.max(3, 8 - input.missedCount * 2);
-  const booked = input.coreOutcome.toLowerCase().includes("booked");
-  const nextScore = booked ? 8 : input.foldedEarly ? 2 : 4;
+  const booked = isMeetingBooked(input.coreOutcome);
+  const demoAgreed = isDemoAgreed(input.coreOutcome);
+  const nextScore = booked ? 8 : demoAgreed ? 5 : input.foldedEarly ? 2 : 4;
+  const nextEvidence = booked
+    ? "Locked a specific date and time."
+    : demoAgreed
+      ? "Prospect agreed to a demo, but no calendar lock."
+      : "Left with a vague follow-up instead of a calendar commitment.";
   const discoveryScore = input.pain.status === "Pass" ? 8 : input.pain.status === "Incomplete" ? 5 : 3;
   const controlScore = Math.round((input.scriptScore + (input.foldedEarly ? 2 : 7)) / 2);
   const authorityScore = input.foldedEarly ? 3 : input.scriptScore >= 8 ? 8 : 5;
@@ -303,7 +310,7 @@ export function buildScorecardFromSandler(input: {
     ["budget", input.budget.status, input.budget.status === "Pass" ? 8 : input.budget.status === "Incomplete" ? 5 : 2, input.budget.evidence],
     ["decision", input.decision.status, input.decision.status === "Pass" ? 8 : input.decision.status === "Incomplete" ? 5 : 2, input.decision.evidence],
     ["fightForTheWin", statusFromScore(fightScore), fightScore, input.foldedEarly ? "Rep folded on a soft objection instead of fighting for the next minute." : "Held the frame when the prospect pushed back."],
-    ["nextStep", statusFromScore(nextScore), nextScore, booked ? "Locked a specific date and time." : "Left with a vague follow-up instead of a calendar commitment."],
+    ["nextStep", statusFromScore(nextScore), nextScore, nextEvidence],
     ["discoveryDepth", statusFromScore(discoveryScore), discoveryScore, input.pain.evidence],
     ["controlAndPacing", statusFromScore(controlScore), controlScore, `Script adherence ${input.scriptScore}/10 — ${input.foldedEarly ? "prospect drove the ending." : "rep stayed on the prescribed sequence."}`],
     ["peerAuthority", statusFromScore(authorityScore), authorityScore, input.foldedEarly ? "Tone slipped into vendor / order-taker." : "Held peer-level authority."],

@@ -8,6 +8,7 @@ import ReanalyzeButton from "@/components/ReanalyzeButton";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { getProvider } from "@/lib/ai/providers";
 import { usedLlmReview } from "@/lib/evaluations";
+import { outcomeBadgeClass } from "@/lib/coreOutcome";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,6 @@ export default async function CallBankPage() {
             <tbody className="divide-y divide-white/[0.06]">
               {rankedCalls.map((call) => {
                 const ev = call.evaluation;
-                const isBooked = call.coreOutcome.toLowerCase().includes("booked");
                 const issue = getPrimaryIssue(call);
                 const isTopThree = call.rank <= 3;
 
@@ -200,11 +200,7 @@ export default async function CallBankPage() {
                     </td>
 
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        isBooked
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-white/[0.05] text-slate-400 border border-white/[0.08]"
-                      }`}>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${outcomeBadgeClass(call.coreOutcome)}`}>
                         {call.coreOutcome}
                       </span>
                     </td>

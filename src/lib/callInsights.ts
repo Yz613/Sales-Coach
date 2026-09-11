@@ -5,6 +5,7 @@ import type {
   SalesScript,
   SandlerStatus,
 } from "@/types";
+import { isDemoAgreed, isMeetingBooked } from "./coreOutcome";
 
 
 export interface RankedCall extends Call {
@@ -24,8 +25,9 @@ const SANDLER_POINTS: Record<SandlerStatus, number> = {
 };
 
 function outcomeBonus(outcome: string): number {
+  if (isMeetingBooked(outcome)) return 15;
+  if (isDemoAgreed(outcome)) return 10;
   const o = outcome.toLowerCase();
-  if (o.includes("booked")) return 15;
   if (o.includes("negotiation") || o.includes("reschedul")) return 8;
   if (o.includes("unqualified")) return 3;
   return 0; // dropped / everything else

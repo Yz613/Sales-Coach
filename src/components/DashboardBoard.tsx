@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { Call, SuperAdminReport } from "@/types";
+import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import SortableBoard from "./SortableBoard";
 import {
   DASHBOARD_METRIC_STORAGE_KEY,
@@ -257,7 +258,6 @@ export default function DashboardBoard({
             <tbody className="divide-y divide-white/[0.06]">
               {recentCalls.map((call) => {
                 const ev = call.evaluation;
-                const isBooked = call.coreOutcome.toLowerCase().includes("booked");
                 return (
                   <tr key={call.id} className="hover:bg-white/[0.02] transition">
                     <td className="px-6 py-4">
@@ -310,11 +310,7 @@ export default function DashboardBoard({
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        isBooked
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-white/[0.05] text-slate-400 border border-white/[0.08]"
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${outcomeBadgeClass(call.coreOutcome)}`}>
                         {call.coreOutcome}
                       </span>
                     </td>
