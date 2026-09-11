@@ -1,4 +1,5 @@
 import { geminiGenerationConfig, geminiTextFromResponse } from "./gemini";
+import { extractJson } from "./json";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
 
 export interface LlmJsonResult {
@@ -8,22 +9,7 @@ export interface LlmJsonResult {
   estimatedCostUsd?: number;
 }
 
-function extractJson(text: string): any {
-  const trimmed = (text || "").trim();
-  if (!trimmed) throw new Error("Empty model response");
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenced) return JSON.parse(fenced[1].trim());
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1));
-    throw new Error("Model did not return valid JSON");
-  }
-}
-
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
+async function callGemini(apiKey: string, model: string, prompt: string): Promise<{ text: string; usage?: LlmJsonResult["usage"]; finishReason?: string }> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -34,6 +20,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
         generationConfig: geminiGenerationConfig(model, {
           responseMimeType: "application/json",
           thinkingLevel: "low",
+          maxOutputTokens: 16384,
         }),
       }),
     }
@@ -43,13 +30,21 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
     throw new Error(data.error?.message || `Gemini request failed (${res.status})`);
   }
   const text = geminiTextFromResponse(data);
+  const finishReason = String(data?.candidates?.[0]?.finishReason || "");
+  if (!text) {
+    throw new Error(
+      finishReason && finishReason !== "STOP"
+        ? `Gemini returned no JSON (finishReason: ${finishReason})`
+        : "Empty model response"
+    );
+  }
   const usage = data?.usageMetadata
     ? {
         inputTokens: Number(data.usageMetadata.promptTokenCount || 0),
         outputTokens: Number(data.usageMetadata.candidatesTokenCount || 0),
       }
     : undefined;
-  return { text, usage };
+  return { text, usage, finishReason };
 }
 
 async function callOpenAiCompatible(
@@ -136,9 +131,10 @@ export async function completeJson(opts: {
   const { providerId, apiKey, model, prompt } = opts;
   let text = "";
   let usage: LlmJsonResult["usage"];
+  let finishReason: string | undefined;
 
   if (providerId === "gemini") {
-    ({ text, usage } = await callGemini(apiKey, model, prompt));
+    ({ text, usage, finishReason } = await callGemini(apiKey, model, prompt));
   } else if (providerId === "anthropic") {
     ({ text, usage } = await callAnthropic(apiKey, model, prompt));
   } else if (providerId === "openai") {
@@ -154,7 +150,16 @@ export async function completeJson(opts: {
     throw new Error(`Unsupported provider: ${providerId}`);
   }
 
-  const parsed = extractJson(text);
+  let parsed: any;
+  try {
+    parsed = extractJson(text);
+  } catch (err) {
+    const parseMessage = err instanceof Error ? err.message : String(err);
+    if (finishReason === "MAX_TOKENS") {
+      throw new Error("Gemini output was truncated before the JSON was complete");
+    }
+    throw new Error(parseMessage);
+  }
   const catalogModel = getModel(providerId, model) || { inputPerMTok: 0, outputPerMTok: 0 };
   const estimatedCostUsd = usage
     ? estimateCostUsd(catalogModel, usage.inputTokens, usage.outputTokens)
