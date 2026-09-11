@@ -40,8 +40,8 @@ export async function POST(req: Request) {
       repName = (formData.get("repName") as string) || "";
       repRole = (formData.get("repRole") as string) || "";
       repFocus = (formData.get("repFocus") as string) || "";
-      prospectCompany = (formData.get("prospectCompany") as string) || "Unknown Co";
-      prospectName = (formData.get("prospectName") as string) || "Prospect";
+      prospectCompany = ((formData.get("prospectCompany") as string) || "").trim();
+      prospectName = ((formData.get("prospectName") as string) || "").trim() || "Prospect";
       callStage = (formData.get("callStage") as string) || "Cold Call";
 
       const file = formData.get("file") as File | null;
@@ -65,8 +65,8 @@ export async function POST(req: Request) {
       repName = body.repName || "";
       repRole = body.repRole || "";
       repFocus = body.repFocus || "";
-      prospectCompany = body.prospectCompany || "Unknown Co";
-      prospectName = body.prospectName || "Prospect";
+      prospectCompany = (body.prospectCompany || "").trim();
+      prospectName = (body.prospectName || "").trim() || "Prospect";
       callStage = body.callStage || "Cold Call";
       transcriptText = body.transcriptText || "";
       durationSeconds = body.durationSeconds || 300;
