@@ -21,11 +21,15 @@ export function geminiGenerationConfig(
     responseMimeType?: string;
     thinkingLevel?: GeminiThinkingLevel;
     temperature?: number;
+    maxOutputTokens?: number;
   } = {}
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {};
   if (opts.responseMimeType) {
     config.responseMimeType = opts.responseMimeType;
+  }
+  if (typeof opts.maxOutputTokens === "number") {
+    config.maxOutputTokens = opts.maxOutputTokens;
   }
   if (isGemini3Model(model)) {
     config.thinkingConfig = {

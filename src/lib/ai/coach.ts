@@ -245,7 +245,12 @@ Evaluate against:
 For scriptDivergence, judge EVERY required milestone one-by-one (Hit / Partial / Missed) with timestamp + quote.
 For walkthrough, produce 6–12 sequential coaching steps covering the WHOLE call — not just the disasters. Each step is one moment a coach would pause the tape: what happened, and exactly what they should have done HERE. If they did it right, verdict is "good" and shouldHaveDone is empty.
 
-Return a strictly valid JSON object with this exact schema:
+Return a strictly valid JSON object with this exact schema. JSON encoding is non-negotiable:
+- Escape every double quote inside a string as \\"
+- Do not omit commas between properties or array items
+- Do not use trailing commas, comments, or markdown fences
+- Keep quotes from the transcript inside JSON strings, escaped
+
 {
   "callTypeDetected": "${input.callStage}",
   "coreOutcome": "Meeting booked / Dropped / Rescheduled / Unqualified",
