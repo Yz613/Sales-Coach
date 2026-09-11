@@ -290,8 +290,42 @@ function rankThemes(events: ThemeEvent[], kind: "struggle" | "strength"): TalkTr
       const bScore = b.callCount * 10 + b.occurrenceCount;
       if (bScore !== aScore) return bScore - aScore;
       return a.title.localeCompare(b.title);
-    })
-    .slice(0, TALK_TRACK_THEME_LIMIT);
+    });
+}
+
+function themeScore(theme: TalkTrackTheme): number {
+  return theme.callCount * 10 + theme.occurrenceCount;
+}
+
+/**
+ * If a theme is clearly a miss or a win across more calls, keep it on that
+ * side only. Equal evidence (one miss call, one win call) can stay on both
+ * so the manager can talk about inconsistency.
+ */
+export function pickExclusiveThemes(
+  struggleCandidates: TalkTrackTheme[],
+  strengthCandidates: TalkTrackTheme[]
+): { struggles: TalkTrackTheme[]; strengths: TalkTrackTheme[] } {
+  const strengthByKey = new Map(strengthCandidates.map((theme) => [theme.key, theme]));
+  const struggleByKey = new Map(struggleCandidates.map((theme) => [theme.key, theme]));
+  const struggles: TalkTrackTheme[] = [];
+  const strengths: TalkTrackTheme[] = [];
+
+  for (const struggle of struggleCandidates) {
+    if (struggles.length >= TALK_TRACK_THEME_LIMIT) break;
+    const overlap = strengthByKey.get(struggle.key);
+    if (overlap && themeScore(overlap) > themeScore(struggle)) continue;
+    struggles.push(struggle);
+  }
+
+  for (const strength of strengthCandidates) {
+    if (strengths.length >= TALK_TRACK_THEME_LIMIT) break;
+    const overlap = struggleByKey.get(strength.key);
+    if (overlap && themeScore(overlap) > themeScore(strength)) continue;
+    strengths.push(strength);
+  }
+
+  return { struggles, strengths };
 }
 
 function formatThemeLine(index: number, theme: TalkTrackTheme, includeCoach: boolean): string {
@@ -373,8 +407,10 @@ export function buildManagerTalkTrack(repName: string, calls: Call[]): ManagerTa
   if (evaluated.length === 0) return emptyTalkTrack(repName);
 
   const events = evaluated.flatMap(collectEvents);
-  const struggles = rankThemes(events, "struggle");
-  const strengths = rankThemes(events, "strength");
+  const { struggles, strengths } = pickExclusiveThemes(
+    rankThemes(events, "struggle"),
+    rankThemes(events, "strength")
+  );
 
   return {
     evaluatedCallCount: evaluated.length,

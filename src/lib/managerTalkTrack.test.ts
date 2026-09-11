@@ -224,6 +224,8 @@ describe("buildManagerTalkTrack", () => {
     assert.equal(track.struggles[0].title, "Fight for the Win");
     assert.equal(track.struggles[0].callCount, 2);
     assert.ok(track.struggles[0].example.quote?.includes("I'll send that right over"));
+    const overlap = track.struggles.map((t) => t.key).filter((key) => track.strengths.some((s) => s.key === key));
+    assert.deepEqual(overlap, []);
   });
 
   it("does not invent a company in the spoken script", () => {
