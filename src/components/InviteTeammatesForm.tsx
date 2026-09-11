@@ -25,7 +25,7 @@ export default function InviteTeammatesForm({
   compact?: boolean;
   onClose?: () => void;
 }) {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
   const { isLoaded, organization, membership } = useOrganization();
   const [emailText, setEmailText] = useState("");
   const [inviteRole, setInviteRole] = useState<InviteRole>("org:member");
@@ -150,6 +150,10 @@ export default function InviteTeammatesForm({
       setMessage({ tone: "err", text: invitation.url });
     }
   };
+
+  if (userLoaded && !isSignedIn) {
+    return <p className="text-sm text-slate-300">Sign in first, then you can send invites.</p>;
+  }
 
   if (!isLoaded) {
     if (loadTimedOut) {
