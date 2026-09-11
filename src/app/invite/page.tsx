@@ -32,7 +32,9 @@ export default function InvitePage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white">Invite teammates</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Type or paste emails. Each person gets a join link.</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Type or paste emails. Each person gets an email plus a copyable join link.
+          </p>
         </div>
       </div>
       <div className="rounded-2xl glass-card p-6 shadow-xl">

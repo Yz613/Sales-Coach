@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { setSetting } from "@/lib/db/service";
+import { getSetting, setSetting } from "@/lib/db/service";
 import { modelForProvider, resolveAiSettings } from "@/lib/ai/settings";
 import { getTranscriptionStatus } from "@/lib/ai/transcribe";
 import {
@@ -8,11 +8,14 @@ import {
   isProviderId,
   type ProviderId,
 } from "@/lib/ai/providers";
+import { maskSecret } from "@/lib/inviteMail";
 
 export async function GET() {
   try {
     const ai = await resolveAiSettings();
     const transcription = await getTranscriptionStatus();
+    const resendKey = (await getSetting("resend_api_key"))?.trim() || "";
+    const envResend = Boolean(process.env.RESEND_API_KEY?.trim());
 
     return NextResponse.json({
       hasKey: ai.hasKey,
@@ -23,6 +26,9 @@ export async function GET() {
       providers: AI_PROVIDERS,
       canTranscribe: transcription.canTranscribe,
       transcribeReason: transcription.reason || null,
+      hasResendKey: Boolean(resendKey) || envResend,
+      maskedResendKey: resendKey ? maskSecret(resendKey) : envResend ? "env RESEND_API_KEY" : "",
+      resendFromEnv: envResend,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -48,6 +54,11 @@ export async function POST(req: Request) {
         providerId = detected;
         await setSetting("ai_provider", detected);
       }
+    }
+
+    if (body.resendApiKey !== undefined) {
+      const key = String(body.resendApiKey || "").trim();
+      if (key) await setSetting("resend_api_key", key);
     }
 
     if (body.activeModel !== undefined && String(body.activeModel).trim()) {

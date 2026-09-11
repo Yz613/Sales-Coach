@@ -10,6 +10,7 @@ import {
   isApiRoute,
   getApexAliasRedirect,
 } from "@/lib/public-path";
+import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
 
 const isAdminRoute = createRouteMatcher([
   "/",
@@ -28,6 +29,8 @@ const isAdminApiRoute = createRouteMatcher([
   "/api/admin(.*)",
   "/api/coach(.*)",
   "/api/reps/(.*)/persona",
+  "/api/invites",
+  "/api/invites(.*)",
 ]);
 
 const hasClerkKey = hasClerkServerAuth();
@@ -36,6 +39,12 @@ function redirectApexAliases(req: NextRequest): NextResponse | null {
   const alias = getApexAliasRedirect(req.url);
   if (!alias) return null;
   return NextResponse.redirect(alias.location, alias.status);
+}
+
+function redirectInviteTickets(req: NextRequest): NextResponse | null {
+  const ticket = getInviteTicketRedirect(req.url);
+  if (!ticket) return null;
+  return NextResponse.redirect(ticket.location, ticket.status);
 }
 
 function memberCallsRedirect(req: NextRequest): NextResponse {
@@ -56,6 +65,8 @@ const clerkHandler = hasClerkKey
   ? clerkMiddleware(async (auth, req) => {
       const alias = redirectApexAliases(req);
       if (alias) return alias;
+      const ticket = redirectInviteTickets(req);
+      if (ticket) return ticket;
 
       const publicPath = getPublicPath(req);
 
@@ -99,6 +110,8 @@ const clerkHandler = hasClerkKey
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const alias = redirectApexAliases(request);
   if (alias) return alias;
+  const ticket = redirectInviteTickets(request);
+  if (ticket) return ticket;
 
   if (clerkHandler) {
     return clerkHandler(request, event);
