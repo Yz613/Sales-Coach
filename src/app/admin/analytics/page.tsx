@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, TrendingUp, AlertTriangle, ShieldCheck, Flame, Users, ArrowUpRight, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { BarChart3, TrendingUp, AlertTriangle, ShieldCheck, Flame, Users, ArrowUpRight, CheckCircle2, XCircle, Clock, Loader2, MonitorPlay } from "lucide-react";
 import { apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import type { ExecutiveAnalytics } from "@/types";
@@ -74,14 +74,24 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Outcome Distribution Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="rounded-2xl glass-card p-5 space-y-1.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
             <CheckCircle2 className="h-4 w-4" /> Meeting Booked
           </div>
           <div className="text-2xl font-bold text-white">{outcomes.booked}</div>
           <p className="text-xs text-slate-400">
-            {data.totalCalls ? Math.round((outcomes.booked / data.totalCalls) * 100) : 0}% of all interactions
+            {data.totalCalls ? Math.round((outcomes.booked / data.totalCalls) * 100) : 0}% calendar lock
+          </p>
+        </div>
+
+        <div className="rounded-2xl glass-card p-5 space-y-1.5">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+            <MonitorPlay className="h-4 w-4" /> Demo Agreed
+          </div>
+          <div className="text-2xl font-bold text-white">{outcomes.demoAgreed}</div>
+          <p className="text-xs text-slate-400">
+            {data.totalCalls ? Math.round((outcomes.demoAgreed / data.totalCalls) * 100) : 0}% yes, no calendar lock
           </p>
         </div>
 

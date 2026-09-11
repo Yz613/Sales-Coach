@@ -20,6 +20,7 @@ import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/li
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
+import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
@@ -420,7 +421,7 @@ export async function getAllReps(): Promise<Rep[]> {
     let bookedCount = 0;
 
     repCalls.forEach((c: any) => {
-      if (c.coreOutcome.toLowerCase().includes("booked")) bookedCount++;
+      if (isMeetingBooked(c.coreOutcome)) bookedCount++;
     });
 
     repEvals.forEach((e: any) => {
@@ -475,7 +476,7 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
       evaluation = hydrateEvaluation(ev, {
         repName: repRecord.name,
         callStage: c.callStage,
-        coreOutcome: c.coreOutcome,
+        coreOutcome: normalizeCoreOutcome(c.coreOutcome),
         transcriptText: c.transcriptText,
         durationSeconds: c.durationSeconds,
       });
@@ -488,7 +489,7 @@ export async function getRepById(id: string): Promise<{ rep: Rep | null; calls: 
       prospectCompany: c.prospectCompany,
       prospectName: c.prospectName,
       callStage: c.callStage as any,
-      coreOutcome: c.coreOutcome,
+      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
       durationSeconds: c.durationSeconds,
       transcriptText: c.transcriptText,
       audioUrl: c.audioUrl || undefined,
@@ -538,7 +539,7 @@ export async function getAllCalls(): Promise<Call[]> {
       evaluation = hydrateEvaluation(ev, {
         repName: rep?.name || "Unknown Rep",
         callStage: c.callStage,
-        coreOutcome: c.coreOutcome,
+        coreOutcome: normalizeCoreOutcome(c.coreOutcome),
         transcriptText: c.transcriptText,
         durationSeconds: c.durationSeconds,
       });
@@ -551,7 +552,7 @@ export async function getAllCalls(): Promise<Call[]> {
       prospectCompany: c.prospectCompany,
       prospectName: c.prospectName,
       callStage: c.callStage as any,
-      coreOutcome: c.coreOutcome,
+      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
       durationSeconds: c.durationSeconds,
       transcriptText: c.transcriptText,
       audioUrl: c.audioUrl || undefined,
@@ -582,7 +583,7 @@ export async function getCallById(id: string): Promise<Call | null> {
     evaluation = hydrateEvaluation(ev, {
       repName: rep?.name || "Unknown Rep",
       callStage: c.callStage,
-      coreOutcome: c.coreOutcome,
+      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
       transcriptText: c.transcriptText,
       durationSeconds: c.durationSeconds,
     });
@@ -595,7 +596,7 @@ export async function getCallById(id: string): Promise<Call | null> {
     prospectCompany: c.prospectCompany,
     prospectName: c.prospectName,
     callStage: c.callStage as any,
-    coreOutcome: c.coreOutcome,
+    coreOutcome: normalizeCoreOutcome(c.coreOutcome),
     durationSeconds: c.durationSeconds,
     transcriptText: c.transcriptText,
     audioUrl: c.audioUrl || undefined,
@@ -678,6 +679,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
   const allReps = await getAllReps();
 
   let booked = 0;
+  let demoAgreed = 0;
   let dropped = 0;
   let unqualified = 0;
   let rescheduled = 0;
@@ -692,11 +694,12 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
 
   allCalls.forEach((c) => {
     totalDuration += c.durationSeconds;
-    const outcome = c.coreOutcome.toLowerCase();
-    if (outcome.includes("booked")) booked++;
-    else if (outcome.includes("dropped")) dropped++;
-    else if (outcome.includes("unqualified")) unqualified++;
-    else if (outcome.includes("rescheduled")) rescheduled++;
+    const bucket = tallyOutcomeBucket(c.coreOutcome);
+    if (bucket === "booked") booked++;
+    else if (bucket === "demoAgreed") demoAgreed++;
+    else if (bucket === "dropped") dropped++;
+    else if (bucket === "unqualified") unqualified++;
+    else if (bucket === "rescheduled") rescheduled++;
 
     if (c.evaluation) {
       const p = c.evaluation.sandlerBreakdown.pain.status.toLowerCase() as keyof typeof painCounts;
@@ -720,7 +723,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     const repCalls = allCalls.filter((c) => c.repId === r.id);
     let meetingsBooked = 0;
     repCalls.forEach((c) => {
-      if (c.coreOutcome.toLowerCase().includes("booked")) meetingsBooked++;
+      if (isMeetingBooked(c.coreOutcome)) meetingsBooked++;
     });
 
     return {
@@ -752,6 +755,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     avgCallDuration: allCalls.length ? Math.round(totalDuration / allCalls.length) : 0,
     outcomesBreakdown: {
       booked,
+      demoAgreed,
       dropped,
       unqualified,
       rescheduled,

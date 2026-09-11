@@ -17,6 +17,12 @@ import {
   type CoachWalkthroughStep,
 } from "./review";
 import { parseTranscript, requireUsableTranscript } from "../transcript";
+import {
+  CORE_OUTCOME_RULES,
+  CORE_OUTCOME_SCHEMA,
+  classifyCoreOutcomeFromTranscript,
+  normalizeCoreOutcome,
+} from "../coreOutcome";
 
 interface EvaluationInput {
   callId: string;
@@ -236,7 +242,7 @@ EVIDENCE RULES (non-negotiable):
 Evaluate against:
 1. Blocking-and-tackling / early folding ("Fight for the Win")
 2. Stage-specific Sandler qualification (Pain, Budget, Decision)
-3. Next-step firmness (calendar lock vs "I'll send something")
+3. Next-step firmness (calendar lock vs demo agreed vs "I'll send something")
 4. Discovery depth (questions vs pitch)
 5. Control & pacing (who drove the call)
 6. Peer authority / tone
@@ -251,9 +257,11 @@ Return a strictly valid JSON object with this exact schema. JSON encoding is non
 - Do not use trailing commas, comments, or markdown fences
 - Keep quotes from the transcript inside JSON strings, escaped
 
+${CORE_OUTCOME_RULES}
+
 {
   "callTypeDetected": "${input.callStage}",
-  "coreOutcome": "Meeting booked / Dropped / Rescheduled / Unqualified",
+  "coreOutcome": "${CORE_OUTCOME_SCHEMA}",
   "bottomLine": "2-3 sentences candid summary. Cite at least one [m:ss] timestamp.",
   "missedOpportunities": [
     {
@@ -318,7 +326,7 @@ Return a strictly valid JSON object with this exact schema. JSON encoding is non
   return {
     repName,
     callTypeDetected: parsed.callTypeDetected || input.callStage,
-    coreOutcome: parsed.coreOutcome || "Dropped",
+    coreOutcome: normalizeCoreOutcome(parsed.coreOutcome),
     bottomLine: parsed.bottomLine || "",
     missedOpportunities: missed,
     sandlerBreakdown: normalizeSandlerBreakdown(parsed.sandlerBreakdown),
@@ -396,11 +404,11 @@ function generateRuleBasedEvaluation(
   let budgetStatus: SandlerStatus = mentionsBudget ? "Pass" : "Fail";
   let decisionStatus: SandlerStatus = mentionsDecision ? "Pass" : "Incomplete";
   let scriptScore = 6;
-  let coreOutcome = "Dropped";
-
-  if (text.includes("calendar") || text.includes("tuesday") || text.includes("invite") || text.includes("book") || text.includes("demo scheduled") || text.includes("works for me")) {
-    coreOutcome = "Meeting booked";
+  const coreOutcome = classifyCoreOutcomeFromTranscript(input.transcriptText);
+  if (coreOutcome === "Meeting booked") {
     scriptScore += 2;
+  } else if (coreOutcome === "Demo agreed") {
+    scriptScore += 1;
   }
 
   const missedOpportunities: MissedOpportunity[] = [];

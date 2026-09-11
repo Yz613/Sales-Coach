@@ -17,6 +17,7 @@ import {
 import { formatUsd, getProvider } from "@/lib/ai/providers";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
+import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
 
 export const dynamic = "force-dynamic";
@@ -126,13 +127,7 @@ export default async function CallReviewPage({
 
           <div className="flex flex-col sm:items-end gap-1">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Core Outcome</span>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-semibold border ${
-              call.coreOutcome.toLowerCase().includes("booked")
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : call.coreOutcome.toLowerCase().includes("dropped")
-                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                : "bg-amber-500/10 text-amber-400 border-amber-500/30"
-            }`}>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-semibold ${outcomeBadgeClass(call.coreOutcome)}`}>
               {call.coreOutcome}
             </span>
           </div>

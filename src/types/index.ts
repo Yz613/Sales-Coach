@@ -3,7 +3,13 @@ import type { CoachWalkthroughStep, EvaluatedWith, ScorecardMetric } from "@/lib
 /** Call Stage Target — built-in defaults plus any custom script types a manager adds. */
 export type CallStage = string;
 
-export type CoreOutcome = 'Meeting booked' | 'Dropped' | 'Rescheduled' | 'Unqualified' | 'Negotiation Pending';
+export type CoreOutcome =
+  | 'Meeting booked'
+  | 'Demo agreed'
+  | 'Dropped'
+  | 'Rescheduled'
+  | 'Unqualified'
+  | 'Negotiation Pending';
 
 export type SandlerStatus = 'Pass' | 'Incomplete' | 'Fail';
 
@@ -168,6 +174,7 @@ export interface ExecutiveAnalytics {
   avgCallDuration: number;
   outcomesBreakdown: {
     booked: number;
+    demoAgreed: number;
     dropped: number;
     unqualified: number;
     rescheduled: number;
