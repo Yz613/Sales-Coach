@@ -9,6 +9,7 @@ import { resolveAiSettings } from "@/lib/ai/settings";
 import { getProvider } from "@/lib/ai/providers";
 import { usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
+import { callPartySubtitle } from "@/lib/callLabel";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export default async function CallBankPage() {
                     <td className="px-4 py-3.5 min-w-[150px]">
                       <div className="font-semibold text-white truncate max-w-[200px]">{call.repName}</div>
                       <div className="text-xs text-slate-400 truncate max-w-[200px]">
-                        {call.prospectCompany} • {call.prospectName}
+                        {callPartySubtitle(call)}
                       </div>
                     </td>
 

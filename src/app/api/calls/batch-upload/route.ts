@@ -92,8 +92,8 @@ export async function POST(req: Request) {
                 const row = parseCsvLine(lines[j]);
                 const transcript = row[transcriptIdx]?.trim();
                 if (!transcript) continue;
-                const company = (companyIdx !== -1 && row[companyIdx]?.trim()) || `Company ${j}`;
-                const contact = (contactIdx !== -1 && row[contactIdx]?.trim()) || `Lead (${company})`;
+                const company = (companyIdx !== -1 && row[companyIdx]?.trim()) || "";
+                const contact = (contactIdx !== -1 && row[contactIdx]?.trim()) || "Lead";
                 const stage = (stageIdx !== -1 && row[stageIdx]?.trim()) || defaultStage;
                 itemsToProcess.push({
                   repId: resolvedRepId,
@@ -109,8 +109,8 @@ export async function POST(req: Request) {
           }
           itemsToProcess.push({
             repId: resolvedRepId,
-            prospectCompany: `Company from ${baseName}`,
-            prospectName: `Contact (${baseName})`,
+            prospectCompany: "",
+            prospectName: baseName || "Lead",
             callStage: defaultStage,
             transcriptText: requireUsableTranscript(content),
             durationSeconds: 300,
@@ -121,8 +121,8 @@ export async function POST(req: Request) {
         const ingested = await ingestCallFile(f);
         itemsToProcess.push({
           repId: resolvedRepId,
-          prospectCompany: `Company from ${baseName}`,
-          prospectName: `Contact (${baseName})`,
+          prospectCompany: "",
+          prospectName: baseName || "Lead",
           callStage: defaultStage,
           transcriptText: requireUsableTranscript(ingested.transcriptText),
           durationSeconds: ingested.durationSeconds || 300,
@@ -149,8 +149,8 @@ export async function POST(req: Request) {
       await db.insert(calls).values({
         id: callId,
         repId: item.repId,
-        prospectCompany: item.prospectCompany || "Unknown Co",
-        prospectName: item.prospectName || "Lead",
+        prospectCompany: (item.prospectCompany || "").trim(),
+        prospectName: (item.prospectName || "").trim() || "Lead",
         callStage: item.callStage || "Cold Call",
         coreOutcome: "Analyzing...",
         durationSeconds: item.durationSeconds || 300,

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     await db.insert(calls).values({
       id: callId,
       repId: rep.id,
-      prospectCompany: payload?.company_name || "Enterprise Prospect",
+      prospectCompany: payload?.company_name || "",
       prospectName: payload?.prospect_name || "Lead",
       callStage: payload?.stage || "First Discovery",
       coreOutcome: "Analyzing...",
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       repId: rep.id,
       transcriptText: transcript,
       callStage: payload?.stage || "First Discovery",
-      prospectCompany: payload?.company_name || "Enterprise Prospect",
+      prospectCompany: payload?.company_name || "",
       prospectName: payload?.prospect_name || "Lead",
     });
 

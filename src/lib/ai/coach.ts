@@ -23,6 +23,7 @@ import {
   classifyCoreOutcomeFromTranscript,
   normalizeCoreOutcome,
 } from "../coreOutcome";
+import { formatProspectContext } from "../callLabel";
 
 interface EvaluationInput {
   callId: string;
@@ -221,7 +222,7 @@ ${personaContext}
 
 ${scriptContext}
 
-Prospect: ${input.prospectName} from ${input.prospectCompany}
+Prospect: ${formatProspectContext(input)}
 Call Stage: ${input.callStage}
 Call duration: ${durationSeconds} seconds
 
@@ -472,7 +473,7 @@ function generateRuleBasedEvaluation(
   const coachNote = coachApplied
     ? "Assessed through your custom coaching directives (add an AI API key in Settings for the coach to apply them in full depth). "
     : "";
-  const bottomLine = `${repName} made contact with ${input.prospectName} at ${input.prospectCompany}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.${foldCite}`;
+  const bottomLine = `${repName} made contact with ${formatProspectContext(input)}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.${foldCite}`;
 
   const fixes: [PriorityFix, PriorityFix] = [
     {
