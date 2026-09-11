@@ -232,7 +232,7 @@ function collectEvents(call: Call): ThemeEvent[] {
         title,
         kind: "strength",
         weight: 2,
-        example: exampleFromCall(call, milestone.note || `Hit: ${milestone.milestone}`, milestone.milestone, milestone.quote, milestone.timestamp),
+        example: exampleFromCall(call, milestone.note || `Hit: ${milestone.milestone}`, undefined, milestone.quote, milestone.timestamp),
       });
     }
   }

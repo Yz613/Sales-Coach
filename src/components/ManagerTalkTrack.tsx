@@ -137,7 +137,7 @@ function ThemeColumn({
                   &ldquo;{theme.example.quote}&rdquo;
                 </p>
               ) : null}
-              {theme.example.coachingNote ? (
+              {tone === "struggle" && theme.example.coachingNote ? (
                 <p className="text-[11px] text-slate-300">
                   <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">
                     Say instead:{" "}
