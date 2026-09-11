@@ -100,7 +100,7 @@ export default async function CallReviewPage({
 
       {/* 1. Call Metadata & Stage Header */}
       <div className="rounded-2xl glass-card p-6 sm:p-7">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-5 border-b border-white/[0.08] pb-5">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
@@ -125,8 +125,31 @@ export default async function CallReviewPage({
             </p>
           </div>
 
-          <div className="flex flex-col sm:items-end gap-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Core Outcome</span>
+          <div className="flex flex-col items-start sm:items-end gap-2">
+            {ev ? (
+              <>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Score</span>
+                <p
+                  className={`font-mono font-black leading-none tracking-tight text-6xl sm:text-7xl ${
+                    ev.sandlerBreakdown.scriptAdherence.score >= 8
+                      ? "text-emerald-400"
+                      : ev.sandlerBreakdown.scriptAdherence.score >= 6
+                      ? "text-amber-400"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {ev.sandlerBreakdown.scriptAdherence.score}
+                  <span className="text-3xl sm:text-4xl text-slate-500 font-semibold">/10</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Score</span>
+                <p className="font-mono font-black leading-none tracking-tight text-6xl sm:text-7xl text-slate-500">
+                  —<span className="text-3xl sm:text-4xl font-semibold">/10</span>
+                </p>
+              </>
+            )}
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-semibold ${outcomeBadgeClass(call.coreOutcome)}`}>
               {call.coreOutcome}
             </span>
