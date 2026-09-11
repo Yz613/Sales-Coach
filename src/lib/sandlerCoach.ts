@@ -34,7 +34,7 @@ Sandler submarine (grade against the stage of the call):
 
 Coaching tone: Direct and tactical, like a Sandler-trained sales manager. No fluff. Quote the transcript. Tell the rep the exact line they should have used.
 
-Outcomes that matter most: Qualified meetings with a real next step, honest disqualification of bad-fit deals, and consistent Pain / Budget / Decision coverage — not activity volume or unattended proposals.`;
+Outcomes that matter most: Qualified meetings with a real next step, honest disqualification of bad-fit deals, and consistent Pain / Budget / Decision coverage — not activity volume or unattended proposals. A verbal yes to a demo without a date and time on the calendar is "Demo agreed", not a booked meeting.`;
 
 export const SANDLER_ONBOARDING_ANSWERS: Record<string, string> = {
   greatCall:
@@ -45,7 +45,7 @@ export const SANDLER_ONBOARDING_ANSWERS: Record<string, string> = {
     "Up-Front Contract on every call. Pain → Budget → Decision before Fulfillment. Reverse instead of dumping info. State a real price. Firm next step or a clean no.",
   methodology: "Sandler Selling System",
   outcomes:
-    "Qualified meetings with a real next step, honest disqualification of bad-fit deals, and consistent Pain / Budget / Decision coverage.",
+    "Qualified meetings with a real next step, honest disqualification of bad-fit deals, and consistent Pain / Budget / Decision coverage. Demo agreed (no calendar lock) is not a booked meeting.",
   tone: "Direct and tactical — like a Sandler-trained sales manager. Quote the transcript. Give the exact line they should have used.",
 };
 
