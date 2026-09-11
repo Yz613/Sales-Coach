@@ -296,11 +296,12 @@ function rankThemes(events: ThemeEvent[], kind: "struggle" | "strength"): TalkTr
 
 function formatThemeLine(index: number, theme: TalkTrackTheme, includeCoach: boolean): string {
   const ex = theme.example;
-  const where = ex.callStage ? `the ${ex.callLabel} ${ex.callStage} call` : `the ${ex.callLabel} call`;
+  const where = ex.callStage ? `${ex.callLabel} (${ex.callStage})` : ex.callLabel;
+  const happened = ex.whatHappened.replace(/[.]+$/, "");
   const quote = ex.quote ? ` Example: "${ex.quote}"` : "";
   const stamp = ex.timestamp ? ` (${ex.timestamp})` : "";
   const coach = includeCoach && ex.coachingNote ? ` ${ex.coachingNote}` : "";
-  return `${index + 1}. ${theme.title} — On ${where}, ${ex.whatHappened}${stamp}.${quote}${coach}`;
+  return `${index + 1}. ${theme.title} — On ${where}, ${happened}${stamp}.${quote}${coach}`;
 }
 
 export function buildSpokenTalkTrack(
