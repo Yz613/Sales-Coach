@@ -40,9 +40,14 @@ assert.deepEqual(geminiModelsToTry("gemini-2.5-pro"), ["gemini-2.5-pro"]);
 assert.deepEqual(geminiModelsToTry(""), [DEFAULT_MODEL]);
 assert.deepEqual(geminiModelsToTry(undefined), [DEFAULT_MODEL]);
 
-const flash38 = geminiGenerationConfig("gemini-3.8-flash", { thinkingLevel: "low", temperature: 0.1 });
+const flash38 = geminiGenerationConfig("gemini-3.8-flash", {
+  thinkingLevel: "low",
+  temperature: 0.1,
+  maxOutputTokens: 16384,
+});
 assert.deepEqual(flash38.thinkingConfig, { thinkingLevel: "low" });
 assert.equal(flash38.temperature, undefined);
+assert.equal(flash38.maxOutputTokens, 16384);
 
 const flash25 = geminiGenerationConfig("gemini-2.5-flash", { temperature: 0.1 });
 assert.equal(flash25.temperature, 0.1);
