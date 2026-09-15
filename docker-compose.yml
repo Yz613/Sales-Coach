@@ -1,0 +1,21 @@
+services:
+  sales-coach:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sales-coach
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Add your API keys here or pass them in a .env.local file
+      # - GEMINI_API_KEY=
+      # - OPENAI_API_KEY=
+      # - GROQ_API_KEY=
+    volumes:
+      # Persist SQLite database across container restarts
+      - sales_coach_data:/app/data
+
+volumes:
+  sales_coach_data:

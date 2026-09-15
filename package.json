@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
+    "setup": "node scripts/setup.cjs",
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
