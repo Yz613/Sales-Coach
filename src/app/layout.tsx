@@ -30,7 +30,13 @@ export default async function RootLayout({
           <div className="absolute top-1/3 -right-40 w-[600px] h-[500px] bg-indigo-900/10 blur-[140px] rounded-full" />
           <div className="absolute top-2/3 -left-40 w-[600px] h-[500px] bg-blue-900/10 blur-[140px] rounded-full" />
         </div>
-        <AuthProvider initialRole={auth.role} publishableKey={publishableKey}>
+        <AuthProvider
+          initialRole={auth.role}
+          publishableKey={publishableKey}
+          initialUser={
+            auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
+          }
+        >
           <Navigation />
           <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 py-8">
             {children}

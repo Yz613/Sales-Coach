@@ -13,12 +13,10 @@ import {
   Settings,
   Menu,
   X,
-  ShieldCheck,
-  User,
-  Check,
-  ChevronDown,
   GraduationCap,
   UserPlus,
+  ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
@@ -28,7 +26,7 @@ import { clerkAppearance } from "@/lib/clerk-ui";
 
 export default function Navigation() {
   const pathname = usePathname();
-  const { role, isAdmin, isClerkConfigured, switchRole, isLoading } = useAppAuth();
+  const { isAdmin, isClerkConfigured } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadInitialTab, setUploadInitialTab] = useState<"paste" | "single_file" | "batch">("paste");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -78,6 +76,7 @@ export default function Navigation() {
       ]
     : [
         { label: "Call Bank", href: "/calls", icon: PhoneCall },
+        ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
       ];
 
   // Admin dropdown menu items (consolidates Analytics, Scripts, and Settings)
@@ -120,14 +119,6 @@ export default function Navigation() {
     pathname.startsWith("/admin") ||
     pathname.startsWith("/invite") ||
     visibleAdminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
-
-  const handleRoleChange = async (newRole: "admin" | "member") => {
-    setIsAdminDropdownOpen(false);
-    if (newRole !== role) {
-      await switchRole(newRole);
-    }
-  };
-
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-2xl shadow-sm shadow-black/20">
@@ -245,40 +236,6 @@ export default function Navigation() {
                           );
                         })}
                       </div>
-
-                      {/* Role Preview Switch in Admin dropdown */}
-                      <div className="p-2.5 border-t border-white/[0.08] mt-1.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1 flex items-center justify-between">
-                          <span>Permissions Preview</span>
-                          <span className="text-[9px] text-slate-400 capitalize">{role} view</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleRoleChange("admin")}
-                            className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-medium transition ${
-                              isAdmin
-                                ? "bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
-                                : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
-                            }`}
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Admin View
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRoleChange("member")}
-                            className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-medium transition ${
-                              !isAdmin
-                                ? "bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30"
-                                : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
-                            }`}
-                          >
-                            <User className="h-3.5 w-3.5" />
-                            Member View
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -286,22 +243,8 @@ export default function Navigation() {
             </nav>
           </div>
 
-          {/* Right Actions: Team Switcher, Member View Exit Pill, Upload Calls & Profile */}
+          {/* Right Actions: Team Switcher, Upload Calls & Profile */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* If currently viewing as Member, provide quick exit button back to Admin */}
-            {!isAdmin && (
-              <button
-                type="button"
-                onClick={() => handleRoleChange("admin")}
-                className="flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition backdrop-blur-md"
-                title="You are previewing Member view. Click to return to Admin."
-              >
-                <User className="h-3.5 w-3.5 text-amber-400" />
-                <span>Member View</span>
-                <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded-full font-semibold text-amber-200">Exit</span>
-              </button>
-            )}
-
             {isClerkConfigured && (
               <div className="hidden sm:block">
                 <TeamSwitcher canManage={isAdmin} />
@@ -405,6 +348,17 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+
+              {isClerkConfigured && (
+                <Link
+                  href="/invite"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-sky-200 hover:bg-white/[0.05] transition"
+                >
+                  <UserPlus className="h-4 w-4 text-sky-400" />
+                  <span>Invite teammates</span>
+                </Link>
+              )}
 
               {/* Admin suite section on mobile */}
               {isAdmin && (

@@ -12,16 +12,15 @@ export interface ResolveUserRoleInput {
 /**
  * Resolve the app-level Admin/Member role.
  *
- * Priority:
- * 1. `sc_role` cookie (preview / local emulator)
- * 2. Active Clerk organization role (`org:admin` → admin)
- * 3. Clerk user publicMetadata.role
- * 4. Signed-in Clerk user defaults to member; otherwise admin (local/no-auth)
+ * Roles are not user-switchable. Priority:
+ * 1. Active team role (`org:admin` → admin, `org:member` → member)
+ * 2. User publicMetadata.role
+ * 3. Signed-in user defaults to member; local/no-auth defaults to admin
+ *
+ * A leftover `sc_role` cookie is ignored so members cannot elevate themselves.
  */
 export function resolveUserRole(input: ResolveUserRoleInput): UserRole {
-  if (input.cookieRole === "admin" || input.cookieRole === "member") {
-    return input.cookieRole;
-  }
+  void input.cookieRole;
 
   if (input.hasOrgAdmin || input.orgRole === "org:admin") {
     return "admin";

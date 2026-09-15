@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCallById, getAllCalls, getActiveScriptForStage } from "@/lib/db/service";
+import { getActiveScriptForStage } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
@@ -20,6 +20,7 @@ import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartyLabel, hasKnownCompany } from "@/lib/callLabel";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
+import { getVisibleCallById, getVisibleCalls } from "@/lib/viewer-calls";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +38,7 @@ export default async function CallReviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const auth = await getServerAuth();
-  const call = await getCallById(id);
+  const { auth, call } = await getVisibleCallById(id);
   const ai = await resolveAiSettings();
 
   if (!call) {
@@ -73,7 +73,8 @@ export default async function CallReviewPage({
     : [];
 
   // Where this call ranks against every other call in the bank.
-  const ranked = rankCalls(await getAllCalls());
+  const { calls: visibleCalls } = await getVisibleCalls();
+  const ranked = rankCalls(visibleCalls);
   const thisRank = ranked.find((r) => r.id === call.id);
 
   return (

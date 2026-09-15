@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { addCallStage, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { getTranscriptionStatus, resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
+import { getServerAuth } from "@/lib/auth";
+import { resolveUploadRepId } from "@/lib/viewer-calls";
 
 export async function GET() {
   try {
@@ -23,6 +25,10 @@ export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
+    const auth = await getServerAuth();
+    if (auth.isClerkConfigured && !auth.userId) {
+      return NextResponse.json({ error: "Sign in to upload calls." }, { status: 401 });
+    }
     const contentType = req.headers.get("content-type") || "";
 
     let repId = "";
@@ -94,8 +100,8 @@ export async function POST(req: Request) {
       // Stage list is best-effort; the call still records whatever stage was chosen.
     }
 
-    // Resolve the rep (creating one from the provided name when needed).
-    repId = await getOrCreateRep(repId, repName, repRole);
+    // Members can only attach calls to themselves.
+    repId = await resolveUploadRepId(auth, { repId, repName, repRole });
     if (repFocus.trim()) {
       await setRepFocus(repId, repFocus);
     }

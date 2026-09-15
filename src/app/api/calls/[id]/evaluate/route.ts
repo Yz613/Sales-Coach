@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCallById } from "@/lib/db/service";
 import { evaluateCall } from "@/lib/ai/coach";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { usedLlmReview } from "@/lib/evaluations";
+import { getVisibleCallById } from "@/lib/viewer-calls";
 
 export const maxDuration = 120;
 
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const call = await getCallById(id);
+    const { call } = await getVisibleCallById(id);
     if (!call) {
       return NextResponse.json({ error: "Call not found" }, { status: 404 });
     }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { getAllCalls } from "@/lib/db/service";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
 import { ArrowUpRight, Trophy, AlertTriangle, CheckCircle2, Headphones } from "lucide-react";
 import CallBankActions from "@/components/CallBankActions";
@@ -10,15 +9,20 @@ import { getProvider } from "@/lib/ai/providers";
 import { usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartySubtitle } from "@/lib/callLabel";
+import InviteTeammatesCard from "@/components/InviteTeammatesCard";
+import { getVisibleCalls } from "@/lib/viewer-calls";
 
 export const dynamic = "force-dynamic";
 
 export default async function CallBankPage() {
-  const rankedCalls = rankCalls(await getAllCalls());
+  const { auth, calls } = await getVisibleCalls();
+  const rankedCalls = rankCalls(calls);
   const ai = await resolveAiSettings();
 
   return (
     <div className="space-y-6">
+      {auth.canViewAllCalls && <InviteTeammatesCard compact />}
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -27,10 +31,12 @@ export default async function CallBankPage() {
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Ranked Calls & Evaluations
+            {auth.canViewAllCalls ? "Ranked Calls & Evaluations" : "Your Calls"}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong.
+            {auth.canViewAllCalls
+              ? "Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong."
+              : "Only your calls. Teammates cannot see these, and you cannot see theirs."}
           </p>
         </div>
 
@@ -64,6 +70,15 @@ export default async function CallBankPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06]">
+              {rankedCalls.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-400">
+                    {auth.canViewAllCalls
+                      ? "No calls have been uploaded yet."
+                      : "You have not uploaded any calls yet. Use Upload Calls to add your own."}
+                  </td>
+                </tr>
+              )}
               {rankedCalls.map((call) => {
                 const ev = call.evaluation;
                 const issue = getPrimaryIssue(call);

@@ -21,6 +21,10 @@ export const CLERK_PATHS = {
 };
 
 export const clerkAppearance = {
+  layout: {
+    logoPlacement: "none" as const,
+    shimmer: false,
+  },
   variables: {
     colorPrimary: "#3b82f6",
     colorBackground: "#0a0f1d",
@@ -42,5 +46,26 @@ export const clerkAppearance = {
     headerSubtitle: "text-slate-400 text-xs",
     modalBackdrop: "z-[80] backdrop-blur-md bg-slate-950/80",
     modalContent: "z-[90]",
+    footer: "hidden",
+    footerAction: "hidden",
+  },
+};
+
+/** User-facing copy uses “team”, never vendor product names. */
+export const teamLocalization = {
+  organizationSwitcher: {
+    action__manageOrganization: "Manage team",
+    action__createOrganization: "Create team",
+    notSelected: "No team selected",
+  },
+  organizationList: {
+    title: "Choose a team",
+    titleWithoutPersonal: "Choose a team",
+    action__createOrganization: "Create team",
+    subtitle: "Select a team to continue",
+  },
+  createOrganization: {
+    title: "Create a team",
+    formButtonSubmit: "Create team",
   },
 };

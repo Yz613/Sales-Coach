@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Upload, FileText, Layers, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 import type { Rep } from "@/types";
 import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
 import CallStageSelect from "@/components/CallStageSelect";
@@ -23,6 +24,8 @@ export default function UploadModal({
   initialTab = "paste",
 }: UploadModalProps) {
   const router = useRouter();
+  const { isAdmin, user } = useAppAuth();
+  const lockToSelf = !isAdmin;
   const [reps, setReps] = useState<Rep[]>([]);
   const [selectedRepId, setSelectedRepId] = useState("new");
   const [newRepName, setNewRepName] = useState("");
@@ -85,6 +88,9 @@ export default function UploadModal({
           } else {
             setReps([]);
             setSelectedRepId("new");
+            if (lockToSelf) {
+              setNewRepName(user?.name || "");
+            }
           }
         })
         .catch(console.error);
@@ -110,7 +116,7 @@ export default function UploadModal({
         })
         .catch(console.error);
     }
-  }, [isOpen]);
+  }, [isOpen, lockToSelf, user?.name]);
 
   if (!isOpen) return null;
 
@@ -134,7 +140,7 @@ export default function UploadModal({
       return;
     }
 
-    if (selectedRepId === "new" && !newRepName.trim()) {
+    if (!lockToSelf && selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
       return;
     }
@@ -204,7 +210,7 @@ export default function UploadModal({
       return;
     }
 
-    if (selectedRepId === "new" && !newRepName.trim()) {
+    if (!lockToSelf && selectedRepId === "new" && !newRepName.trim()) {
       setError("Please enter the sales rep's name.");
       return;
     }
@@ -331,15 +337,17 @@ export default function UploadModal({
               >
                 Go to Call Bank
               </button>
-              <button
-                onClick={() => {
-                  onClose();
-                  router.push("/");
-                }}
-                className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-5 py-2.5 text-xs font-medium text-white hover:bg-white/[0.1] transition"
-              >
-                View Dashboard
-              </button>
+              {!lockToSelf && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    router.push("/");
+                  }}
+                  className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-5 py-2.5 text-xs font-medium text-white hover:bg-white/[0.1] transition"
+                >
+                  View Dashboard
+                </button>
+              )}
             </div>
           </div>
         ) : activeTab === "batch" ? (
@@ -363,42 +371,51 @@ export default function UploadModal({
                 <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
                   Assign Rep (Default for batch)
                 </label>
-                <select
-                  value={selectedRepId}
-                  onChange={(e) => setSelectedRepId(e.target.value)}
-                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
-                >
-                  {reps.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.role})
-                    </option>
-                  ))}
-                  <option value="new">＋ Add new rep…</option>
-                </select>
-                {selectedRepId === "new" && (
-                  <div className="mt-2.5 grid grid-cols-1 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Rep name (e.g. Jordan Lee)"
-                      value={newRepName}
-                      onChange={(e) => setNewRepName(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Role (optional, e.g. Account Executive)"
-                      value={newRepRole}
-                      onChange={(e) => setNewRepRole(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
-                    <textarea
-                      rows={2}
-                      placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
-                      value={newRepFocus}
-                      onChange={(e) => setNewRepFocus(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
+                {lockToSelf ? (
+                  <div className="rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white">
+                    {user?.name || user?.email || "You"}
+                    <p className="mt-1 text-[11px] text-slate-500">Calls are saved to your account only.</p>
                   </div>
+                ) : (
+                  <>
+                    <select
+                      value={selectedRepId}
+                      onChange={(e) => setSelectedRepId(e.target.value)}
+                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+                    >
+                      {reps.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r.role})
+                        </option>
+                      ))}
+                      <option value="new">＋ Add new rep…</option>
+                    </select>
+                    {selectedRepId === "new" && (
+                      <div className="mt-2.5 grid grid-cols-1 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Rep name (e.g. Jordan Lee)"
+                          value={newRepName}
+                          onChange={(e) => setNewRepName(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Role (optional, e.g. Account Executive)"
+                          value={newRepRole}
+                          onChange={(e) => setNewRepRole(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                        <textarea
+                          rows={2}
+                          placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
+                          value={newRepFocus}
+                          onChange={(e) => setNewRepFocus(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -548,42 +565,51 @@ export default function UploadModal({
                 <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
                   Sales Rep
                 </label>
-                <select
-                  value={selectedRepId}
-                  onChange={(e) => setSelectedRepId(e.target.value)}
-                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
-                >
-                  {reps.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.role})
-                    </option>
-                  ))}
-                  <option value="new">＋ Add new rep…</option>
-                </select>
-                {selectedRepId === "new" && (
-                  <div className="mt-2.5 grid grid-cols-1 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Rep name (e.g. Jordan Lee)"
-                      value={newRepName}
-                      onChange={(e) => setNewRepName(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Role (optional, e.g. Account Executive)"
-                      value={newRepRole}
-                      onChange={(e) => setNewRepRole(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
-                    <textarea
-                      rows={2}
-                      placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
-                      value={newRepFocus}
-                      onChange={(e) => setNewRepFocus(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
-                    />
+                {lockToSelf ? (
+                  <div className="rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white">
+                    {user?.name || user?.email || "You"}
+                    <p className="mt-1 text-[11px] text-slate-500">Only you can see these calls.</p>
                   </div>
+                ) : (
+                  <>
+                    <select
+                      value={selectedRepId}
+                      onChange={(e) => setSelectedRepId(e.target.value)}
+                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+                    >
+                      {reps.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r.role})
+                        </option>
+                      ))}
+                      <option value="new">＋ Add new rep…</option>
+                    </select>
+                    {selectedRepId === "new" && (
+                      <div className="mt-2.5 grid grid-cols-1 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Rep name (e.g. Jordan Lee)"
+                          value={newRepName}
+                          onChange={(e) => setNewRepName(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Role (optional, e.g. Account Executive)"
+                          value={newRepRole}
+                          onChange={(e) => setNewRepRole(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                        <textarea
+                          rows={2}
+                          placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
+                          value={newRepFocus}
+                          onChange={(e) => setNewRepFocus(e.target.value)}
+                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

@@ -1,29 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
-import { useAppAuth } from "@/lib/auth-context";
 import InviteTeammatesForm from "@/components/InviteTeammatesForm";
 
 export default function InvitePage() {
-  const router = useRouter();
-  const { isAdmin, isLoading } = useAppAuth();
-
-  useEffect(() => {
-    if (!isLoading && !isAdmin) {
-      router.replace("/calls");
-    }
-  }, [isAdmin, isLoading, router]);
-
-  if (!isAdmin) {
-    return (
-      <div className="flex h-64 items-center justify-center text-slate-400">
-        Checking access…
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div className="flex items-center gap-3">

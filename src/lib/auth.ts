@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
+import { resolveCanViewAllCalls } from "@/lib/call-access";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
 
 export type { UserRole } from "@/lib/roles";
@@ -13,6 +13,8 @@ export interface AuthUser {
   isClerkConfigured: boolean;
   orgId?: string | null;
   orgRole?: string | null;
+  hasOrgAdmin?: boolean;
+  canViewAllCalls: boolean;
   email?: string;
   name?: string;
 }
@@ -23,13 +25,10 @@ export function isClerkConfigured(): boolean {
 
 /**
  * Get the current user and their role on the server.
- * Reads role from the active Clerk organization, then publicMetadata.role,
- * with support for the dev preview role cookie ("sc_role").
+ * Reads role from the active team, then publicMetadata.role.
  */
 export async function getServerAuth(): Promise<AuthUser> {
   const clerkConfigured = isClerkConfigured();
-  const cookieStore = await cookies();
-  const cookieRole = cookieStore.get("sc_role")?.value as UserRole | undefined;
 
   let userId: string | null = null;
   let email: string | undefined;
@@ -55,8 +54,10 @@ export async function getServerAuth(): Promise<AuthUser> {
       if (userId) {
         const user = await currentUser();
         if (user) {
-          email = user.emailAddresses?.[0]?.emailAddress;
-          name = user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined;
+          email =
+            user.primaryEmailAddress?.emailAddress ||
+            user.emailAddresses?.[0]?.emailAddress;
+          name = user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined);
           metadataRole = (user.publicMetadata as Record<string, unknown>)?.role as string | undefined;
         }
       }
@@ -66,7 +67,6 @@ export async function getServerAuth(): Promise<AuthUser> {
   }
 
   const effectiveRole = resolveUserRole({
-    cookieRole,
     orgRole,
     hasOrgAdmin,
     metadataRole,
@@ -74,14 +74,23 @@ export async function getServerAuth(): Promise<AuthUser> {
     userId,
   });
 
+  const isAdmin = effectiveRole === "admin";
   return {
     userId,
     email,
     name,
     orgId,
     orgRole,
+    hasOrgAdmin,
+    canViewAllCalls: resolveCanViewAllCalls({
+      clerkConfigured,
+      userId,
+      orgRole,
+      hasOrgAdmin,
+      isAdmin,
+    }),
     role: effectiveRole,
-    isAdmin: effectiveRole === "admin",
+    isAdmin,
     isMember: effectiveRole === "member",
     isClerkConfigured: clerkConfigured,
   };
