@@ -143,7 +143,7 @@ export async function completeJson(opts: {
     ({ text, usage } = await callOpenAiCompatible("https://api.groq.com/openai/v1/chat/completions", apiKey, model, prompt));
   } else if (providerId === "openrouter") {
     ({ text, usage } = await callOpenAiCompatible("https://openrouter.ai/api/v1/chat/completions", apiKey, model, prompt, {
-      "HTTP-Referer": "https://refreshqueue.com",
+      "HTTP-Referer": process.env.APP_URL || "https://github.com/Yz613/Sales-Coach",
       "X-Title": "Sales Coach",
     }));
   } else {

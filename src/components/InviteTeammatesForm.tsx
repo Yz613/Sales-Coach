@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Copy, Loader2, Mail, UserPlus, X } from "lucide-react";
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { apiPath } from "@/lib/utils";
+import { useAppAuth } from "@/lib/auth-context";
 import {
   inviteRoleLabel,
   parseInviteEmails,
@@ -18,7 +19,7 @@ type InviteListResponse = {
   error?: string;
 };
 
-export default function InviteTeammatesForm({
+function ClerkInviteTeammatesForm({
   compact = false,
   onClose,
 }: {
@@ -205,8 +206,8 @@ export default function InviteTeammatesForm({
       )}
       <p className="text-xs text-slate-400">
         {emailConfigured
-          ? "Invites are emailed from invites@refreshqueue.com. A copyable join link is also saved under Pending invites."
-          : "A join link is created even if the email is slow or filtered. Copy it from Pending invites, or add a Resend API key in Admin → Settings so invites send from invites@refreshqueue.com."}
+          ? "Invites are emailed directly via Resend. A copyable join link is also saved under Pending invites."
+          : "A join link is created even if the email is slow or filtered. Copy it from Pending invites, or add a Resend API key in Admin → Settings to send emails automatically."}
       </p>
       <label className="block">
         <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-400">
@@ -293,4 +294,24 @@ export default function InviteTeammatesForm({
       )}
     </form>
   );
+}
+
+export default function InviteTeammatesForm(props: {
+  compact?: boolean;
+  onClose?: () => void;
+}) {
+  const { isClerkConfigured } = useAppAuth();
+
+  if (!isClerkConfigured) {
+    return (
+      <div className="text-center py-6 space-y-3">
+        <p className="text-sm text-slate-300 font-medium">Multi-user authentication is not configured.</p>
+        <p className="text-xs text-slate-400 max-w-md mx-auto">
+          Sales Coach is currently running in standalone mode. To create teams and invite teammates, configure Clerk in your environment variables.
+        </p>
+      </div>
+    );
+  }
+
+  return <ClerkInviteTeammatesForm {...props} />;
 }

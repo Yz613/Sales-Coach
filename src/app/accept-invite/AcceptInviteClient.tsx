@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SignIn, SignUp, useAuth } from "@clerk/nextjs";
 import ClerkGate from "@/components/ClerkGate";
 import { clerkAppearance, CLERK_PATHS } from "@/lib/clerk-ui";
+import { useAppAuth } from "@/lib/auth-context";
 
 function AcceptInviteInner() {
   const params = useSearchParams();
@@ -53,13 +54,21 @@ function AcceptInviteInner() {
 }
 
 export default function AcceptInviteClient() {
+  const { isClerkConfigured } = useAppAuth();
+
   return (
     <div className="flex min-h-[70vh] items-center justify-center">
-      <ClerkGate>
-        <Suspense fallback={<p className="text-sm text-slate-400">Opening invite…</p>}>
-          <AcceptInviteInner />
-        </Suspense>
-      </ClerkGate>
+      {isClerkConfigured ? (
+        <ClerkGate>
+          <Suspense fallback={<p className="text-sm text-slate-400">Opening invite…</p>}>
+            <AcceptInviteInner />
+          </Suspense>
+        </ClerkGate>
+      ) : (
+        <div className="mx-auto max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-sm text-amber-200">
+          Team sign-in is not configured in this environment.
+        </div>
+      )}
     </div>
   );
 }
