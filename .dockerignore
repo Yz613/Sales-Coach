@@ -1,0 +1,13 @@
+.git
+.gitignore
+.next
+.open-next
+.wrangler
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.dev.vars*
+scratch/
+bin/
+sales_coach.db*

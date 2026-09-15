@@ -1,6 +1,32 @@
 # Sales Coach AI 🎙️🧠
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI Status](https://github.com/Yz613/Sales-Coach/actions/workflows/ci.yml/badge.svg)](https://github.com/Yz613/Sales-Coach/actions)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8.svg?logo=tailwind-css)](https://tailwindcss.com/)
+
 An open-source, AI-powered Sales Coaching & Call Evaluation platform. Analyze sales calls, grade rep performance against customized talk-tracks and qualification rubrics (e.g. Sandler), transcribe audio recordings with synchronized playback, and deliver targeted rep coaching feedback.
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    A[Sales Call Audio or Transcript] -->|Upload / Ingest| B[Audio Transcription Engine]
+    B -->|Whisper / Gemini / Groq| C[Synchronized Timestamped Transcript]
+    C --> D{Evaluation Engine}
+    D -->|Configured Provider| E[LLM Evaluator: Gemini / OpenAI / Groq / Anthropic / DeepSeek]
+    D -->|Zero-Config Standalone| F[Deterministic Sales Coach Rubric Engine]
+    E --> G[Multi-Dimension Scorecard]
+    F --> G
+    G --> H[Sandler Qualification: Pain, Budget, Decision]
+    G --> I[Missed Opportunities & Early Folding Check]
+    G --> J[Talk-Track & Script Adherence]
+    G --> K[Manager 1:1 Talk-Track & Coaching Personas]
+```
 
 ---
 
@@ -19,39 +45,45 @@ An open-source, AI-powered Sales Coaching & Call Evaluation platform. Analyze sa
 - **📋 Deal Stages & Talk-Tracks:** Define customized rubrics, qualification criteria, and talking tracks per pipeline stage.
 - **👥 Rep Coaching Personas:** Track individual rep performance, identify repeat struggles vs. strengths, and auto-generate 1:1 manager talk tracks.
 - **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces, organization switching, and Admin vs. Member access control.
+- **🐳 Docker Ready:** Includes production-ready `Dockerfile` and `docker-compose.yml`.
 - **☁️ Cloudflare Workers Ready:** Preconfigured for edge deployment via OpenNext and Cloudflare D1.
 
 ---
 
-## Quickstart (Standalone Mode)
+## Quickstart
 
-Run Sales Coach on your machine in under 2 minutes:
-
-### 1. Clone & Install
+### Option 1: Local Node.js (Fastest)
 
 ```bash
+# 1. Clone repository
 git clone https://github.com/Yz613/Sales-Coach.git
 cd Sales-Coach
+
+# 2. Install dependencies
 npm install
-```
 
-### 2. Seed Sample Data (Optional)
+# 3. One-step automated setup (creates .env.local & seeds database)
+npm run setup
 
-Populate the local SQLite database (`sales_coach.db`) with sample reps, stages, talk-tracks, and evaluated calls:
-
-```bash
-npm run db:seed
-```
-
-### 3. Start Development Server
-
-```bash
+# 4. Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) (redirects to `/app`).
 
 You will immediately be in **Local Admin Mode** with full access to all features: Call Bank, Reps, Coach, Analytics, Scripts, and Settings.
+
+---
+
+### Option 2: Docker Compose
+
+If you have Docker installed, you can start Sales Coach with a single command:
+
+```bash
+docker compose up --build
+```
+
+Then visit [http://localhost:3000](http://localhost:3000).
 
 ---
 
@@ -82,7 +114,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-> **Audio Uploads Note:** Transcribing uploaded audio files (MP3/WAV/M4A) uses Gemini, OpenAI (Whisper), or Groq (Whisper). Pasted text transcripts work with any configured provider.
+> **Audio Uploads Note:** Transcribing uploaded audio files (MP3/WAV/M4A) uses Gemini, OpenAI (Whisper), or Groq (Whisper). Pasted text transcripts work with any configured provider or with the built-in rule engine.
 
 ---
 
@@ -115,15 +147,40 @@ RESEND_FROM_EMAIL="Sales Coach <invites@yourdomain.com>"
 
 ---
 
+## Project Structure
+
+```text
+├── src/
+│   ├── app/                      # Next.js App Router (pages & API endpoints under /app)
+│   │   ├── calls/                # Call Bank & Call Evaluation detail views
+│   │   ├── reps/                 # Rep directory, performance trends & 1:1 talk tracks
+│   │   ├── coach/                # Coach Builder & System prompt configuration
+│   │   ├── admin/                # Analytics, Rubric/Script manager & Settings
+│   │   └── api/                  # REST API routes (transcription, scoring, team sync)
+│   ├── components/               # React UI components (Glassmorphism + Tailwind)
+│   └── lib/
+│       ├── ai/                   # Multi-provider LLM callers, JSON extractors, STT
+│       ├── db/                   # Drizzle ORM schemas, SQLite / D1 adapters & seeders
+│       └── auth.ts               # Local Standalone & Clerk multi-tenant RBAC logic
+├── public/                       # Static assets & sample audio recordings
+├── scripts/                      # Setup & audio synthesis utilities
+├── schema.sql                    # Cloudflare D1 SQL schema
+├── wrangler.jsonc                # Cloudflare Workers configuration
+└── open-next.config.ts           # OpenNext Cloudflare deployment adapter
+```
+
+---
+
 ## Scripts & Commands
 
 | Command | Description |
 | :--- | :--- |
+| `npm run setup` | One-command setup: environment file & database seeding |
 | `npm run dev` | Start the local development server |
 | `npm run build` | Compile Next.js production build |
-| `npm test` | Run the complete automated test suite |
+| `npm test` | Run the complete automated test suite (22 suites) |
 | `npx tsc --noEmit` | Check TypeScript types |
-| `npm run db:seed` | Seed SQLite database with sample reps and calls |
+| `npm run db:seed` | Seed SQLite database with sample reps, stages, and calls |
 | `npm run preview` | Build and preview on local Cloudflare Worker runtime |
 | `npm run deploy` | Deploy to Cloudflare Workers |
 
@@ -164,8 +221,16 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
 
 ---
 
-## Contributing & License
+## Community & Contributing
 
-Contributions are welcome! Please feel free to submit a pull request or open an issue.
+We welcome contributions of all kinds! Please see:
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+
+---
+
+## License
 
 This project is licensed under the [MIT License](LICENSE).
+
