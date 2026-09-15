@@ -26,6 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# persisted call recordings (seed audio lives in public/recordings)
+/data/call-audio/
+
 # database
 *.db
 *.db-wal

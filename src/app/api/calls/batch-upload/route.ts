@@ -8,6 +8,7 @@ import { ingestCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
+import { saveCallAudio } from "@/lib/callAudioStore";
 
 export const maxDuration = 300;
 
@@ -18,6 +19,9 @@ interface BatchItem {
   callStage: string;
   transcriptText: string;
   durationSeconds?: number;
+  audioBytes?: Uint8Array;
+  audioMimeType?: string;
+  audioFileName?: string;
 }
 
 function parseCsvLine(line: string): string[] {
@@ -126,6 +130,9 @@ export async function POST(req: Request) {
           callStage: defaultStage,
           transcriptText: requireUsableTranscript(ingested.transcriptText),
           durationSeconds: ingested.durationSeconds || 300,
+          audioBytes: ingested.audioBytes,
+          audioMimeType: ingested.audioMimeType,
+          audioFileName: ingested.audioFileName,
         });
       }
     } else {
@@ -145,6 +152,9 @@ export async function POST(req: Request) {
     for (const item of itemsToProcess) {
       const callId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const now = new Date().toISOString();
+      const audioUrl = item.audioBytes?.byteLength
+        ? saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
+        : undefined;
 
       await db.insert(calls).values({
         id: callId,
@@ -155,6 +165,7 @@ export async function POST(req: Request) {
         coreOutcome: "Analyzing...",
         durationSeconds: item.durationSeconds || 300,
         transcriptText: item.transcriptText,
+        audioUrl,
         status: "analyzing",
         createdAt: now,
       }).run();

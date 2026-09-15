@@ -30,6 +30,7 @@ async function run(): Promise<void> {
   const ingested = await ingestCallFile(file);
   assert.equal(ingested.source, "text");
   assert.match(ingested.transcriptText, /Prospect: Busy/);
+  assert.equal(ingested.audioBytes, undefined);
 
   const mp3 = makeTinyMp3();
   const audio = new File([mp3.buffer.slice(mp3.byteOffset, mp3.byteOffset + mp3.byteLength) as ArrayBuffer], "discovery.MP3", { type: "" });

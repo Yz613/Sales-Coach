@@ -1,0 +1,30 @@
+[
+  {
+    "id": "call_01",
+    "audioUrl": "/recordings/call_01.mp3",
+    "durationSeconds": 66,
+    "transcriptText": "[0:00] Marcus: Hey Greg, this is Marcus with CloudFlow. I know you weren't expecting my call, do you have 30 seconds to tell me if this is a bad time?\n[0:10] Greg: Look, I'm literally walking into a warehouse meeting right now. We already got a quote from FreightPulse last week and we're pretty set.\n[0:19] Marcus: Totally get that Greg, FreightPulse is solid. But usually when VP of Ops tell us they're set, they're still dealing with the 4-hour manual customs delay at the border. Is that something you guys have completely eliminated, or is it still a daily headache?\n[0:36] Greg: Well, customs is always messy, honestly. We lose at least 3 hours on paperwork per haul.\n[0:43] Marcus: That's exactly why I called. We automate that clearance in 8 minutes flat. I don't want to make you late for your meeting. How about Tuesday at 9:30 AM so I can show you how we saved SwiftTransit 14 hours a week?\n[0:59] Greg: Fine, send the calendar invite to greg at apexlogistics.com. Tuesday 9:30.",
+    "bytes": 473453
+  },
+  {
+    "id": "call_02",
+    "audioUrl": "/recordings/call_02.mp3",
+    "durationSeconds": 44,
+    "transcriptText": "[0:00] David: Hi Dr. Thorne, my name is David Kim with LabSync. How are you today?\n[0:06] Dr. Thorne: I'm busy. What is this regarding?\n[0:09] David: I was calling to introduce our state of the art lab automation software that helps biotech labs increase throughput by 40%.\n[0:18] Dr. Thorne: We already have a LIMS system and we don't need anything new right now.\n[0:23] David: Oh okay, no problem! What system are you currently using if you don't mind me asking?\n[0:30] Dr. Thorne: Benchling. Just send me an email with some brochures and I'll keep it on file.\n[0:36] David: Absolutely Dr. Thorne, I'll send that right over to your inbox. Have a great day!\n[0:42] Dr. Thorne: Thanks, bye.",
+    "bytes": 314447
+  },
+  {
+    "id": "call_03",
+    "audioUrl": "/recordings/call_03.mp3",
+    "durationSeconds": 82,
+    "transcriptText": "[0:00] Chloe: Hi Rachel, thanks for joining today's discovery call. Excited to show you what we've built.\n[0:07] Rachel: Thanks Chloe. We are looking to streamline our supplier procurement tracking. Currently our ERP requires 14 manual approvals per purchase order.\n[0:18] Chloe: That sounds terrible! Let me pull up my slides and jump right into the demo to show you how our system eliminates approval bottlenecks...\n[0:27] Narrator: Chloe then walked through a twenty minute product demo.\n[0:31] Chloe: So as you can see, our workflow engine handles multi-tier approvals. What do you think?\n[0:38] Rachel: It looks neat. What's the cost?\n[0:41] Chloe: Well, it depends on the number of users and custom modules. Our standard tier starts around $35,000 annually, but we can work on pricing. What budget did you have allocated for this?\n[0:55] Rachel: We don't have a specific budget approved yet for this fiscal quarter. We're just gathering vendor quotes to see what's out there.\n[1:05] Chloe: Oh got it! Well, I can put together a formal quote and email it over to you. Then you can show your team?\n[1:13] Rachel: Sure, send the PDF over and I'll review it with my boss if we decide to move forward.\n[1:19] Chloe: Great, I'll email that proposal today!",
+    "bytes": 495239
+  },
+  {
+    "id": "call_04",
+    "audioUrl": "/recordings/call_04.mp3",
+    "durationSeconds": 87,
+    "transcriptText": "[0:00] Sarah: Karen, good to connect again. On our last call, you mentioned HIPAA audit logging was the primary risk keeping you awake ahead of your November HHS review. Today our goal is to align on security verification and map out the procurement timeline so you are protected by October 15. Fair agenda?\n[0:21] Karen: That's fair, Sarah. We reviewed your SOC 2 Type II report and InfoSec has a couple questions on data encryption at rest.\n[0:31] Sarah: Understood. Let's resolve the encryption specifics right now.\n[0:36] Narrator: Sarah addressed AES 256 protocols and KMS integration.\n[0:43] Sarah: Does that satisfy InfoSec's requirement?\n[0:46] Karen: Yes, that clears the hurdle.\n[0:49] Sarah: Excellent. Regarding commercial terms, our annual enterprise agreement is $72,000 billed upfront. Who else on the executive team or in legal needs to review the M S A for us to hit your October 15 go-live?\n[1:05] Karen: Our General Counsel, Dan Vance, and CFO, Elena Rostova.\n[1:10] Sarah: Perfect. Let's schedule a 20-minute executive briefing with Dan and Elena this Thursday. I'll provide redline-free standard clauses. Thursday 2 PM work for your team?\n[1:23] Karen: Put it on our calendars. I'll bring Dan and Elena.",
+    "bytes": 549175
+  }
+]
