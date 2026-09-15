@@ -3,6 +3,8 @@
 import { UserPlus } from "lucide-react";
 import InviteTeammatesForm from "@/components/InviteTeammatesForm";
 
+export const dynamic = "force-dynamic";
+
 export default function InvitePage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">

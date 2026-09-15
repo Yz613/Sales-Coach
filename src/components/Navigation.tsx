@@ -287,7 +287,12 @@ export default function Navigation() {
                   </Show>
                 </ClerkLoaded>
               </div>
-            ) : null}
+            ) : (
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-white/10 text-[11px] font-medium text-slate-300">
+                <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Local Admin</span>
+              </div>
+            )}
 
             {/* Mobile Hamburger Button */}
             <button

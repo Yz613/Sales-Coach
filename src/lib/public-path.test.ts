@@ -42,8 +42,8 @@ describe("stripAppBasePath", () => {
 
 describe("getPublicPath", () => {
   it("reads the URL pathname including /app", () => {
-    assert.equal(getPublicPath({ url: "https://refreshqueue.com/app/coach" }), "/app/coach");
-    assert.equal(getPublicPath({ url: "https://refreshqueue.com/calls" }), "/calls");
+    assert.equal(getPublicPath({ url: "https://example.com/app/coach" }), "/app/coach");
+    assert.equal(getPublicPath({ url: "https://example.com/calls" }), "/calls");
   });
 });
 
@@ -86,20 +86,20 @@ describe("route classifiers", () => {
   });
 
   it("redirects apex /calls and /favicon.ico onto /app", () => {
-    const calls = getApexAliasRedirect("https://refreshqueue.com/calls?rep=1");
+    const calls = getApexAliasRedirect("https://example.com/calls?rep=1");
     assert.equal(calls?.status, 308);
-    assert.equal(calls?.location, "https://refreshqueue.com/app/calls?rep=1");
+    assert.equal(calls?.location, "https://example.com/app/calls?rep=1");
 
-    const nested = getApexAliasRedirect("https://refreshqueue.com/calls/abc");
-    assert.equal(nested?.location, "https://refreshqueue.com/app/calls/abc");
+    const nested = getApexAliasRedirect("https://example.com/calls/abc");
+    assert.equal(nested?.location, "https://example.com/app/calls/abc");
 
-    const icon = getApexAliasRedirect("https://refreshqueue.com/favicon.ico");
-    assert.equal(icon?.location, "https://refreshqueue.com/app/icon.svg");
+    const icon = getApexAliasRedirect("https://example.com/favicon.ico");
+    assert.equal(icon?.location, "https://example.com/app/icon.svg");
 
-    const bareIcon = getApexAliasRedirect("https://refreshqueue.com/icon.svg");
-    assert.equal(bareIcon?.location, "https://refreshqueue.com/app/icon.svg");
+    const bareIcon = getApexAliasRedirect("https://example.com/icon.svg");
+    assert.equal(bareIcon?.location, "https://example.com/app/icon.svg");
 
-    assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/calls"), null);
-    assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/coach"), null);
+    assert.equal(getApexAliasRedirect("https://example.com/app/calls"), null);
+    assert.equal(getApexAliasRedirect("https://example.com/app/coach"), null);
   });
 });

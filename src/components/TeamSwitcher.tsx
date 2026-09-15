@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { OrganizationSwitcher, Show, useOrganization } from "@clerk/nextjs";
 import { clerkAppearance, CLERK_PATHS } from "@/lib/clerk-ui";
+import { useAppAuth } from "@/lib/auth-context";
 
 function orgRoleLabel(role?: string | null) {
   if (role === "org:admin") return "Admin";
@@ -11,7 +12,7 @@ function orgRoleLabel(role?: string | null) {
   return role?.replace(/^org:/, "") || null;
 }
 
-export default function TeamSwitcher({ canManage = false }: { canManage?: boolean }) {
+function ClerkTeamSwitcherContent({ canManage = false }: { canManage?: boolean }) {
   const { isLoaded, organization, membership } = useOrganization();
   const roleLabel = orgRoleLabel(membership?.role);
 
@@ -45,4 +46,10 @@ export default function TeamSwitcher({ canManage = false }: { canManage?: boolea
       </div>
     </Show>
   );
+}
+
+export default function TeamSwitcher({ canManage = false }: { canManage?: boolean }) {
+  const { isClerkConfigured } = useAppAuth();
+  if (!isClerkConfigured) return null;
+  return <ClerkTeamSwitcherContent canManage={canManage} />;
 }

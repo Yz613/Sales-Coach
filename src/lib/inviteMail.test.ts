@@ -6,11 +6,11 @@ describe("invite email content", () => {
   it("includes the org name, role, and accept URL", () => {
     const email = buildInviteEmail({
       organizationName: "Acme <Sales>",
-      acceptUrl: "https://refreshqueue.com/app/accept-invite?ticket=1",
+      acceptUrl: "https://example.com/app/accept-invite?ticket=1",
       roleLabel: "Member",
     });
     assert.match(email.subject, /Acme/);
-    assert.match(email.text, /https:\/\/refreshqueue.com\/app\/accept-invite\?ticket=1/);
+    assert.match(email.text, /https:\/\/example.com\/app\/accept-invite\?ticket=1/);
     assert.match(email.html, /Join Acme &lt;Sales&gt;/);
     assert.match(email.html, /Accept invite/);
     assert.equal(email.html.includes(`<html lang="en">`), true);

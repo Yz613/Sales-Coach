@@ -1,4 +1,5 @@
-export const DEFAULT_INVITE_FROM = "RefreshQueue <invites@refreshqueue.com>";
+export const DEFAULT_INVITE_FROM =
+  process.env.RESEND_FROM_EMAIL?.trim() || "Sales Coach <invites@example.com>";
 
 export type InviteEmailContent = {
   subject: string;
@@ -13,9 +14,9 @@ export function buildInviteEmail(input: {
 }): InviteEmailContent {
   const org = input.organizationName.trim() || "your team";
   const role = input.roleLabel.trim() || "Member";
-  const subject = `Join ${org} on RefreshQueue`;
+  const subject = `Join ${org} on Sales Coach`;
   const text = [
-    `You've been invited to join ${org} on RefreshQueue as ${role}.`,
+    `You've been invited to join ${org} on Sales Coach as ${role}.`,
     "",
     "Open this link to accept the invite:",
     input.acceptUrl,
@@ -37,7 +38,7 @@ export function buildInviteEmail(input: {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#0a0f1d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;">
             <tr>
               <td>
-                <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;">RefreshQueue</p>
+                <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;">Sales Coach</p>
                 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#f8fafc;">Join ${escapeHtml(org)}</h1>
                 <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#cbd5e1;">
                   You've been invited to join <strong style="color:#f8fafc;">${escapeHtml(org)}</strong> as

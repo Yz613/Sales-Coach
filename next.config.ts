@@ -7,8 +7,7 @@ import { APP_BASE_PATH } from "./src/lib/public-path";
 // tree both wrap the app in <ClerkProvider>. Falls back to the same public
 // value already committed in wrangler.jsonc vars.
 const clerkPublishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
-  "REDACTED_CLERK_PUBLISHABLE_KEY";
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || "";
 
 const nextConfig: NextConfig = {
   basePath: "/app",

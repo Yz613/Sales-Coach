@@ -13,7 +13,7 @@ function invitation(overrides: Partial<ClerkInvitation> = {}): ClerkInvitation {
     id: "orginv_1",
     emailAddress: "alex@team.com",
     role: "org:member",
-    url: "https://clerk.refreshqueue.com/v1/tickets/accept?ticket=abc",
+    url: "https://clerk.example.com/v1/tickets/accept?ticket=abc",
     createdAt: 1,
     ...overrides,
   };
@@ -41,7 +41,7 @@ describe("sendOrganizationInvites", () => {
       },
       async create(params) {
         calls.push(`create:${params.emailAddress}:notify=${params.notify}`);
-        assert.equal(params.redirectUrl, "https://refreshqueue.com/app/accept-invite");
+        assert.equal(params.redirectUrl, "https://example.com/app/accept-invite");
         assert.equal(params.notify, false);
         return created;
       },
@@ -64,7 +64,7 @@ describe("sendOrganizationInvites", () => {
         inviterUserId: "user_1",
         emails: ["alex@team.com"],
         role: "org:member",
-        redirectUrl: "https://refreshqueue.com/app/accept-invite",
+        redirectUrl: "https://example.com/app/accept-invite",
         clerk,
         resendApiKey: "re_test",
       });
@@ -98,7 +98,7 @@ describe("sendOrganizationInvites", () => {
       inviterUserId: "user_1",
       emails: ["alex@team.com"],
       role: "org:admin",
-      redirectUrl: "https://refreshqueue.com/app/accept-invite",
+      redirectUrl: "https://example.com/app/accept-invite",
       clerk,
     });
     assert.equal(results[0].ok, true);
@@ -125,7 +125,7 @@ describe("sendOrganizationInvites", () => {
         inviterUserId: "user_1",
         emails: ["alex@team.com"],
         role: "org:member",
-        redirectUrl: "https://refreshqueue.com/app/accept-invite",
+        redirectUrl: "https://example.com/app/accept-invite",
         clerk,
         resendApiKey: "re_test",
       });

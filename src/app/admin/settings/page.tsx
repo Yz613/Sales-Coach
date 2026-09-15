@@ -405,7 +405,7 @@ export default function AdminSettingsPage() {
             <div>
               <h2 className="text-base font-semibold text-white">Invite emails</h2>
               <p className="text-xs text-slate-400">
-                Clerk invite emails often never arrive. A Resend key sends join links from invites@refreshqueue.com instead. Pending invites still get a copyable link either way.
+                Clerk invite emails often get delayed or filtered. A Resend key sends join links directly via your verified domain instead. Pending invites still get a copyable link either way.
               </p>
             </div>
           </div>

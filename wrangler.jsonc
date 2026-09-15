@@ -2,27 +2,28 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": "cloudflare/worker.js",
 	"name": "sales-coach",
-	"account_id": "8ca47af58f9e7de88c884c2903fc9f26",
+	// "account_id": "<YOUR_CLOUDFLARE_ACCOUNT_ID>",
 	"compatibility_date": "2026-09-08",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
 	"workers_dev": true,
-	"routes": [
-		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/calls", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/calls/*", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/favicon.ico", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/icon.svg", "zone_name": "refreshqueue.com" }
-	],
+	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers):
+	// "routes": [
+	// 	{ "pattern": "yourdomain.com/app", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/app/*", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/calls", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/calls/*", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/favicon.ico", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/icon.svg", "zone_name": "yourdomain.com" }
+	// ],
 	// Non-secret Clerk config (publishable key is public). The secret key is set
 	// separately via `wrangler secret put CLERK_SECRET_KEY` and is NOT committed.
 	// Optional invite mailer: `wrangler secret put RESEND_API_KEY` (or paste it in
-	// Admin → Settings). Sends from invites@refreshqueue.com via Resend.
+	// Admin → Settings).
 	"vars": {
-		"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "REDACTED_CLERK_PUBLISHABLE_KEY",
+		"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/app/sign-in",
 		"NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/app/sign-up",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/app",
@@ -37,6 +38,7 @@
 		{
 			"binding": "DB",
 			"database_name": "sales-coach-db",
+			// Create with: npx wrangler d1 create sales-coach-db
 			"database_id": "your-d1-database-id"
 		}
 	],
