@@ -23,8 +23,19 @@ assert.equal(
     cookieRole: "admin",
     orgRole: "org:member",
   }),
+  "member",
+  "members cannot elevate with a leftover role cookie"
+);
+
+assert.equal(
+  resolveUserRole({
+    clerkConfigured: true,
+    userId: "user_1",
+    cookieRole: "member",
+    orgRole: "org:admin",
+  }),
   "admin",
-  "preview cookie wins over org role"
+  "admins stay admins even if a leftover cookie says member"
 );
 
 assert.equal(

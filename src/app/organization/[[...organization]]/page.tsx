@@ -1,15 +1,11 @@
-import { OrganizationProfile } from "@clerk/nextjs";
-import ClerkGate from "@/components/ClerkGate";
-import { clerkAppearance } from "@/lib/clerk-ui";
+import InviteTeammatesCard from "@/components/InviteTeammatesCard";
 
 export const dynamic = "force-dynamic";
 
 export default function OrganizationProfilePage() {
   return (
-    <div className="flex min-h-[70vh] items-center justify-center">
-      <ClerkGate>
-        <OrganizationProfile routing="hash" appearance={clerkAppearance} />
-      </ClerkGate>
+    <div className="mx-auto max-w-xl">
+      <InviteTeammatesCard />
     </div>
   );
 }

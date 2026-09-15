@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, getOrCreateRep, setRepFocus } from "@/lib/db/service";
+import { addCallStage, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
+import { getServerAuth } from "@/lib/auth";
+import { resolveUploadRepId } from "@/lib/viewer-calls";
 
 export const maxDuration = 300;
 
@@ -50,6 +52,11 @@ function parseCsvLine(line: string): string[] {
 
 export async function POST(req: Request) {
   try {
+    const auth = await getServerAuth();
+    if (auth.isClerkConfigured && !auth.userId) {
+      return NextResponse.json({ error: "Sign in to upload calls." }, { status: 401 });
+    }
+
     const contentType = req.headers.get("content-type") || "";
 
     let itemsToProcess: BatchItem[] = [];
@@ -72,7 +79,11 @@ export async function POST(req: Request) {
         // Stage list is best-effort.
       }
 
-      const resolvedRepId = await getOrCreateRep(defaultRepId, defaultRepName, defaultRepRole);
+      const resolvedRepId = await resolveUploadRepId(auth, {
+        repId: defaultRepId,
+        repName: defaultRepName,
+        repRole: defaultRepRole,
+      });
       if (defaultRepFocus.trim()) {
         await setRepFocus(resolvedRepId, defaultRepFocus);
       }
@@ -138,6 +149,13 @@ export async function POST(req: Request) {
     } else {
       const body = await req.json();
       itemsToProcess = body.calls || [];
+    }
+
+    const forcedRepId = auth.canViewAllCalls
+      ? null
+      : await resolveUploadRepId(auth, {});
+    if (forcedRepId) {
+      itemsToProcess = itemsToProcess.map((item) => ({ ...item, repId: forcedRepId }));
     }
 
     if (!itemsToProcess.length) {
