@@ -69,7 +69,7 @@ npm run setup
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the public marketing landing (pricing at `/#pricing`). The product lives at [http://localhost:3000/app](http://localhost:3000/app).
+Open [http://localhost:3000](http://localhost:3000) for the public marketing landing (pricing at `/#pricing`). Local `next dev` redirects `/` to `/app/marketing`; on Cloudflare the worker keeps the URL at `/`. The product lives at [http://localhost:3000/app](http://localhost:3000/app).
 
 You will immediately be in **Local Admin Mode** with full access to all features: Call Bank, Reps, Coach, Analytics, Scripts, and Settings. The landing is also previewable at `/app/marketing`.
 
