@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { decodeTranscriptFile, extractTranscriptFromJson, ingestCallFile } from "./ingestCallFile";
+import { decodeTranscriptFile, extractTranscriptFromJson, ingestCallFile, peekCallFile } from "./ingestCallFile";
 
 const txt = decodeTranscriptFile(
   new TextEncoder().encode("Rep: Hello there\nProspect: Send me an email"),
@@ -34,6 +34,9 @@ async function run(): Promise<void> {
 
   const mp3 = makeTinyMp3();
   const audio = new File([mp3.buffer.slice(mp3.byteOffset, mp3.byteOffset + mp3.byteLength) as ArrayBuffer], "discovery.MP3", { type: "" });
+  const peeked = await peekCallFile(audio);
+  assert.equal(peeked.isAudio, true);
+  assert.ok(peeked.durationSeconds >= 0);
   await assert.rejects(
     () => ingestCallFile(audio),
     /Gemini, OpenAI, or Groq/i

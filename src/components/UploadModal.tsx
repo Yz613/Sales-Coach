@@ -9,12 +9,31 @@ import type { Rep } from "@/types";
 import { DEFAULT_CALL_STAGES } from "@/lib/callStages";
 import CallStageSelect from "@/components/CallStageSelect";
 import { isAudioFile } from "@/lib/audio";
+import { CALL_DURATION_NOTE, evaluationCreditsForDuration, formatEvalCreditLabel } from "@/lib/billing";
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (callId: string) => void;
   initialTab?: "paste" | "single_file" | "batch";
+}
+
+function readBrowserAudioDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = document.createElement("audio");
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const duration = audio.duration;
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(duration) && duration > 0 ? duration : 0);
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(0);
+    };
+    audio.src = url;
+  });
 }
 
 export default function UploadModal({
@@ -48,6 +67,8 @@ export default function UploadModal({
   const [canTranscribe, setCanTranscribe] = useState(true);
   const [transcribeReason, setTranscribeReason] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [singleCredits, setSingleCredits] = useState(1);
+  const [batchCredits, setBatchCredits] = useState(0);
 
   const audioBlockedMessage =
     transcribeReason ||
@@ -117,6 +138,37 @@ export default function UploadModal({
         .catch(console.error);
     }
   }, [isOpen, lockToSelf, user?.name]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!singleFile || !isAudioFile(singleFile)) {
+      setSingleCredits(1);
+      return;
+    }
+    readBrowserAudioDuration(singleFile).then((seconds) => {
+      if (!cancelled) setSingleCredits(evaluationCreditsForDuration(seconds));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [singleFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const audio = batchFiles.filter((f) => isAudioFile(f));
+    if (!audio.length) {
+      setBatchCredits(batchFiles.length);
+      return;
+    }
+    Promise.all(audio.map((file) => readBrowserAudioDuration(file))).then((durations) => {
+      if (cancelled) return;
+      const audioCredits = durations.reduce((sum, seconds) => sum + evaluationCreditsForDuration(seconds), 0);
+      setBatchCredits(audioCredits + (batchFiles.length - audio.length));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [batchFiles]);
 
   if (!isOpen) return null;
 
@@ -268,6 +320,7 @@ export default function UploadModal({
               <p className="text-xs text-slate-400">
                 Audio is split and transcribed, then scored for blocking & tackling, early folding, and Sandler qualification.
               </p>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{CALL_DURATION_NOTE}</p>
             </div>
           </div>
           <button
@@ -461,6 +514,11 @@ export default function UploadModal({
                     ? "MP3, WAV, M4A are transcribed automatically. Also .txt, .vtt, .srt, .json, .csv."
                     : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Use .txt, .vtt, .srt, .json, or .csv."}
                 </p>
+                {batchFiles.length > 0 && (
+                  <p className="text-xs text-blue-300 mt-2 font-medium">
+                    Batch total: {formatEvalCreditLabel(Math.max(batchCredits, batchFiles.length))} before transcription starts.
+                  </p>
+                )}
                 <input
                   type="file"
                   multiple
@@ -679,6 +737,11 @@ export default function UploadModal({
                       ? "Audio is broken into clips and transcribed. Also .txt, .vtt, .srt, .json."
                       : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Upload a transcript file instead."}
                   </p>
+                  {singleFile && isAudioFile(singleFile) && (
+                    <p className="text-xs text-blue-300 mt-2 font-medium">
+                      This call will use {formatEvalCreditLabel(singleCredits)} before transcription starts.
+                    </p>
+                  )}
                   <input
                     type="file"
                     accept={canTranscribe ? ".txt,.vtt,.srt,.json,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac,audio/*" : ".txt,.vtt,.srt,.json"}
@@ -719,7 +782,9 @@ export default function UploadModal({
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Ingest & Coach Call
+                    {singleFile && isAudioFile(singleFile)
+                      ? `Ingest & Coach Call (${formatEvalCreditLabel(singleCredits)})`
+                      : "Ingest & Coach Call"}
                   </>
                 )}
               </button>

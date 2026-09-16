@@ -1,3 +1,12 @@
+import {
+  CALL_DURATION_NOTE,
+  ENTERPRISE_SEATS_BULLET,
+  FAQ_ENTERPRISE_FAIR_USE,
+  FAQ_EXCEED_MONTHLY,
+  HOSTED_PLANS,
+  OVERAGE_LINE,
+} from "./billing";
+
 export const GITHUB_REPO_URL = "https://github.com/Yz613/Sales-Coach";
 export const LICENSE_URL = "https://github.com/Yz613/Sales-Coach/blob/main/LICENSE";
 export const CONTACT_EMAIL = "yehuda@refreshqueue.com";
@@ -10,12 +19,13 @@ export type PricingCta = {
 };
 
 export type PricingPlan = {
-  id: "oss" | "starter" | "pro" | "enterprise";
+  id: "oss" | "coach" | "team" | "enterprise";
   name: string;
   price: string;
   period: string | null;
   blurb: string;
   features: string[];
+  overageLine?: string;
   cta: PricingCta;
   highlighted?: boolean;
   badge?: string;
@@ -24,7 +34,7 @@ export type PricingPlan = {
 export const PRICING_PLANS: PricingPlan[] = [
   {
     id: "oss",
-    name: "Open Source",
+    name: HOSTED_PLANS.oss.name,
     price: "$0",
     period: null,
     blurb: "Self-host forever. Bring your own keys.",
@@ -37,48 +47,53 @@ export const PRICING_PLANS: PricingPlan[] = [
     cta: { label: "Clone on GitHub", href: GITHUB_REPO_URL, external: true },
   },
   {
-    id: "starter",
-    name: "Cloud Starter",
+    id: "coach",
+    name: HOSTED_PLANS.coach.name,
     price: "$249",
     period: "/mo",
-    blurb: "Hosted on refreshqueue.com for small teams.",
+    blurb: "Hosted Sales Coach for a working sales team.",
     features: [
       "Hosted on refreshqueue.com",
-      "Up to 5 seats",
-      "200 call evaluations / month",
+      `${HOSTED_PLANS.coach.monthlyEvals} call evaluations / month`,
       "Managed transcription + scoring",
       "Email support",
     ],
-    cta: { label: "Start Starter", href: "/sign-up" },
+    overageLine: OVERAGE_LINE,
+    cta: { label: "Start Hosted Coach", href: "/app/sign-up" },
   },
   {
-    id: "pro",
-    name: "Cloud Pro",
-    price: "$699",
+    id: "team",
+    name: HOSTED_PLANS.team.name,
+    price: "$899",
     period: "/mo",
-    blurb: "Custom rubrics, personas, and 1:1 talk tracks.",
+    blurb: "More seats, more evals, same coaching engine.",
     features: [
-      "Up to 15 seats",
-      "1,000 call evaluations / month",
+      "Hosted on refreshqueue.com",
+      "1,200 call evaluations / month",
       "Custom stage rubrics & talk tracks",
       "Rep personas + manager 1:1 talk-track generator",
       "Priority support",
     ],
-    cta: { label: "Start Pro", href: "/sign-up" },
+    overageLine: OVERAGE_LINE,
+    cta: { label: "Start Hosted Team", href: "/app/sign-up" },
     highlighted: true,
     badge: "Most popular",
   },
   {
     id: "enterprise",
-    name: "Enterprise",
-    price: "$1,999",
+    name: HOSTED_PLANS.enterprise.name,
+    price: "$2,997",
     period: "/mo",
-    blurb: "Unlimited seats, SSO, and a dedicated rollout.",
+    blurb: "Dedicated rollout, SSO, and a fair-use eval quota.",
     features: [
-      "Unlimited seats",
-      "Custom evaluation volume / SSO / SLA",
+      ENTERPRISE_SEATS_BULLET,
+      "Custom high-volume tiers / SSO / SLA",
       "Dedicated onboarding",
     ],
     cta: { label: "Talk to us", href: CONTACT_MAILTO, external: true },
   },
 ];
+
+export const PRICING_FAQS = [FAQ_EXCEED_MONTHLY, FAQ_ENTERPRISE_FAIR_USE];
+
+export const PRICING_DURATION_NOTE = CALL_DURATION_NOTE;

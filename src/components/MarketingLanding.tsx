@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowRight,
   AudioLines,
@@ -25,6 +24,8 @@ import {
   CONTACT_EMAIL,
   GITHUB_REPO_URL,
   LICENSE_URL,
+  PRICING_DURATION_NOTE,
+  PRICING_FAQS,
   PRICING_PLANS,
   type PricingPlan,
 } from "@/lib/marketing";
@@ -115,7 +116,7 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
       ? "bg-white/[0.04] hover:bg-white/[0.08] text-white border-white/[0.12]"
       : "bg-white/[0.06] hover:bg-blue-600 hover:text-white hover:border-blue-400/30 text-slate-100 border-white/[0.12]";
 
-  const cta = plan.cta.external ? (
+  const cta = (
     <a
       href={plan.cta.href}
       {...(plan.cta.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
@@ -124,14 +125,6 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
       {plan.cta.label}
       {plan.id === "oss" ? <Github className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
     </a>
-  ) : (
-    <Link
-      href={plan.cta.href}
-      className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border transition ${ctaClass}`}
-    >
-      {plan.cta.label}
-      <ArrowRight className="h-4 w-4" />
-    </Link>
   );
 
   return (
@@ -160,6 +153,12 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
             <span>{feature}</span>
           </li>
         ))}
+        {plan.overageLine && (
+          <li className="flex items-start gap-2.5 text-sm text-slate-200">
+            <Check className={`h-4 w-4 mt-0.5 shrink-0 ${highlighted ? "text-blue-400" : "text-slate-400"}`} />
+            <span>{plan.overageLine}</span>
+          </li>
+        )}
       </ul>
       {cta}
     </article>
@@ -168,6 +167,7 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
 
 export default function MarketingLanding() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
     <div className="relative min-h-screen">
@@ -198,19 +198,19 @@ export default function MarketingLanding() {
             )}
           </nav>
           <div className="hidden md:flex items-center gap-2">
-            <Link
-              href="/sign-in"
+            <a
+              href="/app/sign-in"
               className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white transition"
             >
               Sign in
-            </Link>
-            <Link
-              href="/"
+            </a>
+            <a
+              href="/app"
               className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 shadow-md shadow-blue-600/20 border border-blue-400/20 transition"
             >
               Open app
               <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            </a>
           </div>
           <button
             type="button"
@@ -247,16 +247,16 @@ export default function MarketingLanding() {
                 </a>
               )
             )}
-            <Link href="/sign-in" className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.05]" onClick={() => setMenuOpen(false)}>
+            <a href="/app/sign-in" className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.05]" onClick={() => setMenuOpen(false)}>
               Sign in
-            </Link>
-            <Link
-              href="/"
+            </a>
+            <a
+              href="/app"
               className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-blue-600 text-center"
               onClick={() => setMenuOpen(false)}
             >
               Open app
-            </Link>
+            </a>
           </div>
         )}
       </header>
@@ -277,13 +277,13 @@ export default function MarketingLanding() {
                 and give every rep a precise next move — hosted for your team, or self-hosted for free.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/sign-up"
+                <a
+                  href="/app/sign-up"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-3 shadow-lg shadow-blue-600/25 border border-blue-400/20 transition"
                 >
                   Start hosted trial
                   <ArrowRight className="h-4 w-4" />
-                </Link>
+                </a>
                 <a
                   href={GITHUB_REPO_URL}
                   target="_blank"
@@ -423,9 +423,34 @@ export default function MarketingLanding() {
               <PlanCard key={plan.id} plan={plan} />
             ))}
           </div>
-          <p className="mt-6 text-center text-xs text-slate-500">
+          <p className="mt-6 text-center text-xs text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            {PRICING_DURATION_NOTE}
+          </p>
+          <p className="mt-3 text-center text-xs text-slate-500">
             Billing coming soon — after you sign up, we&apos;ll activate your hosted workspace. No Stripe checkout in this release.
           </p>
+
+          <div className="mt-10 max-w-2xl mx-auto space-y-2">
+            {PRICING_FAQS.map((item, index) => {
+              const open = openFaq === index;
+              return (
+                <div key={item.question} className="rounded-2xl glass-card overflow-hidden">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                    aria-expanded={open}
+                    onClick={() => setOpenFaq(open ? null : index)}
+                  >
+                    <span className="text-sm font-semibold text-white">{item.question}</span>
+                    <span className="text-slate-400 text-lg leading-none">{open ? "–" : "+"}</span>
+                  </button>
+                  {open && (
+                    <p className="px-5 pb-4 text-sm text-slate-400 leading-relaxed">{item.answer}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
@@ -451,13 +476,13 @@ export default function MarketingLanding() {
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Hosted cloud</p>
               <h3 className="mt-2 text-xl font-semibold text-white">We run transcription, scoring, and uptime.</h3>
               <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                Cloud Starter, Pro, and Enterprise are for teams that do not want to self-host: managed models,
-                seats, and support on refreshqueue.com. Same coaching engine — none of the ops.
+                Hosted Coach, Hosted Team, and Enterprise are for teams that do not want to self-host: managed models,
+                seats, and support on refreshqueue.com. Same Sales Coach engine — none of the ops.
               </p>
-              <Link href="/sign-up" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
+              <a href="/app/sign-up" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
                 Start a hosted workspace
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </a>
             </div>
           </div>
         </section>
@@ -473,9 +498,9 @@ export default function MarketingLanding() {
             <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
               LICENSE
             </a>
-            <Link href="/" className="hover:text-white transition">
+            <a href="/app" className="hover:text-white transition">
               Open app
-            </Link>
+            </a>
             <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white transition">
               {CONTACT_EMAIL}
             </a>
