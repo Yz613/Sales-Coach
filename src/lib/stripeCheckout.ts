@@ -8,13 +8,12 @@ import {
   isPaidCheckoutSession,
   stripeCustomerEmail,
   stripeCustomerId,
-  stripeRequest,
   stripeSecret,
   stripeSubscriptionId,
   type StripeCheckoutSession,
   type StripeEvent,
   type StripeSubscription,
-} from "@/lib/stripe";
+} from "@/lib/stripeSession";
 
 export const CHECKOUT_COOKIE = "sc_checkout_session";
 export const CHECKOUT_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -214,6 +213,7 @@ export async function finalizeCheckoutSession(sessionId: string): Promise<Stripe
   const existing = await loadCheckoutRecord(sessionId);
   if (existing?.status === "paid") return existing;
   if (!stripeSecret()) return existing;
+  const { stripeRequest } = await import("@/lib/stripe");
   const session = await stripeRequest<StripeCheckoutSession>("GET", `/checkout/sessions/${encodeURIComponent(sessionId)}`);
   return persistStripeSession(session, existing);
 }
@@ -336,6 +336,7 @@ export async function createStripeCheckoutSession(input: {
   orgId?: string | null;
   email?: string | null;
 }): Promise<StripeCheckoutSession> {
+  const { stripeRequest } = await import("@/lib/stripe");
   return stripeRequest<StripeCheckoutSession>(
     "POST",
     "/checkout/sessions",
