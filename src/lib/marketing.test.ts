@@ -31,8 +31,8 @@ describe("hosted pricing", () => {
     assert.ok(PRICING_PLANS[1]?.features.some((line) => line.includes(`${HOSTED_COACH_EVALS}`)));
     assert.ok(PRICING_PLANS[2]?.features.some((line) => line.includes("1,200")));
     assert.ok(PRICING_PLANS[3]?.features.includes(ENTERPRISE_SEATS_BULLET));
-    assert.equal(PRICING_PLANS[1]?.cta.href, "/app/sign-up");
-    assert.equal(PRICING_PLANS[2]?.cta.href, "/app/sign-up");
+    assert.equal(PRICING_PLANS[1]?.cta.href, "/app/api/billing/checkout?plan=coach");
+    assert.equal(PRICING_PLANS[2]?.cta.href, "/app/api/billing/checkout?plan=team");
     assert.equal(PRICING_PLANS[0]?.cta.href, GITHUB_REPO_URL);
     assert.equal(PRICING_PLANS[3]?.cta.href, CONTACT_MAILTO);
   });

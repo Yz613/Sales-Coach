@@ -163,6 +163,17 @@ export async function saveBillingSettings(
   return loadBillingAccount(auth);
 }
 
+export async function activateHostedPlan(planId: HostedPlanId): Promise<void> {
+  if (!isPaidHostedPlan(planId)) {
+    throw new Error(`Cannot activate unpaid plan ${planId}`);
+  }
+  await setSetting(planKey(), planId);
+}
+
+export async function revokeHostedPlan(): Promise<void> {
+  await setSetting(planKey(), "oss");
+}
+
 export function summarizeBilling(account: BillingAccount) {
   const plan = HOSTED_PLANS[account.planId];
   const remaining =

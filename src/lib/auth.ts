@@ -4,6 +4,7 @@ import { resolveCanViewAllCalls } from "@/lib/call-access";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
 import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/billingAccess";
 import type { HostedPlanId } from "@/lib/billing";
+import { claimPendingCheckout } from "@/lib/stripeCheckout";
 import { LOCAL_TENANT_ID, TenantRequiredError, bindTenant } from "@/lib/tenant";
 import { toAppPath } from "@/lib/public-path";
 
@@ -118,6 +119,9 @@ export async function getServerAuth(): Promise<AuthUser> {
   let billingPaid = !clerkConfigured || !hasClerkServerAuth();
   if (tenantId && clerkConfigured && hasClerkServerAuth()) {
     try {
+      if (hostedBillingRequired() && !clerkPlanId) {
+        await claimPendingCheckout({ orgId: tenantId, email });
+      }
       const { loadBillingAccount } = await import("@/lib/billingQuota");
       const account = await loadBillingAccount(
         { isClerkConfigured: true, orgId, clerkPlanId },

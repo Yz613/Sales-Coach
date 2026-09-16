@@ -13,6 +13,7 @@ import {
   isApexPricingPath,
   isPublicMarketingPath,
   isMarketingAppPath,
+  isCheckoutPath,
   getApexAliasRedirect,
   getApexMarketingRewrite,
 } from "./public-path";
@@ -64,6 +65,11 @@ describe("route classifiers", () => {
     assert.equal(isPublicAuthRoute("/accept-invite"), true);
     assert.equal(isPublicAuthRoute("/app/subscribe"), true);
     assert.equal(isPublicAuthRoute("/subscribe"), true);
+    assert.equal(isPublicAuthRoute("/app/checkout/success"), true);
+    assert.equal(isPublicAuthRoute("/checkout/success"), true);
+    assert.equal(isCheckoutPath("/app/checkout/success"), true);
+    assert.equal(isCheckoutPath("/checkout"), true);
+    assert.equal(isCheckoutPath("/app/coach"), false);
     assert.equal(isPublicAuthRoute("/app/coach"), false);
   });
 
@@ -72,6 +78,9 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/api/auth/role", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/auth/role", "POST"), false);
     assert.equal(isPublicApiRoute("/app/api/webhooks/fathom", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/billing/checkout", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/billing/checkout", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/billing/checkout", "PUT"), false);
     assert.equal(isPublicApiRoute("/app/api/calls/upload", "POST"), false);
   });
 

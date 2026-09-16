@@ -136,7 +136,17 @@ CLERK_SECRET_KEY=sk_test_...
    - **Admin (`org:admin`):** Full access to settings, scripts, analytics, rep personas, and team invites.
    - **Member (`org:member`):** Scoped access to the Call Bank, call uploads, and call evaluations.
 
-Hosted Clerk deployments (`BILLING_REQUIRED=true`, the default whenever Clerk keys are present) send new teams to `/app/subscribe`. They cannot read another team's data, and they cannot pick a plan in Settings to skip checkout. Self-hosters using Clerk only for RBAC should set `BILLING_REQUIRED=false`.
+Hosted deployments (`BILLING_REQUIRED=true`, the default whenever Clerk keys are present) send new teams through **Stripe Checkout first**. Coach and Team CTAs open Stripe; Clerk sign-up is blocked until that session is paid. Sign-in stays available for existing customers. Invited teammates skip checkout. Self-hosters using Clerk only for RBAC should set `BILLING_REQUIRED=false`.
+
+```bash
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+# Optional: dashboard price ids. If unset, Checkout uses $249 / $899 monthly price_data.
+# STRIPE_PRICE_COACH=price_...
+# STRIPE_PRICE_TEAM=price_...
+```
+
+Webhook URL: `https://your-domain/app/api/webhooks/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`). Put the secrets with `wrangler secret put` — do not commit them. Hosted teams cannot read another team's data, and they cannot pick a plan in Settings to skip checkout.
 
 If you are migrating a production database that already has unscoped rows, set `LEGACY_TENANT_ORG_ID` to the original Clerk organization id (or let the app assign those rows once to the oldest organization). New organizations always start empty.
 
