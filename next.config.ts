@@ -3,16 +3,17 @@ import type { NextConfig } from "next";
 import path from "path";
 import { APP_BASE_PATH } from "./src/lib/public-path";
 
-// Publishable key must be present at build time so the client bundle and SSR
-// tree both wrap the app in <ClerkProvider>. Falls back to the same public
-// value already committed in wrangler.jsonc vars.
+// If the publishable key is available at build time, inline it. Do not inline an
+// empty string — that would override the Cloudflare runtime var/secret and disable Clerk.
 const clerkPublishableKey =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || "";
 
 const nextConfig: NextConfig = {
   basePath: "/app",
   env: {
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey,
+    ...(clerkPublishableKey
+      ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey }
+      : {}),
     NEXT_PUBLIC_CLERK_SIGN_IN_URL:
       process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || "/app/sign-in",
     NEXT_PUBLIC_CLERK_SIGN_UP_URL:
