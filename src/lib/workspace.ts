@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
-import { getServerAuth, type AuthUser } from "@/lib/auth";
+import { authRedirectPath, getServerAuth, type AuthUser } from "@/lib/auth";
 import { hostedBillingRequired } from "@/lib/billingAccess";
 import { PaymentRequiredError } from "@/lib/billingQuota";
 import { TenantRequiredError } from "@/lib/tenant";
 import { toAppPath } from "@/lib/public-path";
+import { hasClerkServerAuth } from "@/lib/clerk-env";
 
 export class WorkspaceUnauthorizedError extends Error {
   status = 401;
@@ -18,6 +19,9 @@ export class WorkspaceUnauthorizedError extends Error {
 
 export async function requireWorkspace(): Promise<AuthUser> {
   const auth = await getServerAuth();
+  if (hostedBillingRequired() && !hasClerkServerAuth()) {
+    throw new WorkspaceUnauthorizedError();
+  }
   if (auth.isClerkConfigured && !auth.userId) {
     throw new WorkspaceUnauthorizedError();
   }
@@ -51,14 +55,9 @@ export function workspaceErrorResponse(err: unknown): NextResponse {
 /** Server-page gate: send unpaid / org-less Clerk users to the right screen. */
 export async function requireWorkspacePage(): Promise<AuthUser> {
   const auth = await getServerAuth();
-  if (auth.isClerkConfigured && !auth.userId) {
-    redirect(toAppPath("/sign-in"));
-  }
-  if (auth.isClerkConfigured && !auth.orgId) {
-    redirect(toAppPath("/select-organization"));
-  }
-  if (hostedBillingRequired() && auth.isClerkConfigured && !auth.billingPaid) {
-    redirect(toAppPath("/subscribe"));
+  const dest = authRedirectPath(auth);
+  if (dest) {
+    redirect(dest);
   }
   return auth;
 }

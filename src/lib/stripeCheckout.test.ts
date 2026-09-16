@@ -146,4 +146,10 @@ describe("landing SSR bundle", () => {
     assert.equal(/from ["']@\/lib\/stripe["']/.test(checkout), false);
     assert.match(checkout, /import\(["']@\/lib\/stripe["']\)/);
   });
+
+  it("does not statically import Clerk server auth from the dashboard page", () => {
+    const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+    assert.equal(/from ["']@clerk\/nextjs\/server["']/.test(page), false);
+    assert.equal(/\bauth\.protect\b/.test(page), false);
+  });
 });

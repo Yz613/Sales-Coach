@@ -32,10 +32,15 @@ export function isClerkConfigured(): boolean {
 
 function anonymousAuth(): AuthUser {
   const clerkConfigured = isClerkConfigured();
+  const hosted = hostedBillingRequired();
+  const standalone = !hosted && !hasClerkServerAuth();
   const role = resolveUserRole({
     clerkConfigured,
     userId: null,
   });
+  if (standalone) {
+    bindTenant(LOCAL_TENANT_ID);
+  }
   return {
     userId: null,
     role,
@@ -49,9 +54,9 @@ function anonymousAuth(): AuthUser {
       hasOrgAdmin: false,
       isAdmin: role === "admin",
     }),
-    tenantId: clerkConfigured && hasClerkServerAuth() ? null : LOCAL_TENANT_ID,
+    tenantId: standalone ? LOCAL_TENANT_ID : null,
     clerkPlanId: null,
-    billingPaid: !clerkConfigured || !hasClerkServerAuth(),
+    billingPaid: standalone,
   };
 }
 
@@ -94,7 +99,31 @@ export async function getServerAuth(): Promise<AuthUser> {
   }
 }
 
+/** Where to send a browser session that is not allowed into the app yet. */
+export function authRedirectPath(auth: AuthUser): string | null {
+  if (hostedBillingRequired() && !hasClerkServerAuth()) {
+    return toAppPath("/sign-in");
+  }
+  if (auth.isClerkConfigured && !auth.userId) {
+    return toAppPath("/sign-in");
+  }
+  if (auth.isClerkConfigured && !auth.orgId) {
+    return toAppPath("/select-organization");
+  }
+  if (hostedBillingRequired() && auth.isClerkConfigured && !auth.billingPaid) {
+    return toAppPath("/subscribe");
+  }
+  return null;
+}
+
 async function loadServerAuth(): Promise<AuthUser> {
+  try {
+    const { ensureD1Migrated } = await import("@/lib/db");
+    await ensureD1Migrated();
+  } catch {
+    // SQLite, build, or a Worker without D1 — pages still query through getDb().
+  }
+
   const clerkConfigured = isClerkConfigured();
 
   let userId: string | null = null;
@@ -146,17 +175,19 @@ async function loadServerAuth(): Promise<AuthUser> {
   });
 
   const isAdmin = effectiveRole === "admin";
+  const hosted = hostedBillingRequired();
+  const standalone = !hosted && !hasClerkServerAuth();
   let tenantId: string | null = null;
-  if (!clerkConfigured || !hasClerkServerAuth()) {
+  if (standalone) {
     tenantId = LOCAL_TENANT_ID;
     bindTenant(LOCAL_TENANT_ID);
-  } else if (orgId) {
+  } else if (orgId && hasClerkServerAuth()) {
     tenantId = orgId;
     bindTenant(orgId);
     await maybeBackfillLegacyTenant();
   }
 
-  let billingPaid = !clerkConfigured || !hasClerkServerAuth();
+  let billingPaid = standalone;
   if (tenantId && clerkConfigured && hasClerkServerAuth()) {
     try {
       if (hostedBillingRequired() && !clerkPlanId) {
@@ -205,11 +236,9 @@ async function loadServerAuth(): Promise<AuthUser> {
 
 export async function requireAdmin(): Promise<AuthUser> {
   const auth = await getServerAuth();
-  if (auth.isClerkConfigured && !auth.orgId) {
-    redirect(toAppPath("/select-organization"));
-  }
-  if (hostedBillingRequired() && auth.isClerkConfigured && !auth.billingPaid) {
-    redirect(toAppPath("/subscribe"));
+  const dest = authRedirectPath(auth);
+  if (dest) {
+    redirect(dest);
   }
   if (!auth.isAdmin) {
     redirect("/calls");

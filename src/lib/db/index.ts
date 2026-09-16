@@ -42,7 +42,12 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
 }
 
 let _db: any = null;
-let _d1Migrated = false;
+let _d1MigratePromise: Promise<void> | null = null;
+
+export async function ensureD1Migrated(): Promise<void> {
+  getDb();
+  if (_d1MigratePromise) await _d1MigratePromise;
+}
 
 function initLocalSqlite() {
   const Database = require("better-sqlite3");
@@ -93,9 +98,11 @@ export function getDb() {
     const ctx = getCloudflareContext();
     if (ctx && ctx.env && ctx.env.DB) {
       const { drizzle } = require("drizzle-orm/d1");
-      if (!_d1Migrated) {
-        _d1Migrated = true;
-        void addOrgIdColumnD1(ctx.env.DB);
+      if (!_d1MigratePromise) {
+        _d1MigratePromise = addOrgIdColumnD1(ctx.env.DB).catch((err) => {
+          _d1MigratePromise = null;
+          throw err;
+        });
       }
       _db = drizzle(ctx.env.DB, { schema });
       return _db;
