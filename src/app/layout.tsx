@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navigation from "@/components/Navigation";
+import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
 import { getServerAuth } from "@/lib/auth";
 import { toAppPath } from "@/lib/public-path";
@@ -37,10 +37,7 @@ export default async function RootLayout({
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }
         >
-          <Navigation />
-          <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
+          <AppChrome>{children}</AppChrome>
         </AuthProvider>
       </body>
     </html>

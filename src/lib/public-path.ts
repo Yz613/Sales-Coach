@@ -60,6 +60,35 @@ export function isApexFaviconPath(pathname: string): boolean {
   return pathname === "/favicon.ico" || pathname === "/icon.svg";
 }
 
+/** Next route (after basePath) that renders the public marketing landing. */
+export const MARKETING_PAGE_PATH = "/marketing";
+
+export function isApexPricingPath(pathname: string): boolean {
+  return pathname === "/pricing" || pathname === "/pricing/";
+}
+
+/**
+ * Next `usePathname()` / stripped paths for the marketing page (`/marketing`).
+ * Do not use this for apex `/` — with `basePath: "/app"`, the dashboard is also `/`.
+ */
+export function isMarketingAppPath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  return (
+    normalized === MARKETING_PAGE_PATH ||
+    normalized.startsWith(`${MARKETING_PAGE_PATH}/`)
+  );
+}
+
+/**
+ * True apex `/` (marketing) or the `/app/marketing` preview route.
+ * Pass the full public URL pathname (`getPublicPath`), not `usePathname()`.
+ * `/app` (the admin dashboard) must stay authenticated.
+ */
+export function isPublicMarketingPath(pathname: string): boolean {
+  if (pathname === "/" || pathname === "") return true;
+  return isMarketingAppPath(pathname);
+}
+
 export type ApexAliasRedirect = {
   location: string;
   status: 308;
@@ -69,6 +98,9 @@ export type ApexAliasRedirect = {
  * Apex paths that never enter Next middleware under `basePath: "/app"`.
  * Used by next.config redirects, middleware (when it does run), and the
  * Cloudflare worker wrapper in front of OpenNext.
+ *
+ * `/pricing` redirects to the landing hash. Apex `/` is an internal rewrite
+ * (see `getApexMarketingRewrite`) so the URL stays `/`.
  */
 export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | null {
   const url = new URL(requestUrl);
@@ -80,5 +112,20 @@ export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | nu
     dest.search = url.search;
     return { location: dest.href, status: 308 };
   }
+  if (isApexPricingPath(url.pathname)) {
+    return { location: `${url.origin}/#pricing`, status: 308 };
+  }
   return null;
+}
+
+/**
+ * Internal rewrite target so apex `/` serves the marketing page without
+ * changing the browser URL to `/app/marketing`.
+ */
+export function getApexMarketingRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (url.pathname !== "/" && url.pathname !== "") return null;
+  const dest = new URL(toAppPath(MARKETING_PAGE_PATH), url.origin);
+  dest.search = url.search;
+  return dest.href;
 }

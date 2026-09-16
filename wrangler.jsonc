@@ -9,8 +9,12 @@
 		"global_fetch_strictly_public"
 	],
 	"workers_dev": true,
-	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers):
+	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers).
+	// Apex `/` and `/pricing` must reach this worker so the marketing landing is not a 404.
 	// "routes": [
+	// 	{ "pattern": "yourdomain.com", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/", "zone_name": "yourdomain.com" },
+	// 	{ "pattern": "yourdomain.com/pricing", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/app", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/app/*", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/calls", "zone_name": "yourdomain.com" },
