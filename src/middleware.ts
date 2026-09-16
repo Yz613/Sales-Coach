@@ -105,7 +105,7 @@ function clerkHandlerImpl() {
     });
 }
 
-let clerkHandler: ReturnType<typeof clerkMiddleware> | null = null;
+let clerkHandler: ReturnType<typeof clerkHandlerImpl> | null = null;
 
 function getClerkHandler() {
   if (!hasClerkServerAuth()) return null;
