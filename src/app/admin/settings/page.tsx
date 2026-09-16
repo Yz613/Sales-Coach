@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiPath } from "@/lib/utils";
@@ -20,6 +20,7 @@ import {
   TYPICAL_REVIEW_OUTPUT_TOKENS,
   type ProviderId,
 } from "@/lib/ai/providers";
+import { CALL_DURATION_NOTE, HOSTED_PLANS, OVERAGE_LINE, type HostedPlanId } from "@/lib/billing";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function AdminSettingsPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [canTranscribe, setCanTranscribe] = useState(true);
+  const [billingPlan, setBillingPlan] = useState<HostedPlanId>("oss");
+  const [overageOptIn, setOverageOptIn] = useState(false);
+  const [billingUsage, setBillingUsage] = useState<{ creditsUsed: number; overageCredits: number; overageAmountUsd: number; remaining: number | null; unlimited: boolean; monthlyLimit: number | null } | null>(null);
 
   const providerMeta = getProvider(provider);
   const selectedModelId = providerMeta.allowsCustomModel && customModel.trim() ? customModel.trim() : activeModel;
@@ -70,6 +74,18 @@ export default function AdminSettingsPage() {
           const known = p.models.some((m) => m.id === data.activeModel);
           setActiveModel(known ? data.activeModel : (p.models[0]?.id || DEFAULT_MODEL));
           if (!known && p.allowsCustomModel) setCustomModel(data.activeModel);
+        }
+        if (data.billing?.planId) setBillingPlan(data.billing.planId);
+        if (typeof data.billing?.overageOptIn === "boolean") setOverageOptIn(data.billing.overageOptIn);
+        if (data.billing) {
+          setBillingUsage({
+            creditsUsed: data.billing.usage?.creditsUsed || 0,
+            overageCredits: data.billing.usage?.overageCredits || 0,
+            overageAmountUsd: data.billing.usage?.overageAmountUsd || 0,
+            remaining: data.billing.remaining ?? null,
+            unlimited: Boolean(data.billing.unlimited),
+            monthlyLimit: data.billing.monthlyLimit ?? null,
+          });
         }
         setLoading(false);
       })
@@ -131,6 +147,8 @@ export default function AdminSettingsPage() {
           apiKey,
           activeModel: selectedModelId,
           resendApiKey,
+          billingPlan,
+          overageOptIn,
         }),
       });
 
@@ -375,6 +393,73 @@ export default function AdminSettingsPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl glass-card p-6 space-y-5">
+          <div className="flex items-center gap-3 border-b border-white/[0.08] pb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-white">Hosted evaluation plan</h2>
+              <p className="text-xs text-slate-400">
+                Local / open-source is unlimited. Hosted Coach and Hosted Team allotments continue at {OVERAGE_LINE} when overage is on. {CALL_DURATION_NOTE}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">Plan</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {(Object.values(HOSTED_PLANS) as typeof HOSTED_PLANS[HostedPlanId][]).map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => {
+                    setBillingPlan(plan.id);
+                    if (plan.allowsOverage) setOverageOptIn(plan.defaultOverageOptIn);
+                    else setOverageOptIn(false);
+                  }}
+                  className={`rounded-xl border px-3.5 py-3 text-left transition ${
+                    billingPlan === plan.id
+                      ? "border-blue-500/50 bg-blue-500/15 text-white shadow-sm"
+                      : "border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/[0.15] hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <span className="block text-xs font-semibold">{plan.name}</span>
+                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                    {plan.monthlyEvals == null
+                      ? "Unlimited local evaluations"
+                      : `${plan.monthlyEvals.toLocaleString()} evals / mo`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {HOSTED_PLANS[billingPlan].allowsOverage && (
+            <label className="flex items-start gap-3 rounded-xl glass-inset border border-white/[0.08] p-3.5 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={overageOptIn}
+                onChange={(e) => setOverageOptIn(e.target.checked)}
+              />
+              <span>
+                Allow overage billing after the monthly allotment ({OVERAGE_LINE}). If this is off, new evaluations hard-stop at the plan limit.
+              </span>
+            </label>
+          )}
+
+          {billingUsage && (
+            <p className="text-xs text-slate-400">
+              {billingUsage.unlimited
+                ? "This workspace is on the open-source / local plan — no hosted eval cap."
+                : `This cycle: ${billingUsage.creditsUsed} credit${billingUsage.creditsUsed === 1 ? "" : "s"} used${
+                    billingUsage.monthlyLimit != null ? ` of ${billingUsage.monthlyLimit}` : ""
+                  }${billingUsage.overageCredits ? ` · ${billingUsage.overageCredits} overage ($${billingUsage.overageAmountUsd.toFixed(2)})` : ""}.`}
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-6 space-y-3">

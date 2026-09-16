@@ -1,4 +1,4 @@
-import { durationFromTranscript, isAudioFile, mimeTypeForAudio } from "./audio";
+import { durationFromTranscript, estimateAudioDurationSeconds, isAudioFile, mimeTypeForAudio } from "./audio";
 import { transcribeAudio } from "./ai/transcribe";
 
 export interface IngestedCallFile {
@@ -80,28 +80,65 @@ export function decodeTranscriptFile(bytes: Uint8Array, fileName: string): strin
   return text;
 }
 
-export async function ingestCallFile(file: File): Promise<IngestedCallFile> {
+export interface PeekedCallFile {
+  bytes: Uint8Array;
+  fileName: string;
+  mimeType: string;
+  isAudio: boolean;
+  durationSeconds: number;
+  transcriptText?: string;
+}
+
+/** Read the file and estimate duration without starting transcription. */
+export async function peekCallFile(file: File): Promise<PeekedCallFile> {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const fileName = file.name;
+  const mimeType = mimeTypeForAudio(file);
   if (isAudioFile(file)) {
-    const result = await transcribeAudio({
+    return {
       bytes,
-      fileName: file.name,
-      mimeType: file.type,
+      fileName,
+      mimeType,
+      isAudio: true,
+      durationSeconds: estimateAudioDurationSeconds(bytes, mimeType, fileName),
+    };
+  }
+  const transcriptText = decodeTranscriptFile(bytes, fileName);
+  return {
+    bytes,
+    fileName,
+    mimeType: file.type || "text/plain",
+    isAudio: false,
+    durationSeconds: durationFromTranscript(transcriptText),
+    transcriptText,
+  };
+}
+
+export async function ingestPeekedCallFile(peek: PeekedCallFile): Promise<IngestedCallFile> {
+  if (peek.isAudio) {
+    const result = await transcribeAudio({
+      bytes: peek.bytes,
+      fileName: peek.fileName,
+      mimeType: peek.mimeType,
     });
     return {
       transcriptText: result.transcriptText,
-      durationSeconds: result.durationSeconds,
+      durationSeconds: Math.max(peek.durationSeconds, result.durationSeconds),
       source: "audio",
-      audioBytes: bytes,
-      audioMimeType: mimeTypeForAudio(file),
-      audioFileName: file.name,
+      audioBytes: peek.bytes,
+      audioMimeType: peek.mimeType,
+      audioFileName: peek.fileName,
     };
   }
 
-  const transcriptText = decodeTranscriptFile(bytes, file.name);
+  const transcriptText = peek.transcriptText ?? decodeTranscriptFile(peek.bytes, peek.fileName);
   return {
     transcriptText,
-    durationSeconds: durationFromTranscript(transcriptText),
+    durationSeconds: peek.durationSeconds || durationFromTranscript(transcriptText),
     source: "text",
   };
+}
+
+export async function ingestCallFile(file: File): Promise<IngestedCallFile> {
+  return ingestPeekedCallFile(await peekCallFile(file));
 }

@@ -4,13 +4,15 @@ import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
-import { ingestCallFile } from "@/lib/ingestCallFile";
+import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
 import { getServerAuth } from "@/lib/auth";
 import { resolveUploadRepId } from "@/lib/viewer-calls";
+import { evaluationCreditsForDuration } from "@/lib/billing";
+import { QuotaExceededError, assertEvaluationAllowed, recordEvaluationUsage } from "@/lib/billingQuota";
 
 export const maxDuration = 300;
 
@@ -69,7 +71,21 @@ export async function POST(req: Request) {
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
       const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
       const defaultStage = normalizeStageName((formData.get("defaultStage") as string) || "") || "Cold Call";
-      if (files.some((f) => isAudioFile(f))) {
+      let pendingCredits = 0;
+      for (const f of files) {
+        if (f.name.toLowerCase().endsWith(".csv")) {
+          const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
+          const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          pendingCredits += Math.max(1, lines.length - (lines.length > 1 ? 1 : 0));
+          continue;
+        }
+        const peek = await peekCallFile(f);
+        pendingCredits += evaluationCreditsForDuration(peek.durationSeconds);
+      }
+      if (pendingCredits > 0) {
+        await assertEvaluationAllowed(auth, pendingCredits);
+      }
+      if (files.some((f) => isAudioFile(f) && !f.name.toLowerCase().endsWith(".csv"))) {
         await resolveTranscriptionBackend();
       }
 
@@ -133,7 +149,9 @@ export async function POST(req: Request) {
           continue;
         }
 
-        const ingested = await ingestCallFile(f);
+        const peek = await peekCallFile(f);
+        await assertEvaluationAllowed(auth, evaluationCreditsForDuration(peek.durationSeconds || 300));
+        const ingested = await ingestPeekedCallFile(peek);
         itemsToProcess.push({
           repId: resolvedRepId,
           prospectCompany: "",
@@ -198,6 +216,8 @@ export async function POST(req: Request) {
         durationSeconds: item.durationSeconds || 300,
       });
 
+      await recordEvaluationUsage(auth, evaluationCreditsForDuration(item.durationSeconds || 300));
+
       results.push({ callId, evaluation });
     }
 
@@ -207,6 +227,9 @@ export async function POST(req: Request) {
       results,
     });
   } catch (err: any) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+    }
     console.error("Batch upload error:", err);
     const message = err?.message || "Batch upload failed";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);

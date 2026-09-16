@@ -9,6 +9,9 @@ import {
   type ProviderId,
 } from "@/lib/ai/providers";
 import { maskSecret } from "@/lib/inviteMail";
+import { isHostedPlanId } from "@/lib/billing";
+import { getServerAuth } from "@/lib/auth";
+import { loadBillingAccount, saveBillingSettings, summarizeBilling } from "@/lib/billingQuota";
 
 export async function GET() {
   try {
@@ -16,6 +19,8 @@ export async function GET() {
     const transcription = await getTranscriptionStatus();
     const resendKey = (await getSetting("resend_api_key"))?.trim() || "";
     const envResend = Boolean(process.env.RESEND_API_KEY?.trim());
+    const auth = await getServerAuth();
+    const billing = summarizeBilling(await loadBillingAccount(auth));
 
     return NextResponse.json({
       hasKey: ai.hasKey,
@@ -29,6 +34,7 @@ export async function GET() {
       hasResendKey: Boolean(resendKey) || envResend,
       maskedResendKey: resendKey ? maskSecret(resendKey) : envResend ? "env RESEND_API_KEY" : "",
       resendFromEnv: envResend,
+      billing,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -67,6 +73,14 @@ export async function POST(req: Request) {
     } else if (providerId) {
       const current = (await resolveAiSettings()).model;
       await setSetting("active_model", modelForProvider(providerId, current));
+    }
+
+    if (body.billingPlan !== undefined || body.overageOptIn !== undefined) {
+      const auth = await getServerAuth();
+      await saveBillingSettings(auth, {
+        planId: isHostedPlanId(body.billingPlan) ? body.billingPlan : undefined,
+        overageOptIn: typeof body.overageOptIn === "boolean" ? body.overageOptIn : undefined,
+      });
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });
