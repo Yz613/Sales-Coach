@@ -45,5 +45,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Resolve D1 database id
+        run: node scripts/resolve-d1-id.cjs
       - name: Deploy to Cloudflare
         run: npm run deploy
