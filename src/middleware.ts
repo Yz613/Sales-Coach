@@ -9,6 +9,7 @@ import {
   isPublicAuthRoute,
   isPublicApiRoute,
   isApiRoute,
+  isPublicMarketingPath,
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
@@ -70,6 +71,12 @@ const clerkHandler = hasClerkKey
       if (ticket) return ticket;
 
       const publicPath = getPublicPath(req);
+
+      // Apex `/` and `/app/marketing` are the public landing. Do not treat
+      // middleware `/` (the /app dashboard under basePath) as marketing.
+      if (isPublicMarketingPath(publicPath)) {
+        return;
+      }
 
       const pendingAuth = await auth({ treatPendingAsSignedOut: false });
       const pendingTeamPath = pendingTeamSelectionPath({

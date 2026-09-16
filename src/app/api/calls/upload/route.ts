@@ -4,18 +4,32 @@ import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
-import { ingestCallFile } from "@/lib/ingestCallFile";
-import { isAudioFile } from "@/lib/audio";
+import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
+import { durationFromTranscript } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { getTranscriptionStatus, resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
 import { getServerAuth } from "@/lib/auth";
 import { resolveUploadRepId } from "@/lib/viewer-calls";
+import { evaluationCreditsForDuration } from "@/lib/billing";
+import {
+  QuotaExceededError,
+  assertEvaluationAllowed,
+  recordEvaluationUsage,
+  summarizeBilling,
+  loadBillingAccount,
+} from "@/lib/billingQuota";
 
 export async function GET() {
   try {
     const status = await getTranscriptionStatus();
-    return NextResponse.json(status);
+    let billing = null;
+    try {
+      billing = summarizeBilling(await loadBillingAccount(await getServerAuth()));
+    } catch {
+      billing = null;
+    }
+    return NextResponse.json({ ...status, billing });
   } catch (err: any) {
     return NextResponse.json({ canTranscribe: false, reason: err?.message || "Unavailable" }, { status: 200 });
   }
@@ -59,11 +73,16 @@ export async function POST(req: Request) {
 
       if (rawText && rawText.trim().length > 0) {
         transcriptText = rawText.trim();
+        const stamped = durationFromTranscript(transcriptText);
+        if (stamped > 0) durationSeconds = stamped;
       } else if (file) {
-        if (isAudioFile(file)) {
+        const peek = await peekCallFile(file);
+        durationSeconds = peek.durationSeconds || durationSeconds;
+        await assertEvaluationAllowed(auth, evaluationCreditsForDuration(durationSeconds));
+        if (peek.isAudio) {
           await resolveTranscriptionBackend();
         }
-        const ingested = await ingestCallFile(file);
+        const ingested = await ingestPeekedCallFile(peek);
         transcriptText = ingested.transcriptText;
         if (ingested.durationSeconds > 0) {
           durationSeconds = ingested.durationSeconds;
@@ -92,6 +111,9 @@ export async function POST(req: Request) {
     } catch (err: any) {
       return NextResponse.json({ error: err?.message || "No usable transcript" }, { status: 422 });
     }
+
+    const evalCredits = evaluationCreditsForDuration(durationSeconds);
+    await assertEvaluationAllowed(auth, evalCredits);
 
     callStage = normalizeStageName(callStage) || "Cold Call";
     try {
@@ -138,12 +160,18 @@ export async function POST(req: Request) {
       durationSeconds,
     });
 
+    await recordEvaluationUsage(auth, evalCredits);
+
     return NextResponse.json({
       success: true,
       callId,
       evaluation,
+      creditsCharged: evalCredits,
     });
   } catch (error: any) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     console.error("Upload & Evaluation Error:", error);
     const message = error?.message || "Failed to process call";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
