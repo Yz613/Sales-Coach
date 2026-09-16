@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/components/Navigation";
-import { isMarketingAppPath, isPublicMarketingPath } from "@/lib/public-path";
+import { isMarketingAppPath, isPublicMarketingPath, isSubscribePath } from "@/lib/public-path";
 
 export default function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,8 +24,11 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
 
   const marketing =
     isMarketingAppPath(pathname) ||
+    isSubscribePath(pathname) ||
     (browserPath != null &&
-      (isMarketingAppPath(browserPath) || isPublicMarketingPath(browserPath)));
+      (isMarketingAppPath(browserPath) ||
+        isPublicMarketingPath(browserPath) ||
+        isSubscribePath(browserPath)));
 
   if (marketing) {
     return <>{children}</>;

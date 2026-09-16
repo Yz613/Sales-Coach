@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import { getAllScripts, saveScript } from "@/lib/db/service";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export async function GET() {
   try {
+    await requireWorkspace();
     const scripts = await getAllScripts();
     return NextResponse.json(scripts);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return workspaceErrorResponse(err);
   }
 }
 
 export async function POST(req: Request) {
   try {
+    await requireWorkspace();
     const body = await req.json();
     const id = body.id || `script_${Date.now()}`;
 
@@ -26,6 +29,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, script: saved });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return workspaceErrorResponse(err);
   }
 }

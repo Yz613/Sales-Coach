@@ -3,9 +3,9 @@ import { evaluateCall } from "@/lib/ai/coach";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { usedLlmReview } from "@/lib/evaluations";
 import { getVisibleCallById } from "@/lib/viewer-calls";
-import { getServerAuth } from "@/lib/auth";
 import { evaluationCreditsForDuration } from "@/lib/billing";
-import { QuotaExceededError, assertEvaluationAllowed, recordEvaluationUsage } from "@/lib/billingQuota";
+import { PaymentRequiredError, QuotaExceededError, assertEvaluationAllowed, recordEvaluationUsage } from "@/lib/billingQuota";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const maxDuration = 120;
 
@@ -14,13 +14,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireWorkspace();
     const { id } = await params;
     const { call } = await getVisibleCallById(id);
     if (!call) {
       return NextResponse.json({ error: "Call not found" }, { status: 404 });
     }
 
-    const auth = await getServerAuth();
     const credits = evaluationCreditsForDuration(call.durationSeconds);
     await assertEvaluationAllowed(auth, credits);
 
@@ -50,9 +50,11 @@ export async function POST(
 
     return NextResponse.json({ success: true, evaluation, usedLlm, warning, creditsCharged: credits });
   } catch (err: any) {
-    if (err instanceof QuotaExceededError) {
+    if (err instanceof PaymentRequiredError || err instanceof QuotaExceededError) {
       return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
     }
+    const gated = workspaceErrorResponse(err);
+    if (gated.status !== 500) return gated;
     const message = err?.message || "Failed to evaluate call";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
     return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });

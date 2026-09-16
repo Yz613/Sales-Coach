@@ -12,6 +12,7 @@ export const CLERK_PATHS = {
   signUp: clerkUrl("/sign-up"),
   afterSignOut: clerkUrl("/sign-in"),
   afterSignIn: clerkUrl("/"),
+  subscribe: clerkUrl("/subscribe"),
   selectOrganization: clerkUrl("/select-organization"),
   createOrganization: clerkUrl("/create-organization"),
   userProfile: clerkUrl("/user"),

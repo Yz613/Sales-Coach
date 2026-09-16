@@ -31,8 +31,9 @@
 		"NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/app/sign-in",
 		"NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/app/sign-up",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/app",
-		"NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/app",
-		"NEXT_PUBLIC_CLERK_AFTER_SIGN_OUT_URL": "/app/sign-in"
+		"NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/app/subscribe",
+		"NEXT_PUBLIC_CLERK_AFTER_SIGN_OUT_URL": "/app/sign-in",
+		"BILLING_REQUIRED": "true"
 	},
 	"assets": {
 		"directory": ".open-next/assets",

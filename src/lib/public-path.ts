@@ -32,6 +32,7 @@ const PUBLIC_AUTH_PREFIXES = [
   "/user",
   "/organization",
   "/accept-invite",
+  "/subscribe",
 ];
 
 export function isPublicAuthRoute(pathname: string): boolean {
@@ -71,6 +72,11 @@ export function isApexPricingPath(pathname: string): boolean {
  * Next `usePathname()` / stripped paths for the marketing page (`/marketing`).
  * Do not use this for apex `/` — with `basePath: "/app"`, the dashboard is also `/`.
  */
+export function isSubscribePath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  return normalized === "/subscribe" || normalized.startsWith("/subscribe/");
+}
+
 export function isMarketingAppPath(pathname: string): boolean {
   const normalized = stripAppBasePath(pathname);
   return (

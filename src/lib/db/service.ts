@@ -1,6 +1,6 @@
 import { db } from "./index";
 import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas } from "./schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import type {
   Rep,
   Call,
@@ -23,14 +23,27 @@ import { isUnusableTranscript } from "@/lib/transcript";
 import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
+import {
+  LOCAL_TENANT_ID,
+  currentTenantId,
+  parseTenantSettingKey,
+  settingStorageKey,
+} from "@/lib/tenant";
 
-// --- Settings Service ---
-export async function getSetting(key: string): Promise<string | null> {
+function tenantId(): string {
+  return currentTenantId();
+}
+
+function forTenant(column: { orgId?: unknown } | any) {
+  return eq(column, tenantId());
+}
+
+async function readRawSetting(key: string): Promise<string | null> {
   const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   return row ? row.value : null;
 }
 
-export async function setSetting(key: string, value: string): Promise<void> {
+async function writeRawSetting(key: string, value: string): Promise<void> {
   const existing = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   if (existing) {
     await db.update(appSettings)
@@ -46,12 +59,51 @@ export async function setSetting(key: string, value: string): Promise<void> {
   }
 }
 
+const GLOBAL_SETTING_KEYS = new Set(["tenant_backfill_org_id"]);
+
+function canReadUnprefixedSettings(org: string): boolean {
+  if (org === LOCAL_TENANT_ID) return true;
+  const legacy = process.env.LEGACY_TENANT_ORG_ID?.trim();
+  return Boolean(legacy && legacy === org);
+}
+
+// --- Settings Service ---
+export async function getSetting(key: string): Promise<string | null> {
+  if (GLOBAL_SETTING_KEYS.has(key)) {
+    return readRawSetting(key);
+  }
+  const org = tenantId();
+  const scoped = await readRawSetting(settingStorageKey(org, key));
+  if (scoped != null) return scoped;
+  if (canReadUnprefixedSettings(org)) {
+    return readRawSetting(key);
+  }
+  return null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  if (GLOBAL_SETTING_KEYS.has(key)) {
+    await writeRawSetting(key, value);
+    return;
+  }
+  await writeRawSetting(settingStorageKey(tenantId(), key), value);
+}
+
 export async function getAllSettings(): Promise<Record<string, string>> {
+  const org = tenantId();
   const rows = await db.select().from(appSettings).all();
   const res: Record<string, string> = {};
-  rows.forEach((r: any) => {
-    res[r.key] = r.value;
-  });
+  for (const r of rows as { key: string; value: string }[]) {
+    if (GLOBAL_SETTING_KEYS.has(r.key)) continue;
+    const scopedKey = parseTenantSettingKey(r.key, org);
+    if (scopedKey) {
+      res[scopedKey] = r.value;
+      continue;
+    }
+    if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
+      res[r.key] = r.value;
+    }
+  }
   return res;
 }
 
@@ -129,7 +181,7 @@ export async function getCoachContext(): Promise<string> {
 
 // --- Scripts / Playbooks Service ---
 export async function getAllScripts(): Promise<SalesScript[]> {
-  const rows = await db.select().from(scripts).all();
+  const rows = await db.select().from(scripts).where(forTenant(scripts.orgId)).all();
   return rows.map((r: any) => ({
     id: r.id,
     stage: r.stage as CallStage,
@@ -153,7 +205,7 @@ export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Pr
     throw new Error("Call Stage Target is required.");
   }
   await addCallStage(scriptData.stage);
-  const existing = await db.select().from(scripts).where(eq(scripts.id, scriptData.id)).get();
+  const existing = await db.select().from(scripts).where(and(eq(scripts.id, scriptData.id), forTenant(scripts.orgId))).get();
 
   if (existing) {
     await db.update(scripts)
@@ -165,11 +217,12 @@ export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Pr
         isActive: scriptData.isActive,
         updatedAt,
       })
-      .where(eq(scripts.id, scriptData.id))
+      .where(and(eq(scripts.id, scriptData.id), forTenant(scripts.orgId)))
       .run();
   } else {
     await db.insert(scripts).values({
       id: scriptData.id,
+      orgId: tenantId(),
       stage: scriptData.stage,
       title: scriptData.title,
       content: scriptData.content,
@@ -186,7 +239,7 @@ export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Pr
 }
 
 export async function deleteScript(id: string): Promise<void> {
-  await db.delete(scripts).where(eq(scripts.id, id)).run();
+  await db.delete(scripts).where(and(eq(scripts.id, id), forTenant(scripts.orgId))).run();
 }
 
 const CALL_STAGES_KEY = "call_stages";
@@ -215,7 +268,7 @@ export async function getCallStages(): Promise<string[]> {
   if (stored && stored.length > 0) {
     return mergeCallStages(stored, scriptStages, []);
   }
-  const allCalls = await db.select({ callStage: calls.callStage }).from(calls).all();
+  const allCalls = await db.select({ callStage: calls.callStage }).from(calls).where(forTenant(calls.orgId)).all();
   return mergeCallStages(
     stored,
     scriptStages,
@@ -253,13 +306,13 @@ export async function renameCallStage(from: string, to: string): Promise<string[
 
   const matchingScripts = (await getAllScripts()).filter((s) => stagesEqual(s.stage, source));
   for (const script of matchingScripts) {
-    await db.update(scripts).set({ stage: target, updatedAt: new Date().toISOString() }).where(eq(scripts.id, script.id)).run();
+    await db.update(scripts).set({ stage: target, updatedAt: new Date().toISOString() }).where(and(eq(scripts.id, script.id), forTenant(scripts.orgId))).run();
   }
 
-  const matchingCalls = await db.select().from(calls).all();
+  const matchingCalls = await db.select().from(calls).where(forTenant(calls.orgId)).all();
   for (const call of matchingCalls) {
     if (stagesEqual(call.callStage, source)) {
-      await db.update(calls).set({ callStage: target }).where(eq(calls.id, call.id)).run();
+      await db.update(calls).set({ callStage: target }).where(and(eq(calls.id, call.id), forTenant(calls.orgId))).run();
     }
   }
 
@@ -284,7 +337,7 @@ export async function deleteCallStage(name: string): Promise<string[]> {
 
 // --- Rep Persona Service ---
 export async function getRepPersona(repId: string): Promise<RepPersona | null> {
-  const row = await db.select().from(repPersonas).where(eq(repPersonas.repId, repId)).get();
+  const row = await db.select().from(repPersonas).where(and(eq(repPersonas.repId, repId), forTenant(repPersonas.orgId))).get();
   if (!row) return null;
   return {
     id: row.id,
@@ -302,7 +355,7 @@ export async function getRepPersona(repId: string): Promise<RepPersona | null> {
 export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
   const updatedAt = new Date().toISOString();
   const id = persona.id || `persona_${persona.repId}`;
-  const existing = await db.select().from(repPersonas).where(eq(repPersonas.repId, persona.repId)).get();
+  const existing = await db.select().from(repPersonas).where(and(eq(repPersonas.repId, persona.repId), forTenant(repPersonas.orgId))).get();
 
   if (existing) {
     await db.update(repPersonas)
@@ -315,11 +368,12 @@ export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
         targetQuota: persona.targetQuota,
         updatedAt,
       })
-      .where(eq(repPersonas.repId, persona.repId))
+      .where(and(eq(repPersonas.repId, persona.repId), forTenant(repPersonas.orgId)))
       .run();
   } else {
     await db.insert(repPersonas).values({
       id,
+      orgId: tenantId(),
       repId: persona.repId,
       experienceLevel: persona.experienceLevel,
       coachingTone: persona.coachingTone,
@@ -341,7 +395,7 @@ export async function saveRepPersona(persona: RepPersona): Promise<RepPersona> {
 // Resolve a rep by id, or create one from a name (the app has no separate rep
 // CRUD, so uploads create reps on demand). Returns the rep id to attach calls to.
 export async function listRepIdentities(): Promise<{ id: string; name: string; email: string }[]> {
-  const rows = await db.select().from(reps).all();
+  const rows = await db.select().from(reps).where(forTenant(reps.orgId)).all();
   return rows.map((r: { id: string; name: string; email: string }) => ({
     id: r.id,
     name: r.name,
@@ -356,13 +410,13 @@ export async function getOrCreateRep(
   repEmail?: string
 ): Promise<string> {
   if (repId && repId !== "new") {
-    const existing = await db.select().from(reps).where(eq(reps.id, repId)).get();
+    const existing = await db.select().from(reps).where(and(eq(reps.id, repId), forTenant(reps.orgId))).get();
     if (existing) return existing.id;
   }
 
   const email = (repEmail || "").trim().toLowerCase();
   const name = (repName || "").trim();
-  const all = await db.select().from(reps).all();
+  const all = await db.select().from(reps).where(forTenant(reps.orgId)).all();
   if (email) {
     const byEmail = all.find((r: any) => (r.email || "").toLowerCase() === email);
     if (byEmail) return byEmail.id;
@@ -386,6 +440,7 @@ export async function getOrCreateRep(
     .insert(reps)
     .values({
       id,
+      orgId: tenantId(),
       name: name || "New Rep",
       email: email || `${slug}@company.io`,
       role: (repRole || "").trim() || "Sales Rep",
@@ -417,10 +472,10 @@ export async function setRepFocus(repId: string, focus: string): Promise<void> {
 // --- Reps & Calls ---
 export async function getAllReps(): Promise<Rep[]> {
   await deleteCallsWithoutTranscript();
-  const allReps = await db.select().from(reps).all();
-  const allCalls = await db.select().from(calls).all();
-  const allEvals = await db.select().from(evaluations).all();
-  const allSnapshots = await db.select().from(repSnapshots).all();
+  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
+  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).all();
+  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
+  const allSnapshots = await db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all();
 
   const repsWithMetrics: Rep[] = [];
 
@@ -483,12 +538,12 @@ export async function getRepById(id: string): Promise<{
   talkTrack: ManagerTalkTrack | null;
 }> {
   await deleteCallsWithoutTranscript();
-  const repRecord = await db.select().from(reps).where(eq(reps.id, id)).get();
+  const repRecord = await db.select().from(reps).where(and(eq(reps.id, id), forTenant(reps.orgId))).get();
   if (!repRecord) return { rep: null, calls: [], snapshot: null, talkTrack: null };
 
-  const repCalls = await db.select().from(calls).where(eq(calls.repId, id)).orderBy(desc(calls.createdAt)).all();
-  const repEvals = await db.select().from(evaluations).where(eq(evaluations.repId, id)).all();
-  const snapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, id)).get();
+  const repCalls = await db.select().from(calls).where(and(eq(calls.repId, id), forTenant(calls.orgId))).orderBy(desc(calls.createdAt)).all();
+  const repEvals = await db.select().from(evaluations).where(and(eq(evaluations.repId, id), forTenant(evaluations.orgId))).all();
+  const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, id), forTenant(repSnapshots.orgId))).get();
   const persona = await getRepPersona(id);
 
   const fullCalls: Call[] = repCalls.map((c: any) => {
@@ -540,12 +595,12 @@ export async function getRepById(id: string): Promise<{
 }
 
 export async function deleteCallsWithoutTranscript(): Promise<string[]> {
-  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText }).from(calls).all();
+  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText }).from(calls).where(forTenant(calls.orgId)).all();
   const removed: string[] = [];
   for (const row of rows) {
     if (!isUnusableTranscript(row.transcriptText)) continue;
-    await db.delete(evaluations).where(eq(evaluations.callId, row.id)).run();
-    await db.delete(calls).where(eq(calls.id, row.id)).run();
+    await db.delete(evaluations).where(and(eq(evaluations.callId, row.id), forTenant(evaluations.orgId))).run();
+    await db.delete(calls).where(and(eq(calls.id, row.id), forTenant(calls.orgId))).run();
     removed.push(row.id);
   }
   return removed;
@@ -553,9 +608,9 @@ export async function deleteCallsWithoutTranscript(): Promise<string[]> {
 
 export async function getAllCalls(): Promise<Call[]> {
   await deleteCallsWithoutTranscript();
-  const allCalls = await db.select().from(calls).orderBy(desc(calls.createdAt)).all();
-  const allReps = await db.select().from(reps).all();
-  const allEvals = await db.select().from(evaluations).all();
+  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all();
+  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
+  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
 
   return allCalls.map((c: any) => {
     const rep = allReps.find((r: any) => r.id === c.repId);
@@ -591,17 +646,17 @@ export async function getAllCalls(): Promise<Call[]> {
 }
 
 export async function getCallById(id: string): Promise<Call | null> {
-  const c = await db.select().from(calls).where(eq(calls.id, id)).get();
+  const c = await db.select().from(calls).where(and(eq(calls.id, id), forTenant(calls.orgId))).get();
   if (!c) return null;
   if (isUnusableTranscript(c.transcriptText)) {
-    await db.delete(evaluations).where(eq(evaluations.callId, c.id)).run();
-    await db.delete(calls).where(eq(calls.id, c.id)).run();
+    await db.delete(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).run();
+    await db.delete(calls).where(and(eq(calls.id, c.id), forTenant(calls.orgId))).run();
     return null;
   }
 
-  const rep = await db.select().from(reps).where(eq(reps.id, c.repId)).get();
+  const rep = await db.select().from(reps).where(and(eq(reps.id, c.repId), forTenant(reps.orgId))).get();
   const ev = latestEvaluationRow(
-    await db.select().from(evaluations).where(eq(evaluations.callId, c.id)).all(),
+    await db.select().from(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).all(),
     c.id
   );
 
@@ -653,7 +708,7 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
 
   const repTrajectories = [];
   for (const r of allReps) {
-    const snapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, r.id)).get();
+    const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, r.id), forTenant(repSnapshots.orgId))).get();
     repTrajectories.push({
       repId: r.id,
       repName: r.name,
@@ -796,3 +851,78 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     repLeaderboard,
   };
 }
+
+export async function insertCall(values: {
+  id: string;
+  repId: string;
+  prospectCompany: string;
+  prospectName: string;
+  callStage: string;
+  coreOutcome: string;
+  durationSeconds: number;
+  transcriptText: string;
+  audioUrl?: string;
+  status: string;
+  createdAt: string;
+}): Promise<void> {
+  await db.insert(calls).values({
+    ...values,
+    orgId: tenantId(),
+  }).run();
+}
+
+const BACKFILL_KEY = "tenant_backfill_org_id";
+
+async function copyUnprefixedSettingsToTenant(org: string): Promise<void> {
+  const rows = await db.select().from(appSettings).all();
+  for (const row of rows as { key: string; value: string }[]) {
+    if (GLOBAL_SETTING_KEYS.has(row.key) || row.key.startsWith("t:")) continue;
+    let logicalKey = row.key;
+    if (logicalKey.startsWith(`billing:${org}:`)) {
+      logicalKey = `billing:${logicalKey.slice(`billing:${org}:`.length)}`;
+    } else if (logicalKey.startsWith("billing:workspace:")) {
+      logicalKey = `billing:${logicalKey.slice("billing:workspace:".length)}`;
+    }
+    const targetKey = settingStorageKey(org, logicalKey);
+    const exists = await readRawSetting(targetKey);
+    if (exists == null) {
+      await writeRawSetting(targetKey, row.value);
+    }
+  }
+}
+
+/**
+ * Existing unscoped rows (pre-isolation) are stamped `local`. Assign them once
+ * to the oldest Clerk org — or LEGACY_TENANT_ORG_ID — so the original customer
+ * keeps their data and new orgs start empty.
+ */
+export async function backfillLegacyTenant(oldestOrgId?: string | null): Promise<string | null> {
+  const already = await readRawSetting(BACKFILL_KEY);
+  if (already) return already === "none" ? null : already;
+
+  const target = (process.env.LEGACY_TENANT_ORG_ID || oldestOrgId || "").trim();
+  if (!target || target === LOCAL_TENANT_ID) {
+    return null;
+  }
+
+  try {
+    await db.update(reps).set({ orgId: target }).where(eq(reps.orgId, LOCAL_TENANT_ID)).run();
+    await db.update(calls).set({ orgId: target }).where(eq(calls.orgId, LOCAL_TENANT_ID)).run();
+    await db.update(evaluations).set({ orgId: target }).where(eq(evaluations.orgId, LOCAL_TENANT_ID)).run();
+    await db.update(repSnapshots).set({ orgId: target }).where(eq(repSnapshots.orgId, LOCAL_TENANT_ID)).run();
+    await db.update(scripts).set({ orgId: target }).where(eq(scripts.orgId, LOCAL_TENANT_ID)).run();
+    await db.update(repPersonas).set({ orgId: target }).where(eq(repPersonas.orgId, LOCAL_TENANT_ID)).run();
+  } catch (err) {
+    console.warn("Legacy tenant backfill skipped:", err);
+    return null;
+  }
+
+  await copyUnprefixedSettingsToTenant(target);
+  const billed = await readRawSetting(settingStorageKey(target, "billing:plan"));
+  if (!billed) {
+    await writeRawSetting(settingStorageKey(target, "billing:plan"), "coach");
+  }
+  await writeRawSetting(BACKFILL_KEY, target);
+  return target;
+}
+

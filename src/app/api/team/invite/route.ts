@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerAuth } from "@/lib/auth";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 import { parseInviteRole } from "@/lib/team-copy";
 import { ensureActiveTeam, listPendingInvites, publicTeamError, sendTeamInvites } from "@/lib/team";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const auth = await getServerAuth();
+  let auth;
+  try {
+    auth = await requireWorkspace();
+  } catch (err) {
+    return workspaceErrorResponse(err);
+  }
   if (!auth.userId) {
     return NextResponse.json({ error: "Sign in first, then you can invite teammates." }, { status: 401 });
   }

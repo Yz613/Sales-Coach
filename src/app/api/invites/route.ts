@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { getSetting } from "@/lib/db/service";
 import { isInviteRole, parseInviteEmails } from "@/lib/inviteEmails";
 import { buildInviteRedirectUrl } from "@/lib/inviteRedirect";
 import { createClerkInviteApi } from "@/lib/clerkInvites";
 import { sendOrganizationInvites } from "@/lib/inviteSend";
-import { hasClerkServerAuth } from "@/lib/clerk-env";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 type AdminGate =
   | { ok: false; response: NextResponse }
   | { ok: true; userId: string; orgId: string };
 
 async function requireOrgAdmin(): Promise<AdminGate> {
-  if (!hasClerkServerAuth()) {
-    return { ok: false, response: NextResponse.json({ error: "Authentication is not configured" }, { status: 503 }) };
+  try {
+    const session = await requireWorkspace();
+    if (!session.userId || !session.orgId) {
+      return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    }
+    if (!session.isAdmin) {
+      return { ok: false, response: NextResponse.json({ error: "Only team admins can manage invites" }, { status: 403 }) };
+    }
+    return { ok: true, userId: session.userId, orgId: session.orgId };
+  } catch (err) {
+    return { ok: false, response: workspaceErrorResponse(err) };
   }
-  const authData = await auth();
-  if (!authData.userId) {
-    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  const isAdmin =
-    (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
-    authData.orgRole === "org:admin";
-  if (!authData.orgId || !isAdmin) {
-    return { ok: false, response: NextResponse.json({ error: "Only team admins can manage invites" }, { status: 403 }) };
-  }
-  return { ok: true, userId: authData.userId, orgId: authData.orgId };
 }
 
 async function resolveResendApiKey(): Promise<string | null> {

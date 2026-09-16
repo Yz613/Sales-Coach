@@ -1,4 +1,3 @@
-import type { AuthUser } from "@/lib/auth";
 import {
   HOSTED_PLANS,
   assessEvalQuota,
@@ -7,7 +6,14 @@ import {
   type HostedPlanId,
   type QuotaDecision,
 } from "@/lib/billing";
+import {
+  hostedBillingRequired,
+  isPaidHostedPlan,
+  planFromClerkHas,
+  type ClerkHas,
+} from "@/lib/billingAccess";
 import { getSetting, setSetting } from "@/lib/db/service";
+import { LOCAL_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 
 export class QuotaExceededError extends Error {
   status = 402;
@@ -17,6 +23,16 @@ export class QuotaExceededError extends Error {
     super(message);
     this.name = "QuotaExceededError";
     this.code = code;
+  }
+}
+
+export class PaymentRequiredError extends Error {
+  status = 402;
+  code = "PAYMENT_REQUIRED" as const;
+
+  constructor(message = "Subscribe to a hosted plan to use this workspace.") {
+    super(message);
+    this.name = "PaymentRequiredError";
   }
 }
 
@@ -30,31 +46,38 @@ export type BillingUsage = {
 export type BillingAccount = {
   scope: string;
   planId: HostedPlanId;
+  paid: boolean;
   monthlyLimit: number | null;
   overageOptIn: boolean;
   unlimited: boolean;
   usage: BillingUsage;
 };
 
-function planKey(scope: string) {
-  return `billing:${scope}:plan`;
+type BillingAuth = {
+  isClerkConfigured: boolean;
+  orgId?: string | null;
+  clerkPlanId?: HostedPlanId | null;
+};
+
+function planKey() {
+  return "billing:plan";
 }
 
-function overageKey(scope: string) {
-  return `billing:${scope}:overage_opt_in`;
+function overageKey() {
+  return "billing:overage_opt_in";
 }
 
-function limitOverrideKey(scope: string) {
-  return `billing:${scope}:eval_limit`;
+function limitOverrideKey() {
+  return "billing:eval_limit";
 }
 
-function usageKey(scope: string, month: string) {
-  return `billing:${scope}:usage:${month}`;
+function usageKey(month: string) {
+  return `billing:usage:${month}`;
 }
 
-export function billingScope(auth: Pick<AuthUser, "isClerkConfigured" | "orgId">): string {
-  if (!auth.isClerkConfigured) return "local";
-  return (auth.orgId || "workspace").trim() || "workspace";
+export function billingScope(auth: BillingAuth): string {
+  if (!auth.isClerkConfigured) return LOCAL_TENANT_ID;
+  return resolveTenantId(auth);
 }
 
 function parseUsage(raw: string | null, month: string): BillingUsage {
@@ -75,31 +98,54 @@ function parseUsage(raw: string | null, month: string): BillingUsage {
 }
 
 export async function loadBillingAccount(
-  auth: Pick<AuthUser, "isClerkConfigured" | "orgId">
+  auth: BillingAuth,
+  has?: ClerkHas
 ): Promise<BillingAccount> {
-  const scope = billingScope(auth);
-  const unlimited = !auth.isClerkConfigured;
-  const storedPlan = parseHostedPlanId(await getSetting(planKey(scope)));
-  const planId: HostedPlanId = unlimited ? "oss" : storedPlan || "coach";
-  const plan = HOSTED_PLANS[planId];
-  const override = Number.parseInt((await getSetting(limitOverrideKey(scope))) || "", 10);
-  const monthlyLimit =
-    unlimited || plan.monthlyEvals == null
-      ? null
-      : Number.isFinite(override) && override > 0
-        ? override
-        : plan.monthlyEvals;
+  const unlimited = !auth.isClerkConfigured || !hostedBillingRequired();
+  const clerkPlan = auth.clerkPlanId || planFromClerkHas(has);
+  const storedPlan = parseHostedPlanId(await getSetting(planKey()));
+  const entitled = clerkPlan || (isPaidHostedPlan(storedPlan) ? storedPlan : null);
 
-  const storedOverage = await getSetting(overageKey(scope));
+  if (clerkPlan && clerkPlan !== storedPlan) {
+    await setSetting(planKey(), clerkPlan);
+  }
+
+  let planId: HostedPlanId;
+  let paid: boolean;
+  if (unlimited) {
+    planId = storedPlan || "oss";
+    paid = true;
+  } else if (entitled) {
+    planId = entitled;
+    paid = true;
+  } else {
+    planId = "coach";
+    paid = false;
+  }
+
+  const plan = HOSTED_PLANS[planId];
+  const override = Number.parseInt((await getSetting(limitOverrideKey())) || "", 10);
+  const monthlyLimit = unlimited
+    ? null
+    : !paid
+      ? 0
+      : plan.monthlyEvals == null
+        ? null
+        : Number.isFinite(override) && override > 0
+          ? override
+          : plan.monthlyEvals;
+
+  const storedOverage = await getSetting(overageKey());
   const overageOptIn =
     storedOverage == null ? plan.defaultOverageOptIn : storedOverage === "true";
 
   const month = utcMonthKey();
-  const usage = parseUsage(await getSetting(usageKey(scope, month)), month);
+  const usage = parseUsage(await getSetting(usageKey(month)), month);
 
   return {
-    scope,
+    scope: unlimited ? LOCAL_TENANT_ID : billingScope(auth),
     planId,
+    paid,
     monthlyLimit,
     overageOptIn: plan.allowsOverage ? overageOptIn : false,
     unlimited,
@@ -108,15 +154,11 @@ export async function loadBillingAccount(
 }
 
 export async function saveBillingSettings(
-  auth: Pick<AuthUser, "isClerkConfigured" | "orgId">,
-  input: { planId?: HostedPlanId; overageOptIn?: boolean }
+  auth: BillingAuth,
+  input: { overageOptIn?: boolean }
 ): Promise<BillingAccount> {
-  const scope = billingScope(auth);
-  if (input.planId) {
-    await setSetting(planKey(scope), input.planId);
-  }
   if (input.overageOptIn !== undefined) {
-    await setSetting(overageKey(scope), input.overageOptIn ? "true" : "false");
+    await setSetting(overageKey(), input.overageOptIn ? "true" : "false");
   }
   return loadBillingAccount(auth);
 }
@@ -129,7 +171,8 @@ export function summarizeBilling(account: BillingAccount) {
       : Math.max(0, account.monthlyLimit - account.usage.creditsUsed);
   return {
     planId: account.planId,
-    planName: plan.name,
+    planName: account.paid ? plan.name : "Unpaid",
+    paid: account.paid,
     monthlyLimit: account.monthlyLimit,
     overageOptIn: account.overageOptIn,
     allowsOverage: plan.allowsOverage,
@@ -140,10 +183,13 @@ export function summarizeBilling(account: BillingAccount) {
 }
 
 export async function assertEvaluationAllowed(
-  auth: Pick<AuthUser, "isClerkConfigured" | "orgId">,
+  auth: BillingAuth,
   requestedCredits: number
 ): Promise<{ account: BillingAccount; decision: Extract<QuotaDecision, { ok: true }> }> {
   const account = await loadBillingAccount(auth);
+  if (hostedBillingRequired() && auth.isClerkConfigured && !account.paid) {
+    throw new PaymentRequiredError();
+  }
   const decision = assessEvalQuota({
     planId: account.planId,
     monthlyLimit: account.monthlyLimit,
@@ -158,7 +204,7 @@ export async function assertEvaluationAllowed(
 }
 
 export async function recordEvaluationUsage(
-  auth: Pick<AuthUser, "isClerkConfigured" | "orgId">,
+  auth: BillingAuth,
   requestedCredits: number
 ): Promise<BillingUsage> {
   const { account, decision } = await assertEvaluationAllowed(auth, requestedCredits);
@@ -171,10 +217,11 @@ export async function recordEvaluationUsage(
       (account.usage.overageAmountUsd + decision.overageAmountUsd).toFixed(2)
     ),
   };
-  await setSetting(usageKey(account.scope, month), JSON.stringify(next));
+  await setSetting(usageKey(month), JSON.stringify(next));
   return next;
 }
 
 export function quotaHttpStatus(err: unknown): number {
-  return err instanceof QuotaExceededError ? err.status : 500;
+  if (err instanceof PaymentRequiredError || err instanceof QuotaExceededError) return err.status;
+  return 500;
 }

@@ -49,6 +49,12 @@ function redirectInviteTickets(req: NextRequest): NextResponse | null {
   return NextResponse.redirect(ticket.location, ticket.status);
 }
 
+function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-salescoach-path", publicPath);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
 function memberCallsRedirect(req: NextRequest): NextResponse {
   return NextResponse.redirect(new URL(toAppPath("/calls"), req.url));
 }
@@ -75,7 +81,7 @@ const clerkHandler = hasClerkKey
       // Apex `/` and `/app/marketing` are the public landing. Do not treat
       // middleware `/` (the /app dashboard under basePath) as marketing.
       if (isPublicMarketingPath(publicPath)) {
-        return;
+        return nextWithPath(req, publicPath);
       }
 
       const pendingAuth = await auth({ treatPendingAsSignedOut: false });
@@ -89,7 +95,7 @@ const clerkHandler = hasClerkKey
 
       // Sign-in/up and a few APIs must not HTML-redirect (fetch() would parse HTML as JSON).
       if (isPublicAuthRoute(publicPath) || isPublicApiRoute(publicPath, req.method)) {
-        return;
+        return nextWithPath(req, publicPath);
       }
 
       if (pendingTeamPath && isApiRoute(publicPath)) {
@@ -103,6 +109,13 @@ const clerkHandler = hasClerkKey
           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         return authData.redirectToSignIn();
+      }
+
+      if (!authData.orgId) {
+        if (isApiRoute(publicPath)) {
+          return NextResponse.json({ error: "Choose a team to finish signing in." }, { status: 401 });
+        }
+        return NextResponse.redirect(new URL(toAppPath("/select-organization"), req.url));
       }
 
       const metadataRole = (authData.sessionClaims?.metadata as { role?: string } | undefined)?.role;
@@ -122,7 +135,7 @@ const clerkHandler = hasClerkKey
         if (denied) return denied;
       }
 
-      return NextResponse.next();
+      return nextWithPath(req, publicPath);
     })
   : null;
 
@@ -145,7 +158,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     if (denied) return denied;
   }
 
-  return NextResponse.next();
+  return nextWithPath(request, getPublicPath(request));
 }
 
 export const config = {

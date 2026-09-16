@@ -43,6 +43,7 @@ export default function AdminSettingsPage() {
   const [canTranscribe, setCanTranscribe] = useState(true);
   const [billingPlan, setBillingPlan] = useState<HostedPlanId>("oss");
   const [overageOptIn, setOverageOptIn] = useState(false);
+  const [billingPaid, setBillingPaid] = useState(true);
   const [billingUsage, setBillingUsage] = useState<{ creditsUsed: number; overageCredits: number; overageAmountUsd: number; remaining: number | null; unlimited: boolean; monthlyLimit: number | null } | null>(null);
 
   const providerMeta = getProvider(provider);
@@ -76,6 +77,7 @@ export default function AdminSettingsPage() {
           if (!known && p.allowsCustomModel) setCustomModel(data.activeModel);
         }
         if (data.billing?.planId) setBillingPlan(data.billing.planId);
+        if (typeof data.billing?.paid === "boolean") setBillingPaid(data.billing.paid);
         if (typeof data.billing?.overageOptIn === "boolean") setOverageOptIn(data.billing.overageOptIn);
         if (data.billing) {
           setBillingUsage({
@@ -147,7 +149,6 @@ export default function AdminSettingsPage() {
           apiKey,
           activeModel: selectedModelId,
           resendApiKey,
-          billingPlan,
           overageOptIn,
         }),
       });
@@ -410,30 +411,20 @@ export default function AdminSettingsPage() {
 
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">Plan</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {(Object.values(HOSTED_PLANS) as typeof HOSTED_PLANS[HostedPlanId][]).map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => {
-                    setBillingPlan(plan.id);
-                    if (plan.allowsOverage) setOverageOptIn(plan.defaultOverageOptIn);
-                    else setOverageOptIn(false);
-                  }}
-                  className={`rounded-xl border px-3.5 py-3 text-left transition ${
-                    billingPlan === plan.id
-                      ? "border-blue-500/50 bg-blue-500/15 text-white shadow-sm"
-                      : "border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/[0.15] hover:bg-white/[0.06]"
-                  }`}
-                >
-                  <span className="block text-xs font-semibold">{plan.name}</span>
-                  <span className="block text-[10px] text-slate-400 mt-0.5">
-                    {plan.monthlyEvals == null
-                      ? "Unlimited local evaluations"
-                      : `${plan.monthlyEvals.toLocaleString()} evals / mo`}
-                  </span>
-                </button>
-              ))}
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3">
+              <span className="block text-xs font-semibold text-white">
+                {billingPaid ? HOSTED_PLANS[billingPlan].name : "No active subscription"}
+              </span>
+              <span className="block text-[10px] text-slate-400 mt-0.5">
+                {billingPaid
+                  ? HOSTED_PLANS[billingPlan].monthlyEvals == null
+                    ? "Unlimited local evaluations"
+                    : `${HOSTED_PLANS[billingPlan].monthlyEvals.toLocaleString()} evals / mo`
+                  : "Checkout is required before this team can see workspace data or run evaluations."}
+              </span>
+              <Link href="/subscribe" className="mt-2 inline-block text-[11px] font-semibold text-blue-300 hover:text-blue-200">
+                Manage billing →
+              </Link>
             </div>
           </div>
 

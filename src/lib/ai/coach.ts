@@ -3,7 +3,7 @@ import { evaluations, calls, reps, repSnapshots } from "../db/schema";
 import { getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
 import { latestEvaluationsByCall } from "../evaluations";
 import { computeScriptDivergence } from "../callInsights";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
 import { completeJson } from "./llm";
 import { resolveAiSettings } from "./settings";
@@ -24,6 +24,7 @@ import {
   normalizeCoreOutcome,
 } from "../coreOutcome";
 import { formatProspectContext } from "../callLabel";
+import { currentTenantId } from "../tenant";
 
 interface EvaluationInput {
   callId: string;
@@ -37,7 +38,12 @@ interface EvaluationInput {
 
 export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluation> {
   requireUsableTranscript(input.transcriptText);
-  const rep = await db.select().from(reps).where(eq(reps.id, input.repId)).get();
+  const orgId = currentTenantId();
+  const callRow = await db.select().from(calls).where(and(eq(calls.id, input.callId), eq(calls.orgId, orgId))).get();
+  if (!callRow) {
+    throw new Error("Call not found");
+  }
+  const rep = await db.select().from(reps).where(and(eq(reps.id, input.repId), eq(reps.orgId, orgId))).get();
   const repName = rep?.name || "Rep";
   const durationSeconds = input.durationSeconds ?? 0;
 
@@ -47,7 +53,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   const previousEvals = (await db
     .select()
     .from(evaluations)
-    .where(eq(evaluations.repId, input.repId))
+    .where(and(eq(evaluations.repId, input.repId), eq(evaluations.orgId, orgId)))
     .orderBy(desc(evaluations.createdAt))
     .limit(8)
     .all())
@@ -122,9 +128,10 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   // Replace the previous review for this call so reanalyze does not leave stale scores.
-  await db.delete(evaluations).where(eq(evaluations.callId, input.callId)).run();
+  await db.delete(evaluations).where(and(eq(evaluations.callId, input.callId), eq(evaluations.orgId, orgId))).run();
   await db.insert(evaluations).values({
     id: evaluationId,
+    orgId,
     callId: input.callId,
     repId: input.repId,
     bottomLine: evaluationResult.bottomLine,
@@ -148,7 +155,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   await db.update(calls)
     .set({ status: "completed", coreOutcome: evaluationResult.coreOutcome })
-    .where(eq(calls.id, input.callId))
+    .where(and(eq(calls.id, input.callId), eq(calls.orgId, orgId)))
     .run();
 
   await updateRepProgressionSnapshot(input.repId, repName, evaluationResult);
@@ -553,11 +560,12 @@ async function updateRepProgressionSnapshot(
   repName: string,
   latestEval: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">
 ) {
+  const orgId = currentTenantId();
   const allRepEvals = latestEvaluationsByCall(
     await db
       .select()
       .from(evaluations)
-      .where(eq(evaluations.repId, repId))
+      .where(and(eq(evaluations.repId, repId), eq(evaluations.orgId, orgId)))
       .orderBy(desc(evaluations.createdAt))
       .all()
   );
@@ -590,7 +598,7 @@ async function updateRepProgressionSnapshot(
     }
   }
 
-  const existingSnapshot = await db.select().from(repSnapshots).where(eq(repSnapshots.repId, repId)).get();
+  const existingSnapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, repId), eq(repSnapshots.orgId, orgId))).get();
 
   if (existingSnapshot) {
     await db.update(repSnapshots)
@@ -601,11 +609,12 @@ async function updateRepProgressionSnapshot(
         recentScriptScore: latestEval.sandlerBreakdown.scriptAdherence.score,
         lastUpdated: new Date().toISOString(),
       })
-      .where(eq(repSnapshots.repId, repId))
+      .where(and(eq(repSnapshots.repId, repId), eq(repSnapshots.orgId, orgId)))
       .run();
   } else {
     await db.insert(repSnapshots).values({
       id: `snap_${Date.now()}`,
+      orgId,
       repId,
       overallTrajectory: trajectory,
       managerRationale: rationale,

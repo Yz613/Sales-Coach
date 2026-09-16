@@ -68,7 +68,7 @@ export default function AuthProvider({
         signInUrl={CLERK_PATHS.signIn}
         signUpUrl={CLERK_PATHS.signUp}
         signInFallbackRedirectUrl={CLERK_PATHS.afterSignIn}
-        signUpFallbackRedirectUrl={CLERK_PATHS.afterSignIn}
+        signUpFallbackRedirectUrl={CLERK_PATHS.subscribe}
         afterSignOutUrl={CLERK_PATHS.afterSignOut}
         taskUrls={{ "choose-organization": CLERK_PATHS.selectOrganization }}
       >

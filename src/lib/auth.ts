@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveCanViewAllCalls } from "@/lib/call-access";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
+import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/billingAccess";
+import type { HostedPlanId } from "@/lib/billing";
+import { LOCAL_TENANT_ID, TenantRequiredError, bindTenant } from "@/lib/tenant";
+import { toAppPath } from "@/lib/public-path";
 
 export type { UserRole } from "@/lib/roles";
 
@@ -17,10 +21,32 @@ export interface AuthUser {
   canViewAllCalls: boolean;
   email?: string;
   name?: string;
+  tenantId: string | null;
+  clerkPlanId: HostedPlanId | null;
+  billingPaid: boolean;
 }
 
 export function isClerkConfigured(): boolean {
   return hasClerkPublishableKey();
+}
+
+let backfillStarted = false;
+
+async function maybeBackfillLegacyTenant(): Promise<void> {
+  if (backfillStarted || !hasClerkServerAuth()) return;
+  backfillStarted = true;
+  try {
+    const { createClerkClient } = await import("@clerk/nextjs/server");
+    const { backfillLegacyTenant } = await import("@/lib/db/service");
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+    const list = await clerk.organizations.getOrganizationList({ limit: 100 });
+    const orgs = [...(list.data || [])].sort((a, b) => a.createdAt - b.createdAt);
+    const oldest = orgs[0]?.id || process.env.LEGACY_TENANT_ORG_ID || null;
+    if (oldest) await backfillLegacyTenant(oldest);
+  } catch (err) {
+    console.warn("Legacy tenant backfill could not list organizations:", err);
+    backfillStarted = false;
+  }
 }
 
 /**
@@ -37,6 +63,8 @@ export async function getServerAuth(): Promise<AuthUser> {
   let orgRole: string | null | undefined;
   let hasOrgAdmin = false;
   let metadataRole: string | undefined;
+  let clerkHas: ClerkHas = undefined;
+  let clerkPlanId: HostedPlanId | null = null;
 
   // Only call auth() when clerkMiddleware will also run. An inlined
   // publishable key alone makes Clerk throw "can't detect clerkMiddleware".
@@ -47,9 +75,11 @@ export async function getServerAuth(): Promise<AuthUser> {
       userId = authData.userId;
       orgId = authData.orgId;
       orgRole = authData.orgRole;
+      clerkHas = typeof authData.has === "function" ? authData.has.bind(authData) : undefined;
       hasOrgAdmin =
         (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
         authData.orgRole === "org:admin";
+      clerkPlanId = planFromClerkHas(clerkHas);
 
       if (userId) {
         const user = await currentUser();
@@ -75,6 +105,35 @@ export async function getServerAuth(): Promise<AuthUser> {
   });
 
   const isAdmin = effectiveRole === "admin";
+  let tenantId: string | null = null;
+  if (!clerkConfigured || !hasClerkServerAuth()) {
+    tenantId = LOCAL_TENANT_ID;
+    bindTenant(LOCAL_TENANT_ID);
+  } else if (orgId) {
+    tenantId = orgId;
+    bindTenant(orgId);
+    await maybeBackfillLegacyTenant();
+  }
+
+  let billingPaid = !clerkConfigured || !hasClerkServerAuth();
+  if (tenantId && clerkConfigured && hasClerkServerAuth()) {
+    try {
+      const { loadBillingAccount } = await import("@/lib/billingQuota");
+      const account = await loadBillingAccount(
+        { isClerkConfigured: true, orgId, clerkPlanId },
+        clerkHas
+      );
+      billingPaid = account.paid;
+    } catch (err) {
+      if (err instanceof TenantRequiredError) {
+        billingPaid = false;
+      } else {
+        console.warn("Billing account load warning:", err);
+        billingPaid = Boolean(clerkPlanId);
+      }
+    }
+  }
+
   return {
     userId,
     email,
@@ -93,11 +152,20 @@ export async function getServerAuth(): Promise<AuthUser> {
     isAdmin,
     isMember: effectiveRole === "member",
     isClerkConfigured: clerkConfigured,
+    tenantId,
+    clerkPlanId,
+    billingPaid,
   };
 }
 
 export async function requireAdmin(): Promise<AuthUser> {
   const auth = await getServerAuth();
+  if (auth.isClerkConfigured && !auth.orgId) {
+    redirect(toAppPath("/select-organization"));
+  }
+  if (hostedBillingRequired() && auth.isClerkConfigured && !auth.billingPaid) {
+    redirect(toAppPath("/subscribe"));
+  }
   if (!auth.isAdmin) {
     redirect("/calls");
   }
