@@ -48,6 +48,7 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   const verb = method.toUpperCase();
   if (normalized === "/api/auth/role" && verb === "GET") return true;
   if (normalized === "/api/billing/checkout" && (verb === "GET" || verb === "POST")) return true;
+  if (normalized === "/api/billing/stripe-config" && (verb === "GET" || verb === "POST")) return true;
   if (normalized.startsWith("/api/webhooks/")) return true;
   return false;
 }

@@ -79,3 +79,27 @@ export function runtimeSecret(
 export function stripeSecret(env: Record<string, string | undefined> = process.env): string {
   return runtimeSecret("STRIPE_SECRET_KEY", env);
 }
+
+export const STRIPE_SECRET_SETTING_KEY = "stripe:secret_key";
+
+export function stripeSecretLooksValid(secret: string): boolean {
+  return /^sk_(live|test)_[A-Za-z0-9]{16,}$/.test(secret.trim());
+}
+
+export async function resolveStripeSecret(
+  env: Record<string, string | undefined> = process.env,
+  readStored: () => Promise<string | null> = readStoredStripeSecret
+): Promise<string> {
+  const fromEnv = stripeSecret(env);
+  if (fromEnv) return fromEnv;
+  try {
+    return ((await readStored()) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+async function readStoredStripeSecret(): Promise<string | null> {
+  const { getGlobalSetting } = await import("@/lib/db/service");
+  return getGlobalSetting(STRIPE_SECRET_SETTING_KEY);
+}
