@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
@@ -131,5 +132,18 @@ describe("paid session detection", () => {
     assert.equal(stripeCustomerId("cus_123"), "cus_123");
     assert.equal(stripeCustomerEmail({ id: "cs_test", customer_email: "a@b.com" }), "a@b.com");
     assert.equal(parseCheckoutRecord(JSON.stringify(record))?.sessionId, "cs_test");
+  });
+});
+
+describe("landing SSR bundle", () => {
+  it("does not statically import Stripe crypto or checkout from getServerAuth", () => {
+    const auth = readFileSync(new URL("./auth.ts", import.meta.url), "utf8");
+    assert.equal(/from ["']@\/lib\/stripeCheckout["']/.test(auth), false);
+    assert.equal(/from ["']@\/lib\/stripe["']/.test(auth), false);
+    assert.match(auth, /import\(["']@\/lib\/stripeCheckout["']\)/);
+
+    const checkout = readFileSync(new URL("./stripeCheckout.ts", import.meta.url), "utf8");
+    assert.equal(/from ["']@\/lib\/stripe["']/.test(checkout), false);
+    assert.match(checkout, /import\(["']@\/lib\/stripe["']\)/);
   });
 });
