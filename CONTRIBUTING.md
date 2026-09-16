@@ -32,7 +32,7 @@ Thank you for your interest in contributing to Sales Coach AI! We welcome contri
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) (redirects to `/app`).
+   Open [http://localhost:3000](http://localhost:3000) for the marketing landing, or [http://localhost:3000/app](http://localhost:3000/app) for the product.
 
 ---
 

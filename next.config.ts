@@ -24,11 +24,17 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: path.resolve(__dirname),
-  // Next middleware matchers are scoped to `basePath`, so apex /calls and
-  // /favicon.ico never hit `src/middleware.ts`. Config redirects with
-  // `basePath: false` run at the Next routing layer instead.
+  // Next middleware matchers are scoped to `basePath`, so apex `/`, /pricing,
+  // /calls, and /favicon.ico never hit `src/middleware.ts`. Config redirects
+  // and rewrites with `basePath: false` run at the Next routing layer instead.
   async redirects() {
     return [
+      {
+        source: "/pricing",
+        destination: "/#pricing",
+        permanent: true,
+        basePath: false,
+      },
       {
         source: "/calls",
         destination: `${APP_BASE_PATH}/calls`,
@@ -54,6 +60,17 @@ const nextConfig: NextConfig = {
         basePath: false,
       },
     ];
+  },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/",
+          destination: `${APP_BASE_PATH}/marketing`,
+          basePath: false,
+        },
+      ],
+    };
   },
 };
 
