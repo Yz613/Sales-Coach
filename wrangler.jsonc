@@ -9,8 +9,10 @@
 		"global_fetch_strictly_public"
 	],
 	"workers_dev": true,
-	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers):
+	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers).
+	// Apex `/` is the public marketing page (worker rewrite → /app/home). The product stays at /app.
 	// "routes": [
+	// 	{ "pattern": "yourdomain.com", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/app", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/app/*", "zone_name": "yourdomain.com" },
 	// 	{ "pattern": "yourdomain.com/calls", "zone_name": "yourdomain.com" },

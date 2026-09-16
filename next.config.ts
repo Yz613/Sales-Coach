@@ -55,6 +55,28 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Apex `/` never enters Next under `basePath: "/app"`. The Cloudflare worker
+  // rewrites it to `/app/home`; these rewrites cover `next start` / OpenNext
+  // when the worker wrapper is not in front.
+  async rewrites() {
+    return [
+      {
+        source: "/",
+        destination: `${APP_BASE_PATH}/home`,
+        basePath: false,
+      },
+      {
+        source: "/robots.txt",
+        destination: `${APP_BASE_PATH}/robots.txt`,
+        basePath: false,
+      },
+      {
+        source: "/sitemap.xml",
+        destination: `${APP_BASE_PATH}/sitemap.xml`,
+        basePath: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
