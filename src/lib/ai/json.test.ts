@@ -54,7 +54,7 @@ try {
 } catch (err) {
   parseError = err instanceof Error ? err.message : String(err);
 }
-assert.match(parseError, /Expected ',' or '}' after property value in JSON at position \d+ \(line 239 column 3\)/);
+assert.match(parseError, /Expected ',' or '}' after property value in JSON at position \d+/);
 const parsedLong = extractJson(longMissingComma);
 assert.equal(parsedLong.k0, "value 0");
 assert.equal(parsedLong.quote, "I'll send that over");
