@@ -30,6 +30,31 @@ export function isClerkConfigured(): boolean {
   return hasClerkPublishableKey();
 }
 
+function anonymousAuth(): AuthUser {
+  const clerkConfigured = isClerkConfigured();
+  const role = resolveUserRole({
+    clerkConfigured,
+    userId: null,
+  });
+  return {
+    userId: null,
+    role,
+    isAdmin: role === "admin",
+    isMember: role === "member",
+    isClerkConfigured: clerkConfigured,
+    canViewAllCalls: resolveCanViewAllCalls({
+      clerkConfigured,
+      userId: null,
+      orgRole: undefined,
+      hasOrgAdmin: false,
+      isAdmin: role === "admin",
+    }),
+    tenantId: clerkConfigured && hasClerkServerAuth() ? null : LOCAL_TENANT_ID,
+    clerkPlanId: null,
+    billingPaid: !clerkConfigured || !hasClerkServerAuth(),
+  };
+}
+
 let backfillStarted = false;
 
 async function maybeBackfillLegacyTenant(): Promise<void> {
@@ -49,11 +74,27 @@ async function maybeBackfillLegacyTenant(): Promise<void> {
   }
 }
 
+function isNextControlFlowError(err: unknown): boolean {
+  if (!err || typeof err !== "object" || !("digest" in err)) return false;
+  const digest = String((err as { digest?: unknown }).digest || "");
+  return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND");
+}
+
 /**
  * Get the current user and their role on the server.
  * Reads role from the active team, then publicMetadata.role.
  */
 export async function getServerAuth(): Promise<AuthUser> {
+  try {
+    return await loadServerAuth();
+  } catch (err) {
+    if (isNextControlFlowError(err)) throw err;
+    console.warn("getServerAuth failed:", err);
+    return anonymousAuth();
+  }
+}
+
+async function loadServerAuth(): Promise<AuthUser> {
   const clerkConfigured = isClerkConfigured();
 
   let userId: string | null = null;

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   LOCAL_TENANT_ID,
   TenantRequiredError,
+  bindTenant,
   currentTenantId,
   resolveTenantId,
   runWithTenant,
@@ -33,5 +34,11 @@ describe("runWithTenant", () => {
       assert.equal(currentTenantId(), "org_a");
     });
     assert.equal(settingStorageKey("org_a", "ai_api_key"), "t:org_a:ai_api_key");
+  });
+});
+
+describe("bindTenant", () => {
+  it("does not throw when attaching a tenant", () => {
+    assert.doesNotThrow(() => bindTenant("org_bound"));
   });
 });
