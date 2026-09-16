@@ -10,7 +10,7 @@ Briefly describe the change and its rationale.
 
 ## Checklist
 - [ ] My code follows the style guidelines of this project
-- [ ] I have run `npm test` and all 22 test suites pass
+- [ ] I have run `npm test` and all test suites pass
 - [ ] I have run `npx tsc --noEmit` and there are no TypeScript errors
 - [ ] I have run `npm run build` and verified the build succeeds
 - [ ] I have added tests that prove my fix is effective or that my feature works

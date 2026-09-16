@@ -69,9 +69,9 @@ npm run setup
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) (redirects to `/app`).
+Open [http://localhost:3000](http://localhost:3000) for the public marketing landing (pricing at `/#pricing`). Local `next dev` redirects `/` to `/app/marketing`; on Cloudflare the worker keeps the URL at `/`. The product lives at [http://localhost:3000/app](http://localhost:3000/app).
 
-You will immediately be in **Local Admin Mode** with full access to all features: Call Bank, Reps, Coach, Analytics, Scripts, and Settings.
+You will immediately be in **Local Admin Mode** with full access to all features: Call Bank, Reps, Coach, Analytics, Scripts, and Settings. The landing is also previewable at `/app/marketing`.
 
 ---
 
@@ -83,7 +83,7 @@ If you have Docker installed, you can start Sales Coach with a single command:
 docker compose up --build
 ```
 
-Then visit [http://localhost:3000](http://localhost:3000).
+Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http://localhost:3000/app](http://localhost:3000/app) (product).
 
 ---
 
@@ -152,6 +152,7 @@ RESEND_FROM_EMAIL="Sales Coach <invites@yourdomain.com>"
 ```text
 ├── src/
 │   ├── app/                      # Next.js App Router (pages & API endpoints under /app)
+│   │   ├── marketing/            # Public landing (also rewritten to apex /)
 │   │   ├── calls/                # Call Bank & Call Evaluation detail views
 │   │   ├── reps/                 # Rep directory, performance trends & 1:1 talk tracks
 │   │   ├── coach/                # Coach Builder & System prompt configuration
@@ -218,6 +219,8 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
    ```bash
    npm run deploy
    ```
+
+6. **Apex domain:** Point the zone apex (and `/pricing`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /` and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
 
 ---
 

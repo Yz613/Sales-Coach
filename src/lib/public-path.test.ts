@@ -10,7 +10,11 @@ import {
   isApiRoute,
   isBareCallsPath,
   isApexFaviconPath,
+  isApexPricingPath,
+  isPublicMarketingPath,
+  isMarketingAppPath,
   getApexAliasRedirect,
+  getApexMarketingRewrite,
 } from "./public-path";
 
 describe("toAppPath", () => {
@@ -82,10 +86,25 @@ describe("route classifiers", () => {
     assert.equal(isApexFaviconPath("/favicon.ico"), true);
     assert.equal(isApexFaviconPath("/icon.svg"), true);
     assert.equal(isApexFaviconPath("/app/icon.svg"), false);
+    assert.equal(isApexPricingPath("/pricing"), true);
+    assert.equal(isApexPricingPath("/pricing/"), true);
+    assert.equal(isApexPricingPath("/app/pricing"), false);
     assert.equal(APP_BASE_PATH, "/app");
   });
 
-  it("redirects apex /calls and /favicon.ico onto /app", () => {
+  it("treats apex / and /app/marketing as public, but not the /app dashboard", () => {
+    assert.equal(isPublicMarketingPath("/"), true);
+    assert.equal(isPublicMarketingPath("/app/marketing"), true);
+    assert.equal(isPublicMarketingPath("/marketing"), true);
+    assert.equal(isPublicMarketingPath("/app"), false);
+    assert.equal(isPublicMarketingPath("/app/"), false);
+    assert.equal(isPublicMarketingPath("/app/coach"), false);
+    assert.equal(isMarketingAppPath("/marketing"), true);
+    assert.equal(isMarketingAppPath("/app/marketing"), true);
+    assert.equal(isMarketingAppPath("/"), false);
+  });
+
+  it("redirects apex /calls, /favicon.ico, and /pricing", () => {
     const calls = getApexAliasRedirect("https://example.com/calls?rep=1");
     assert.equal(calls?.status, 308);
     assert.equal(calls?.location, "https://example.com/app/calls?rep=1");
@@ -99,7 +118,23 @@ describe("route classifiers", () => {
     const bareIcon = getApexAliasRedirect("https://example.com/icon.svg");
     assert.equal(bareIcon?.location, "https://example.com/app/icon.svg");
 
+    const pricing = getApexAliasRedirect("https://example.com/pricing");
+    assert.equal(pricing?.status, 308);
+    assert.equal(pricing?.location, "https://example.com/#pricing");
+
+    assert.equal(getApexAliasRedirect("https://example.com/"), null);
     assert.equal(getApexAliasRedirect("https://example.com/app/calls"), null);
     assert.equal(getApexAliasRedirect("https://example.com/app/coach"), null);
+  });
+
+  it("rewrites apex / to /app/marketing without changing other paths", () => {
+    assert.equal(
+      getApexMarketingRewrite("https://example.com/?utm=1"),
+      "https://example.com/app/marketing?utm=1"
+    );
+    assert.equal(getApexMarketingRewrite("https://example.com/"), "https://example.com/app/marketing");
+    assert.equal(getApexMarketingRewrite("https://example.com/app"), null);
+    assert.equal(getApexMarketingRewrite("https://example.com/app/marketing"), null);
+    assert.equal(getApexMarketingRewrite("https://example.com/pricing"), null);
   });
 });
