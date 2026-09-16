@@ -26,9 +26,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.resolve(__dirname),
   // Next middleware matchers are scoped to `basePath`, so apex `/`, /pricing,
   // /calls, and /favicon.ico never hit `src/middleware.ts`. Config redirects
-  // and rewrites with `basePath: false` run at the Next routing layer instead.
+  // with `basePath: false` run at the Next routing layer instead.
+  // Next cannot internally rewrite `/` onto `/app/*` (invalid-external-rewrite),
+  // so local `next dev` / `next start` 307 to `/app/marketing`. The Cloudflare
+  // worker still internally rewrites GET / so production apex URL stays `/`.
   async redirects() {
     return [
+      {
+        source: "/",
+        destination: `${APP_BASE_PATH}/marketing`,
+        permanent: false,
+        basePath: false,
+      },
       {
         source: "/pricing",
         destination: "/#pricing",
@@ -60,17 +69,6 @@ const nextConfig: NextConfig = {
         basePath: false,
       },
     ];
-  },
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: "/",
-          destination: `${APP_BASE_PATH}/marketing`,
-          basePath: false,
-        },
-      ],
-    };
   },
 };
 
