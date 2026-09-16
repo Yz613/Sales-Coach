@@ -224,10 +224,13 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
 4. **Set Production Secrets:**
    ```bash
    npx wrangler secret put CLERK_SECRET_KEY
+   npx wrangler secret put STRIPE_SECRET_KEY
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET
    # Optional:
    npx wrangler secret put GEMINI_API_KEY
    npx wrangler secret put RESEND_API_KEY
    ```
+   Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed.
 
 5. **Deploy:**
    ```bash
