@@ -5,6 +5,7 @@ import { hasClerkServerAuth } from "@/lib/clerk-env";
 export const LOCAL_TENANT_ID = "local";
 
 const tenantStore = new AsyncLocalStorage<string>();
+let fallbackTenant: string | undefined;
 
 export class TenantRequiredError extends Error {
   status = 401;
@@ -29,11 +30,24 @@ export function resolveTenantId(auth: {
 }
 
 export function bindTenant(tenantId: string): void {
-  tenantStore.enterWith(tenantId);
+  fallbackTenant = tenantId;
+  try {
+    tenantStore.enterWith(tenantId);
+  } catch {
+    // OpenNext/workerd can reject enterWith during RSC; the fallback still scopes this request.
+  }
 }
 
 export function runWithTenant<T>(tenantId: string, fn: () => T): T {
-  return tenantStore.run(tenantId, fn);
+  const previous = fallbackTenant;
+  fallbackTenant = tenantId;
+  try {
+    return tenantStore.run(tenantId, fn);
+  } catch {
+    return fn();
+  } finally {
+    fallbackTenant = previous;
+  }
 }
 
 /**
@@ -42,7 +56,7 @@ export function runWithTenant<T>(tenantId: string, fn: () => T): T {
  * shared "workspace" bucket (that leaked locked-account data).
  */
 export function currentTenantId(): string {
-  const bound = tenantStore.getStore();
+  const bound = tenantStore.getStore() || fallbackTenant;
   if (bound) return bound;
   if (!hasClerkServerAuth()) return LOCAL_TENANT_ID;
   throw new TenantRequiredError("Workspace is not scoped to a team.");

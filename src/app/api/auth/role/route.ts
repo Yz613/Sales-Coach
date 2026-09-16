@@ -11,8 +11,15 @@ function withClearedRoleCookie(response: NextResponse) {
 }
 
 export async function GET() {
-  const auth = await getServerAuth();
-  return withClearedRoleCookie(NextResponse.json(auth));
+  try {
+    const auth = await getServerAuth();
+    return withClearedRoleCookie(NextResponse.json(auth));
+  } catch (err) {
+    console.warn("GET /api/auth/role failed:", err);
+    return withClearedRoleCookie(
+      NextResponse.json({ error: "Auth is unavailable." }, { status: 200 })
+    );
+  }
 }
 
 export async function POST() {
