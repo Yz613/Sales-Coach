@@ -11,6 +11,10 @@ import {
   isBareCallsPath,
   isApexFaviconPath,
   getApexAliasRedirect,
+  isPublicContentRoute,
+  getApexInternalRewrite,
+  isMarketingRoute,
+  getApexSeoFile,
 } from "./public-path";
 
 describe("toAppPath", () => {
@@ -61,6 +65,19 @@ describe("route classifiers", () => {
     assert.equal(isPublicAuthRoute("/app/coach"), false);
   });
 
+  it("treats the marketing page and apex SEO files as public content", () => {
+    assert.equal(isPublicContentRoute("/home"), true);
+    assert.equal(isPublicContentRoute("/app/home"), true);
+    assert.equal(isPublicContentRoute("/app/robots.txt"), true);
+    assert.equal(isPublicContentRoute("/robots.txt"), true);
+    assert.equal(isPublicContentRoute("/app/sitemap.xml"), true);
+    assert.equal(isPublicContentRoute("/app/sign-in"), false);
+    assert.equal(isPublicContentRoute("/app/calls"), false);
+    assert.equal(isMarketingRoute("/app/home"), true);
+    assert.equal(isMarketingRoute("/home"), true);
+    assert.equal(isMarketingRoute("/app/calls"), false);
+  });
+
   it("allows unauthenticated GET /api/auth/role and webhooks", () => {
     assert.equal(isPublicApiRoute("/app/api/auth/role", "GET"), true);
     assert.equal(isPublicApiRoute("/api/auth/role", "GET"), true);
@@ -101,5 +118,32 @@ describe("route classifiers", () => {
 
     assert.equal(getApexAliasRedirect("https://example.com/app/calls"), null);
     assert.equal(getApexAliasRedirect("https://example.com/app/coach"), null);
+  });
+
+  it("rewrites the domain apex onto the public marketing route without changing query", () => {
+    const home = getApexInternalRewrite("https://refreshqueue.com/?utm=github", "GET");
+    assert.equal(home?.destination, "https://refreshqueue.com/app/home?utm=github");
+
+    const robots = getApexInternalRewrite("https://refreshqueue.com/robots.txt", "HEAD");
+    assert.equal(robots?.destination, "https://refreshqueue.com/app/robots.txt");
+
+    const sitemap = getApexInternalRewrite("https://refreshqueue.com/sitemap.xml");
+    assert.equal(sitemap?.destination, "https://refreshqueue.com/app/sitemap.xml");
+
+    assert.equal(getApexInternalRewrite("https://refreshqueue.com/", "POST"), null);
+    assert.equal(getApexInternalRewrite("https://refreshqueue.com/app"), null);
+    assert.equal(getApexInternalRewrite("https://refreshqueue.com/app/home"), null);
+    assert.equal(getApexInternalRewrite("https://refreshqueue.com/calls"), null);
+  });
+
+  it("serves indexable robots and sitemap at the domain apex", () => {
+    const robots = getApexSeoFile("https://refreshqueue.com/robots.txt");
+    assert.match(robots?.body ?? "", /Allow: \//);
+    assert.match(robots?.body ?? "", /Disallow: \/app\//);
+    assert.match(robots?.contentType ?? "", /text\/plain/);
+
+    const sitemap = getApexSeoFile("https://refreshqueue.com/sitemap.xml");
+    assert.match(sitemap?.body ?? "", /https:\/\/refreshqueue.com\//);
+    assert.equal(getApexSeoFile("https://refreshqueue.com/"), null);
   });
 });

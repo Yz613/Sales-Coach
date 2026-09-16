@@ -27,8 +27,16 @@ const nextConfig: NextConfig = {
   // Next middleware matchers are scoped to `basePath`, so apex /calls and
   // /favicon.ico never hit `src/middleware.ts`. Config redirects with
   // `basePath: false` run at the Next routing layer instead.
+  // Apex `/` is rewritten to `/app/home` by `cloudflare/worker.js` — Next
+  // cannot internally rewrite outside `basePath`.
   async redirects() {
     return [
+      {
+        source: "/",
+        destination: `${APP_BASE_PATH}/home`,
+        permanent: false,
+        basePath: false,
+      },
       {
         source: "/calls",
         destination: `${APP_BASE_PATH}/calls`,
