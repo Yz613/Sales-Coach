@@ -14,7 +14,7 @@ export default function CreateOrganizationPage() {
       <ClerkGate>
         <CreateOrganization
           routing="hash"
-          afterCreateOrganizationUrl={clerkUrl("/")}
+          afterCreateOrganizationUrl={clerkUrl("/subscribe")}
           appearance={clerkAppearance}
         />
       </ClerkGate>

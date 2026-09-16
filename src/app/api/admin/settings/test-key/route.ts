@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { pingProvider } from "@/lib/ai/llm";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { getProvider, isProviderId, type ProviderId } from "@/lib/ai/providers";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export async function POST(req: Request) {
   try {
+    await requireWorkspace();
     const body = await req.json();
     const incomingKey = (body.apiKey || "").toString().trim();
     const stored = await resolveAiSettings(incomingKey || undefined);
@@ -29,6 +31,8 @@ export async function POST(req: Request) {
       model,
     });
   } catch (err: any) {
+    const gated = workspaceErrorResponse(err);
+    if (gated.status !== 500) return gated;
     return NextResponse.json({
       success: false,
       error: err.message || "Failed to verify API key",

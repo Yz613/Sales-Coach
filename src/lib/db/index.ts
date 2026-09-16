@@ -1,6 +1,48 @@
 import * as schema from "./schema";
 
+const TENANT_TABLES = [
+  "reps",
+  "calls",
+  "evaluations",
+  "rep_snapshots",
+  "scripts",
+  "rep_personas",
+] as const;
+
+function addOrgIdColumnSqlite(sqlite: {
+  prepare: (sql: string) => { all: () => { name: string }[] };
+  exec: (sql: string) => unknown;
+}) {
+  for (const table of TENANT_TABLES) {
+    try {
+      const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all();
+      if (!cols.some((c) => c.name === "org_id")) {
+        sqlite.exec(`ALTER TABLE ${table} ADD COLUMN org_id TEXT NOT NULL DEFAULT 'local'`);
+      }
+      sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_${table}_org_id ON ${table}(org_id)`);
+    } catch {
+      // Table may not exist yet; schema.sql creates it with the column.
+    }
+  }
+}
+
+async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Promise<unknown> } }) {
+  for (const table of TENANT_TABLES) {
+    try {
+      await d1.prepare(`ALTER TABLE ${table} ADD COLUMN org_id TEXT NOT NULL DEFAULT 'local'`).run();
+    } catch {
+      // Duplicate column on already-migrated D1 databases.
+    }
+    try {
+      await d1.prepare(`CREATE INDEX IF NOT EXISTS idx_${table}_org_id ON ${table}(org_id)`).run();
+    } catch {
+      // Index may already exist.
+    }
+  }
+}
+
 let _db: any = null;
+let _d1Migrated = false;
 
 function initLocalSqlite() {
   const Database = require("better-sqlite3");
@@ -10,10 +52,12 @@ function initLocalSqlite() {
   const dbPath = path.resolve(process.cwd(), "sales_coach.db");
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
+  addOrgIdColumnSqlite(sqlite);
   const schemaPath = path.resolve(process.cwd(), "schema.sql");
   if (fs.existsSync(schemaPath)) {
     sqlite.exec(fs.readFileSync(schemaPath, "utf8"));
   }
+  addOrgIdColumnSqlite(sqlite);
   try {
     const cols = sqlite.prepare("PRAGMA table_info(evaluations)").all();
     if (!cols.some((c: { name: string }) => c.name === "extended_review")) {
@@ -49,6 +93,10 @@ export function getDb() {
     const ctx = getCloudflareContext();
     if (ctx && ctx.env && ctx.env.DB) {
       const { drizzle } = require("drizzle-orm/d1");
+      if (!_d1Migrated) {
+        _d1Migrated = true;
+        void addOrgIdColumnD1(ctx.env.DB);
+      }
       _db = drizzle(ctx.env.DB, { schema });
       return _db;
     }

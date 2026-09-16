@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getRepById } from "@/lib/db/service";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireWorkspace();
     const { id } = await params;
     const data = await getRepById(id);
     if (!data.rep) {
@@ -13,6 +15,6 @@ export async function GET(
     }
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return workspaceErrorResponse(err);
   }
 }

@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
 import { getServerAuth } from "@/lib/auth";
-import { toAppPath } from "@/lib/public-path";
+import { hostedBillingRequired } from "@/lib/billingAccess";
+import {
+  isApiRoute,
+  isPublicAuthRoute,
+  isPublicMarketingPath,
+  toAppPath,
+} from "@/lib/public-path";
 
 export const metadata: Metadata = {
   title: "Sales Coach AI — B2B Sales Management & Progression",
@@ -20,6 +28,26 @@ export default async function RootLayout({
 }>) {
   const auth = await getServerAuth();
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+  const path = (await headers()).get("x-salescoach-path") || "";
+  const gatedPage =
+    path &&
+    !isPublicMarketingPath(path) &&
+    !isPublicAuthRoute(path) &&
+    !isApiRoute(path);
+
+  if (gatedPage && auth.isClerkConfigured && auth.userId && !auth.orgId) {
+    redirect(toAppPath("/select-organization"));
+  }
+  if (
+    gatedPage &&
+    hostedBillingRequired() &&
+    auth.isClerkConfigured &&
+    auth.userId &&
+    auth.orgId &&
+    !auth.billingPaid
+  ) {
+    redirect(toAppPath("/subscribe"));
+  }
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>

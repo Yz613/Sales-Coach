@@ -22,7 +22,7 @@ function ClerkSelectTeamContent() {
         <OrganizationList
           hidePersonal
           afterSelectOrganizationUrl={clerkUrl("/")}
-          afterCreateOrganizationUrl={clerkUrl("/")}
+          afterCreateOrganizationUrl={clerkUrl("/subscribe")}
           appearance={clerkAppearance}
         />
       )}

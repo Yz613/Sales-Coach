@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS reps (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS reps (
 
 CREATE TABLE IF NOT EXISTS calls (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   rep_id TEXT NOT NULL,
   prospect_company TEXT NOT NULL,
   prospect_name TEXT NOT NULL,
@@ -24,6 +26,7 @@ CREATE TABLE IF NOT EXISTS calls (
 
 CREATE TABLE IF NOT EXISTS evaluations (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   call_id TEXT NOT NULL,
   rep_id TEXT NOT NULL,
   bottom_line TEXT NOT NULL,
@@ -47,6 +50,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
 
 CREATE TABLE IF NOT EXISTS rep_snapshots (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   rep_id TEXT NOT NULL,
   overall_trajectory TEXT NOT NULL,
   manager_rationale TEXT NOT NULL,
@@ -64,6 +68,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 CREATE TABLE IF NOT EXISTS scripts (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   stage TEXT NOT NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -74,6 +79,7 @@ CREATE TABLE IF NOT EXISTS scripts (
 
 CREATE TABLE IF NOT EXISTS rep_personas (
   id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL DEFAULT 'local',
   rep_id TEXT NOT NULL,
   experience_level TEXT NOT NULL,
   coaching_tone TEXT NOT NULL,
@@ -84,3 +90,11 @@ CREATE TABLE IF NOT EXISTS rep_personas (
   updated_at TEXT NOT NULL,
   FOREIGN KEY (rep_id) REFERENCES reps(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_reps_org_id ON reps(org_id);
+CREATE INDEX IF NOT EXISTS idx_calls_org_id ON calls(org_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_org_id ON evaluations(org_id);
+CREATE INDEX IF NOT EXISTS idx_rep_snapshots_org_id ON rep_snapshots(org_id);
+CREATE INDEX IF NOT EXISTS idx_scripts_org_id ON scripts(org_id);
+CREATE INDEX IF NOT EXISTS idx_rep_personas_org_id ON rep_personas(org_id);
+

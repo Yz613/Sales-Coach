@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, setRepFocus } from "@/lib/db/service";
+import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
-import { getServerAuth } from "@/lib/auth";
 import { resolveUploadRepId } from "@/lib/viewer-calls";
 import { evaluationCreditsForDuration } from "@/lib/billing";
-import { QuotaExceededError, assertEvaluationAllowed, recordEvaluationUsage } from "@/lib/billingQuota";
+import {
+  PaymentRequiredError,
+  QuotaExceededError,
+  assertEvaluationAllowed,
+  recordEvaluationUsage,
+} from "@/lib/billingQuota";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const maxDuration = 300;
 
@@ -54,10 +57,7 @@ function parseCsvLine(line: string): string[] {
 
 export async function POST(req: Request) {
   try {
-    const auth = await getServerAuth();
-    if (auth.isClerkConfigured && !auth.userId) {
-      return NextResponse.json({ error: "Sign in to upload calls." }, { status: 401 });
-    }
+    const auth = await requireWorkspace();
 
     const contentType = req.headers.get("content-type") || "";
 
@@ -192,7 +192,7 @@ export async function POST(req: Request) {
         ? saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
         : undefined;
 
-      await db.insert(calls).values({
+      await insertCall({
         id: callId,
         repId: item.repId,
         prospectCompany: (item.prospectCompany || "").trim(),
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
         audioUrl,
         status: "analyzing",
         createdAt: now,
-      }).run();
+      });
 
       const evaluation = await evaluateCall({
         callId,
@@ -227,9 +227,11 @@ export async function POST(req: Request) {
       results,
     });
   } catch (err: any) {
-    if (err instanceof QuotaExceededError) {
+    if (err instanceof PaymentRequiredError || err instanceof QuotaExceededError) {
       return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
     }
+    const gated = workspaceErrorResponse(err);
+    if (gated.status !== 500) return gated;
     console.error("Batch upload error:", err);
     const message = err?.message || "Batch upload failed";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);

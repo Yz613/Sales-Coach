@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getRepPersona, saveRepPersona } from "@/lib/db/service";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireWorkspace();
     const { id } = await params;
     const persona = await getRepPersona(id);
     return NextResponse.json(persona || {
@@ -17,7 +19,7 @@ export async function GET(
       managerNotes: "",
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return workspaceErrorResponse(err);
   }
 }
 
@@ -26,6 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireWorkspace();
     const { id } = await params;
     const body = await req.json();
 
@@ -41,6 +44,6 @@ export async function POST(
 
     return NextResponse.json({ success: true, persona: saved });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return workspaceErrorResponse(err);
   }
 }

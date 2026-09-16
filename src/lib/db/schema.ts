@@ -2,6 +2,7 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 export const reps = sqliteTable("reps", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   name: text("name").notNull(),
   email: text("email").notNull(),
   role: text("role").notNull(), // e.g. "Senior SDR", "Account Executive", "Outbound SDR"
@@ -11,6 +12,7 @@ export const reps = sqliteTable("reps", {
 
 export const calls = sqliteTable("calls", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   repId: text("rep_id").notNull().references(() => reps.id),
   prospectCompany: text("prospect_company").notNull(),
   prospectName: text("prospect_name").notNull(),
@@ -25,6 +27,7 @@ export const calls = sqliteTable("calls", {
 
 export const evaluations = sqliteTable("evaluations", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   callId: text("call_id").notNull().references(() => calls.id),
   repId: text("rep_id").notNull().references(() => reps.id),
   bottomLine: text("bottom_line").notNull(),
@@ -46,6 +49,7 @@ export const evaluations = sqliteTable("evaluations", {
 
 export const repSnapshots = sqliteTable("rep_snapshots", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   repId: text("rep_id").notNull().references(() => reps.id),
   overallTrajectory: text("overall_trajectory").notNull(), // 'progressing' | 'stagnant' | 'regressing'
   managerRationale: text("manager_rationale").notNull(),
@@ -62,6 +66,7 @@ export const appSettings = sqliteTable("app_settings", {
 
 export const scripts = sqliteTable("scripts", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   stage: text("stage").notNull(), // Call Stage Target (built-in or custom)
   title: text("title").notNull(),
   content: text("content").notNull(),
@@ -72,6 +77,7 @@ export const scripts = sqliteTable("scripts", {
 
 export const repPersonas = sqliteTable("rep_personas", {
   id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().default("local"),
   repId: text("rep_id").notNull().references(() => reps.id),
   experienceLevel: text("experience_level").notNull(), // 'Rookie SDR' | 'Ramping AE' | 'Senior AE'
   coachingTone: text("coaching_tone").notNull(), // 'Tough Love / Direct VP' | 'Analytical & Tactical' | 'Structured & Step-by-Step'

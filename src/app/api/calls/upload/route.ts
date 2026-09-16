@@ -1,36 +1,33 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { calls } from "@/lib/db/schema";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, setRepFocus } from "@/lib/db/service";
+import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
 import { durationFromTranscript } from "@/lib/audio";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { getTranscriptionStatus, resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
-import { getServerAuth } from "@/lib/auth";
 import { resolveUploadRepId } from "@/lib/viewer-calls";
 import { evaluationCreditsForDuration } from "@/lib/billing";
 import {
+  PaymentRequiredError,
   QuotaExceededError,
   assertEvaluationAllowed,
   recordEvaluationUsage,
   summarizeBilling,
   loadBillingAccount,
 } from "@/lib/billingQuota";
+import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export async function GET() {
   try {
+    const auth = await requireWorkspace();
     const status = await getTranscriptionStatus();
-    let billing = null;
-    try {
-      billing = summarizeBilling(await loadBillingAccount(await getServerAuth()));
-    } catch {
-      billing = null;
-    }
+    const billing = summarizeBilling(await loadBillingAccount(auth));
     return NextResponse.json({ ...status, billing });
   } catch (err: any) {
+    const gated = workspaceErrorResponse(err);
+    if (gated.status !== 500) return gated;
     return NextResponse.json({ canTranscribe: false, reason: err?.message || "Unavailable" }, { status: 200 });
   }
 }
@@ -39,10 +36,7 @@ export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
-    const auth = await getServerAuth();
-    if (auth.isClerkConfigured && !auth.userId) {
-      return NextResponse.json({ error: "Sign in to upload calls." }, { status: 401 });
-    }
+    const auth = await requireWorkspace();
     const contentType = req.headers.get("content-type") || "";
 
     let repId = "";
@@ -135,7 +129,7 @@ export async function POST(req: Request) {
       : undefined;
 
     // Insert call
-    await db.insert(calls).values({
+    await insertCall({
       id: callId,
       repId,
       prospectCompany,
@@ -147,7 +141,7 @@ export async function POST(req: Request) {
       audioUrl,
       status: "analyzing",
       createdAt: now,
-    }).run();
+    });
 
     // Run AI Evaluation
     const evaluation = await evaluateCall({
@@ -169,9 +163,11 @@ export async function POST(req: Request) {
       creditsCharged: evalCredits,
     });
   } catch (error: any) {
-    if (error instanceof QuotaExceededError) {
+    if (error instanceof PaymentRequiredError || error instanceof QuotaExceededError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
+    const gated = workspaceErrorResponse(error);
+    if (gated.status !== 500) return gated;
     console.error("Upload & Evaluation Error:", error);
     const message = error?.message || "Failed to process call";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);

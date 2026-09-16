@@ -44,7 +44,7 @@ graph TD
   - *Or use the built-in deterministic rubric engine for pasted transcripts with zero API keys.*
 - **📋 Deal Stages & Talk-Tracks:** Define customized rubrics, qualification criteria, and talking tracks per pipeline stage.
 - **👥 Rep Coaching Personas:** Track individual rep performance, identify repeat struggles vs. strengths, and auto-generate 1:1 manager talk tracks.
-- **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces, organization switching, and Admin vs. Member access control.
+- **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces. Each organization gets an isolated database partition (calls, transcripts, scripts, API keys). Hosted sign-up requires a paid plan before any workspace data is shown.
 - **🐳 Docker Ready:** Includes production-ready `Dockerfile` and `docker-compose.yml`.
 - **☁️ Cloudflare Workers Ready:** Preconfigured for edge deployment via OpenNext and Cloudflare D1.
 
@@ -135,6 +135,10 @@ CLERK_SECRET_KEY=sk_test_...
 5. Restart the development server (`npm run dev`). The app will now enforce authentication:
    - **Admin (`org:admin`):** Full access to settings, scripts, analytics, rep personas, and team invites.
    - **Member (`org:member`):** Scoped access to the Call Bank, call uploads, and call evaluations.
+
+Hosted Clerk deployments (`BILLING_REQUIRED=true`, the default whenever Clerk keys are present) send new teams to `/app/subscribe`. They cannot read another team's data, and they cannot pick a plan in Settings to skip checkout. Self-hosters using Clerk only for RBAC should set `BILLING_REQUIRED=false`.
+
+If you are migrating a production database that already has unscoped rows, set `LEGACY_TENANT_ORG_ID` to the original Clerk organization id (or let the app assign those rows once to the oldest organization). New organizations always start empty.
 
 ### Email Invites (Optional)
 To send teammate invitations via transactional email, add a [Resend](https://resend.com) API key:
