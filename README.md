@@ -234,3 +234,5 @@ We welcome contributions of all kinds! Please see:
 
 This project is licensed under the [MIT License](LICENSE).
 
+Copyright (c) 2026 Yehuda Zahler. See [LICENSE](LICENSE) for the full terms.
+
