@@ -21,6 +21,7 @@ import {
   parseCheckoutRecord,
   recordFromStripeSession,
 } from "./stripeCheckout";
+import { stripeSecret } from "./stripeSession";
 
 describe("parseCheckoutPlan", () => {
   it("accepts only Coach and Team for self-serve Stripe", () => {
@@ -132,6 +133,14 @@ describe("paid session detection", () => {
     assert.equal(stripeCustomerId("cus_123"), "cus_123");
     assert.equal(stripeCustomerEmail({ id: "cs_test", customer_email: "a@b.com" }), "a@b.com");
     assert.equal(parseCheckoutRecord(JSON.stringify(record))?.sessionId, "cs_test");
+  });
+});
+
+describe("stripeSecret", () => {
+  it("reads STRIPE_SECRET_KEY from the provided env and ignores blanks", () => {
+    assert.equal(stripeSecret({}), "");
+    assert.equal(stripeSecret({ STRIPE_SECRET_KEY: "  " }), "");
+    assert.equal(stripeSecret({ STRIPE_SECRET_KEY: " sk_live_abc " }), "sk_live_abc");
   });
 });
 

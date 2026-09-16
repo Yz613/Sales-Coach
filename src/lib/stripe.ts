@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { stripeSecret } from "@/lib/stripeSession";
+import { runtimeSecret, stripeSecret } from "@/lib/stripeSession";
 
 export const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
@@ -26,7 +26,7 @@ export class StripeRequestError extends Error {
 }
 
 export function stripeWebhookSecret(env: Record<string, string | undefined> = process.env): string {
-  return (env.STRIPE_WEBHOOK_SECRET || "").trim();
+  return runtimeSecret("STRIPE_WEBHOOK_SECRET", env);
 }
 
 export function encodeStripeForm(params: Record<string, string>): string {

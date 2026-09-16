@@ -58,6 +58,24 @@ export function isActiveStripeSubscription(status: string | null | undefined): b
   return normalized === "active" || normalized === "trialing" || normalized === "past_due";
 }
 
+function cloudflareVar(name: string): string {
+  try {
+    const { getCloudflareContext } = require("@opennextjs/cloudflare");
+    const value = getCloudflareContext()?.env?.[name];
+    return typeof value === "string" ? value.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Worker secrets live on the Cloudflare binding; Next process.env can miss them. */
+export function runtimeSecret(
+  name: string,
+  env: Record<string, string | undefined> = process.env
+): string {
+  return (env[name] || "").trim() || cloudflareVar(name);
+}
+
 export function stripeSecret(env: Record<string, string | undefined> = process.env): string {
-  return (env.STRIPE_SECRET_KEY || "").trim();
+  return runtimeSecret("STRIPE_SECRET_KEY", env);
 }
