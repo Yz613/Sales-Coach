@@ -81,6 +81,10 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/billing/checkout", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/billing/checkout", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/billing/checkout", "PUT"), false);
+    assert.equal(isPublicApiRoute("/app/api/billing/stripe-config", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/billing/stripe-config", "POST"), true);
+    assert.equal(isPublicApiRoute("/api/billing/stripe-config", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/billing/stripe-config", "PUT"), false);
     assert.equal(isPublicApiRoute("/app/api/calls/upload", "POST"), false);
   });
 

@@ -8,7 +8,7 @@ import {
   isPaidCheckoutSession,
   stripeCustomerEmail,
   stripeCustomerId,
-  stripeSecret,
+  resolveStripeSecret,
   stripeSubscriptionId,
   type StripeCheckoutSession,
   type StripeEvent,
@@ -212,7 +212,7 @@ export async function persistStripeSession(
 export async function finalizeCheckoutSession(sessionId: string): Promise<StripeCheckoutRecord | null> {
   const existing = await loadCheckoutRecord(sessionId);
   if (existing?.status === "paid") return existing;
-  if (!stripeSecret()) return existing;
+  if (!(await resolveStripeSecret())) return existing;
   const { stripeRequest } = await import("@/lib/stripe");
   const session = await stripeRequest<StripeCheckoutSession>("GET", `/checkout/sessions/${encodeURIComponent(sessionId)}`);
   return persistStripeSession(session, existing);

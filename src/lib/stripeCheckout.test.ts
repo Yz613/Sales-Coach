@@ -21,7 +21,8 @@ import {
   parseCheckoutRecord,
   recordFromStripeSession,
 } from "./stripeCheckout";
-import { stripeSecret } from "./stripeSession";
+import { configureStoredStripeSecret, StripeRequestError } from "./stripe";
+import { resolveStripeSecret, stripeSecret, stripeSecretLooksValid } from "./stripeSession";
 
 describe("parseCheckoutPlan", () => {
   it("accepts only Coach and Team for self-serve Stripe", () => {
@@ -141,6 +142,51 @@ describe("stripeSecret", () => {
     assert.equal(stripeSecret({}), "");
     assert.equal(stripeSecret({ STRIPE_SECRET_KEY: "  " }), "");
     assert.equal(stripeSecret({ STRIPE_SECRET_KEY: " sk_live_abc " }), "sk_live_abc");
+  });
+
+  it("accepts live and test secret prefixes and prefers env over stored values", async () => {
+    assert.equal(stripeSecretLooksValid("sk_live_abcdefghijklmnopqrstuv"), true);
+    assert.equal(stripeSecretLooksValid("sk_test_abcdefghijklmnopqrstuv"), true);
+    assert.equal(stripeSecretLooksValid("pk_live_abcdefghijklmnopqrstuv"), false);
+    assert.equal(stripeSecretLooksValid("not-a-key"), false);
+    assert.equal(
+      await resolveStripeSecret({ STRIPE_SECRET_KEY: "sk_live_from_env_value1" }, async () => "sk_live_from_store"),
+      "sk_live_from_env_value1"
+    );
+    assert.equal(await resolveStripeSecret({}, async () => " sk_live_from_store "), "sk_live_from_store");
+    assert.equal(await resolveStripeSecret({}, async () => {
+      throw new Error("db down");
+    }), "");
+  });
+
+  it("stores a verified Stripe secret only when none is configured", async () => {
+    const stored: Record<string, string> = {};
+    const result = await configureStoredStripeSecret("sk_live_abcdefghijklmnopqrstuv", {
+      resolve: async () => "",
+      verify: async () => ({ accountId: "acct_test" }),
+      store: async (key, value) => {
+        stored[key] = value;
+      },
+    });
+    assert.equal(result.configured, true);
+    assert.equal(result.accountId, "acct_test");
+    assert.equal(stored["stripe:secret_key"], "sk_live_abcdefghijklmnopqrstuv");
+
+    await assert.rejects(
+      () =>
+        configureStoredStripeSecret("sk_live_abcdefghijklmnopqrstuv", {
+          resolve: async () => "sk_live_already_set_value",
+          verify: async () => ({ accountId: "acct_other" }),
+          store: async () => {
+            throw new Error("should not store");
+          },
+        }),
+      (err: unknown) => err instanceof StripeRequestError && err.status === 409
+    );
+    await assert.rejects(
+      () => configureStoredStripeSecret("not-a-key"),
+      (err: unknown) => err instanceof StripeRequestError && err.status === 400
+    );
   });
 });
 

@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { runtimeSecret, stripeSecret } from "@/lib/stripeSession";
+import {
+  runtimeSecret,
+  resolveStripeSecret,
+  stripeSecretLooksValid,
+  STRIPE_SECRET_SETTING_KEY,
+} from "@/lib/stripeSession";
 
 export const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
@@ -13,6 +18,9 @@ export {
   isPaidCheckoutSession,
   isActiveStripeSubscription,
   stripeSecret,
+  resolveStripeSecret,
+  stripeSecretLooksValid,
+  STRIPE_SECRET_SETTING_KEY,
 } from "@/lib/stripeSession";
 
 export class StripeRequestError extends Error {
@@ -41,9 +49,10 @@ export async function stripeRequest<T>(
   method: "GET" | "POST",
   path: string,
   params?: Record<string, string>,
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
+  secretOverride?: string
 ): Promise<T> {
-  const key = stripeSecret(env);
+  const key = (secretOverride || "").trim() || (await resolveStripeSecret(env));
   if (!key) {
     throw new StripeRequestError("STRIPE_SECRET_KEY is not configured", 503);
   }
@@ -70,6 +79,47 @@ export async function stripeRequest<T>(
     throw new StripeRequestError(json.error?.message || `Stripe ${method} ${path} failed`, res.status);
   }
   return json;
+}
+
+export async function verifyStripeSecretKey(secret: string): Promise<{ accountId: string }> {
+  const trimmed = secret.trim();
+  if (!stripeSecretLooksValid(trimmed)) {
+    throw new StripeRequestError("Invalid Stripe secret key", 400);
+  }
+  const account = await stripeRequest<{ id?: string }>("GET", "/account", undefined, process.env, trimmed);
+  const accountId = (account.id || "").trim();
+  if (!accountId) {
+    throw new StripeRequestError("Stripe account lookup failed", 502);
+  }
+  return { accountId };
+}
+
+export async function configureStoredStripeSecret(
+  secret: string,
+  options: {
+    resolve?: (env?: Record<string, string | undefined>) => Promise<string>;
+    verify?: (secret: string) => Promise<{ accountId: string }>;
+    store?: (key: string, value: string) => Promise<void>;
+  } = {}
+): Promise<{ configured: true; accountId: string }> {
+  const trimmed = (secret || "").trim();
+  if (!stripeSecretLooksValid(trimmed)) {
+    throw new StripeRequestError("Invalid Stripe secret key", 400);
+  }
+  const resolve = options.resolve || resolveStripeSecret;
+  if (await resolve()) {
+    throw new StripeRequestError("Stripe secret is already configured", 409);
+  }
+  const verify = options.verify || verifyStripeSecretKey;
+  const { accountId } = await verify(trimmed);
+  const store =
+    options.store ||
+    (async (key: string, value: string) => {
+      const { setGlobalSetting } = await import("@/lib/db/service");
+      await setGlobalSetting(key, value);
+    });
+  await store(STRIPE_SECRET_SETTING_KEY, trimmed);
+  return { configured: true, accountId };
 }
 
 export function parseStripeSignatureHeader(header: string | null | undefined): {
