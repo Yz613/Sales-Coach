@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
   // Next middleware matchers are scoped to `basePath`, so apex /calls and
   // /favicon.ico never hit `src/middleware.ts`. Config redirects with
   // `basePath: false` run at the Next routing layer instead.
+  // Apex `/` is rewritten to `/app/home` by `cloudflare/worker.js` — Next
+  // cannot internally rewrite outside `basePath`.
   async redirects() {
     return [
       {
@@ -51,28 +53,6 @@ const nextConfig: NextConfig = {
         source: "/icon.svg",
         destination: `${APP_BASE_PATH}/icon.svg`,
         permanent: true,
-        basePath: false,
-      },
-    ];
-  },
-  // Apex `/` never enters Next under `basePath: "/app"`. The Cloudflare worker
-  // rewrites it to `/app/home`; these rewrites cover `next start` / OpenNext
-  // when the worker wrapper is not in front.
-  async rewrites() {
-    return [
-      {
-        source: "/",
-        destination: `${APP_BASE_PATH}/home`,
-        basePath: false,
-      },
-      {
-        source: "/robots.txt",
-        destination: `${APP_BASE_PATH}/robots.txt`,
-        basePath: false,
-      },
-      {
-        source: "/sitemap.xml",
-        destination: `${APP_BASE_PATH}/sitemap.xml`,
         basePath: false,
       },
     ];
