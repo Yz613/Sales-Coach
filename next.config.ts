@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/",
+        destination: `${APP_BASE_PATH}/home`,
+        permanent: false,
+        basePath: false,
+      },
+      {
         source: "/calls",
         destination: `${APP_BASE_PATH}/calls`,
         permanent: true,
