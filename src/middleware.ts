@@ -8,6 +8,7 @@ import {
   toAppPath,
   isPublicAuthRoute,
   isPublicApiRoute,
+  isPublicContentRoute,
   isApiRoute,
   getApexAliasRedirect,
 } from "@/lib/public-path";
@@ -76,12 +77,21 @@ const clerkHandler = hasClerkKey
         sessionStatus: pendingAuth.sessionStatus,
         publicPath,
       });
-      if (pendingTeamPath && !isApiRoute(publicPath) && !isPublicApiRoute(publicPath, req.method)) {
+      if (
+        pendingTeamPath &&
+        !isApiRoute(publicPath) &&
+        !isPublicApiRoute(publicPath, req.method) &&
+        !isPublicContentRoute(publicPath)
+      ) {
         return NextResponse.redirect(new URL(pendingTeamPath, req.url));
       }
 
-      // Sign-in/up and a few APIs must not HTML-redirect (fetch() would parse HTML as JSON).
-      if (isPublicAuthRoute(publicPath) || isPublicApiRoute(publicPath, req.method)) {
+      // Sign-in/up, marketing, and a few APIs must not HTML-redirect (fetch() would parse HTML as JSON).
+      if (
+        isPublicAuthRoute(publicPath) ||
+        isPublicApiRoute(publicPath, req.method) ||
+        isPublicContentRoute(publicPath)
+      ) {
         return;
       }
 

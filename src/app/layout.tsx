@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navigation from "@/components/Navigation";
 import AuthProvider from "@/components/AuthProvider";
+import SiteChrome from "@/components/SiteChrome";
 import { getServerAuth } from "@/lib/auth";
 import { toAppPath } from "@/lib/public-path";
+import { SITE_DESCRIPTION, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Sales Coach AI — B2B Sales Management & Progression",
-  description: "Executive AI Sales Manager for evaluating call blocking & tackling, Sandler qualification, and rep pipeline progression.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Sales Coach AI — B2B Sales Management & Progression",
+    template: "%s",
+  },
+  description: SITE_DESCRIPTION,
+  robots: { index: false, follow: true },
   icons: {
     icon: [{ url: toAppPath("/icon.svg"), type: "image/svg+xml" }],
   },
@@ -22,7 +28,7 @@ export default async function RootLayout({
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="dark scroll-smooth" suppressHydrationWarning>
       <body className="min-h-screen bg-[#070a12] text-slate-100 antialiased selection:bg-blue-600 selection:text-white relative overflow-x-hidden" suppressHydrationWarning>
         {/* Atmospheric ambient lighting for glass refraction */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden" aria-hidden="true">
@@ -37,10 +43,7 @@ export default async function RootLayout({
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }
         >
-          <Navigation />
-          <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
+          <SiteChrome>{children}</SiteChrome>
         </AuthProvider>
       </body>
     </html>

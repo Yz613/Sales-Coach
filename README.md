@@ -9,6 +9,8 @@
 
 An open-source, AI-powered Sales Coaching & Call Evaluation platform. Analyze sales calls, grade rep performance against customized talk-tracks and qualification rubrics (e.g. Sandler), transcribe audio recordings with synchronized playback, and deliver targeted rep coaching feedback.
 
+**Hosted:** [refreshqueue.com](https://refreshqueue.com) serves the public marketing page at `/`. The signed-in product is at [`/app`](https://refreshqueue.com/app). Self-host from this repo for free (MIT).
+
 ---
 
 ## Architecture Overview
