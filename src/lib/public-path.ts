@@ -33,6 +33,7 @@ const PUBLIC_AUTH_PREFIXES = [
   "/organization",
   "/accept-invite",
   "/subscribe",
+  "/checkout",
 ];
 
 export function isPublicAuthRoute(pathname: string): boolean {
@@ -44,7 +45,9 @@ export function isPublicAuthRoute(pathname: string): boolean {
 
 export function isPublicApiRoute(pathname: string, method: string): boolean {
   const normalized = stripAppBasePath(pathname);
-  if (normalized === "/api/auth/role" && method.toUpperCase() === "GET") return true;
+  const verb = method.toUpperCase();
+  if (normalized === "/api/auth/role" && verb === "GET") return true;
+  if (normalized === "/api/billing/checkout" && (verb === "GET" || verb === "POST")) return true;
   if (normalized.startsWith("/api/webhooks/")) return true;
   return false;
 }
@@ -75,6 +78,11 @@ export function isApexPricingPath(pathname: string): boolean {
 export function isSubscribePath(pathname: string): boolean {
   const normalized = stripAppBasePath(pathname);
   return normalized === "/subscribe" || normalized.startsWith("/subscribe/");
+}
+
+export function isCheckoutPath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  return normalized === "/checkout" || normalized.startsWith("/checkout/");
 }
 
 export function isMarketingAppPath(pathname: string): boolean {

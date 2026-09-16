@@ -278,7 +278,7 @@ export default function MarketingLanding() {
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <a
-                  href="/app/sign-up"
+                  href="#pricing"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-3 shadow-lg shadow-blue-600/25 border border-blue-400/20 transition"
                 >
                   Start hosted trial
@@ -427,7 +427,7 @@ export default function MarketingLanding() {
             {PRICING_DURATION_NOTE}
           </p>
           <p className="mt-3 text-center text-xs text-slate-500">
-            Billing coming soon — after you sign up, we&apos;ll activate your hosted workspace. No Stripe checkout in this release.
+            Hosted Coach and Hosted Team start with Stripe checkout. Create your account after payment. Enterprise is custom.
           </p>
 
           <div className="mt-10 max-w-2xl mx-auto space-y-2">
@@ -479,7 +479,7 @@ export default function MarketingLanding() {
                 Hosted Coach, Hosted Team, and Enterprise are for teams that do not want to self-host: managed models,
                 seats, and support on refreshqueue.com. Same Sales Coach engine — none of the ops.
               </p>
-              <a href="/app/sign-up" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
+              <a href="#pricing" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
                 Start a hosted workspace
                 <ArrowRight className="h-4 w-4" />
               </a>

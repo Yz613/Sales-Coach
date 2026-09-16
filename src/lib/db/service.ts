@@ -61,6 +61,10 @@ async function writeRawSetting(key: string, value: string): Promise<void> {
 
 const GLOBAL_SETTING_KEYS = new Set(["tenant_backfill_org_id"]);
 
+export function isGlobalSettingKey(key: string): boolean {
+  return GLOBAL_SETTING_KEYS.has(key) || key.startsWith("stripe:");
+}
+
 function canReadUnprefixedSettings(org: string): boolean {
   if (org === LOCAL_TENANT_ID) return true;
   const legacy = process.env.LEGACY_TENANT_ORG_ID?.trim();
@@ -69,7 +73,7 @@ function canReadUnprefixedSettings(org: string): boolean {
 
 // --- Settings Service ---
 export async function getSetting(key: string): Promise<string | null> {
-  if (GLOBAL_SETTING_KEYS.has(key)) {
+  if (isGlobalSettingKey(key)) {
     return readRawSetting(key);
   }
   const org = tenantId();
@@ -82,11 +86,25 @@ export async function getSetting(key: string): Promise<string | null> {
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  if (GLOBAL_SETTING_KEYS.has(key)) {
+  if (isGlobalSettingKey(key)) {
     await writeRawSetting(key, value);
     return;
   }
   await writeRawSetting(settingStorageKey(tenantId(), key), value);
+}
+
+export async function getGlobalSetting(key: string): Promise<string | null> {
+  if (!isGlobalSettingKey(key)) {
+    throw new Error(`Refusing to read non-global setting ${key}`);
+  }
+  return readRawSetting(key);
+}
+
+export async function setGlobalSetting(key: string, value: string): Promise<void> {
+  if (!isGlobalSettingKey(key)) {
+    throw new Error(`Refusing to write non-global setting ${key}`);
+  }
+  await writeRawSetting(key, value);
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {
@@ -94,7 +112,7 @@ export async function getAllSettings(): Promise<Record<string, string>> {
   const rows = await db.select().from(appSettings).all();
   const res: Record<string, string> = {};
   for (const r of rows as { key: string; value: string }[]) {
-    if (GLOBAL_SETTING_KEYS.has(r.key)) continue;
+    if (isGlobalSettingKey(r.key)) continue;
     const scopedKey = parseTenantSettingKey(r.key, org);
     if (scopedKey) {
       res[scopedKey] = r.value;
@@ -876,7 +894,7 @@ const BACKFILL_KEY = "tenant_backfill_org_id";
 async function copyUnprefixedSettingsToTenant(org: string): Promise<void> {
   const rows = await db.select().from(appSettings).all();
   for (const row of rows as { key: string; value: string }[]) {
-    if (GLOBAL_SETTING_KEYS.has(row.key) || row.key.startsWith("t:")) continue;
+    if (isGlobalSettingKey(row.key) || row.key.startsWith("t:")) continue;
     let logicalKey = row.key;
     if (logicalKey.startsWith(`billing:${org}:`)) {
       logicalKey = `billing:${logicalKey.slice(`billing:${org}:`.length)}`;

@@ -59,7 +59,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "Email support",
     ],
     overageLine: OVERAGE_LINE,
-    cta: { label: "Start Hosted Coach", href: "/app/sign-up" },
+    cta: { label: "Start Hosted Coach", href: "/app/api/billing/checkout?plan=coach" },
   },
   {
     id: "team",
@@ -75,7 +75,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "Priority support",
     ],
     overageLine: OVERAGE_LINE,
-    cta: { label: "Start Hosted Team", href: "/app/sign-up" },
+    cta: { label: "Start Hosted Team", href: "/app/api/billing/checkout?plan=team" },
     highlighted: true,
     badge: "Most popular",
   },

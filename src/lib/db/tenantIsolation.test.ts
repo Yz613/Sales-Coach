@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
-import { getAllCalls, getCallById, getOrCreateRep, getSetting, insertCall, setSetting } from "./service";
+import {
+  getAllCalls,
+  getCallById,
+  getGlobalSetting,
+  getOrCreateRep,
+  getSetting,
+  insertCall,
+  setGlobalSetting,
+  setSetting,
+} from "./service";
 import { loadBillingAccount, saveBillingSettings } from "../billingQuota";
+import { claimPendingCheckout } from "../stripeCheckout";
 import { runWithTenant } from "../tenant";
 
 async function run(): Promise<void> {
@@ -69,6 +79,48 @@ async function run(): Promise<void> {
       else process.env.BILLING_REQUIRED = prevBilling;
     }
   });
+
+  const prevBilling = process.env.BILLING_REQUIRED;
+  process.env.BILLING_REQUIRED = "true";
+  try {
+    const paidSessionId = `cs_paid_${stamp}`;
+    await setGlobalSetting(
+      `stripe:session:${paidSessionId}`,
+      JSON.stringify({
+        sessionId: paidSessionId,
+        planId: "coach",
+        status: "paid",
+        email: `buyer-${stamp}@example.com`,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+    const claimed = await claimPendingCheckout({
+      orgId: randomOrg,
+      email: `buyer-${stamp}@example.com`,
+      sessionId: paidSessionId,
+    });
+    assert.equal(claimed, "coach");
+    await runWithTenant(randomOrg, async () => {
+      const account = await loadBillingAccount({
+        isClerkConfigured: true,
+        orgId: randomOrg,
+      });
+      assert.equal(account.paid, true, "paid Stripe session activates the new org only");
+      assert.equal(account.planId, "coach");
+    });
+    await runWithTenant(lockedOrg, async () => {
+      const locked = await loadBillingAccount({
+        isClerkConfigured: true,
+        orgId: lockedOrg,
+      });
+      assert.equal(locked.paid, false, "Stripe claim does not entitle another org");
+    });
+    const stored = await getGlobalSetting(`stripe:session:${paidSessionId}`);
+    assert.match(stored || "", new RegExp(randomOrg));
+  } finally {
+    if (prevBilling === undefined) delete process.env.BILLING_REQUIRED;
+    else process.env.BILLING_REQUIRED = prevBilling;
+  }
 }
 
 run()
