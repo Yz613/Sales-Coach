@@ -1,5 +1,5 @@
 import type { AuthUser } from "@/lib/auth";
-import { getServerAuth } from "@/lib/auth";
+import { requireWorkspacePage } from "@/lib/workspace";
 import {
   canViewCall,
   filterCallsForViewer,
@@ -24,7 +24,7 @@ export async function getVisibleCalls(): Promise<{
   reps: RepIdentity[];
   calls: Call[];
 }> {
-  const auth = await getServerAuth();
+  const auth = await requireWorkspacePage();
   const viewer = toCallViewer(auth);
   const reps = await listRepIdentities();
   const calls = filterCallsForViewer(await getAllCalls(), reps, viewer);
@@ -35,7 +35,7 @@ export async function getVisibleCallById(id: string): Promise<{
   auth: AuthUser;
   call: Call | null;
 }> {
-  const auth = await getServerAuth();
+  const auth = await requireWorkspacePage();
   const call = await getCallById(id);
   if (!call) return { auth, call: null };
   const reps = await listRepIdentities();

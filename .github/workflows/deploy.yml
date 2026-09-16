@@ -50,4 +50,8 @@ jobs:
       - name: Deploy to Cloudflare
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: npm run deploy
+        run: |
+          if [ -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
+            export NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_live_Y2xlcmsucmVmcmVzaHF1ZXVlLmNvbSQ"
+          fi
+          npm run deploy

@@ -1,10 +1,27 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   hasClerkPublishableKey,
   hasClerkSecretKey,
   hasClerkServerAuth,
 } from "./clerk-env";
+import { authRedirectPath, type AuthUser } from "./auth";
+
+function guest(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    userId: null,
+    role: "admin",
+    isAdmin: true,
+    isMember: false,
+    isClerkConfigured: false,
+    canViewAllCalls: true,
+    tenantId: null,
+    clerkPlanId: null,
+    billingPaid: false,
+    ...overrides,
+  };
+}
 
 describe("clerk-env", () => {
   it("requires both keys before enabling clerkMiddleware/auth()", () => {
@@ -20,6 +37,66 @@ describe("clerk-env", () => {
     process.env.CLERK_SECRET_KEY = "sk_test";
     assert.equal(hasClerkServerAuth(), true);
 
+    if (prevPub === undefined) delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    else process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = prevPub;
+    if (prevSecret === undefined) delete process.env.CLERK_SECRET_KEY;
+    else process.env.CLERK_SECRET_KEY = prevSecret;
+  });
+});
+
+describe("hosted Clerk config", () => {
+  it("keeps the live publishable key in wrangler vars", () => {
+    const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
+    assert.equal(/NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"\s*:\s*""/.test(wrangler), false);
+    assert.match(wrangler, /pk_live_Y2xlcmsucmVmcmVzaHF1ZXVlLmNvbSQ/);
+  });
+});
+
+describe("authRedirectPath", () => {
+  it("sends hosted visitors to sign-in instead of the local admin app", () => {
+    const prevBilling = process.env.BILLING_REQUIRED;
+    const prevPub = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    const prevSecret = process.env.CLERK_SECRET_KEY;
+    process.env.BILLING_REQUIRED = "true";
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    delete process.env.CLERK_SECRET_KEY;
+
+    assert.equal(authRedirectPath(guest()), "/app/sign-in");
+
+    if (prevBilling === undefined) delete process.env.BILLING_REQUIRED;
+    else process.env.BILLING_REQUIRED = prevBilling;
+    if (prevPub === undefined) delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    else process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = prevPub;
+    if (prevSecret === undefined) delete process.env.CLERK_SECRET_KEY;
+    else process.env.CLERK_SECRET_KEY = prevSecret;
+  });
+
+  it("sends signed-out Clerk users to sign-in before team selection", () => {
+    const prevBilling = process.env.BILLING_REQUIRED;
+    const prevPub = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    const prevSecret = process.env.CLERK_SECRET_KEY;
+    process.env.BILLING_REQUIRED = "true";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_live_test";
+    process.env.CLERK_SECRET_KEY = "sk_test";
+
+    assert.equal(
+      authRedirectPath(guest({ isClerkConfigured: true, userId: null, orgId: null })),
+      "/app/sign-in"
+    );
+    assert.equal(
+      authRedirectPath(
+        guest({
+          isClerkConfigured: true,
+          userId: "user_1",
+          orgId: null,
+          billingPaid: false,
+        })
+      ),
+      "/app/select-organization"
+    );
+
+    if (prevBilling === undefined) delete process.env.BILLING_REQUIRED;
+    else process.env.BILLING_REQUIRED = prevBilling;
     if (prevPub === undefined) delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
     else process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = prevPub;
     if (prevSecret === undefined) delete process.env.CLERK_SECRET_KEY;

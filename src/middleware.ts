@@ -35,42 +35,8 @@ const isAdminApiRoute = createRouteMatcher([
   "/api/invites(.*)",
 ]);
 
-const hasClerkKey = hasClerkServerAuth();
-
-function redirectApexAliases(req: NextRequest): NextResponse | null {
-  const alias = getApexAliasRedirect(req.url);
-  if (!alias) return null;
-  return NextResponse.redirect(alias.location, alias.status);
-}
-
-function redirectInviteTickets(req: NextRequest): NextResponse | null {
-  const ticket = getInviteTicketRedirect(req.url);
-  if (!ticket) return null;
-  return NextResponse.redirect(ticket.location, ticket.status);
-}
-
-function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-salescoach-path", publicPath);
-  return NextResponse.next({ request: { headers: requestHeaders } });
-}
-
-function memberCallsRedirect(req: NextRequest): NextResponse {
-  return NextResponse.redirect(new URL(toAppPath("/calls"), req.url));
-}
-
-function enforceMemberBoundaries(req: NextRequest): NextResponse | null {
-  if (isAdminRoute(req)) {
-    return memberCallsRedirect(req);
-  }
-  if (isAdminApiRoute(req)) {
-    return NextResponse.json({ error: "Forbidden: Admin permissions required" }, { status: 403 });
-  }
-  return null;
-}
-
-const clerkHandler = hasClerkKey
-  ? clerkMiddleware(async (auth, req) => {
+function clerkHandlerImpl() {
+  return clerkMiddleware(async (auth, req) => {
       const alias = redirectApexAliases(req);
       if (alias) return alias;
       const ticket = redirectInviteTickets(req);
@@ -136,8 +102,48 @@ const clerkHandler = hasClerkKey
       }
 
       return nextWithPath(req, publicPath);
-    })
-  : null;
+    });
+}
+
+let clerkHandler: ReturnType<typeof clerkMiddleware> | null = null;
+
+function getClerkHandler() {
+  if (!hasClerkServerAuth()) return null;
+  if (!clerkHandler) clerkHandler = clerkHandlerImpl();
+  return clerkHandler;
+}
+
+function redirectApexAliases(req: NextRequest): NextResponse | null {
+  const alias = getApexAliasRedirect(req.url);
+  if (!alias) return null;
+  return NextResponse.redirect(alias.location, alias.status);
+}
+
+function redirectInviteTickets(req: NextRequest): NextResponse | null {
+  const ticket = getInviteTicketRedirect(req.url);
+  if (!ticket) return null;
+  return NextResponse.redirect(ticket.location, ticket.status);
+}
+
+function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-salescoach-path", publicPath);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+function memberCallsRedirect(req: NextRequest): NextResponse {
+  return NextResponse.redirect(new URL(toAppPath("/calls"), req.url));
+}
+
+function enforceMemberBoundaries(req: NextRequest): NextResponse | null {
+  if (isAdminRoute(req)) {
+    return memberCallsRedirect(req);
+  }
+  if (isAdminApiRoute(req)) {
+    return NextResponse.json({ error: "Forbidden: Admin permissions required" }, { status: 403 });
+  }
+  return null;
+}
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const alias = redirectApexAliases(request);
@@ -145,8 +151,9 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   const ticket = redirectInviteTickets(request);
   if (ticket) return ticket;
 
-  if (clerkHandler) {
-    return clerkHandler(request, event);
+  const handler = getClerkHandler();
+  if (handler) {
+    return handler(request, event);
   }
 
   const role = resolveUserRole({

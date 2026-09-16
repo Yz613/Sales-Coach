@@ -4,8 +4,7 @@ import { redirect } from "next/navigation";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
-import { getServerAuth } from "@/lib/auth";
-import { hostedBillingRequired } from "@/lib/billingAccess";
+import { authRedirectPath, getServerAuth } from "@/lib/auth";
 import {
   isApiRoute,
   isPublicAuthRoute,
@@ -35,18 +34,9 @@ export default async function RootLayout({
     !isPublicAuthRoute(path) &&
     !isApiRoute(path);
 
-  if (gatedPage && auth.isClerkConfigured && auth.userId && !auth.orgId) {
-    redirect(toAppPath("/select-organization"));
-  }
-  if (
-    gatedPage &&
-    hostedBillingRequired() &&
-    auth.isClerkConfigured &&
-    auth.userId &&
-    auth.orgId &&
-    !auth.billingPaid
-  ) {
-    redirect(toAppPath("/subscribe"));
+  const dest = gatedPage ? authRedirectPath(auth) : null;
+  if (dest) {
+    redirect(dest);
   }
 
   return (
