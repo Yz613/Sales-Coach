@@ -232,5 +232,5 @@ We welcome contributions of all kinds! Please see:
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Copyright (c) 2026 Yehuda Zahler. This project is licensed under the [MIT License](LICENSE). See the `LICENSE` file in the repository root for the full terms.
 
