@@ -1,5 +1,6 @@
-export const CLERK_PROXY_PATHS = ["/__auth", "/__clerk"] as const;
-export const CLERK_PROXY_PUBLIC_PATH = "/__auth";
+export const CLERK_PROXY_PATHS = ["/app/__auth", "/__auth", "/__clerk"] as const;
+export const CLERK_PROXY_PUBLIC_PATH = "/app/__auth";
+export const CLERK_PROXY_NEXT_PATH = "/__auth";
 export const CLERK_FAPI_ORIGIN = "https://clerk.refreshqueue.com";
 export const CLERK_JS_PROXY_FILE = "sdk.js";
 export const CLERK_JS_UPSTREAM_FILE = "clerk.browser.js";
