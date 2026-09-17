@@ -5,6 +5,7 @@ import {
   CLERK_JS_PROXY_SRC,
   CLERK_PROXY_PUBLIC_PATH,
   clerkProxyPublicUrl,
+  disguiseClerkAssetPath,
   isClerkProxyPath,
   matchClerkProxyPath,
   rewriteClerkProxyRest,
@@ -28,6 +29,10 @@ describe("clerk proxy paths", () => {
     assert.equal(rewriteClerkProxyRest("/app/__auth/v1/client", "/app/__auth"), "/v1/client");
     assert.equal(clerkProxyPublicUrl(), "https://refreshqueue.com/app/__auth");
     assert.equal(CLERK_PROXY_PUBLIC_PATH, "/app/__auth");
+    assert.equal(
+      disguiseClerkAssetPath("/npm/@clerk/clerk-js@6.32.0/dist/clerk.browser.js"),
+      "/npm/@clerk/clerk-js@6.32.0/dist/sdk.js"
+    );
     assert.match(CLERK_JS_PROXY_SRC, /sdk\.js$/);
     assert.equal(CLERK_JS_PROXY_SRC.includes("clerk.browser"), false);
   });

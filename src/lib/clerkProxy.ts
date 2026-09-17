@@ -33,6 +33,16 @@ export function isClerkProxyPath(pathname: string): boolean {
   return matchClerkProxyPath(pathname) !== null;
 }
 
+export function disguiseClerkAssetPath(pathname: string): string {
+  if (pathname.endsWith(`/${CLERK_JS_UPSTREAM_FILE}`)) {
+    return `${pathname.slice(0, -CLERK_JS_UPSTREAM_FILE.length)}${CLERK_JS_PROXY_FILE}`;
+  }
+  if (pathname.endsWith(`/${CLERK_UI_UPSTREAM_FILE}`)) {
+    return `${pathname.slice(0, -CLERK_UI_UPSTREAM_FILE.length)}${CLERK_UI_PROXY_FILE}`;
+  }
+  return pathname;
+}
+
 export function rewriteClerkProxyRest(pathname: string, prefix: string): string {
   let rest = pathname.slice(prefix.length) || "/";
   if (!rest.startsWith("/")) rest = `/${rest}`;
@@ -116,7 +126,8 @@ export async function forwardClerkProxyRequest(
     try {
       const loc = new URL(location, CLERK_FAPI_ORIGIN);
       if (loc.origin === CLERK_FAPI_ORIGIN) {
-        out.set("Location", `${proxyUrl}${loc.pathname}${loc.search}${loc.hash}`);
+        const path = disguiseClerkAssetPath(loc.pathname);
+        out.set("Location", `${proxyUrl}${path}${loc.search}${loc.hash}`);
       }
     } catch {
       // Keep Clerk's original Location for external IdP redirects.
