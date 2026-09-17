@@ -10,13 +10,13 @@ export { DOQueueHandler, DOShardedTagCache, BucketCachePurge };
 
 export default {
   async fetch(request, env, ctx) {
-    const pathname = new URL(request.url).pathname;
-    if (isClerkProxyPath(pathname)) {
-      return forwardClerkProxyRequest(request, env);
-    }
     const alias = getApexAliasRedirect(request.url);
     if (alias) {
       return Response.redirect(alias.location, alias.status);
+    }
+    const pathname = new URL(request.url).pathname;
+    if (isClerkProxyPath(pathname)) {
+      return forwardClerkProxyRequest(request, env);
     }
     const marketing = getApexMarketingRewrite(request.url);
     if (marketing) {

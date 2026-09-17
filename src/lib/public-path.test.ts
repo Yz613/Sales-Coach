@@ -141,6 +141,15 @@ describe("route classifiers", () => {
     assert.equal(pricing?.status, 308);
     assert.equal(pricing?.location, "https://example.com/#pricing");
 
+    const handshake = getApexAliasRedirect(
+      "https://refreshqueue.com/__auth/v1/client/handshake?redirect_url=https%3A%2F%2Frefreshqueue.com%2Fapp%2Fmarketing"
+    );
+    assert.equal(handshake?.status, 307);
+    assert.equal(
+      handshake?.location,
+      "https://refreshqueue.com/app/__auth/v1/client/handshake?redirect_url=https%3A%2F%2Frefreshqueue.com%2Fapp%2Fmarketing"
+    );
+
     assert.equal(getApexAliasRedirect("https://example.com/"), null);
     assert.equal(getApexAliasRedirect("https://example.com/app/calls"), null);
     assert.equal(getApexAliasRedirect("https://example.com/app/coach"), null);

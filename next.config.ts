@@ -52,6 +52,18 @@ const nextConfig: NextConfig = {
         basePath: false,
       },
       {
+        source: "/__auth",
+        destination: `${APP_BASE_PATH}/__auth`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/__auth/:path*",
+        destination: `${APP_BASE_PATH}/__auth/:path*`,
+        permanent: false,
+        basePath: false,
+      },
+      {
         source: "/calls",
         destination: `${APP_BASE_PATH}/calls`,
         permanent: true,

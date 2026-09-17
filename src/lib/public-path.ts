@@ -111,7 +111,7 @@ export function isPublicMarketingPath(pathname: string): boolean {
 
 export type ApexAliasRedirect = {
   location: string;
-  status: 308;
+  status: 307 | 308;
 };
 
 /**
@@ -122,8 +122,19 @@ export type ApexAliasRedirect = {
  * `/pricing` redirects to the landing hash. Apex `/` is an internal rewrite
  * (see `getApexMarketingRewrite`) so the URL stays `/`.
  */
+export function isApexClerkProxyPath(pathname: string): boolean {
+  return pathname === "/__auth" || pathname.startsWith("/__auth/") || pathname === "/__clerk" || pathname.startsWith("/__clerk/");
+}
+
 export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | null {
   const url = new URL(requestUrl);
+  if (isApexClerkProxyPath(url.pathname)) {
+    const dest = new URL(url);
+    dest.pathname = url.pathname.startsWith("/__clerk")
+      ? `/app/__auth${url.pathname.slice("/__clerk".length)}`
+      : `/app${url.pathname}`;
+    return { location: dest.href, status: 307 };
+  }
   if (isApexFaviconPath(url.pathname)) {
     return { location: new URL(toAppPath("/icon.svg"), url.origin).href, status: 308 };
   }
