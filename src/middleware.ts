@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { CLERK_PROXY_PUBLIC_PATH } from "@/lib/clerkProxy";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveUserRole } from "@/lib/roles";
 import { pendingTeamSelectionPath } from "@/lib/session-task";
@@ -43,6 +44,9 @@ function clerkHandlerImpl() {
       if (ticket) return ticket;
 
       const publicPath = getPublicPath(req);
+      if (isPublicApiRoute(publicPath, req.method)) {
+        return nextWithPath(req, publicPath);
+      }
 
       // Apex `/` and `/app/marketing` are the public landing. Do not treat
       // middleware `/` (the /app dashboard under basePath) as marketing.
@@ -102,6 +106,8 @@ function clerkHandlerImpl() {
       }
 
       return nextWithPath(req, publicPath);
+    }, {
+      frontendApiProxy: { enabled: true, path: CLERK_PROXY_PUBLIC_PATH },
     });
 }
 

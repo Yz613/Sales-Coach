@@ -85,6 +85,9 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/billing/stripe-config", "POST"), true);
     assert.equal(isPublicApiRoute("/api/billing/stripe-config", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/billing/stripe-config", "PUT"), false);
+    assert.equal(isPublicApiRoute("/__auth/v1/client", "POST"), true);
+    assert.equal(isPublicApiRoute("/__clerk/npm/@clerk/clerk-js@6/dist/sdk.js", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/auth/clerk-proxy", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/calls/upload", "POST"), false);
   });
 

@@ -2,7 +2,10 @@
 // framework-stripped `nextUrl.pathname`. Raw `NextResponse.redirect`
 // and `fetch()` do not get `basePath` prepended automatically.
 
+import { isClerkProxyPath } from "./clerkProxy";
+
 export const APP_BASE_PATH = "/app";
+export { isClerkProxyPath };
 
 export function getPublicPath(req: { url: string }): string {
   return new URL(req.url).pathname;
@@ -44,9 +47,11 @@ export function isPublicAuthRoute(pathname: string): boolean {
 }
 
 export function isPublicApiRoute(pathname: string, method: string): boolean {
+  if (isClerkProxyPath(pathname) || isClerkProxyPath(stripAppBasePath(pathname))) return true;
   const normalized = stripAppBasePath(pathname);
   const verb = method.toUpperCase();
   if (normalized === "/api/auth/role" && verb === "GET") return true;
+  if (normalized === "/api/auth/clerk-proxy" && (verb === "GET" || verb === "POST")) return true;
   if (normalized === "/api/billing/checkout" && (verb === "GET" || verb === "POST")) return true;
   if (normalized === "/api/billing/stripe-config" && (verb === "GET" || verb === "POST")) return true;
   if (normalized.startsWith("/api/webhooks/")) return true;
