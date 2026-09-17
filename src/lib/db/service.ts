@@ -62,7 +62,7 @@ async function writeRawSetting(key: string, value: string): Promise<void> {
 const GLOBAL_SETTING_KEYS = new Set(["tenant_backfill_org_id"]);
 
 export function isGlobalSettingKey(key: string): boolean {
-  return GLOBAL_SETTING_KEYS.has(key) || key.startsWith("stripe:");
+  return GLOBAL_SETTING_KEYS.has(key) || key.startsWith("stripe:") || key.startsWith("clerk:");
 }
 
 function canReadUnprefixedSettings(org: string): boolean {

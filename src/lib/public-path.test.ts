@@ -77,6 +77,9 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/auth/role", "GET"), true);
     assert.equal(isPublicApiRoute("/api/auth/role", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/auth/role", "POST"), false);
+    assert.equal(isPublicApiRoute("/app/api/auth/revoke-leaked-session", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/auth/revoke-leaked-session", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/auth/revoke-leaked-session", "PUT"), false);
     assert.equal(isPublicApiRoute("/app/api/webhooks/fathom", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/billing/checkout", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/billing/checkout", "POST"), true);

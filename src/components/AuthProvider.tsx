@@ -68,6 +68,7 @@ export default function AuthProvider({
     return (
       <ClerkProvider
         publishableKey={resolvedKey}
+        proxyUrl={process.env.NEXT_PUBLIC_CLERK_PROXY_URL || "/app/__auth"}
         appearance={clerkAppearance}
         localization={teamLocalization}
         signInUrl={CLERK_PATHS.signIn}
