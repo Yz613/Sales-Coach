@@ -46,7 +46,20 @@ let _d1MigratePromise: Promise<void> | null = null;
 
 export async function ensureD1Migrated(): Promise<void> {
   getDb();
-  if (_d1MigratePromise) await _d1MigratePromise;
+  if (!_d1MigratePromise) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      _d1MigratePromise,
+      new Promise<void>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("D1 migrate timed out")), 2500);
+      }),
+    ]);
+  } catch {
+    // Do not block sign-in or auth on a stuck D1 schema check.
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function initLocalSqlite() {
