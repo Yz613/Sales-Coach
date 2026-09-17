@@ -30,7 +30,7 @@ export function isClerkConfigured(): boolean {
   return hasClerkPublishableKey();
 }
 
-function anonymousAuth(): AuthUser {
+export function publicGuestAuth(): AuthUser {
   const clerkConfigured = isClerkConfigured();
   const hosted = hostedBillingRequired();
   const standalone = !hosted && !hasClerkServerAuth();
@@ -95,7 +95,7 @@ export async function getServerAuth(): Promise<AuthUser> {
   } catch (err) {
     if (isNextControlFlowError(err)) throw err;
     console.warn("getServerAuth failed:", err);
-    return anonymousAuth();
+    return publicGuestAuth();
   }
 }
 
@@ -117,13 +117,6 @@ export function authRedirectPath(auth: AuthUser): string | null {
 }
 
 async function loadServerAuth(): Promise<AuthUser> {
-  try {
-    const { ensureD1Migrated } = await import("@/lib/db");
-    await ensureD1Migrated();
-  } catch {
-    // SQLite, build, or a Worker without D1 — pages still query through getDb().
-  }
-
   const clerkConfigured = isClerkConfigured();
 
   let userId: string | null = null;
@@ -184,6 +177,12 @@ async function loadServerAuth(): Promise<AuthUser> {
   } else if (orgId && hasClerkServerAuth()) {
     tenantId = orgId;
     bindTenant(orgId);
+    try {
+      const { ensureD1Migrated } = await import("@/lib/db");
+      await ensureD1Migrated();
+    } catch {
+      // SQLite, build, or a Worker without D1 — billing still loads through getDb().
+    }
     await maybeBackfillLegacyTenant();
   }
 

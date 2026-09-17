@@ -15,16 +15,19 @@ interface AuthProviderProps {
   // Passed from the server layout so SSR and the client hydrate with the same key.
   publishableKey?: string;
   initialUser?: AuthUserPreview;
+  skipRoleFetch?: boolean;
 }
 
 function ClerkBridge({
   children,
   initialRole = "admin",
   initialUser = null,
+  skipRoleFetch = false,
 }: {
   children: React.ReactNode;
   initialRole?: UserRole;
   initialUser?: AuthUserPreview;
+  skipRoleFetch?: boolean;
 }) {
   const { user } = useUser();
   const { session } = useSession();
@@ -43,6 +46,7 @@ function ClerkBridge({
       initialRole={initialRole}
       isClerkConfigured={true}
       clerkUser={clerkUser}
+      skipRoleFetch={skipRoleFetch}
     >
       <ActiveTeamSync />
       {children}
@@ -55,6 +59,7 @@ export default function AuthProvider({
   initialRole = "admin",
   publishableKey,
   initialUser = null,
+  skipRoleFetch = false,
 }: AuthProviderProps) {
   const resolvedKey = (publishableKey || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "").trim();
   const isClerkReady = Boolean(resolvedKey);
@@ -72,7 +77,7 @@ export default function AuthProvider({
         afterSignOutUrl={CLERK_PATHS.afterSignOut}
         taskUrls={{ "choose-organization": CLERK_PATHS.selectOrganization }}
       >
-        <ClerkBridge initialRole={initialRole} initialUser={initialUser}>
+        <ClerkBridge initialRole={initialRole} initialUser={initialUser} skipRoleFetch={skipRoleFetch}>
           {children}
         </ClerkBridge>
       </ClerkProvider>
@@ -80,7 +85,12 @@ export default function AuthProvider({
   }
 
   return (
-    <AuthContextProvider initialRole={initialRole} isClerkConfigured={false} clerkUser={initialUser}>
+    <AuthContextProvider
+      initialRole={initialRole}
+      isClerkConfigured={false}
+      clerkUser={initialUser}
+      skipRoleFetch={skipRoleFetch}
+    >
       {children}
     </AuthContextProvider>
   );

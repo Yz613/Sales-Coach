@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
-import { authRedirectPath, getServerAuth } from "@/lib/auth";
+import { authRedirectPath, getServerAuth, publicGuestAuth } from "@/lib/auth";
 import {
   isApiRoute,
   isPublicAuthRoute,
@@ -25,15 +25,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const auth = await getServerAuth();
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
   const path = (await headers()).get("x-salescoach-path") || "";
+  const publicAuth = isPublicAuthRoute(path);
   const gatedPage =
     path &&
     !isPublicMarketingPath(path) &&
-    !isPublicAuthRoute(path) &&
+    !publicAuth &&
     !isApiRoute(path);
 
+  // Sign-in/up must not wait on D1 or billing. A hung getServerAuth() renders a blank page.
+  const auth = publicAuth ? publicGuestAuth() : await getServerAuth();
   const dest = gatedPage ? authRedirectPath(auth) : null;
   if (dest) {
     redirect(dest);
@@ -51,6 +53,7 @@ export default async function RootLayout({
         <AuthProvider
           initialRole={auth.role}
           publishableKey={publishableKey}
+          skipRoleFetch={publicAuth}
           initialUser={
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }

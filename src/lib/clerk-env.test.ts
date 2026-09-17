@@ -6,7 +6,7 @@ import {
   hasClerkSecretKey,
   hasClerkServerAuth,
 } from "./clerk-env";
-import { authRedirectPath, type AuthUser } from "./auth";
+import { authRedirectPath, publicGuestAuth, type AuthUser } from "./auth";
 
 function guest(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -49,6 +49,30 @@ describe("hosted Clerk config", () => {
     const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
     assert.equal(/NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"\s*:\s*""/.test(wrangler), false);
     assert.match(wrangler, /pk_live_Y2xlcmsucmVmcmVzaHF1ZXVlLmNvbSQ/);
+  });
+});
+
+describe("publicGuestAuth", () => {
+  it("does not claim a local tenant on hosted Clerk", () => {
+    const prevBilling = process.env.BILLING_REQUIRED;
+    const prevPub = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    const prevSecret = process.env.CLERK_SECRET_KEY;
+    process.env.BILLING_REQUIRED = "true";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_live_test";
+    process.env.CLERK_SECRET_KEY = "sk_test";
+
+    const guest = publicGuestAuth();
+    assert.equal(guest.userId, null);
+    assert.equal(guest.tenantId, null);
+    assert.equal(guest.billingPaid, false);
+    assert.equal(guest.isClerkConfigured, true);
+
+    if (prevBilling === undefined) delete process.env.BILLING_REQUIRED;
+    else process.env.BILLING_REQUIRED = prevBilling;
+    if (prevPub === undefined) delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    else process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = prevPub;
+    if (prevSecret === undefined) delete process.env.CLERK_SECRET_KEY;
+    else process.env.CLERK_SECRET_KEY = prevSecret;
   });
 });
 

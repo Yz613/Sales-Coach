@@ -35,11 +35,13 @@ export function AuthContextProvider({
   initialRole = "admin",
   isClerkConfigured = false,
   clerkUser = null,
+  skipRoleFetch = false,
 }: {
   children: React.ReactNode;
   initialRole?: UserRole;
   isClerkConfigured?: boolean;
   clerkUser?: { id?: string | null; email?: string; name?: string } | null;
+  skipRoleFetch?: boolean;
 }) {
   const [role, setRole] = useState<UserRole>(initialRole);
   const [user, setUser] = useState(clerkUser);
@@ -52,7 +54,10 @@ export function AuthContextProvider({
   }, [clerkUser]);
 
   useEffect(() => {
-    fetch(apiPath("/api/auth/role"))
+    if (skipRoleFetch) return;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 5000);
+    fetch(apiPath("/api/auth/role"), { signal: ac.signal })
       .then((res) => {
         const contentType = res.headers.get("content-type") || "";
         if (!res.ok || !contentType.includes("application/json")) return null;
@@ -70,8 +75,13 @@ export function AuthContextProvider({
           });
         }
       })
-      .catch((err) => console.warn("Failed to fetch current role:", err));
-  }, []);
+      .catch((err) => console.warn("Failed to fetch current role:", err))
+      .finally(() => clearTimeout(timer));
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, [skipRoleFetch]);
 
   const value: AuthContextValue = {
     role,

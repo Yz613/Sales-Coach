@@ -196,6 +196,16 @@ describe("landing SSR bundle", () => {
     assert.equal(/from ["']@\/lib\/stripeCheckout["']/.test(auth), false);
     assert.equal(/from ["']@\/lib\/stripe["']/.test(auth), false);
     assert.match(auth, /import\(["']@\/lib\/stripeCheckout["']\)/);
+    assert.match(auth, /ensureD1Migrated/);
+    assert.equal(
+      /await ensureD1Migrated\(\);[\s\S]*const clerkConfigured/.test(auth),
+      false,
+      "anonymous auth must not wait on D1 before Clerk"
+    );
+
+    const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+    assert.match(layout, /publicGuestAuth\(\)/);
+    assert.match(layout, /skipRoleFetch=\{publicAuth\}/);
 
     const checkout = readFileSync(new URL("./stripeCheckout.ts", import.meta.url), "utf8");
     assert.equal(/from ["']@\/lib\/stripe["']/.test(checkout), false);
