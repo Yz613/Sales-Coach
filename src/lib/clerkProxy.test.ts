@@ -56,6 +56,7 @@ describe("hosted Clerk proxy wiring", () => {
 
     const provider = readFileSync(new URL("../components/AuthProvider.tsx", import.meta.url), "utf8");
     assert.match(provider, /telemetry=\{\{ disabled: true \}\}/);
+    assert.match(provider, /proxyUrl=\{process\.env\.NEXT_PUBLIC_CLERK_PROXY_URL \|\| "\/app\/__auth"\}/);
     const nextConfig = readFileSync(new URL("../../next.config.ts", import.meta.url), "utf8");
     assert.match(nextConfig, /NEXT_PUBLIC_CLERK_PROXY_URL/);
     assert.match(nextConfig, /NEXT_PUBLIC_CLERK_JS_URL/);
