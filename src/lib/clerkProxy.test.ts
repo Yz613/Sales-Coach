@@ -9,6 +9,9 @@ import {
   isClerkProxyPath,
   matchClerkProxyPath,
   rewriteClerkProxyRest,
+  rewriteClerkProxyCookie,
+  resolveClerkProxyLocation,
+  sameClerkLocation,
 } from "./clerkProxy";
 
 describe("clerk proxy paths", () => {
@@ -60,5 +63,53 @@ describe("hosted Clerk proxy wiring", () => {
     const nextConfig = readFileSync(new URL("../../next.config.ts", import.meta.url), "utf8");
     assert.match(nextConfig, /NEXT_PUBLIC_CLERK_PROXY_URL/);
     assert.match(nextConfig, /NEXT_PUBLIC_CLERK_JS_URL/);
+  });
+});
+
+describe("clerk proxy redirects", () => {
+  it("does not bounce oauth_callback onto itself", () => {
+    const request = "https://refreshqueue.com/app/__auth/v1/oauth_callback?code=abc&state=xyz";
+    const proxy = "https://refreshqueue.com/app/__auth";
+    const loop = resolveClerkProxyLocation(
+      request,
+      "https://clerk.refreshqueue.com/v1/oauth_callback?code=abc&state=xyz",
+      proxy,
+      301
+    );
+    assert.equal(loop.status, 303);
+    assert.equal(loop.location, "https://refreshqueue.com/app/sign-in");
+    assert.equal(sameClerkLocation(request, request), true);
+
+    const nextHop = resolveClerkProxyLocation(
+      "https://refreshqueue.com/app/__auth/v1/oauth_callback",
+      "https://clerk.refreshqueue.com/v1/oauth_callback?err_code=authorization_invalid",
+      proxy,
+      301
+    );
+    assert.equal(nextHop.status, 301);
+    assert.equal(
+      nextHop.location,
+      "https://refreshqueue.com/app/__auth/v1/oauth_callback?err_code=authorization_invalid"
+    );
+
+    const app = resolveClerkProxyLocation(
+      request,
+      "https://refreshqueue.com/app/sign-in",
+      proxy,
+      302
+    );
+    assert.equal(app.status, 302);
+    assert.equal(app.location, "https://refreshqueue.com/app/sign-in");
+  });
+
+  it("rewrites FAPI session cookies onto the app domain", () => {
+    assert.match(
+      rewriteClerkProxyCookie("__session=abc; Path=/; Domain=clerk.refreshqueue.com; Secure"),
+      /Domain=refreshqueue\.com/
+    );
+    assert.doesNotMatch(
+      rewriteClerkProxyCookie("__session=abc; Path=/; Domain=clerk.refreshqueue.com; Secure"),
+      /clerk\.refreshqueue\.com/
+    );
   });
 });

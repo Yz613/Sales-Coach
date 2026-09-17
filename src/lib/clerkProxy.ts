@@ -59,6 +59,60 @@ export function clerkProxyPublicUrl(origin = "https://refreshqueue.com"): string
   return `${origin.replace(/\/$/, "")}${CLERK_PROXY_PUBLIC_PATH}`;
 }
 
+export function sameClerkLocation(a: string, b: string): boolean {
+  try {
+    const left = new URL(a);
+    const right = new URL(b);
+    return `${left.origin}${left.pathname}${left.search}` === `${right.origin}${right.pathname}${right.search}`;
+  } catch {
+    return a === b;
+  }
+}
+
+/** Keep session cookies on the app origin so Google OAuth handshakes can finish. */
+export function rewriteClerkProxyCookie(cookie: string): string {
+  return cookie.replace(/;\s*Domain=clerk\.refreshqueue\.com/i, "; Domain=refreshqueue.com");
+}
+
+export type ClerkProxyLocation = {
+  location: string | null;
+  status: number;
+};
+
+/**
+ * Map FAPI redirects onto the first-party proxy. Never send the browser back to
+ * the URL it already requested — that is ERR_TOO_MANY_REDIRECTS after Google.
+ */
+export function resolveClerkProxyLocation(
+  requestUrl: string,
+  locationHeader: string | null,
+  proxyUrl: string,
+  upstreamStatus: number
+): ClerkProxyLocation {
+  if (!locationHeader) return { location: null, status: upstreamStatus };
+  try {
+    const request = new URL(requestUrl);
+    const loc = new URL(locationHeader, CLERK_FAPI_ORIGIN);
+    const fapiHost = new URL(CLERK_FAPI_ORIGIN).host;
+    let dest = loc.href;
+    if (loc.pathname === "/__auth" || loc.pathname.startsWith("/__auth/")) {
+      dest = `${request.origin}/app${loc.pathname}${loc.search}${loc.hash}`;
+    } else if (loc.host === fapiHost || loc.pathname.includes("/@clerk/")) {
+      const path = disguiseClerkAssetPath(loc.pathname.replace(/^\/app\/__auth/, "") || "/");
+      dest = `${proxyUrl}${path.startsWith("/") ? path : `/${path}`}${loc.search}${loc.hash}`;
+    }
+    if (sameClerkLocation(dest, request.href)) {
+      if (request.pathname.includes("/oauth_callback")) {
+        return { location: `${request.origin}/app/sign-in`, status: 303 };
+      }
+      return { location: null, status: 200 };
+    }
+    return { location: dest, status: upstreamStatus };
+  } catch {
+    return { location: locationHeader, status: upstreamStatus };
+  }
+}
+
 function clientIp(request: Request): string {
   return (
     request.headers.get("cf-connecting-ip") ||
@@ -93,7 +147,7 @@ export async function forwardClerkProxyRequest(
     const lower = key.toLowerCase();
     if (!HOP_BY_HOP.has(lower) && lower !== "host") headers.set(key, value);
   });
-  const proxyUrl = `${url.origin}${prefix}`;
+  const proxyUrl = clerkProxyPublicUrl(url.origin);
   headers.set("Clerk-Proxy-Url", proxyUrl);
   headers.set("Clerk-Secret-Key", secret);
   headers.set("Host", new URL(CLERK_FAPI_ORIGIN).host);
@@ -115,28 +169,26 @@ export async function forwardClerkProxyRequest(
 
   const upstream = await fetch(target, init);
   const out = new Headers();
+  const setCookies =
+    typeof upstream.headers.getSetCookie === "function" ? upstream.headers.getSetCookie() : [];
   upstream.headers.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP.has(lower) || RESPONSE_STRIP.has(lower)) return;
-    if (lower === "set-cookie") out.append(key, value);
-    else out.set(key, value);
+    if (HOP_BY_HOP.has(lower) || RESPONSE_STRIP.has(lower) || lower === "set-cookie") return;
+    out.set(key, value);
   });
-  const location = upstream.headers.get("location");
-  if (location) {
-    try {
-      const loc = new URL(location, CLERK_FAPI_ORIGIN);
-      const fapiHost = new URL(CLERK_FAPI_ORIGIN).host;
-      if (loc.host === fapiHost || loc.pathname.includes("/@clerk/")) {
-        const path = disguiseClerkAssetPath(loc.pathname.replace(/^\/app\/__auth/, "") || "/");
-        out.set("Location", `${proxyUrl}${path.startsWith("/") ? path : `/${path}`}${loc.search}${loc.hash}`);
-      }
-    } catch {
-      // Keep Clerk's original Location for external IdP redirects.
-    }
+  if (setCookies.length > 0) {
+    for (const cookie of setCookies) out.append("set-cookie", rewriteClerkProxyCookie(cookie));
+  } else {
+    upstream.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "set-cookie") out.append(key, rewriteClerkProxyCookie(value));
+    });
   }
+  const resolved = resolveClerkProxyLocation(url.href, upstream.headers.get("location"), proxyUrl, upstream.status);
+  if (resolved.location) out.set("Location", resolved.location);
+  else out.delete("Location");
   return new Response(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
+    status: resolved.status,
+    statusText: resolved.status === upstream.status ? upstream.statusText : "",
     headers: out,
   });
 }
