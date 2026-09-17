@@ -37,15 +37,23 @@
 		"NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/app",
 		"NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/app/subscribe",
 		"NEXT_PUBLIC_CLERK_AFTER_SIGN_OUT_URL": "/app/sign-in",
-		"NEXT_PUBLIC_CLERK_PROXY_URL": "/__auth",
-		"NEXT_PUBLIC_CLERK_JS_URL": "/__auth/npm/@clerk/clerk-js@6/dist/sdk.js",
-		"NEXT_PUBLIC_CLERK_UI_URL": "/__auth/npm/@clerk/ui@1/dist/ui.js",
+		"NEXT_PUBLIC_CLERK_PROXY_URL": "/app/__auth",
+		"NEXT_PUBLIC_CLERK_JS_URL": "/app/__auth/npm/@clerk/clerk-js@6/dist/sdk.js",
+		"NEXT_PUBLIC_CLERK_UI_URL": "/app/__auth/npm/@clerk/ui@1/dist/ui.js",
 		"NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED": "true",
 		"BILLING_REQUIRED": "true"
 	},
 	"assets": {
 		"directory": ".open-next/assets",
-		"binding": "ASSETS"
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/app/__auth",
+			"/app/__auth/*",
+			"/__auth",
+			"/__auth/*",
+			"/__clerk",
+			"/__clerk/*"
+		]
 	},
 	"d1_databases": [
 		{
