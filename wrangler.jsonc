@@ -11,17 +11,19 @@
 	"workers_dev": true,
 	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers).
 	// Apex `/` and `/pricing` must reach this worker so the marketing landing is not a 404.
-	// "routes": [
-	// 	{ "pattern": "yourdomain.com", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/pricing", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/app", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/app/*", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/calls", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/calls/*", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/favicon.ico", "zone_name": "yourdomain.com" },
-	// 	{ "pattern": "yourdomain.com/icon.svg", "zone_name": "yourdomain.com" }
-	// ],
+	"routes": [
+		{ "pattern": "refreshqueue.com", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/pricing", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/calls", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/calls/*", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/favicon.ico", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/icon.svg", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/__auth", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/__auth/*", "zone_name": "refreshqueue.com" }
+	],
 	// Non-secret Clerk config (publishable key is public). The secret key is set
 	// separately via `wrangler secret put CLERK_SECRET_KEY` and is NOT committed.
 	// Do not set an empty NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY — that disables Clerk

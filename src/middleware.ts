@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { CLERK_PROXY_NEXT_PATH } from "@/lib/clerkProxy";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveUserRole } from "@/lib/roles";
 import { pendingTeamSelectionPath } from "@/lib/session-task";
@@ -107,7 +106,8 @@ function clerkHandlerImpl() {
 
       return nextWithPath(req, publicPath);
     }, {
-      frontendApiProxy: { enabled: true, path: CLERK_PROXY_NEXT_PATH },
+      // Do not advertise /__auth (Next's stripped path). Handshake must stay on /app/__auth.
+      frontendApiProxy: { enabled: false },
     });
 }
 
