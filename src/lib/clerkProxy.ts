@@ -125,9 +125,10 @@ export async function forwardClerkProxyRequest(
   if (location) {
     try {
       const loc = new URL(location, CLERK_FAPI_ORIGIN);
-      if (loc.origin === CLERK_FAPI_ORIGIN) {
-        const path = disguiseClerkAssetPath(loc.pathname);
-        out.set("Location", `${proxyUrl}${path}${loc.search}${loc.hash}`);
+      const fapiHost = new URL(CLERK_FAPI_ORIGIN).host;
+      if (loc.host === fapiHost || loc.pathname.includes("/@clerk/")) {
+        const path = disguiseClerkAssetPath(loc.pathname.replace(/^\/app\/__auth/, "") || "/");
+        out.set("Location", `${proxyUrl}${path.startsWith("/") ? path : `/${path}`}${loc.search}${loc.hash}`);
       }
     } catch {
       // Keep Clerk's original Location for external IdP redirects.
