@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL || "/app",
     NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL:
       process.env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL || "/app",
+    NEXT_PUBLIC_CLERK_PROXY_URL: process.env.NEXT_PUBLIC_CLERK_PROXY_URL || "/__auth",
+    NEXT_PUBLIC_CLERK_JS_URL:
+      process.env.NEXT_PUBLIC_CLERK_JS_URL || "/__auth/npm/@clerk/clerk-js@6/dist/sdk.js",
+    NEXT_PUBLIC_CLERK_UI_URL:
+      process.env.NEXT_PUBLIC_CLERK_UI_URL || "/__auth/npm/@clerk/ui@1/dist/ui.js",
+    NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED: "true",
   },
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: path.resolve(__dirname),

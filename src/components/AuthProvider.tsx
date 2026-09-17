@@ -76,6 +76,7 @@ export default function AuthProvider({
         signUpFallbackRedirectUrl={CLERK_PATHS.subscribe}
         afterSignOutUrl={CLERK_PATHS.afterSignOut}
         taskUrls={{ "choose-organization": CLERK_PATHS.selectOrganization }}
+        telemetry={{ disabled: true }}
       >
         <ClerkBridge initialRole={initialRole} initialUser={initialUser} skipRoleFetch={skipRoleFetch}>
           {children}
