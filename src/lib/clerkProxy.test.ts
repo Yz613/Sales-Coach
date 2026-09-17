@@ -33,6 +33,10 @@ describe("clerk proxy paths", () => {
       disguiseClerkAssetPath("/npm/@clerk/clerk-js@6.32.0/dist/clerk.browser.js"),
       "/npm/@clerk/clerk-js@6.32.0/dist/sdk.js"
     );
+    assert.equal(
+      disguiseClerkAssetPath("/app/__auth/npm/@clerk/clerk-js@6.32.0/dist/clerk.browser.js".replace(/^\/app\/__auth/, "")),
+      "/npm/@clerk/clerk-js@6.32.0/dist/sdk.js"
+    );
     assert.match(CLERK_JS_PROXY_SRC, /sdk\.js$/);
     assert.equal(CLERK_JS_PROXY_SRC.includes("clerk.browser"), false);
   });
