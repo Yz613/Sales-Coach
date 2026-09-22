@@ -121,7 +121,7 @@ export default function Navigation() {
     visibleAdminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-2xl shadow-sm shadow-black/20">
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950 shadow-sm shadow-black/20">
         <div className="mx-auto flex max-w-[1600px] w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           {/* Left: Brand Logo & Navigation */}
           <div className="flex items-center gap-5 lg:gap-7">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import "./globals.css";
@@ -11,6 +12,22 @@ import {
   isPublicMarketingPath,
   toAppPath,
 } from "@/lib/public-path";
+
+const sans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-sans",
+  adjustFontFallback: true,
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-mono",
+  adjustFontFallback: true,
+});
 
 export const metadata: Metadata = {
   title: "Sales Coach AI — B2B Sales Management & Progression",
@@ -42,18 +59,18 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className={`${sans.variable} ${mono.variable} dark`} suppressHydrationWarning>
       <body className="min-h-screen bg-[#070a12] text-slate-100 antialiased selection:bg-blue-600 selection:text-white relative overflow-x-hidden" suppressHydrationWarning>
         {/* Atmospheric ambient lighting for glass refraction */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-gradient-to-b from-blue-600/15 via-indigo-600/10 to-transparent blur-[120px] rounded-full" />
-          <div className="absolute top-1/3 -right-40 w-[600px] h-[500px] bg-indigo-900/10 blur-[140px] rounded-full" />
-          <div className="absolute top-2/3 -left-40 w-[600px] h-[500px] bg-blue-900/10 blur-[140px] rounded-full" />
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[400px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(37,99,235,0.16),transparent_68%)]" />
+          <div className="absolute top-1/3 -right-40 w-[600px] h-[500px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(49,46,129,0.16),transparent_70%)]" />
+          <div className="absolute top-2/3 -left-40 w-[600px] h-[500px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(30,58,138,0.14),transparent_70%)]" />
         </div>
         <AuthProvider
           initialRole={auth.role}
           publishableKey={publishableKey}
-          skipRoleFetch={publicAuth}
+          skipRoleFetch
           initialUser={
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }

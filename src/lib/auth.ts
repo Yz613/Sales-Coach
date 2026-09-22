@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveCanViewAllCalls } from "@/lib/call-access";
@@ -89,7 +90,7 @@ function isNextControlFlowError(err: unknown): boolean {
  * Get the current user and their role on the server.
  * Reads role from the active team, then publicMetadata.role.
  */
-export async function getServerAuth(): Promise<AuthUser> {
+export const getServerAuth = cache(async (): Promise<AuthUser> => {
   try {
     return await loadServerAuth();
   } catch (err) {
@@ -97,7 +98,7 @@ export async function getServerAuth(): Promise<AuthUser> {
     console.warn("getServerAuth failed:", err);
     return publicGuestAuth();
   }
-}
+});
 
 /** Where to send a browser session that is not allowed into the app yet. */
 export function authRedirectPath(auth: AuthUser): string | null {
@@ -144,7 +145,16 @@ async function loadServerAuth(): Promise<AuthUser> {
         authData.orgRole === "org:admin";
       clerkPlanId = planFromClerkHas(clerkHas);
 
-      if (userId) {
+      const claims = authData.sessionClaims as { email?: string; metadata?: { role?: string } } | null;
+      if (typeof claims?.email === "string") email = claims.email;
+      if (claims?.metadata?.role) metadataRole = claims.metadata.role;
+
+      const orgResolvesRole = hasOrgAdmin || orgRole === "org:admin" || orgRole === "org:member";
+      const needsDirectoryProfile =
+        Boolean(userId) && (!orgResolvesRole || (hostedBillingRequired() && !clerkPlanId && !email));
+      // currentUser() is a Clerk API round trip. Skip it when the session already
+      // has the role, and the client Clerk SDK can fill in the display name.
+      if (needsDirectoryProfile && userId) {
         const user = await currentUser();
         if (user) {
           email =

@@ -1,10 +1,10 @@
 import { db } from "./index";
 import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas } from "./schema";
-import { and, eq, desc } from "drizzle-orm";
+import { cache } from "react";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 import type {
   Rep,
   Call,
-  CallEvaluation,
   SuperAdminReport,
   RepTrajectory,
   SandlerStatus,
@@ -18,7 +18,7 @@ import type {
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
-import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
+import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall, type EvaluationRow } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
 import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
@@ -488,20 +488,207 @@ export async function setRepFocus(repId: string, focus: string): Promise<void> {
 }
 
 // --- Reps & Calls ---
-export async function getAllReps(): Promise<Rep[]> {
-  await deleteCallsWithoutTranscript();
-  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
-  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).all();
-  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
-  const allSnapshots = await db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all();
+// Legacy stub transcripts are removed once per workspace. Repeating that scan
+// on every page read the full transcript blobs and made the app crawl.
+const UNUSABLE_PURGE_FLAG = "calls_unusable_purged_v1";
 
+const callSummaryColumns = {
+  id: calls.id,
+  repId: calls.repId,
+  prospectCompany: calls.prospectCompany,
+  prospectName: calls.prospectName,
+  callStage: calls.callStage,
+  coreOutcome: calls.coreOutcome,
+  durationSeconds: calls.durationSeconds,
+  audioUrl: calls.audioUrl,
+  status: calls.status,
+  createdAt: calls.createdAt,
+};
+
+const evalSummaryColumns = {
+  id: evaluations.id,
+  callId: evaluations.callId,
+  repId: evaluations.repId,
+  bottomLine: evaluations.bottomLine,
+  painStatus: evaluations.painStatus,
+  painEvidence: evaluations.painEvidence,
+  budgetStatus: evaluations.budgetStatus,
+  budgetEvidence: evaluations.budgetEvidence,
+  decisionStatus: evaluations.decisionStatus,
+  decisionEvidence: evaluations.decisionEvidence,
+  scriptAdherenceScore: evaluations.scriptAdherenceScore,
+  scriptFeedback: evaluations.scriptFeedback,
+  scriptDivergence: evaluations.scriptDivergence,
+  missedOpportunities: evaluations.missedOpportunities,
+  topFixes: evaluations.topFixes,
+  extendedReview: evaluations.extendedReview,
+  createdAt: evaluations.createdAt,
+};
+
+type CallSummaryRow = {
+  id: string;
+  repId: string;
+  prospectCompany: string;
+  prospectName: string;
+  callStage: string;
+  coreOutcome: string;
+  durationSeconds: number;
+  audioUrl: string | null;
+  status: string;
+  createdAt: string;
+};
+
+type RepRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  createdAt: string;
+};
+
+type SnapshotRow = {
+  repId: string;
+  overallTrajectory: string;
+  managerRationale: string;
+  topActiveStruggle: string;
+  recentScriptScore: number;
+};
+
+type WorkspaceBundle = {
+  calls: CallSummaryRow[];
+  callsByRep: Map<string, CallSummaryRow[]>;
+  reps: RepRow[];
+  evalsByCall: Map<string, EvaluationRow>;
+  evalsByRep: Map<string, EvaluationRow[]>;
+  snapshotsByRep: Map<string, SnapshotRow>;
+  personasByRep: Map<string, RepPersona>;
+};
+
+function personaFromRow(row: {
+  id: string;
+  repId: string;
+  experienceLevel: string;
+  coachingTone: string;
+  knownBlindspots: string | null;
+  strengths: string | null;
+  managerNotes: string;
+  targetQuota: string | null;
+  updatedAt: string;
+}): RepPersona {
+  return {
+    id: row.id,
+    repId: row.repId,
+    experienceLevel: row.experienceLevel,
+    coachingTone: row.coachingTone,
+    knownBlindspots: JSON.parse(row.knownBlindspots || "[]"),
+    strengths: JSON.parse(row.strengths || "[]"),
+    managerNotes: row.managerNotes,
+    targetQuota: row.targetQuota || undefined,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toCall(
+  c: CallSummaryRow,
+  repName: string,
+  ev: EvaluationRow | undefined,
+  options?: { transcriptText?: string; summary?: boolean }
+): Call {
+  const transcriptText = options?.transcriptText ?? "";
+  return {
+    id: c.id,
+    repId: c.repId,
+    repName,
+    prospectCompany: c.prospectCompany,
+    prospectName: c.prospectName,
+    callStage: c.callStage as Call["callStage"],
+    coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+    durationSeconds: c.durationSeconds,
+    transcriptText,
+    audioUrl: c.audioUrl || undefined,
+    status: c.status as Call["status"],
+    createdAt: c.createdAt,
+    evaluation: ev
+      ? hydrateEvaluation(
+          ev,
+          {
+            repName,
+            callStage: c.callStage,
+            coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+            transcriptText: options?.summary ? undefined : transcriptText || undefined,
+            durationSeconds: c.durationSeconds,
+          },
+          { summary: options?.summary }
+        )
+      : undefined,
+  };
+}
+
+async function purgeUnusableCallsOnce(): Promise<void> {
+  if ((await getSetting(UNUSABLE_PURGE_FLAG)) === "1") return;
+  await deleteCallsWithoutTranscript();
+  await setSetting(UNUSABLE_PURGE_FLAG, "1");
+}
+
+const loadWorkspaceBundle = cache(async (orgId: string): Promise<WorkspaceBundle> => {
+  await purgeUnusableCallsOnce();
+  const org = eq(calls.orgId, orgId);
+  const [callRows, repRows, evalRows, snapshotRows, personaRows] = await Promise.all([
+    db.select(callSummaryColumns).from(calls).where(org).orderBy(desc(calls.createdAt)).all(),
+    db.select().from(reps).where(eq(reps.orgId, orgId)).all(),
+    db.select(evalSummaryColumns).from(evaluations).where(eq(evaluations.orgId, orgId)).all(),
+    db.select().from(repSnapshots).where(eq(repSnapshots.orgId, orgId)).all(),
+    db.select().from(repPersonas).where(eq(repPersonas.orgId, orgId)).all(),
+  ]);
+
+  const callsByRep = new Map<string, CallSummaryRow[]>();
+  for (const call of callRows as CallSummaryRow[]) {
+    const list = callsByRep.get(call.repId);
+    if (list) list.push(call);
+    else callsByRep.set(call.repId, [call]);
+  }
+
+  const evalsByCall = new Map<string, EvaluationRow>();
+  const evalsByRep = new Map<string, EvaluationRow[]>();
+  for (const row of evalRows as EvaluationRow[]) {
+    const existing = evalsByCall.get(row.callId);
+    if (!existing || row.createdAt > existing.createdAt) evalsByCall.set(row.callId, row);
+    const byRep = evalsByRep.get(row.repId);
+    if (byRep) byRep.push(row);
+    else evalsByRep.set(row.repId, [row]);
+  }
+
+  const snapshotsByRep = new Map<string, SnapshotRow>();
+  for (const row of snapshotRows as SnapshotRow[]) snapshotsByRep.set(row.repId, row);
+
+  const personasByRep = new Map<string, RepPersona>();
+  for (const row of personaRows) personasByRep.set(row.repId, personaFromRow(row));
+
+  return {
+    calls: callRows as CallSummaryRow[],
+    callsByRep,
+    reps: repRows as RepRow[],
+    evalsByCall,
+    evalsByRep,
+    snapshotsByRep,
+    personasByRep,
+  };
+});
+
+async function workspaceBundle(): Promise<WorkspaceBundle> {
+  return loadWorkspaceBundle(tenantId());
+}
+
+export async function getAllReps(): Promise<Rep[]> {
+  const bundle = await workspaceBundle();
   const repsWithMetrics: Rep[] = [];
 
-  for (const r of allReps) {
-    const repCalls = allCalls.filter((c: any) => c.repId === r.id);
-    const repEvals = latestEvaluationsByCall(allEvals.filter((e: any) => e.repId === r.id));
-    const snapshot = allSnapshots.find((s: any) => s.repId === r.id);
-    const persona = await getRepPersona(r.id);
+  for (const r of bundle.reps) {
+    const repCalls = bundle.callsByRep.get(r.id) || [];
+    const repEvals = latestEvaluationsByCall(bundle.evalsByRep.get(r.id) || []);
+    const snapshot = bundle.snapshotsByRep.get(r.id);
+    const persona = bundle.personasByRep.get(r.id);
 
     let painPassCount = 0;
     let budgetPassCount = 0;
@@ -555,45 +742,14 @@ export async function getRepById(id: string): Promise<{
   snapshot: any | null;
   talkTrack: ManagerTalkTrack | null;
 }> {
-  await deleteCallsWithoutTranscript();
-  const repRecord = await db.select().from(reps).where(and(eq(reps.id, id), forTenant(reps.orgId))).get();
+  const bundle = await workspaceBundle();
+  const repRecord = bundle.reps.find((rep) => rep.id === id);
   if (!repRecord) return { rep: null, calls: [], snapshot: null, talkTrack: null };
 
-  const repCalls = await db.select().from(calls).where(and(eq(calls.repId, id), forTenant(calls.orgId))).orderBy(desc(calls.createdAt)).all();
-  const repEvals = await db.select().from(evaluations).where(and(eq(evaluations.repId, id), forTenant(evaluations.orgId))).all();
-  const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, id), forTenant(repSnapshots.orgId))).get();
-  const persona = await getRepPersona(id);
-
-  const fullCalls: Call[] = repCalls.map((c: any) => {
-    const ev = latestEvaluationRow(repEvals, c.id);
-    let evaluation: CallEvaluation | undefined = undefined;
-    if (ev) {
-      evaluation = hydrateEvaluation(ev, {
-        repName: repRecord.name,
-        callStage: c.callStage,
-        coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-        transcriptText: c.transcriptText,
-        durationSeconds: c.durationSeconds,
-      });
-    }
-
-    return {
-      id: c.id,
-      repId: c.repId,
-      repName: repRecord.name,
-      prospectCompany: c.prospectCompany,
-      prospectName: c.prospectName,
-      callStage: c.callStage as any,
-      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-      durationSeconds: c.durationSeconds,
-      transcriptText: c.transcriptText,
-      audioUrl: c.audioUrl || undefined,
-      status: c.status as any,
-      createdAt: c.createdAt,
-      evaluation,
-    };
-  });
-
+  const repCalls = bundle.callsByRep.get(id) || [];
+  const detailedCalls = repCalls.map((call) =>
+    toCall(call, repRecord.name, bundle.evalsByCall.get(call.id), { summary: false })
+  );
   const allRepsList = await getAllReps();
   const computedRep = allRepsList.find((r) => r.id === id) || {
     id: repRecord.id,
@@ -601,66 +757,52 @@ export async function getRepById(id: string): Promise<{
     email: repRecord.email,
     role: repRecord.role,
     createdAt: repRecord.createdAt,
-    persona: persona || undefined,
+    persona: bundle.personasByRep.get(id),
   };
 
   return {
     rep: computedRep,
-    calls: fullCalls,
-    snapshot,
-    talkTrack: buildManagerTalkTrack(computedRep.name, fullCalls),
+    calls: repCalls.map((call) =>
+      toCall(call, repRecord.name, bundle.evalsByCall.get(call.id), { summary: true })
+    ),
+    snapshot: bundle.snapshotsByRep.get(id) || null,
+    talkTrack: buildManagerTalkTrack(computedRep.name, detailedCalls),
   };
 }
 
 export async function deleteCallsWithoutTranscript(): Promise<string[]> {
-  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText }).from(calls).where(forTenant(calls.orgId)).all();
+  const rows = await db
+    .select({
+      id: calls.id,
+      preview: sql<string>`substr(${calls.transcriptText}, 1, 2000)`.as("preview"),
+    })
+    .from(calls)
+    .where(forTenant(calls.orgId))
+    .all();
   const removed: string[] = [];
-  for (const row of rows) {
-    if (!isUnusableTranscript(row.transcriptText)) continue;
-    await db.delete(evaluations).where(and(eq(evaluations.callId, row.id), forTenant(evaluations.orgId))).run();
-    await db.delete(calls).where(and(eq(calls.id, row.id), forTenant(calls.orgId))).run();
+  for (const row of rows as { id: string; preview?: string }[]) {
+    if (typeof row.preview !== "string") {
+      throw new Error("Transcript preview query did not return preview text");
+    }
+    if (!isUnusableTranscript(row.preview)) continue;
     removed.push(row.id);
+  }
+
+  const chunkSize = 80;
+  for (let i = 0; i < removed.length; i += chunkSize) {
+    const slice = removed.slice(i, i + chunkSize);
+    await db.delete(evaluations).where(and(inArray(evaluations.callId, slice), forTenant(evaluations.orgId))).run();
+    await db.delete(calls).where(and(inArray(calls.id, slice), forTenant(calls.orgId))).run();
   }
   return removed;
 }
 
 export async function getAllCalls(): Promise<Call[]> {
-  await deleteCallsWithoutTranscript();
-  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all();
-  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
-  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
-
-  return allCalls.map((c: any) => {
-    const rep = allReps.find((r: any) => r.id === c.repId);
-    const ev = latestEvaluationRow(allEvals, c.id);
-    let evaluation: CallEvaluation | undefined = undefined;
-
-    if (ev) {
-      evaluation = hydrateEvaluation(ev, {
-        repName: rep?.name || "Unknown Rep",
-        callStage: c.callStage,
-        coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-        transcriptText: c.transcriptText,
-        durationSeconds: c.durationSeconds,
-      });
-    }
-
-    return {
-      id: c.id,
-      repId: c.repId,
-      repName: rep?.name || "Unknown Rep",
-      prospectCompany: c.prospectCompany,
-      prospectName: c.prospectName,
-      callStage: c.callStage as any,
-      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-      durationSeconds: c.durationSeconds,
-      transcriptText: c.transcriptText,
-      audioUrl: c.audioUrl || undefined,
-      status: c.status as any,
-      createdAt: c.createdAt,
-      evaluation,
-    };
-  });
+  const bundle = await workspaceBundle();
+  const repNames = new Map(bundle.reps.map((rep) => [rep.id, rep.name]));
+  return bundle.calls.map((call) =>
+    toCall(call, repNames.get(call.repId) || "Unknown Rep", bundle.evalsByCall.get(call.id), { summary: true })
+  );
 }
 
 export async function getCallById(id: string): Promise<Call | null> {
@@ -678,35 +820,14 @@ export async function getCallById(id: string): Promise<Call | null> {
     c.id
   );
 
-  let evaluation: CallEvaluation | undefined = undefined;
-  if (ev) {
-    evaluation = hydrateEvaluation(ev, {
-      repName: rep?.name || "Unknown Rep",
-      callStage: c.callStage,
-      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-      transcriptText: c.transcriptText,
-      durationSeconds: c.durationSeconds,
-    });
-  }
-
-  return {
-    id: c.id,
-    repId: c.repId,
-    repName: rep?.name || "Unknown Rep",
-    prospectCompany: c.prospectCompany,
-    prospectName: c.prospectName,
-    callStage: c.callStage as any,
-    coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-    durationSeconds: c.durationSeconds,
+  return toCall(c, rep?.name || "Unknown Rep", ev, {
     transcriptText: c.transcriptText,
-    audioUrl: c.audioUrl || undefined,
-    status: c.status as any,
-    createdAt: c.createdAt,
-    evaluation,
-  };
+    summary: false,
+  });
 }
 
 export async function getSuperAdminReport(): Promise<SuperAdminReport> {
+  const bundle = await workspaceBundle();
   const allReps = await getAllReps();
   const allCalls = await getAllCalls();
   const completedCalls = allCalls.filter((c) => c.evaluation);
@@ -726,7 +847,7 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
 
   const repTrajectories = [];
   for (const r of allReps) {
-    const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, r.id), forTenant(repSnapshots.orgId))).get();
+    const snapshot = bundle.snapshotsByRep.get(r.id);
     repTrajectories.push({
       repId: r.id,
       repName: r.name,

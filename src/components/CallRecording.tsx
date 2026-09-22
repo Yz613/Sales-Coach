@@ -1,10 +1,54 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Headphones, Pause, Play } from "lucide-react";
 import { formatDuration, mediaPath } from "@/lib/utils";
 import { parseTranscript } from "@/lib/transcript";
 import TimestampedTranscript from "@/components/TimestampedTranscript";
+import type { TranscriptTurn } from "@/lib/transcript";
+
+function highlightIndex(turns: TranscriptTurn[], currentSeconds?: number): number {
+  if (currentSeconds == null) return -1;
+  return turns.reduce((found, turn, index) => {
+    const next = turns[index + 1];
+    if (currentSeconds >= turn.timestampSeconds && (!next || currentSeconds < next.timestampSeconds)) {
+      return index;
+    }
+    return found;
+  }, 0);
+}
+
+const TranscriptPane = memo(
+  function TranscriptPane({
+    turns,
+    transcriptText,
+    durationSeconds,
+    currentSeconds,
+    onSeek,
+  }: {
+    turns: TranscriptTurn[];
+    transcriptText: string;
+    durationSeconds: number;
+    currentSeconds?: number;
+    onSeek?: (seconds: number) => void;
+  }) {
+    return (
+      <TimestampedTranscript
+        transcriptText={transcriptText}
+        durationSeconds={durationSeconds}
+        currentSeconds={currentSeconds}
+        onSeek={onSeek}
+        turns={turns}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.turns === next.turns &&
+    prev.transcriptText === next.transcriptText &&
+    prev.durationSeconds === next.durationSeconds &&
+    prev.onSeek === next.onSeek &&
+    highlightIndex(prev.turns, prev.currentSeconds) === highlightIndex(next.turns, next.currentSeconds)
+);
 
 export default function CallRecording({
   audioUrl,
@@ -26,12 +70,17 @@ export default function CallRecording({
     [transcriptText, duration, durationSeconds]
   );
 
-  const seek = (seconds: number) => {
+  const seek = useCallback((seconds: number) => {
     const el = audioRef.current;
     const next = Math.max(0, seconds);
     if (el) el.currentTime = next;
     setCurrent(next);
-  };
+  }, []);
+
+  const onSeek = useCallback((seconds: number) => {
+    seek(seconds);
+    audioRef.current?.play().catch(() => undefined);
+  }, [seek]);
 
   useEffect(() => {
     const jumpFromHash = () => {
@@ -43,7 +92,7 @@ export default function CallRecording({
     jumpFromHash();
     window.addEventListener("hashchange", jumpFromHash);
     return () => window.removeEventListener("hashchange", jumpFromHash);
-  }, [src]);
+  }, [src, seek]);
 
   const toggle = () => {
     const el = audioRef.current;
@@ -127,15 +176,12 @@ export default function CallRecording({
       )}
 
       <div className="p-6 bg-slate-950">
-        <TimestampedTranscript
+        <TranscriptPane
+          turns={turns}
           transcriptText={transcriptText}
           durationSeconds={duration || durationSeconds}
           currentSeconds={src ? current : undefined}
-          onSeek={src ? (seconds) => {
-            seek(seconds);
-            audioRef.current?.play().catch(() => undefined);
-          } : undefined}
-          turns={turns}
+          onSeek={src ? onSeek : undefined}
         />
       </div>
     </div>
