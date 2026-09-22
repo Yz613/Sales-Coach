@@ -9,6 +9,14 @@ const TENANT_TABLES = [
   "rep_personas",
 ] as const;
 
+const QUERY_INDEXES = [
+  "CREATE INDEX IF NOT EXISTS idx_calls_org_created ON calls(org_id, created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_evaluations_org_call ON evaluations(org_id, call_id)",
+  "CREATE INDEX IF NOT EXISTS idx_evaluations_org_rep ON evaluations(org_id, rep_id)",
+  "CREATE INDEX IF NOT EXISTS idx_rep_snapshots_org_rep ON rep_snapshots(org_id, rep_id)",
+  "CREATE INDEX IF NOT EXISTS idx_rep_personas_org_rep ON rep_personas(org_id, rep_id)",
+];
+
 function addOrgIdColumnSqlite(sqlite: {
   prepare: (sql: string) => { all: () => { name: string }[] };
   exec: (sql: string) => unknown;
@@ -24,6 +32,13 @@ function addOrgIdColumnSqlite(sqlite: {
       // Table may not exist yet; schema.sql creates it with the column.
     }
   }
+  for (const statement of QUERY_INDEXES) {
+    try {
+      sqlite.exec(statement);
+    } catch {
+      // Table may not exist yet.
+    }
+  }
 }
 
 async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Promise<unknown> } }) {
@@ -35,6 +50,13 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
     }
     try {
       await d1.prepare(`CREATE INDEX IF NOT EXISTS idx_${table}_org_id ON ${table}(org_id)`).run();
+    } catch {
+      // Index may already exist.
+    }
+  }
+  for (const statement of QUERY_INDEXES) {
+    try {
+      await d1.prepare(statement).run();
     } catch {
       // Index may already exist.
     }

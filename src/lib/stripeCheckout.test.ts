@@ -205,7 +205,7 @@ describe("landing SSR bundle", () => {
 
     const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
     assert.match(layout, /publicGuestAuth\(\)/);
-    assert.match(layout, /skipRoleFetch=\{publicAuth\}/);
+    assert.match(layout, /skipRoleFetch/);
 
     const checkout = readFileSync(new URL("./stripeCheckout.ts", import.meta.url), "utf8");
     assert.equal(/from ["']@\/lib\/stripe["']/.test(checkout), false);

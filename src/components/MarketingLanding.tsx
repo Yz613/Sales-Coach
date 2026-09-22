@@ -171,7 +171,7 @@ export default function MarketingLanding() {
 
   return (
     <div className="relative min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-2xl">
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950">
         <div className="mx-auto flex max-w-6xl w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           <BrandMark />
           <nav className="hidden md:flex items-center gap-1">
