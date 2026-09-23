@@ -97,4 +97,9 @@ CREATE INDEX IF NOT EXISTS idx_evaluations_org_id ON evaluations(org_id);
 CREATE INDEX IF NOT EXISTS idx_rep_snapshots_org_id ON rep_snapshots(org_id);
 CREATE INDEX IF NOT EXISTS idx_scripts_org_id ON scripts(org_id);
 CREATE INDEX IF NOT EXISTS idx_rep_personas_org_id ON rep_personas(org_id);
+CREATE INDEX IF NOT EXISTS idx_calls_org_created ON calls(org_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_evaluations_org_call ON evaluations(org_id, call_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_org_rep ON evaluations(org_id, rep_id);
+CREATE INDEX IF NOT EXISTS idx_rep_snapshots_org_rep ON rep_snapshots(org_id, rep_id);
+CREATE INDEX IF NOT EXISTS idx_rep_personas_org_rep ON rep_personas(org_id, rep_id);
 

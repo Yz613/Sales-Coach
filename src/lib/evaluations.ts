@@ -95,11 +95,14 @@ export function hydrateEvaluation(
     coreOutcome: string;
     transcriptText?: string;
     durationSeconds?: number;
-  }
+  },
+  options?: { summary?: boolean }
 ): CallEvaluation {
   const extended = parseExtendedReview(ev.extendedReview);
   let missed = parseJsonArray<MissedOpportunity>(ev.missedOpportunities, []);
-  if (extras.transcriptText) {
+  // List and dashboard views must not re-parse every transcript. Quotes are
+  // stamped once when the evaluation is saved.
+  if (!options?.summary && extras.transcriptText) {
     missed = stampMissedOpportunities(missed, extras.transcriptText, extras.durationSeconds || 0);
   }
 
@@ -123,9 +126,9 @@ export function hydrateEvaluation(
     scriptDivergence: parseJsonObject<ScriptDivergence>(ev.scriptDivergence),
     topFixes: topFixes as [PriorityFix, PriorityFix],
     scorecard: extended?.scorecard,
-    walkthrough: extended?.walkthrough,
+    walkthrough: options?.summary ? undefined : extended?.walkthrough,
     evaluatedWith: extended?.evaluatedWith,
-    rawMarkdown: ev.rawMarkdown || undefined,
+    rawMarkdown: options?.summary ? undefined : ev.rawMarkdown || undefined,
     createdAt: ev.createdAt,
   };
 }
