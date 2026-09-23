@@ -67,4 +67,38 @@ assert.equal(
   "[0:01] Rep: Hello"
 );
 
+assert.equal(
+  geminiTextFromResponse({
+    candidates: [{
+      content: {
+        parts: [
+          { text: '{"quote": "hel' },
+          { text: 'lo"}' },
+        ],
+      },
+    }],
+  }),
+  '{"quote": "hello"}'
+);
+
+const schema = { type: "object", properties: { ok: { type: "boolean" } } };
+const withSchema = geminiGenerationConfig("gemini-3.8-flash", {
+  responseMimeType: "application/json",
+  responseSchema: schema,
+  maxOutputTokens: 16384,
+});
+assert.equal(withSchema.responseJsonSchema, schema);
+assert.deepEqual(withSchema.responseFormat, {
+  text: { mimeType: "application/json", schema },
+});
+const mimeOnly = geminiGenerationConfig("gemini-2.5-flash", {
+  responseMimeType: "application/json",
+  responseSchema: schema,
+  schemaMode: "mimeOnly",
+  temperature: 0.2,
+});
+assert.equal(mimeOnly.responseJsonSchema, undefined);
+assert.equal(mimeOnly.responseFormat, undefined);
+assert.equal(mimeOnly.temperature, 0.2);
+
 console.log("providers checks passed");

@@ -5,6 +5,7 @@ import { latestEvaluationsByCall } from "../evaluations";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, and, desc } from "drizzle-orm";
 import type { CallEvaluation, MissedOpportunity, PriorityFix, SandlerStatus, RepTrajectory, SalesScript, RepPersona } from "@/types";
+import { EVALUATION_RESPONSE_SCHEMA } from "./evaluationSchema";
 import { completeJson } from "./llm";
 import { resolveAiSettings } from "./settings";
 import {
@@ -324,7 +325,13 @@ ${CORE_OUTCOME_RULES}
 }
 `;
 
-  const result = await completeJson({ providerId, apiKey, model, prompt });
+  const result = await completeJson({
+    providerId,
+    apiKey,
+    model,
+    prompt,
+    responseSchema: providerId === "gemini" ? EVALUATION_RESPONSE_SCHEMA : undefined,
+  });
   const parsed = result.parsed || {};
 
   const missed: MissedOpportunity[] = Array.isArray(parsed.missedOpportunities) ? parsed.missedOpportunities : [];

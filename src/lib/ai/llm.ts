@@ -1,4 +1,4 @@
-import { geminiGenerationConfig, geminiTextFromResponse } from "./gemini";
+import { geminiGenerationConfig, geminiTextFromResponse, type GeminiSchemaMode } from "./gemini";
 import { extractJson } from "./json";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
 
@@ -9,25 +9,67 @@ export interface LlmJsonResult {
   estimatedCostUsd?: number;
 }
 
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<{ text: string; usage?: LlmJsonResult["usage"]; finishReason?: string }> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: geminiGenerationConfig(model, {
-          responseMimeType: "application/json",
-          thinkingLevel: "low",
-          maxOutputTokens: 16384,
+function geminiSchemaRejected(status: number, message: string): boolean {
+  if (status !== 400) return false;
+  return /responseFormat|responseJsonSchema|responseSchema|Unknown name|Invalid JSON payload|schema/i.test(message);
+}
+
+function nextSchemaMode(mode: GeminiSchemaMode, message: string): GeminiSchemaMode | undefined {
+  const mentionsFormat = /responseFormat/i.test(message);
+  const mentionsJson = /responseJsonSchema|responseSchema/i.test(message);
+  if (/invalid schema|too many states|schema is too|unsupported/i.test(message)) return "mimeOnly";
+  if (mode === "full") {
+    if (mentionsFormat && !mentionsJson) return "jsonSchema";
+    if (mentionsJson && !mentionsFormat) return "responseFormat";
+    return "jsonSchema";
+  }
+  if (mode === "jsonSchema") return mentionsJson ? "responseFormat" : "mimeOnly";
+  if (mode === "responseFormat") return "mimeOnly";
+  return undefined;
+}
+
+async function callGemini(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  responseSchema?: Record<string, unknown>
+): Promise<{ text: string; usage?: LlmJsonResult["usage"]; finishReason?: string }> {
+  let mode: GeminiSchemaMode = responseSchema ? "full" : "mimeOnly";
+  let data: any;
+  let res: Response | undefined;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: geminiGenerationConfig(model, {
+            responseMimeType: "application/json",
+            responseSchema,
+            schemaMode: mode,
+            thinkingLevel: "low",
+            maxOutputTokens: 16384,
+          }),
         }),
-      }),
+      }
+    );
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Gemini request failed (${res.status})`);
     }
-  );
-  const data = await res.json();
-  if (!res.ok || data.error) {
-    throw new Error(data.error?.message || `Gemini request failed (${res.status})`);
+    if (res.ok && !data.error) break;
+    const message: string = String(data?.error?.message || `Gemini request failed (${res.status})`);
+    const downgrade: GeminiSchemaMode | undefined = responseSchema ? nextSchemaMode(mode, message) : undefined;
+    if (!geminiSchemaRejected(res.status, message) || !downgrade || downgrade === mode) {
+      throw new Error(message);
+    }
+    mode = downgrade;
+  }
+  if (!res || !data || data.error) {
+    throw new Error(data?.error?.message || `Gemini request failed (${res?.status || 0})`);
   }
   const text = geminiTextFromResponse(data);
   const finishReason = String(data?.candidates?.[0]?.finishReason || "");
@@ -127,14 +169,15 @@ export async function completeJson(opts: {
   apiKey: string;
   model: string;
   prompt: string;
+  responseSchema?: Record<string, unknown>;
 }): Promise<LlmJsonResult> {
-  const { providerId, apiKey, model, prompt } = opts;
+  const { providerId, apiKey, model, prompt, responseSchema } = opts;
   let text = "";
   let usage: LlmJsonResult["usage"];
   let finishReason: string | undefined;
 
   if (providerId === "gemini") {
-    ({ text, usage, finishReason } = await callGemini(apiKey, model, prompt));
+    ({ text, usage, finishReason } = await callGemini(apiKey, model, prompt, responseSchema));
   } else if (providerId === "anthropic") {
     ({ text, usage } = await callAnthropic(apiKey, model, prompt));
   } else if (providerId === "openai") {
