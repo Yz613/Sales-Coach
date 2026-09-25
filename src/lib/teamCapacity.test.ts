@@ -16,11 +16,8 @@ async function main(): Promise<void> {
   assert.deepEqual(await limitsFor(UNLIMITED_TEAM_SEATS), []);
   assert.deepEqual(await limitsFor(5), [UNLIMITED_TEAM_SEATS]);
   assert.deepEqual(await limitsFor(5, true), [UNLIMITED_TEAM_SEATS, CLERK_INCLUDED_SEAT_CAP]);
-
-  await assert.rejects(
-    () => limitsFor(CLERK_INCLUDED_SEAT_CAP, true),
-    /plan does not allow unlimited memberships/
-  );
+  assert.deepEqual(await limitsFor(CLERK_INCLUDED_SEAT_CAP, true), []);
+  assert.deepEqual(await limitsFor(50, true), []);
 
   console.log("team capacity checks passed");
 }

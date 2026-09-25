@@ -15,16 +15,18 @@ export function seatLimitNeedsRaise(current: number | null | undefined): boolean
 /**
  * Lift a Clerk membership cap to unlimited. If the plan rejects that, use the
  * included 20-seat ceiling instead of leaving the default of 5 in place.
+ * A cap already at that ceiling is enough for invites. Asking Clerk for
+ * unlimited seats again is what returns "upgrade your subscription".
  */
 export async function applySeatLimit(
   current: number | null | undefined,
   update: (limit: number) => Promise<void>
 ): Promise<void> {
   if (!seatLimitNeedsRaise(current)) return;
+  if ((current ?? 0) >= CLERK_INCLUDED_SEAT_CAP) return;
   try {
     await update(UNLIMITED_TEAM_SEATS);
-  } catch (err) {
-    if ((current ?? 0) >= CLERK_INCLUDED_SEAT_CAP) throw err;
+  } catch {
     await update(CLERK_INCLUDED_SEAT_CAP);
   }
 }
