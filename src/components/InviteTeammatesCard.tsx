@@ -16,7 +16,7 @@ export default function InviteTeammatesCard({
         </div>
         <div>
           <h2 className="text-lg font-bold text-white">Invite teammates</h2>
-          <p className="text-sm text-slate-400">Paste emails and send. They get a join link.</p>
+          <p className="text-sm text-slate-400">See who joined, who’s pending, and resend or copy a link.</p>
         </div>
       </div>
       <InviteTeammatesForm compact={compact} />

@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 import { publicTeamError, type PendingInvite, type TeamInfo, type TeamInviteRole } from "@/lib/team-copy";
+import { ensureTeamSeatLimits, UNLIMITED_TEAM_SEATS } from "@/lib/teamCapacity";
 
 export type { TeamInviteRole, TeamInfo, PendingInvite } from "@/lib/team-copy";
 export { parseInviteRole, publicTeamError } from "@/lib/team-copy";
@@ -35,6 +36,7 @@ export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
 
   if (target) {
     try {
+      await ensureTeamSeatLimits(client, target.id);
       const membership = await client.organizations.createOrganizationMembership({
         organizationId: target.id,
         userId,
@@ -58,6 +60,7 @@ export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
   const created = await client.organizations.createOrganization({
     name,
     createdBy: userId,
+    maxAllowedMemberships: UNLIMITED_TEAM_SEATS,
   });
   return { id: created.id, name: created.name, role: "org:admin" };
 }
@@ -83,6 +86,7 @@ export async function sendTeamInvites(input: {
   role: TeamInviteRole;
 }): Promise<{ sent: string[]; failed: { email: string; reason: string }[] }> {
   const client = await clerkClient();
+  await ensureTeamSeatLimits(client, input.organizationId);
   const emails = parseInviteEmails(input.emails.join("\n"));
   const sent: string[] = [];
   const failed: { email: string; reason: string }[] = [];

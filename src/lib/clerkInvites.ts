@@ -1,6 +1,8 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import type { ClerkInvitation, ClerkInviteApi } from "./inviteSend";
 import type { InviteRole } from "./inviteEmails";
+import { ensureTeamSeatLimits } from "./teamCapacity";
+import { memberDisplayName, sortTeamMembers, type TeamMember } from "./teamRoster";
 
 function asInvitation(row: {
   id: string;
@@ -27,9 +29,23 @@ export async function createClerkInviteApi(): Promise<ClerkInviteApi> {
         status: ["pending"],
         limit: 100,
       });
-      return data.map(asInvitation);
+      return Promise.all(
+        data.map(async (row) => {
+          if (row.url) return asInvitation(row);
+          try {
+            const full = await clerk.organizations.getOrganizationInvitation({
+              organizationId,
+              invitationId: row.id,
+            });
+            return asInvitation(full);
+          } catch {
+            return asInvitation(row);
+          }
+        })
+      );
     },
     async create(params) {
+      await ensureTeamSeatLimits(clerk, params.organizationId);
       const created = await clerk.organizations.createOrganizationInvitation({
         organizationId: params.organizationId,
         inviterUserId: params.inviterUserId,
@@ -55,4 +71,39 @@ export async function createClerkInviteApi(): Promise<ClerkInviteApi> {
       });
     },
   };
+}
+
+export async function listTeamMembers(organizationId: string): Promise<TeamMember[]> {
+  const clerk = await clerkClient();
+  const { data } = await clerk.organizations.getOrganizationMembershipList({
+    organizationId,
+    limit: 100,
+  });
+  const members = data.flatMap((membership) => {
+    const user = membership.publicUserData;
+    if (!user?.userId) return [];
+    const email = user.identifier || "";
+    return [
+      {
+        userId: user.userId,
+        email,
+        name: memberDisplayName({ firstName: user.firstName, lastName: user.lastName, email }),
+        role: membership.role,
+      },
+    ];
+  });
+  return sortTeamMembers(members);
+}
+
+export async function updateTeamMemberRole(input: {
+  organizationId: string;
+  userId: string;
+  role: InviteRole;
+}): Promise<void> {
+  const clerk = await clerkClient();
+  await clerk.organizations.updateOrganizationMembership({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    role: input.role,
+  });
 }

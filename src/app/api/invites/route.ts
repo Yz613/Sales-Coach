@@ -1,61 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
-import { getSetting } from "@/lib/db/service";
+import { currentUser } from "@clerk/nextjs/server";
 import { isInviteRole, parseInviteEmails } from "@/lib/inviteEmails";
 import { buildInviteRedirectUrl } from "@/lib/inviteRedirect";
-import { createClerkInviteApi } from "@/lib/clerkInvites";
-import { sendOrganizationInvites } from "@/lib/inviteSend";
-import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
-
-type AdminGate =
-  | { ok: false; response: NextResponse }
-  | { ok: true; userId: string; orgId: string };
-
-async function requireOrgAdmin(): Promise<AdminGate> {
-  try {
-    const session = await requireWorkspace();
-    if (!session.userId || !session.orgId) {
-      return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-    }
-    if (!session.isAdmin) {
-      return { ok: false, response: NextResponse.json({ error: "Only team admins can manage invites" }, { status: 403 }) };
-    }
-    return { ok: true, userId: session.userId, orgId: session.orgId };
-  } catch (err) {
-    return { ok: false, response: workspaceErrorResponse(err) };
-  }
-}
-
-async function resolveResendApiKey(): Promise<string | null> {
-  const fromEnv = process.env.RESEND_API_KEY?.trim();
-  if (fromEnv) return fromEnv;
-  return (await getSetting("resend_api_key"))?.trim() || null;
-}
-
-async function organizationName(orgId: string): Promise<string> {
-  try {
-    const clerk = await clerkClient();
-    const org = await clerk.organizations.getOrganization({ organizationId: orgId });
-    return org.name || "your team";
-  } catch {
-    return "your team";
-  }
-}
+import { createClerkInviteApi, listTeamMembers, updateTeamMemberRole } from "@/lib/clerkInvites";
+import { clerkErrorMessage, sendOrganizationInvites } from "@/lib/inviteSend";
+import {
+  loadInviteRoster,
+  organizationName,
+  requireInviteAdmin,
+  resolveResendApiKey,
+} from "@/lib/inviteAdmin";
+import { memberRoleChangeError } from "@/lib/teamRoster";
 
 export async function GET() {
-  const gate = await requireOrgAdmin();
+  const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
-
-  const clerk = await createClerkInviteApi();
-  const invitations = await clerk.listPending(gate.orgId);
-  return NextResponse.json({
-    invitations,
-    emailConfigured: Boolean(await resolveResendApiKey()),
-  });
+  return NextResponse.json(await loadInviteRoster(gate.orgId));
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requireOrgAdmin();
+  const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
   let body: { emails?: unknown; emailText?: unknown; role?: unknown };
@@ -93,16 +57,85 @@ export async function POST(req: NextRequest) {
     fromEmail: process.env.RESEND_FROM_EMAIL,
   });
 
-  const invitations = await clerk.listPending(gate.orgId);
   return NextResponse.json({
     results,
-    invitations,
-    emailConfigured: Boolean(resendApiKey),
+    ...(await loadInviteRoster(gate.orgId)),
+  });
+}
+
+export async function PATCH(req: NextRequest) {
+  const gate = await requireInviteAdmin();
+  if (!gate.ok) return gate.response;
+
+  let body: { userId?: unknown; invitationId?: unknown; role?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!isInviteRole(body.role)) {
+    return NextResponse.json({ error: "Choose Member or Admin." }, { status: 400 });
+  }
+
+  const userId = String(body.userId || "").trim();
+  const invitationId = String(body.invitationId || "").trim();
+  if (!userId && !invitationId) {
+    return NextResponse.json({ error: "Choose a teammate or a pending invite." }, { status: 400 });
+  }
+
+  if (userId) {
+    const members = await listTeamMembers(gate.orgId);
+    const blocked = memberRoleChangeError(members, userId, body.role);
+    if (blocked) return NextResponse.json({ error: blocked }, { status: 400 });
+    try {
+      await updateTeamMemberRole({ organizationId: gate.orgId, userId, role: body.role });
+    } catch (err) {
+      return NextResponse.json({ error: clerkErrorMessage(err, "Could not change that role") }, { status: 400 });
+    }
+    return NextResponse.json(await loadInviteRoster(gate.orgId));
+  }
+
+  const clerk = await createClerkInviteApi();
+  const pending = await clerk.listPending(gate.orgId);
+  const invitation = pending.find((item) => item.id === invitationId);
+  if (!invitation) {
+    return NextResponse.json({ error: "That invite is no longer pending." }, { status: 404 });
+  }
+  if (invitation.role === body.role) {
+    return NextResponse.json(await loadInviteRoster(gate.orgId));
+  }
+
+  const resendApiKey = await resolveResendApiKey();
+  const user = await currentUser();
+  const inviterEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress;
+  const results = await sendOrganizationInvites({
+    organizationId: gate.orgId,
+    organizationName: await organizationName(gate.orgId),
+    inviterUserId: gate.userId,
+    inviterEmail,
+    emails: [invitation.emailAddress],
+    role: body.role,
+    redirectUrl: buildInviteRedirectUrl(req.url),
+    clerk,
+    resendApiKey,
+    fromEmail: process.env.RESEND_FROM_EMAIL,
+  });
+  const failed = results.find((item) => !item.ok);
+  if (failed) {
+    return NextResponse.json(
+      { error: failed.error || "Could not change that invite.", ...(await loadInviteRoster(gate.orgId)) },
+      { status: 400 }
+    );
+  }
+
+  return NextResponse.json({
+    results,
+    ...(await loadInviteRoster(gate.orgId)),
   });
 }
 
 export async function DELETE(req: NextRequest) {
-  const gate = await requireOrgAdmin();
+  const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
   let body: { invitationId?: unknown };
@@ -122,6 +155,5 @@ export async function DELETE(req: NextRequest) {
     invitationId,
     requestingUserId: gate.userId,
   });
-  const invitations = await clerk.listPending(gate.orgId);
-  return NextResponse.json({ ok: true, invitations, emailConfigured: Boolean(await resolveResendApiKey()) });
+  return NextResponse.json({ ok: true, ...(await loadInviteRoster(gate.orgId)) });
 }

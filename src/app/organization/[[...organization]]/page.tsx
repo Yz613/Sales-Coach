@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export default function OrganizationProfilePage() {
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-3xl">
       <InviteTeammatesCard />
     </div>
   );
