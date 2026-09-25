@@ -45,10 +45,9 @@ describe("clerk-env", () => {
 });
 
 describe("hosted Clerk config", () => {
-  it("keeps the live publishable key in wrangler vars", () => {
+  it("does not commit the live publishable key in wrangler vars", () => {
     const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
-    assert.equal(/NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"\s*:\s*""/.test(wrangler), false);
-    assert.match(wrangler, /REDACTED_CLERK_PUBLISHABLE_KEY/);
+    assert.doesNotMatch(wrangler, /"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"\s*:/);
   });
 });
 

@@ -24,16 +24,14 @@
 		{ "pattern": "refreshqueue.com/__auth", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/__auth/*", "zone_name": "refreshqueue.com" }
 	],
-	// Non-secret Clerk config (publishable key is public). The secret key is set
-	// separately via `wrangler secret put CLERK_SECRET_KEY` and is NOT committed.
-	// Do not set an empty NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY — that disables Clerk
-	// and turns hosted sign-in into "Authentication is not configured."
+	// Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in the build environment. GitHub
+	// Actions reads it from repository secrets. The Clerk secret key is set
+	// separately via `wrangler secret put CLERK_SECRET_KEY`.
 	// Stripe: `wrangler secret put STRIPE_SECRET_KEY` and
 	// `wrangler secret put STRIPE_WEBHOOK_SECRET`. Optional price ids can be vars.
 	// Optional invite mailer: `wrangler secret put RESEND_API_KEY` (or paste it in
 	// Admin → Settings).
 	"vars": {
-		"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "REDACTED_CLERK_PUBLISHABLE_KEY",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/app/sign-in",
 		"NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/app/sign-up",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/app",

@@ -67,6 +67,7 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
           if [ -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
-            export NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="REDACTED_CLERK_PUBLISHABLE_KEY"
+            echo "::error::NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must be set in GitHub Actions secrets"
+            exit 1
           fi
           npm run deploy
