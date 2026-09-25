@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -10,6 +11,8 @@ import {
   PRICING_PLANS,
 } from "./marketing";
 import { ENTERPRISE_SEATS_BULLET, HOSTED_COACH_EVALS, OVERAGE_LINE } from "./billing";
+
+const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Fathom|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite)\b/i;
 
 describe("hosted pricing", () => {
   it("publishes Hosted Coach / Hosted Team / Enterprise with Team highlighted", () => {
@@ -47,5 +50,34 @@ describe("hosted pricing", () => {
     assert.equal(GITHUB_REPO_URL, "https://github.com/Yz613/Sales-Coach");
     assert.match(LICENSE_URL, /LICENSE$/);
     assert.equal(CONTACT_EMAIL, "hello@refreshqueue.com");
+  });
+
+  it("keeps vendor and tool brand names out of public pricing copy", () => {
+    const visible = [
+      PRICING_DURATION_NOTE,
+      ...PRICING_FAQS.flatMap((item) => [item.question, item.answer]),
+      ...PRICING_PLANS.flatMap((plan) => [
+        plan.name,
+        plan.price,
+        plan.period || "",
+        plan.blurb,
+        plan.cta.label,
+        plan.badge || "",
+        plan.overageLine || "",
+        ...plan.features,
+      ]),
+    ].join("\n");
+    assert.equal(visible.match(VENDOR_NAME), null);
+    assert.match(PRICING_PLANS[0]?.features[0] || "", /Self-host on your own machine or server/);
+  });
+});
+
+describe("marketing landing copy", () => {
+  it("does not name third-party tools in the public landing", () => {
+    const source = readFileSync(new URL("../components/MarketingLanding.tsx", import.meta.url), "utf8");
+    assert.equal(source.match(VENDOR_NAME), null);
+    assert.match(source, /Optional team sign-in/);
+    assert.match(source, /card payments/);
+    assert.match(source, /import a transcript/);
   });
 });

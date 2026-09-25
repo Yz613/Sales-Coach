@@ -39,7 +39,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     period: null,
     blurb: "Self-host forever. Bring your own keys.",
     features: [
-      "Self-host (Docker / Node / Cloudflare)",
+      "Self-host on your own machine or server",
       "MIT license, bring your own API keys",
       "Unlimited local use",
       "Community support via GitHub",
