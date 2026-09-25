@@ -295,7 +295,7 @@ export default function MarketingLanding() {
                 </a>
               </div>
               <p className="mt-5 text-xs font-medium text-slate-500 tracking-wide">
-                Open source · MIT · Runs on Cloudflare
+                Open source · MIT · Self-host or hosted
               </p>
             </div>
             <ScorecardMock />
@@ -348,12 +348,12 @@ export default function MarketingLanding() {
               {
                 icon: AudioLines,
                 title: "Transcription + synced playback",
-                body: "Upload MP3, WAV, or M4A. Whisper / Gemini / Groq transcribe; the player highlights the exact timestamp.",
+                body: "Upload MP3, WAV, or M4A, or import a transcript. The player highlights the exact timestamp.",
               },
               {
                 icon: Workflow,
-                title: "Multi-provider or zero-config",
-                body: "Score with Gemini, OpenAI, Groq, Anthropic, DeepSeek, or OpenRouter — or the built-in deterministic rubric. No keys required to start.",
+                title: "Your model or built-in scoring",
+                body: "Score with your own model, or the built-in deterministic rubric. No keys required to start.",
               },
               {
                 icon: ClipboardCheck,
@@ -367,13 +367,13 @@ export default function MarketingLanding() {
               },
               {
                 icon: Shield,
-                title: "Optional Clerk teams",
-                body: "Turn on multi-tenant auth when you need org switching, Admin vs. Member access, and hosted workspaces.",
+                title: "Optional team sign-in",
+                body: "Turn on optional auth when you need team switching, Admin vs. Member access, and hosted workspaces.",
               },
               {
                 icon: Cloud,
-                title: "Docker + Cloudflare",
-                body: "Run locally on SQLite, ship with Docker, or deploy to Workers + D1. Same product, your ops preference.",
+                title: "Run it where you want",
+                body: "Run it locally, ship it in a container, or deploy on your own host. Same product, your choice.",
               },
             ].map((feature) => {
               const Icon = feature.icon;
@@ -427,7 +427,7 @@ export default function MarketingLanding() {
             {PRICING_DURATION_NOTE}
           </p>
           <p className="mt-3 text-center text-xs text-slate-500">
-            Hosted Coach and Hosted Team start with Stripe checkout. Create your account after payment. Enterprise is custom.
+            Hosted Coach and Hosted Team start with card payments. Create your account after payment. Enterprise is custom.
           </p>
 
           <div className="mt-10 max-w-2xl mx-auto space-y-2">
@@ -459,7 +459,7 @@ export default function MarketingLanding() {
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Open source</p>
               <h3 className="mt-2 text-xl font-semibold text-white">You already own the product.</h3>
               <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                Clone it, run Docker, point it at your own LLM keys. Unlimited local evaluations, MIT licensed,
+                Clone it, run it yourself, and point it at your own model keys. Unlimited local evaluations, MIT licensed,
                 no seat caps. You operate the box.
               </p>
               <a
