@@ -42,7 +42,10 @@ export const clerkAppearance = {
     organizationSwitcherTrigger:
       "rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-slate-200 hover:bg-white/[0.08] transition",
     organizationPreviewMainIdentifier: "text-slate-100 font-medium",
-    card: "bg-slate-950/85 backdrop-blur-2xl border border-white/[0.1] shadow-2xl rounded-3xl",
+    card: "bg-slate-950 border border-white/[0.1] shadow-2xl rounded-3xl",
+    formFieldLabel: "text-slate-300",
+    dividerText: "text-slate-400",
+    socialButtonsBlockButtonText: "text-slate-100",
     headerTitle: "text-white font-semibold",
     headerSubtitle: "text-slate-400 text-xs",
     modalBackdrop: "z-[80] backdrop-blur-md bg-slate-950/80",

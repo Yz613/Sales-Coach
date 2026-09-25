@@ -28,6 +28,25 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
     };
   }, [pathname]);
 
+  // Chrome can restore a backgrounded tab as an empty frame. A one-frame
+  // opacity tick forces those layers to paint again.
+  useEffect(() => {
+    const repaint = () => {
+      if (document.visibilityState !== "visible") return;
+      const root = document.documentElement;
+      root.style.opacity = "0.999";
+      requestAnimationFrame(() => {
+        root.style.opacity = "";
+      });
+    };
+    document.addEventListener("visibilitychange", repaint);
+    window.addEventListener("pageshow", repaint);
+    return () => {
+      document.removeEventListener("visibilitychange", repaint);
+      window.removeEventListener("pageshow", repaint);
+    };
+  }, []);
+
   const chromeless =
     isMarketingAppPath(pathname) ||
     isPublicAuthRoute(pathname) ||
