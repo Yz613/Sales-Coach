@@ -21,7 +21,7 @@ export default function ScorecardGrid({ metrics }: { metrics: ScorecardMetric[] 
         const t = tone(metric.status);
         const Icon = t.icon;
         return (
-          <div key={metric.key} className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-black/[0.06] hover:border-black/[0.12] transition">
+          <div key={metric.key} className="rounded-2xl glass-inset p-5 space-y-2.5 border border-black/[0.06] hover:border-black/[0.12] transition">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3a3c]">{metric.label}</span>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${t.badge}`}>

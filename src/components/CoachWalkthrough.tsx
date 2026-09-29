@@ -29,7 +29,7 @@ export default function CoachWalkthrough({ steps }: { steps: CoachWalkthroughSte
 
   return (
     <div className="rounded-2xl glass-card overflow-hidden">
-      <div className="border-b border-black/[0.08] px-6 py-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/[0.02]">
+      <div className="border-b border-black/[0.08] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black/[0.02]">
         <div>
           <div className="flex items-center gap-2 text-[#C45500] font-bold text-xs uppercase tracking-wider">
             <GraduationCap className="h-4 w-4" /> Coach walkthrough — pick it apart

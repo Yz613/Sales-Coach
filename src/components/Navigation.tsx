@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,10 +17,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
-import UploadModal from "./UploadModal";
 import TeamSwitcher from "./TeamSwitcher";
 import { UserButton, Show, SignInButton, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-ui";
+
+const UploadModal = dynamic(() => import("./UploadModal"), { ssr: false });
 
 type NavItem = {
   label: string;
@@ -263,11 +265,13 @@ export default function Navigation() {
         </>
       )}
 
-      <UploadModal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        initialTab={uploadInitialTab}
-      />
+      {isUploadOpen ? (
+        <UploadModal
+          isOpen
+          onClose={() => setIsUploadOpen(false)}
+          initialTab={uploadInitialTab}
+        />
+      ) : null}
     </>
   );
 }

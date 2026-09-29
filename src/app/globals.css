@@ -16,9 +16,11 @@
   color-scheme: light;
 }
 
-*,
-*::before,
-*::after {
+/* Backdrop-filter is not inherited. Killing it on every element (and every
+   pseudo-element) forces a style recalc of the whole page. Clerk is the only
+   place that still injects it, and that is what blanks a backgrounded tab. */
+[class*="cl-"],
+[class*="cl-"] * {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
@@ -32,7 +34,6 @@ body {
   line-height: 1.47;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 /* Soft color only. CSS blur and backdrop-filter are discarded when Chrome
@@ -91,16 +92,12 @@ h1 {
 }
 
 .glass-card-hover {
-  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+  transition: border-color 0.15s ease;
 }
 
 .glass-card-hover:hover {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 10px 28px rgba(0, 0, 0, 0.06);
-  transform: none;
 }
 
 .glass-inset {

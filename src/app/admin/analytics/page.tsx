@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
 
       {/* Rep Benchmark Leaderboard */}
       <div className="rounded-2xl glass-card overflow-hidden">
-        <div className="border-b border-black/[0.08] px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-black/[0.08] px-6 py-5 flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-[#1d1d1f] tracking-tight flex items-center gap-2">
               <Users className="h-4 w-4 text-[#007AFF]" /> Rep Head-to-Head Leaderboard

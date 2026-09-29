@@ -1,6 +1,6 @@
 import { db } from "./index";
 import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas } from "./schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import type {
   Rep,
   Call,
@@ -27,7 +27,7 @@ import {
 import type { SalesMethodology } from "@/lib/methodology";
 import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
-import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
+import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall, type EvaluationRow } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
 import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
@@ -527,20 +527,124 @@ export async function setRepFocus(repId: string, focus: string): Promise<void> {
 }
 
 // --- Reps & Calls ---
+
+function personaFromRow(row: {
+  id: string;
+  repId: string;
+  experienceLevel: string;
+  coachingTone: string;
+  knownBlindspots: string;
+  strengths: string;
+  managerNotes: string;
+  targetQuota: string | null;
+  updatedAt: string;
+}): RepPersona {
+  return {
+    id: row.id,
+    repId: row.repId,
+    experienceLevel: row.experienceLevel,
+    coachingTone: row.coachingTone,
+    knownBlindspots: JSON.parse(row.knownBlindspots || "[]"),
+    strengths: JSON.parse(row.strengths || "[]"),
+    managerNotes: row.managerNotes,
+    targetQuota: row.targetQuota || undefined,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function latestEvalByCall(rows: EvaluationRow[]): Map<string, EvaluationRow> {
+  const latest = new Map<string, EvaluationRow>();
+  for (const row of rows) {
+    const existing = latest.get(row.callId);
+    if (!existing || row.createdAt > existing.createdAt) latest.set(row.callId, row);
+  }
+  return latest;
+}
+
+function missedCount(raw: string | null | undefined): number {
+  if (!raw) return 0;
+  try {
+    const missed = JSON.parse(raw) as MissedOpportunity[];
+    return Array.isArray(missed) ? missed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function getAllReps(): Promise<Rep[]> {
-  await deleteCallsWithoutTranscript();
-  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
-  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).all();
-  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
-  const allSnapshots = await db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all();
+  const [allReps, callRows, evalRows, allSnapshots, personaRows] = await Promise.all([
+    db.select().from(reps).where(forTenant(reps.orgId)).all(),
+    db
+      .select({
+        id: calls.id,
+        repId: calls.repId,
+        coreOutcome: calls.coreOutcome,
+        transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
+      })
+      .from(calls)
+      .where(forTenant(calls.orgId))
+      .all(),
+    db
+      .select({
+        callId: evaluations.callId,
+        repId: evaluations.repId,
+        painStatus: evaluations.painStatus,
+        budgetStatus: evaluations.budgetStatus,
+        decisionStatus: evaluations.decisionStatus,
+        scriptAdherenceScore: evaluations.scriptAdherenceScore,
+        missedOpportunities: evaluations.missedOpportunities,
+        createdAt: evaluations.createdAt,
+      })
+      .from(evaluations)
+      .where(forTenant(evaluations.orgId))
+      .all(),
+    db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all(),
+    db.select().from(repPersonas).where(forTenant(repPersonas.orgId)).all(),
+  ]);
 
-  const repsWithMetrics: Rep[] = [];
+  const usableIds = new Set<string>();
+  for (const row of callRows as { id: string; transcriptProbe: string }[]) {
+    if (!isUnusableTranscript(row.transcriptProbe)) usableIds.add(row.id);
+  }
+  const callsByRep = new Map<string, { coreOutcome: string }[]>();
+  for (const row of callRows as { id: string; repId: string; coreOutcome: string }[]) {
+    if (!usableIds.has(row.id)) continue;
+    const list = callsByRep.get(row.repId);
+    if (list) list.push(row);
+    else callsByRep.set(row.repId, [row]);
+  }
 
-  for (const r of allReps) {
-    const repCalls = allCalls.filter((c: any) => c.repId === r.id);
-    const repEvals = latestEvaluationsByCall(allEvals.filter((e: any) => e.repId === r.id));
-    const snapshot = allSnapshots.find((s: any) => s.repId === r.id);
-    const persona = await getRepPersona(r.id);
+  type RepMetricEval = {
+    callId: string;
+    repId: string;
+    painStatus: string;
+    budgetStatus: string;
+    decisionStatus: string;
+    scriptAdherenceScore: number;
+    missedOpportunities: string | null;
+    createdAt: string;
+  };
+  const evalsByRep = new Map<string, RepMetricEval[]>();
+  for (const row of evalRows as RepMetricEval[]) {
+    if (!usableIds.has(row.callId)) continue;
+    const list = evalsByRep.get(row.repId);
+    if (list) list.push(row);
+    else evalsByRep.set(row.repId, [row]);
+  }
+
+  const snapshotByRep = new Map<string, { overallTrajectory?: string; managerRationale?: string }>();
+  for (const row of allSnapshots as { repId: string; overallTrajectory?: string; managerRationale?: string }[]) {
+    snapshotByRep.set(row.repId, row);
+  }
+  const personaByRep = new Map<string, RepPersona>();
+  for (const row of personaRows as Parameters<typeof personaFromRow>[0][]) {
+    personaByRep.set(row.repId, personaFromRow(row));
+  }
+
+  return allReps.map((r: any) => {
+    const repCalls = callsByRep.get(r.id) || [];
+    const repEvals = latestEvaluationsByCall<RepMetricEval>(evalsByRep.get(r.id) || []);
+    const snapshot = snapshotByRep.get(r.id);
 
     let painPassCount = 0;
     let budgetPassCount = 0;
@@ -549,23 +653,18 @@ export async function getAllReps(): Promise<Rep[]> {
     let earlyFoldCount = 0;
     let bookedCount = 0;
 
-    repCalls.forEach((c: any) => {
-      if (isMeetingBooked(c.coreOutcome)) bookedCount++;
-    });
+    for (const call of repCalls) {
+      if (isMeetingBooked(call.coreOutcome)) bookedCount++;
+    }
+    for (const ev of repEvals) {
+      if (ev.painStatus === "Pass") painPassCount++;
+      if (ev.budgetStatus === "Pass") budgetPassCount++;
+      if (ev.decisionStatus === "Pass") decisionPassCount++;
+      totalScore += ev.scriptAdherenceScore;
+      earlyFoldCount += missedCount(ev.missedOpportunities);
+    }
 
-    repEvals.forEach((e: any) => {
-      if (e.painStatus === "Pass") painPassCount++;
-      if (e.budgetStatus === "Pass") budgetPassCount++;
-      if (e.decisionStatus === "Pass") decisionPassCount++;
-      totalScore += e.scriptAdherenceScore;
-
-      try {
-        const missed = JSON.parse(e.missedOpportunities) as MissedOpportunity[];
-        earlyFoldCount += missed.length;
-      } catch {}
-    });
-
-    repsWithMetrics.push({
+    return {
       id: r.id,
       name: r.name,
       email: r.email,
@@ -581,11 +680,9 @@ export async function getAllReps(): Promise<Rep[]> {
       decisionPassRate: repEvals.length ? Math.round((decisionPassCount / repEvals.length) * 100) : 0,
       earlyFoldCount,
       bookedRate: repCalls.length ? Math.round((bookedCount / repCalls.length) * 100) : 0,
-      persona: persona || undefined,
-    });
-  }
-
-  return repsWithMetrics;
+      persona: personaByRep.get(r.id),
+    };
+  });
 }
 
 export async function getRepById(id: string): Promise<{
@@ -594,19 +691,33 @@ export async function getRepById(id: string): Promise<{
   snapshot: any | null;
   talkTrack: ManagerTalkTrack | null;
 }> {
-  await deleteCallsWithoutTranscript();
   const repRecord = await db.select().from(reps).where(and(eq(reps.id, id), forTenant(reps.orgId))).get();
   if (!repRecord) return { rep: null, calls: [], snapshot: null, talkTrack: null };
 
-  const repCalls = await db.select().from(calls).where(and(eq(calls.repId, id), forTenant(calls.orgId))).orderBy(desc(calls.createdAt)).all();
-  const repEvals = await db.select().from(evaluations).where(and(eq(evaluations.repId, id), forTenant(evaluations.orgId))).all();
-  const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, id), forTenant(repSnapshots.orgId))).get();
-  const persona = await getRepPersona(id);
+  const [repCalls, repEvals, snapshot, persona] = await Promise.all([
+    db.select().from(calls).where(and(eq(calls.repId, id), forTenant(calls.orgId))).orderBy(desc(calls.createdAt)).all(),
+    db.select().from(evaluations).where(and(eq(evaluations.repId, id), forTenant(evaluations.orgId))).all(),
+    db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, id), forTenant(repSnapshots.orgId))).get(),
+    getRepPersona(id),
+  ]);
 
-  const fullCalls: Call[] = repCalls.map((c: any) => {
-    const ev = latestEvaluationRow(repEvals, c.id);
+  const evalByCall = latestEvalByCall(repEvals);
+  const fullCalls: Call[] = [];
+  let painPassCount = 0;
+  let budgetPassCount = 0;
+  let decisionPassCount = 0;
+  let totalScore = 0;
+  let earlyFoldCount = 0;
+  let bookedCount = 0;
+  let evaluated = 0;
+
+  for (const c of repCalls as any[]) {
+    if (isUnusableTranscript(c.transcriptText)) continue;
+    if (isMeetingBooked(c.coreOutcome)) bookedCount++;
+    const ev = evalByCall.get(c.id);
     let evaluation: CallEvaluation | undefined = undefined;
     if (ev) {
+      evaluated++;
       evaluation = hydrateEvaluation(ev, {
         repName: repRecord.name,
         callStage: c.callStage,
@@ -614,9 +725,14 @@ export async function getRepById(id: string): Promise<{
         transcriptText: c.transcriptText,
         durationSeconds: c.durationSeconds,
       });
+      if (evaluation.sandlerBreakdown.pain.status === "Pass") painPassCount++;
+      if (evaluation.sandlerBreakdown.budget.status === "Pass") budgetPassCount++;
+      if (evaluation.sandlerBreakdown.decision.status === "Pass") decisionPassCount++;
+      totalScore += evaluation.sandlerBreakdown.scriptAdherence.score;
+      earlyFoldCount += evaluation.missedOpportunities.length;
     }
 
-    return {
+    fullCalls.push({
       id: c.id,
       repId: c.repId,
       repName: repRecord.name,
@@ -630,16 +746,24 @@ export async function getRepById(id: string): Promise<{
       status: c.status as any,
       createdAt: c.createdAt,
       evaluation,
-    };
-  });
+    });
+  }
 
-  const allRepsList = await getAllReps();
-  const computedRep = allRepsList.find((r) => r.id === id) || {
+  const computedRep: Rep = {
     id: repRecord.id,
     name: repRecord.name,
     email: repRecord.email,
     role: repRecord.role,
     createdAt: repRecord.createdAt,
+    trajectory: (snapshot?.overallTrajectory as RepTrajectory) || "stagnant",
+    trajectoryReason: snapshot?.managerRationale || "Baseline evaluation in progress.",
+    totalCalls: fullCalls.length,
+    avgScriptScore: evaluated ? Math.round((totalScore / evaluated) * 10) / 10 : 0,
+    painPassRate: evaluated ? Math.round((painPassCount / evaluated) * 100) : 0,
+    budgetPassRate: evaluated ? Math.round((budgetPassCount / evaluated) * 100) : 0,
+    decisionPassRate: evaluated ? Math.round((decisionPassCount / evaluated) * 100) : 0,
+    earlyFoldCount,
+    bookedRate: fullCalls.length ? Math.round((bookedCount / fullCalls.length) * 100) : 0,
     persona: persona || undefined,
   };
 
@@ -663,43 +787,115 @@ export async function deleteCallsWithoutTranscript(): Promise<string[]> {
   return removed;
 }
 
+export async function getCallSummaries(): Promise<Call[]> {
+  return loadCalls(false);
+}
+
 export async function getAllCalls(): Promise<Call[]> {
-  await deleteCallsWithoutTranscript();
-  const allCalls = await db.select().from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all();
-  const allReps = await db.select().from(reps).where(forTenant(reps.orgId)).all();
-  const allEvals = await db.select().from(evaluations).where(forTenant(evaluations.orgId)).all();
+  return loadCalls(true);
+}
 
-  return allCalls.map((c: any) => {
-    const rep = allReps.find((r: any) => r.id === c.repId);
-    const ev = latestEvaluationRow(allEvals, c.id);
-    let evaluation: CallEvaluation | undefined = undefined;
+async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
+  const [callRows, repRows, evalRows] = await Promise.all([
+    includeTranscript
+      ? db.select().from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all()
+      : db
+          .select({
+            id: calls.id,
+            repId: calls.repId,
+            prospectCompany: calls.prospectCompany,
+            prospectName: calls.prospectName,
+            callStage: calls.callStage,
+            coreOutcome: calls.coreOutcome,
+            durationSeconds: calls.durationSeconds,
+            audioUrl: calls.audioUrl,
+            status: calls.status,
+            createdAt: calls.createdAt,
+            transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
+          })
+          .from(calls)
+          .where(forTenant(calls.orgId))
+          .orderBy(desc(calls.createdAt))
+          .all(),
+    db.select({ id: reps.id, name: reps.name }).from(reps).where(forTenant(reps.orgId)).all(),
+    includeTranscript
+      ? db.select().from(evaluations).where(forTenant(evaluations.orgId)).all()
+      : db
+          .select({
+            id: evaluations.id,
+            callId: evaluations.callId,
+            repId: evaluations.repId,
+            bottomLine: evaluations.bottomLine,
+            painStatus: evaluations.painStatus,
+            painEvidence: evaluations.painEvidence,
+            budgetStatus: evaluations.budgetStatus,
+            budgetEvidence: evaluations.budgetEvidence,
+            decisionStatus: evaluations.decisionStatus,
+            decisionEvidence: evaluations.decisionEvidence,
+            scriptAdherenceScore: evaluations.scriptAdherenceScore,
+            scriptFeedback: evaluations.scriptFeedback,
+            scriptDivergence: evaluations.scriptDivergence,
+            missedOpportunities: evaluations.missedOpportunities,
+            topFixes: evaluations.topFixes,
+            extendedReview: evaluations.extendedReview,
+            createdAt: evaluations.createdAt,
+          })
+          .from(evaluations)
+          .where(forTenant(evaluations.orgId))
+          .all(),
+  ]);
 
-    if (ev) {
-      evaluation = hydrateEvaluation(ev, {
-        repName: rep?.name || "Unknown Rep",
-        callStage: c.callStage,
-        coreOutcome: normalizeCoreOutcome(c.coreOutcome),
-        transcriptText: c.transcriptText,
-        durationSeconds: c.durationSeconds,
-      });
-    }
+  const repNameById = new Map<string, string>();
+  for (const row of repRows as { id: string; name: string }[]) {
+    repNameById.set(row.id, row.name);
+  }
+  const evalByCall = latestEvalByCall(evalRows as EvaluationRow[]);
+  const result: Call[] = [];
 
-    return {
+  for (const c of callRows as {
+    id: string;
+    repId: string;
+    prospectCompany: string;
+    prospectName: string;
+    callStage: string;
+    coreOutcome: string;
+    durationSeconds: number;
+    transcriptText?: string;
+    transcriptProbe?: string;
+    audioUrl?: string | null;
+    status: string;
+    createdAt: string;
+  }[]) {
+    const probe = includeTranscript ? c.transcriptText : c.transcriptProbe;
+    if (isUnusableTranscript(probe)) continue;
+    const repName = repNameById.get(c.repId) || "Unknown Rep";
+    const ev = evalByCall.get(c.id);
+    result.push({
       id: c.id,
       repId: c.repId,
-      repName: rep?.name || "Unknown Rep",
+      repName,
       prospectCompany: c.prospectCompany,
       prospectName: c.prospectName,
       callStage: c.callStage as any,
       coreOutcome: normalizeCoreOutcome(c.coreOutcome),
       durationSeconds: c.durationSeconds,
-      transcriptText: c.transcriptText,
+      transcriptText: includeTranscript ? c.transcriptText || "" : "",
       audioUrl: c.audioUrl || undefined,
       status: c.status as any,
       createdAt: c.createdAt,
-      evaluation,
-    };
-  });
+      evaluation: ev
+        ? hydrateEvaluation(ev, {
+            repName,
+            callStage: c.callStage,
+            coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+            transcriptText: includeTranscript ? c.transcriptText : undefined,
+            durationSeconds: c.durationSeconds,
+          })
+        : undefined,
+    });
+  }
+
+  return result;
 }
 
 export async function getCallById(id: string): Promise<Call | null> {
@@ -711,11 +907,11 @@ export async function getCallById(id: string): Promise<Call | null> {
     return null;
   }
 
-  const rep = await db.select().from(reps).where(and(eq(reps.id, c.repId), forTenant(reps.orgId))).get();
-  const ev = latestEvaluationRow(
-    await db.select().from(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).all(),
-    c.id
-  );
+  const [rep, evalRows] = await Promise.all([
+    db.select().from(reps).where(and(eq(reps.id, c.repId), forTenant(reps.orgId))).get(),
+    db.select().from(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).all(),
+  ]);
+  const ev = latestEvaluationRow(evalRows, c.id);
 
   let evaluation: CallEvaluation | undefined = undefined;
   if (ev) {
@@ -745,9 +941,17 @@ export async function getCallById(id: string): Promise<Call | null> {
   };
 }
 
+export async function getDashboardSnapshot(): Promise<{ report: SuperAdminReport; calls: Call[] }> {
+  const [allReps, allCalls] = await Promise.all([getAllReps(), getCallSummaries()]);
+  return { report: await buildSuperAdminReport(allReps, allCalls), calls: allCalls };
+}
+
 export async function getSuperAdminReport(): Promise<SuperAdminReport> {
-  const allReps = await getAllReps();
-  const allCalls = await getAllCalls();
+  const { report } = await getDashboardSnapshot();
+  return report;
+}
+
+async function buildSuperAdminReport(allReps: Rep[], allCalls: Call[]): Promise<SuperAdminReport> {
   const completedCalls = allCalls.filter((c) => c.evaluation);
 
   const totalCalls = completedCalls.length;
@@ -763,10 +967,18 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
     totalScriptScore += c.evaluation?.sandlerBreakdown.scriptAdherence.score || 0;
   });
 
-  const repTrajectories = [];
-  for (const r of allReps) {
-    const snapshot = await db.select().from(repSnapshots).where(and(eq(repSnapshots.repId, r.id), forTenant(repSnapshots.orgId))).get();
-    repTrajectories.push({
+  const snapshots = await db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all();
+  const snapshotByRep = new Map(snapshots.map((row: { repId: string }) => [row.repId, row]));
+  const repTrajectories = allReps.map((r) => {
+    const snapshot = snapshotByRep.get(r.id) as
+      | {
+          overallTrajectory?: string;
+          managerRationale?: string;
+          topActiveStruggle?: string;
+          recentScriptScore?: number;
+        }
+      | undefined;
+    return {
       repId: r.id,
       repName: r.name,
       trajectory: (snapshot?.overallTrajectory as RepTrajectory) || r.trajectory || "stagnant",
@@ -774,8 +986,8 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
       topActiveStruggle: snapshot?.topActiveStruggle || "Handling early brush-offs",
       recentScriptScore: snapshot?.recentScriptScore || r.avgScriptScore || 5,
       callsCount: r.totalCalls || 0,
-    });
-  }
+    };
+  });
 
   const methodology = methodById(await getSalesMethodId());
   const pillarByKey = Object.fromEntries(methodology.pillars.map((pillar) => [pillar.key, pillar]));
@@ -816,8 +1028,7 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
 }
 
 export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
-  const allCalls = await getAllCalls();
-  const allReps = await getAllReps();
+  const [allCalls, allReps] = await Promise.all([getCallSummaries(), getAllReps()]);
 
   let booked = 0;
   let demoAgreed = 0;

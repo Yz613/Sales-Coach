@@ -7,7 +7,7 @@ import {
   type CallViewer,
   type RepIdentity,
 } from "@/lib/call-access";
-import { getAllCalls, getCallById, getOrCreateRep, listRepIdentities } from "@/lib/db/service";
+import { getCallSummaries, getCallById, getOrCreateRep, listRepIdentities } from "@/lib/db/service";
 import type { Call } from "@/types";
 
 export function toCallViewer(auth: AuthUser): CallViewer {
@@ -27,7 +27,7 @@ export async function getVisibleCalls(): Promise<{
   const auth = await requireWorkspacePage();
   const viewer = toCallViewer(auth);
   const reps = await listRepIdentities();
-  const calls = filterCallsForViewer(await getAllCalls(), reps, viewer);
+  const calls = filterCallsForViewer(await getCallSummaries(), reps, viewer);
   return { auth, viewer, reps, calls };
 }
 

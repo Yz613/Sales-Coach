@@ -1,4 +1,4 @@
-import { getSuperAdminReport, getAllCalls, getCoachInstructions, getSalesMethodId } from "@/lib/db/service";
+import { getDashboardSnapshot, getCoachInstructions, getSalesMethodId } from "@/lib/db/service";
 import { requireAdmin } from "@/lib/auth";
 import DashboardBoard from "@/components/DashboardBoard";
 import { methodById } from "@/lib/salesMethods";
@@ -8,12 +8,14 @@ export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboard() {
   await requireAdmin();
-  const report = await getSuperAdminReport();
-  const allCalls = await getAllCalls();
+  const [{ report, calls: allCalls }, coachInstructions, salesMethodId] = await Promise.all([
+    getDashboardSnapshot(),
+    getCoachInstructions(),
+    getSalesMethodId(),
+  ]);
   const recentCalls = allCalls.slice(0, 6);
-  const coachInstructions = (await getCoachInstructions()).trim();
-  const needsCoachSetup = !coachInstructions;
-  const methodology = methodById(await getSalesMethodId());
+  const needsCoachSetup = !coachInstructions.trim();
+  const methodology = methodById(salesMethodId);
   const bookedCalls = allCalls.filter((call) => isMeetingBooked(call.coreOutcome)).length;
   const teamCloseRate = allCalls.length ? Math.round((bookedCalls / allCalls.length) * 1000) / 10 : 0;
 

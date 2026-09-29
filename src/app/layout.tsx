@@ -43,9 +43,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-[#F5F5F7] text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
-        {/* Soft light only. CSS blur filters make Chrome paint a blank frame after a tab switch. */}
-        <div className="ambient-field pointer-events-none fixed inset-0 -z-10" aria-hidden="true" />
+      <body className="ambient-field min-h-screen text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
         <AuthProvider
           initialRole={auth.role}
           publishableKey={publishableKey}

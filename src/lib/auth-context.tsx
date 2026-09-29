@@ -54,7 +54,7 @@ export function AuthContextProvider({
   }, [clerkUser]);
 
   useEffect(() => {
-    if (skipRoleFetch) return;
+    if (skipRoleFetch || clerkUser?.id) return;
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 5000);
     fetch(apiPath("/api/auth/role"), { signal: ac.signal })
@@ -81,7 +81,7 @@ export function AuthContextProvider({
       clearTimeout(timer);
       ac.abort();
     };
-  }, [skipRoleFetch]);
+  }, [skipRoleFetch, clerkUser?.id]);
 
   const value: AuthContextValue = {
     role,

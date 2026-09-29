@@ -214,7 +214,7 @@ export default function RepDetailPage({
 
       {/* Historical Calls & Accountability */}
       <div className="rounded-2xl glass-card overflow-hidden space-y-0">
-        <div className="border-b border-black/[0.08] px-6 py-4.5 bg-black/[0.02]">
+        <div className="border-b border-black/[0.08] px-6 py-5 bg-black/[0.02]">
           <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">
             Call History & Coaching Fixes Timeline
           </h2>
@@ -280,7 +280,7 @@ export default function RepDetailPage({
                 </div>
 
                 {ev && (
-                  <div className="rounded-2xl glass-inset p-4.5 space-y-3 border border-black/[0.06]">
+                  <div className="rounded-2xl glass-inset p-5 space-y-3 border border-black/[0.06]">
                     <p className="text-xs text-[#3a3a3c] italic">
                       "{ev.bottomLine}"
                     </p>

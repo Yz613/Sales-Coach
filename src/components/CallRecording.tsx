@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
 import { Headphones, Pause, Play } from "lucide-react";
 import { formatDuration, mediaPath } from "@/lib/utils";
 import { parseTranscript } from "@/lib/transcript";
-import TimestampedTranscript from "@/components/TimestampedTranscript";
+import TimestampedTranscript, { activeTurnIndex } from "@/components/TimestampedTranscript";
 
 export default function CallRecording({
   audioUrl,
@@ -16,7 +16,12 @@ export default function CallRecording({
   durationSeconds: number;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [current, setCurrent] = useState(0);
+  const progressRef = useRef<HTMLSpanElement>(null);
+  const clockRef = useRef<HTMLSpanElement>(null);
+  const activeIndexRef = useRef(-1);
+  const clockLabelRef = useRef("");
+  const progressWidthRef = useRef("0%");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(durationSeconds || 0);
   const src = audioUrl ? mediaPath(audioUrl) : "";
@@ -26,11 +31,40 @@ export default function CallRecording({
     [transcriptText, duration, durationSeconds]
   );
 
+  const paintTime = (seconds: number, dur: number) => {
+    const width = dur > 0 ? `${Math.min(100, (seconds / dur) * 100)}%` : "0%";
+    const label = `${formatDuration(Math.floor(seconds))} / ${formatDuration(Math.floor(dur || durationSeconds))}`;
+    progressWidthRef.current = width;
+    clockLabelRef.current = label;
+    if (progressRef.current) progressRef.current.style.width = width;
+    if (clockRef.current && clockRef.current.textContent !== label) clockRef.current.textContent = label;
+    const nextIndex = activeTurnIndex(turns, seconds);
+    if (nextIndex !== activeIndexRef.current) {
+      activeIndexRef.current = nextIndex;
+      setActiveIndex(nextIndex);
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (progressRef.current) progressRef.current.style.width = progressWidthRef.current;
+    if (clockRef.current) {
+      clockRef.current.textContent =
+        clockLabelRef.current ||
+        `${formatDuration(0)} / ${formatDuration(Math.floor(duration || durationSeconds))}`;
+    }
+  });
+
   const seek = (seconds: number) => {
     const el = audioRef.current;
     const next = Math.max(0, seconds);
     if (el) el.currentTime = next;
-    setCurrent(next);
+    paintTime(next, el?.duration && Number.isFinite(el.duration) ? el.duration : duration);
+  };
+
+  const onTimeUpdate = (event: SyntheticEvent<HTMLAudioElement>) => {
+    const el = event.currentTarget;
+    const dur = el.duration && Number.isFinite(el.duration) ? el.duration : duration;
+    paintTime(el.currentTime, dur);
   };
 
   useEffect(() => {
@@ -59,8 +93,6 @@ export default function CallRecording({
     seek(ratio * duration);
   };
 
-  const progress = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
-
   return (
     <div className="rounded-xl border border-black/[0.08] bg-white overflow-hidden">
       <div className="border-b border-black/[0.08] px-6 py-4 flex items-center justify-between gap-3">
@@ -71,9 +103,10 @@ export default function CallRecording({
           <h3 className="text-lg font-bold text-[#1d1d1f] mt-1">Listen and read the transcript</h3>
         </div>
         {src ? (
-          <span className="rounded bg-[#E5E5EA] px-2 py-0.5 font-mono text-[11px] text-[#3a3a3c] border border-black/[0.08]">
-            {formatDuration(Math.floor(current))} / {formatDuration(Math.floor(duration || durationSeconds))}
-          </span>
+          <span
+            ref={clockRef}
+            className="rounded bg-[#E5E5EA] px-2 py-0.5 font-mono text-[11px] text-[#3a3a3c] border border-black/[0.08]"
+          />
         ) : null}
       </div>
 
@@ -85,7 +118,7 @@ export default function CallRecording({
             preload="metadata"
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
-            onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+            onTimeUpdate={onTimeUpdate}
             onLoadedMetadata={(event) => {
               if (event.currentTarget.duration && Number.isFinite(event.currentTarget.duration)) {
                 setDuration(event.currentTarget.duration);
@@ -108,10 +141,7 @@ export default function CallRecording({
               className="relative h-2 flex-1 rounded-full bg-[#E5E5EA] overflow-hidden"
               aria-label="Seek in recording"
             >
-              <span
-                className="absolute inset-y-0 left-0 bg-[#007AFF]"
-                style={{ width: `${progress}%` }}
-              />
+              <span ref={progressRef} className="absolute inset-y-0 left-0 bg-[#007AFF]" style={{ width: "0%" }} />
             </button>
           </div>
           <p className="text-[11px] text-[#86868b]">
@@ -130,7 +160,7 @@ export default function CallRecording({
         <TimestampedTranscript
           transcriptText={transcriptText}
           durationSeconds={duration || durationSeconds}
-          currentSeconds={src ? current : undefined}
+          activeIndex={src ? activeIndex : -1}
           onSeek={src ? (seconds) => {
             seek(seconds);
             audioRef.current?.play().catch(() => undefined);

@@ -140,7 +140,7 @@ export default function DashboardBoard({
     ),
     reps: (
       <div className="rounded-2xl glass-card overflow-hidden">
-        <div className="border-b border-black/[0.08] px-6 py-4.5 flex items-center justify-between bg-black/[0.02]">
+        <div className="border-b border-black/[0.08] px-6 py-5 flex items-center justify-between bg-black/[0.02]">
           <div>
             <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">Rep Progression & Manager Take</h2>
             <p className="text-xs text-[#6e6e73] mt-0.5">
@@ -221,7 +221,7 @@ export default function DashboardBoard({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {report.systemicTeamLeaks.map((leak, idx) => (
-            <div key={idx} className="rounded-2xl glass-inset p-4.5 flex flex-col justify-between space-y-3.5 border border-black/[0.06] hover:border-black/[0.1] transition">
+            <div key={idx} className="rounded-2xl glass-inset p-5 flex flex-col justify-between space-y-3.5 border border-black/[0.06] hover:border-black/[0.1] transition">
               <div>
                 <div className="flex items-center justify-between text-xs mb-2">
                   <span className="font-bold text-[#FF3B30]">Leak #{idx + 1}</span>
@@ -243,7 +243,7 @@ export default function DashboardBoard({
     ),
     calls: (
       <div className="rounded-2xl glass-card overflow-hidden">
-        <div className="border-b border-black/[0.08] px-6 py-4.5 flex items-center justify-between bg-black/[0.02]">
+        <div className="border-b border-black/[0.08] px-6 py-5 flex items-center justify-between bg-black/[0.02]">
           <div>
             <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">Recent Call Evaluations</h2>
             <p className="text-xs text-[#6e6e73] mt-0.5">

@@ -35,7 +35,7 @@ export default function ManagerTalkTrackCard({
 
   return (
     <div id="talk-track" className="rounded-2xl glass-card overflow-hidden">
-      <div className="border-b border-black/[0.08] px-6 py-4.5 bg-black/[0.02] flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <div className="border-b border-black/[0.08] px-6 py-5 bg-black/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#007AFF]">
             <MessageSquareQuote className="h-4 w-4" />
@@ -111,7 +111,7 @@ function ThemeColumn({
       : "text-[#248A3D] border-emerald-500/20 bg-emerald-500/[0.06]";
 
   return (
-    <div className="rounded-2xl glass-inset border border-black/[0.06] p-4 space-y-3">
+    <div className="rounded-2xl glass-inset border border-black/[0.06] p-5 space-y-3.5">
       <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${tone === "struggle" ? "text-[#FF3B30]" : "text-[#248A3D]"}`}>
         <Icon className="h-4 w-4" />
         {title}
@@ -121,7 +121,7 @@ function ThemeColumn({
       ) : (
         <div className="space-y-3">
           {themes.map((theme, idx) => (
-            <article key={theme.key} className={`rounded-xl border p-3.5 space-y-2 ${accent}`}>
+            <article key={theme.key} className={`rounded-xl border p-4 space-y-2.5 ${accent}`}>
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-[#1d1d1f]">
                   {idx + 1}. {theme.title}

@@ -367,7 +367,7 @@ export default async function CallReviewPage({
                     ? "bg-amber-500/20 text-[#C45500]"
                     : "bg-rose-500/20 text-[#FF3B30]";
                 return (
-                  <div key={pillar.key} className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-black/[0.06]">
+                  <div key={pillar.key} className="rounded-2xl glass-inset p-5 space-y-2.5 border border-black/[0.06]">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#3a3a3c]">{pillar.label}</span>
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
@@ -445,7 +445,7 @@ export default async function CallReviewPage({
                   return (
                     <div
                       key={idx}
-                      className={`rounded-2xl border ${tone.border} ${tone.bg} p-4.5 flex items-start gap-3.5`}
+                      className={`rounded-2xl border ${tone.border} ${tone.bg} p-5 flex items-start gap-3.5`}
                     >
                       <div className="mt-0.5 shrink-0">{tone.icon}</div>
                       <div className="flex-1 space-y-1">
@@ -476,7 +476,7 @@ export default async function CallReviewPage({
             )}
 
             {officialScript?.content && (
-              <details className="rounded-2xl border border-black/[0.06] glass-inset p-4.5 group">
+              <details className="rounded-2xl border border-black/[0.06] glass-inset p-5 group">
                 <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-[#6e6e73] hover:text-[#1d1d1f] transition list-none flex items-center gap-2">
                   <ClipboardList className="h-3.5 w-3.5" /> View Full Prescribed Playbook
                 </summary>
@@ -507,7 +507,7 @@ export default async function CallReviewPage({
                   </span>
                   <h3 className="text-sm font-semibold text-[#1d1d1f]">{ev.topFixes[0]?.title}</h3>
                 </div>
-                <p className="text-xs text-[#6e6e73] pl-8.5 leading-relaxed">
+                <p className="text-xs text-[#6e6e73] pl-[34px] leading-relaxed">
                   {ev.topFixes[0]?.description}
                 </p>
               </div>
@@ -519,7 +519,7 @@ export default async function CallReviewPage({
                   </span>
                   <h3 className="text-sm font-semibold text-[#1d1d1f]">{ev.topFixes[1]?.title}</h3>
                 </div>
-                <p className="text-xs text-[#6e6e73] pl-8.5 leading-relaxed">
+                <p className="text-xs text-[#6e6e73] pl-[34px] leading-relaxed">
                   {ev.topFixes[1]?.description}
                 </p>
               </div>

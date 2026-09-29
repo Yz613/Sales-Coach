@@ -112,7 +112,9 @@ export function collectMetricScores(call: Call, method: SalesMethodology): Recor
       scores[pillar.key] = statusScore(ev.sandlerBreakdown[pillar.key]?.status);
     }
   }
-  if (method.microSkills.length) {
+  // Re-reading every transcript on a list page is what made the bank feel stuck.
+  // Skills already stored on the scorecard are used as-is.
+  if (method.microSkills.length && call.transcriptText.trim()) {
     for (const skill of scoreMicroSkills(call.transcriptText, method.microSkills, call.repName)) {
       if (scores[skill.key] == null) scores[skill.key] = clampScore(skill.score);
     }
