@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveScriptForStage } from "@/lib/db/service";
+import { getActiveScriptForStage, getCoachInstructions } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
@@ -20,6 +20,10 @@ import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartyLabel, hasKnownCompany } from "@/lib/callLabel";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
+import CoachingBriefCard from "@/components/CoachingBrief";
+import { deriveCoachingBrief, methodologyForInstructions, scoreMicroSkills } from "@/lib/methodology";
+import { mergeDebrief } from "@/lib/sandlerChecklist";
+import SandlerDebrief from "@/components/SandlerDebrief";
 import { getVisibleCallById, getVisibleCalls } from "@/lib/viewer-calls";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +50,7 @@ export default async function CallReviewPage({
   }
 
   const ev = call.evaluation;
+  const methodology = methodologyForInstructions(await getCoachInstructions());
   const officialScript = await getActiveScriptForStage(call.callStage);
   const divergence = ev?.scriptDivergence;
   const divSummary = divergenceSummary(divergence);
@@ -54,7 +59,7 @@ export default async function CallReviewPage({
       ? ev.walkthrough
       : buildWalkthroughFromTranscript(call.transcriptText, call.durationSeconds, ev.missedOpportunities, call.repName || "Rep"))
     : [];
-  const scorecard = ev
+  const baseScorecard = ev
     ? (ev.scorecard && ev.scorecard.length > 0
       ? ev.scorecard
       : attachCitesToScorecard(
@@ -71,6 +76,22 @@ export default async function CallReviewPage({
         call.durationSeconds
       ))
     : [];
+  const skillScores = ev
+    ? scoreMicroSkills(call.transcriptText, methodology.microSkills, call.repName).filter(
+        (skill) => !baseScorecard.some((metric) => metric.key === skill.key)
+      )
+    : [];
+  const scorecard = [...baseScorecard, ...skillScores];
+  const coachingBrief = ev
+    ? ev.coachingBrief || deriveCoachingBrief({
+        wins: scorecard.filter((metric) => metric.status === "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
+        gaps: scorecard.filter((metric) => metric.status !== "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
+        drills: (ev.topFixes || []).map((fix) => `${fix.title}. ${fix.description}`),
+      })
+    : null;
+  const debrief = methodology.id === "sandler" && ev
+    ? mergeDebrief(ev.debrief, call.transcriptText, call.repName)
+    : null;
 
   // Where this call ranks against every other call in the bank.
   const { calls: visibleCalls } = await getVisibleCalls();
@@ -219,13 +240,17 @@ export default async function CallReviewPage({
             )}
           </div>
 
+          {coachingBrief && <CoachingBriefCard brief={coachingBrief} />}
+
+          {debrief && <SandlerDebrief marks={debrief} />}
+
           {scorecard.length > 0 && (
             <div className="rounded-2xl glass-card p-6 sm:p-7 space-y-4">
               <div>
                 <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
                   <ClipboardList className="h-4 w-4" /> Coaching scorecard
                 </div>
-                <h2 className="text-lg font-bold text-white mt-1 tracking-tight">Eight metrics, each tied to a moment on the call</h2>
+                <h2 className="text-lg font-bold text-white mt-1 tracking-tight">{scorecard.length} metrics, each tied to a moment on the call</h2>
                 <p className="text-xs text-slate-400">Click a timestamp to jump to that line in the transcript.</p>
               </div>
               <ScorecardGrid metrics={scorecard} />
@@ -305,7 +330,7 @@ export default async function CallReviewPage({
             <div className="border-b border-white/[0.08] pb-3 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
-                  <CheckCircle2 className="h-4 w-4" /> 4. Sandler & Process Breakdown
+                  <CheckCircle2 className="h-4 w-4" /> 4. {methodology.name}
                 </div>
                 <h2 className="text-lg font-bold text-white mt-1 tracking-tight">Stage-Specific Qualification</h2>
               </div>
@@ -325,62 +350,26 @@ export default async function CallReviewPage({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Pain */}
-              <div className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-white/[0.06]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Pain</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    ev.sandlerBreakdown.pain.status === "Pass"
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : ev.sandlerBreakdown.pain.status === "Incomplete"
-                      ? "bg-amber-500/20 text-amber-400"
-                      : "bg-rose-500/20 text-rose-400"
-                  }`}>
-                    {ev.sandlerBreakdown.pain.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {ev.sandlerBreakdown.pain.evidence}
-                </p>
-              </div>
-
-              {/* Budget */}
-              <div className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-white/[0.06]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Budget</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    ev.sandlerBreakdown.budget.status === "Pass"
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : ev.sandlerBreakdown.budget.status === "Incomplete"
-                      ? "bg-amber-500/20 text-amber-400"
-                      : "bg-rose-500/20 text-rose-400"
-                  }`}>
-                    {ev.sandlerBreakdown.budget.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {ev.sandlerBreakdown.budget.evidence}
-                </p>
-              </div>
-
-              {/* Decision */}
-              <div className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-white/[0.06]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Decision</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    ev.sandlerBreakdown.decision.status === "Pass"
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : ev.sandlerBreakdown.decision.status === "Incomplete"
-                      ? "bg-amber-500/20 text-amber-400"
-                      : "bg-rose-500/20 text-rose-400"
-                  }`}>
-                    {ev.sandlerBreakdown.decision.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {ev.sandlerBreakdown.decision.evidence}
-                </p>
-              </div>
+              {methodology.pillars.map((pillar) => {
+                const slot = ev.sandlerBreakdown[pillar.key];
+                const badge =
+                  slot.status === "Pass"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : slot.status === "Incomplete"
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-rose-500/20 text-rose-400";
+                return (
+                  <div key={pillar.key} className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-white/[0.06]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300">{pillar.label}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
+                        {slot.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">{slot.evidence}</p>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Script Adherence Note */}

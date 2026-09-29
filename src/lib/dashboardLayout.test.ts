@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { applyOrder, DEFAULT_METRIC_ORDER, DEFAULT_SECTION_ORDER, moveId } from "./dashboardLayout";
 
+assert.deepEqual([...DEFAULT_METRIC_ORDER], ["pain", "budget", "decision", "script"]);
 assert.deepEqual(applyOrder(["script", "pain"], DEFAULT_METRIC_ORDER), ["script", "pain", "budget", "decision"]);
 assert.deepEqual(applyOrder(["ghost", "budget"], DEFAULT_METRIC_ORDER), ["budget", "pain", "decision", "script"]);
 assert.deepEqual(moveId(["a", "b", "c"], "a", "c"), ["b", "c", "a"]);

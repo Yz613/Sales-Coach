@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
             Sales Performance & Pipeline Analytics
           </h1>
           <p className="text-xs text-slate-400 mt-1.5">
-            Deep-dive metrics across rep execution, objection surrender patterns, and Sandler qualification distributions.
+            Deep-dive metrics across rep execution, the cookbook funnel, and {data.methodologyName} qualification.
           </p>
         </div>
 
@@ -125,6 +125,33 @@ export default function AnalyticsPage() {
           </p>
         </div>
       </div>
+
+      {data.cookbookFunnel?.length > 0 && (
+        <div className="rounded-2xl glass-card p-6 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 text-sky-400 text-xs font-medium uppercase tracking-wider">
+              <TrendingUp className="h-4 w-4" /> Cookbook funnel
+            </div>
+            <h2 className="text-base font-semibold text-white mt-1">Dials to proposals</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Leading indicators from calls logged here, so scorecards have volume context. Each stage is a subset of the one before it.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {data.cookbookFunnel.map((step, index) => (
+              <div key={step.key} className="rounded-2xl glass-inset border border-white/[0.08] p-4 space-y-1.5">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                  {index + 1}. {step.label}
+                </div>
+                <div className="text-2xl font-bold text-white">{step.count}</div>
+                <p className="text-xs text-slate-400">
+                  {index === 0 ? "Logged calls" : `${step.rateFromPrevious}% of previous · ${step.rateFromStart}% of dials`}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Rep Benchmark Leaderboard */}
       <div className="rounded-2xl glass-card overflow-hidden">
@@ -281,11 +308,11 @@ export default function AnalyticsPage() {
         <div className="rounded-2xl glass-card p-6 space-y-5">
           <div className="border-b border-white/[0.08] pb-4">
             <div className="flex items-center gap-2 text-blue-400 text-xs font-medium uppercase tracking-wider">
-              <ShieldCheck className="h-4 w-4" /> Sandler Qualification Distribution
+              <ShieldCheck className="h-4 w-4" /> {data.methodologyName} qualification
             </div>
             <h2 className="text-base font-semibold text-white mt-1">Pillar Pass / Incomplete / Fail Split</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              How the team performs on Pain Discovery, Budget Qualification, and Decision Mapping.
+              How the team performs on {data.pillarLabels.pain}, {data.pillarLabels.budget}, and {data.pillarLabels.decision}.
             </p>
           </div>
 
@@ -301,7 +328,7 @@ export default function AnalyticsPage() {
                 <div key={pillar} className="space-y-2 rounded-xl glass-inset border border-white/[0.08] p-4">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium uppercase tracking-wider text-slate-200">
-                      {pillar} Qualification
+                      {data.pillarLabels[pillar]} Qualification
                     </span>
                     <span className="font-mono text-emerald-400 font-bold">{passPct}% Pass</span>
                   </div>

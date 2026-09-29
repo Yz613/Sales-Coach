@@ -30,5 +30,9 @@ assert.equal(isDefaultSandlerInstructions("We run MEDDIC only."), false);
 assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("Sandler Selling System"));
 assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("Up-Front Contract"));
 assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("Demo agreed"));
+assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("Spilling candy"));
+assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("personal impact"));
+assert.ok(DEFAULT_SANDLER_INSTRUCTIONS.includes("Thermometer"));
+assert.ok(/what went well/i.test(DEFAULT_SANDLER_INSTRUCTIONS));
 
 console.log("callStages + sandlerCoach checks passed");

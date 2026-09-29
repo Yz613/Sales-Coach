@@ -178,6 +178,10 @@ describe("buildManagerTalkTrack", () => {
     assert.match(track.spokenScript, /Hey David/);
     assert.match(track.spokenScript, /You're having a tough time with these 4 things/);
     assert.match(track.spokenScript, /You're doing really well on these 4 things/);
+    assert.ok(
+      track.spokenScript.indexOf("doing really well") < track.spokenScript.indexOf("tough time"),
+      "praise leads the talk track"
+    );
     assert.match(track.spokenScript, /Meridian BioTech/);
     assert.match(track.coverageNote, /2 evaluated calls/);
   });
@@ -263,9 +267,11 @@ describe("buildSpokenTalkTrack", () => {
     const onlyWins = buildSpokenTalkTrack("Marcus Vance", [], [strength], 1);
     assert.match(onlyWins, /not seeing a repeating miss/);
     assert.match(onlyWins, /You're doing really well on this/);
+    assert.ok(onlyWins.indexOf("doing really well") < onlyWins.indexOf("repeating miss"));
 
     const onlyMisses = buildSpokenTalkTrack("David Kim", [strength], [], 1);
     assert.match(onlyMisses, /You're having a tough time with this/);
     assert.match(onlyMisses, /I don't have a clean win on file yet/);
+    assert.ok(onlyMisses.indexOf("clean win") < onlyMisses.indexOf("tough time"));
   });
 });

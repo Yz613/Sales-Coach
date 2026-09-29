@@ -1,6 +1,8 @@
 import type { MissedOpportunity, SandlerStatus } from "@/types";
 import { findTurnForQuote, parseTranscript, type TranscriptTurn } from "../transcript";
 import { isDemoAgreed, isMeetingBooked } from "../coreOutcome";
+import type { CoachingBrief, MicroSkillKey } from "../methodology";
+import type { DebriefMark } from "../sandlerChecklist";
 
 export type ScorecardKey =
   | "pain"
@@ -10,7 +12,8 @@ export type ScorecardKey =
   | "nextStep"
   | "discoveryDepth"
   | "controlAndPacing"
-  | "peerAuthority";
+  | "peerAuthority"
+  | MicroSkillKey;
 
 export type WalkthroughVerdict = "good" | "coach" | "miss" | "fatal";
 
@@ -54,6 +57,8 @@ export interface ExtendedReview {
   scorecard: ScorecardMetric[];
   walkthrough: CoachWalkthroughStep[];
   evaluatedWith?: EvaluatedWith;
+  coachingBrief?: CoachingBrief;
+  debrief?: DebriefMark[];
 }
 
 export const SCORECARD_LABELS: Record<ScorecardKey, string> = {
@@ -65,6 +70,11 @@ export const SCORECARD_LABELS: Record<ScorecardKey, string> = {
   discoveryDepth: "Discovery depth",
   controlAndPacing: "Control & pacing",
   peerAuthority: "Peer authority",
+  upFrontContract: "Up-Front Contract",
+  reversing: "Reverses",
+  permissionToPivot: "Permission to Pivot",
+  strippingLine: "Stripping-Line",
+  thermometerClose: "Thermometer Close",
 };
 
 export const SCORECARD_KEYS: ScorecardKey[] = [
@@ -93,11 +103,13 @@ export function parseExtendedReview(raw: string | null | undefined): ExtendedRev
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return undefined;
-    if (!Array.isArray(parsed.scorecard) && !Array.isArray(parsed.walkthrough)) return undefined;
+    if (!Array.isArray(parsed.scorecard) && !Array.isArray(parsed.walkthrough) && !Array.isArray(parsed.debrief)) return undefined;
     return {
       scorecard: Array.isArray(parsed.scorecard) ? parsed.scorecard : [],
       walkthrough: Array.isArray(parsed.walkthrough) ? parsed.walkthrough : [],
       evaluatedWith: parsed.evaluatedWith,
+      coachingBrief: normalizeStoredBrief(parsed.coachingBrief),
+      debrief: normalizeStoredDebrief(parsed.debrief),
     };
   } catch {
     return undefined;
@@ -123,6 +135,30 @@ export function stampMissedOpportunities(
       repQuote: opp.repQuote || (isNonSurrender(opp.repSurrender) ? undefined : repTurn?.text || opp.repSurrender),
     };
   });
+}
+
+function normalizeStoredDebrief(raw: unknown): DebriefMark[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const marks = raw.filter((row) => {
+    if (!row || typeof row !== "object") return false;
+    const status = (row as DebriefMark).status;
+    return Boolean((row as DebriefMark).id) && (status === "Handled" || status === "Gap" || status === "NotApplicable");
+  }) as DebriefMark[];
+  return marks.length ? marks : undefined;
+}
+
+function normalizeStoredBrief(raw: unknown): CoachingBrief | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const brief = raw as Partial<CoachingBrief>;
+  const praise = String(brief.praiseReinforcement || "").trim();
+  const gaps = String(brief.tacticalGaps || "").trim();
+  const drills = String(brief.remedialDrills || "").trim();
+  if (!praise && !gaps && !drills) return undefined;
+  return {
+    praiseReinforcement: praise,
+    tacticalGaps: gaps,
+    remedialDrills: drills,
+  };
 }
 
 function isNonSurrender(text: string): boolean {

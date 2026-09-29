@@ -347,28 +347,28 @@ export function buildSpokenTalkTrack(
   const name = firstName(repName);
   const callWord = evaluatedCallCount === 1 ? "call" : "calls";
   const lines: string[] = [
-    `Hey ${name} — I want to walk through what your last ${evaluatedCallCount} ${callWord} ${evaluatedCallCount === 1 ? "is" : "are"} showing. I'll be specific.`,
+    `Hey ${name} — I want to walk through what your last ${evaluatedCallCount} ${callWord} ${evaluatedCallCount === 1 ? "is" : "are"} showing. I'll start with what to keep.`,
     "",
   ];
 
-  if (struggles.length === 0) {
-    lines.push("I'm not seeing a repeating miss right now. Keep doing what you're doing, and we'll watch the next set of calls.");
-    lines.push("");
-  } else {
-    const n = struggles.length;
-    lines.push(`You're having a tough time with ${n === 1 ? "this" : `these ${n} things`}:`);
-    lines.push("");
-    struggles.forEach((theme, idx) => lines.push(formatThemeLine(idx, theme, true)));
-    lines.push("");
-  }
-
   if (strengths.length === 0) {
     lines.push("I don't have a clean win on file yet. Next call, I want to capture one moment we can point to.");
+    lines.push("");
   } else {
     const n = strengths.length;
     lines.push(`You're doing really well on ${n === 1 ? "this" : `these ${n} things`}:`);
     lines.push("");
     strengths.forEach((theme, idx) => lines.push(formatThemeLine(idx, theme, false)));
+    lines.push("");
+  }
+
+  if (struggles.length === 0) {
+    lines.push("I'm not seeing a repeating miss right now. Keep doing what you're doing, and we'll watch the next set of calls.");
+  } else {
+    const n = struggles.length;
+    lines.push(`You're having a tough time with ${n === 1 ? "this" : `these ${n} things`}:`);
+    lines.push("");
+    struggles.forEach((theme, idx) => lines.push(formatThemeLine(idx, theme, true)));
   }
 
   if (struggles.length && strengths.length) {

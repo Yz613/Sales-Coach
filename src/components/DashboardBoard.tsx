@@ -28,15 +28,18 @@ import {
   type MetricId,
   type SectionId,
 } from "@/lib/dashboardLayout";
+import type { SalesMethodology } from "@/lib/methodology";
 
 export default function DashboardBoard({
   report,
   recentCalls,
   needsCoachSetup,
+  methodology,
 }: {
   report: SuperAdminReport;
   recentCalls: Call[];
   needsCoachSetup: boolean;
+  methodology: SalesMethodology;
 }) {
   const progressingCount = report.repTrajectories.filter((r) => r.trajectory === "progressing").length;
   const stagnantCount = report.repTrajectories.filter((r) => r.trajectory === "stagnant").length;
@@ -62,26 +65,26 @@ export default function DashboardBoard({
 
   const metricCards: Record<MetricId, { title: string; value: string; unit: string; blurb: string; icon: typeof ShieldCheck; iconClass: string }> = {
     pain: {
-      title: "Pain Qualification",
+      title: methodology.pillars.find((pillar) => pillar.key === "pain")?.cardTitle || "Pain Qualification",
       value: `${report.teamSandlerRates.painPassRate}%`,
       unit: "pass rate",
-      blurb: "Uncovering real operational bottlenecks vs. surface feature requests.",
+      blurb: methodology.pillars.find((pillar) => pillar.key === "pain")?.summary || "Uncovering real operational bottlenecks vs. surface feature requests.",
       icon: ShieldCheck,
       iconClass: "text-blue-400",
     },
     budget: {
-      title: "Budget Qualification",
+      title: methodology.pillars.find((pillar) => pillar.key === "budget")?.cardTitle || "Budget Qualification",
       value: `${report.teamSandlerRates.budgetPassRate}%`,
       unit: "pass rate",
-      blurb: "Directly asking about cost thresholds & financial commitments.",
+      blurb: methodology.pillars.find((pillar) => pillar.key === "budget")?.summary || "Directly asking about cost thresholds & financial commitments.",
       icon: TrendingUp,
       iconClass: "text-emerald-400",
     },
     decision: {
-      title: "Decision Authority",
+      title: methodology.pillars.find((pillar) => pillar.key === "decision")?.cardTitle || "Decision Authority",
       value: `${report.teamSandlerRates.decisionPassRate}%`,
       unit: "pass rate",
-      blurb: "Mapping economic buyers, sign-off criteria, and firm timelines.",
+      blurb: methodology.pillars.find((pillar) => pillar.key === "decision")?.summary || "Mapping economic buyers, sign-off criteria, and firm timelines.",
       icon: AlertTriangle,
       iconClass: "text-amber-400",
     },
@@ -237,7 +240,9 @@ export default function DashboardBoard({
           <div>
             <h2 className="text-base font-bold text-white tracking-tight">Recent Call Evaluations</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Live evaluations scored against the coaching scorecard (Sandler + fight-for-the-win, next step, discovery, pacing, authority).
+              {methodology.id === "sandler"
+                ? "Live evaluations scored against Sandler: Pain, Budget, Decision, then the skill checklist."
+                : `Live evaluations scored against ${methodology.name}.`}
             </p>
           </div>
           <Link href="/calls" className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition">
@@ -250,7 +255,7 @@ export default function DashboardBoard({
               <tr>
                 <th className="px-6 py-3.5">Rep & Prospect</th>
                 <th className="px-6 py-3.5">Stage</th>
-                <th className="px-6 py-3.5">Sandler (P / B / D)</th>
+                <th className="px-6 py-3.5">{methodology.id === "sandler" ? "Sandler (P / B / D)" : "Qualification"}</th>
                 <th className="px-6 py-3.5">Script Score</th>
                 <th className="px-6 py-3.5">Core Outcome</th>
                 <th className="px-6 py-3.5 text-right">Action</th>

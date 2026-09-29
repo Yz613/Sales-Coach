@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
-import { getActiveScriptForStage, getRepPersona, getCoachContext } from "../db/service";
+import { getActiveScriptForStage, getRepPersona, getCoachContext, getCoachInstructions } from "../db/service";
 import { latestEvaluationsByCall } from "../evaluations";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, and, desc } from "drizzle-orm";
@@ -26,6 +26,18 @@ import {
 } from "../coreOutcome";
 import { formatProspectContext } from "../callLabel";
 import { currentTenantId } from "../tenant";
+import {
+  deriveCoachingBrief,
+  formatMethodologyBlock,
+  isMicroSkillKey,
+  methodologyForInstructions,
+  scoreMicroSkills,
+  scoreSandlerBudget,
+  scoreSandlerPain,
+  type CoachingBrief,
+  type SalesMethodology,
+} from "../methodology";
+import { mergeDebrief } from "../sandlerChecklist";
 
 interface EvaluationInput {
   callId: string;
@@ -71,6 +83,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   }).filter(Boolean).join("\n");
 
   const coachContext = await getCoachContext();
+  const methodology = methodologyForInstructions(await getCoachInstructions());
   const ai = await resolveAiSettings();
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
@@ -87,12 +100,13 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
         ai.providerId,
         ai.model,
         coachContext,
-        durationSeconds
+        durationSeconds,
+        methodology
       );
     } catch (err) {
       const message = llmErrorMessage(err);
       console.error("LLM evaluation error, falling back to rule-based evaluator:", message);
-      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
+      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds, methodology);
       evaluationResult.evaluatedWith = {
         provider: ai.providerId,
         model: ai.model,
@@ -101,7 +115,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
       };
     }
   } else {
-    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds);
+    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds, methodology);
   }
 
   evaluationResult.missedOpportunities = stampMissedOpportunities(
@@ -125,6 +139,8 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     scorecard: evaluationResult.scorecard || [],
     walkthrough: evaluationResult.walkthrough || [],
     evaluatedWith: evaluationResult.evaluatedWith,
+    coachingBrief: evaluationResult.coachingBrief,
+    debrief: evaluationResult.debrief,
   };
 
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
@@ -186,7 +202,8 @@ async function callLlmEvaluation(
   providerId: Parameters<typeof completeJson>[0]["providerId"],
   model: string,
   coachContext: string,
-  durationSeconds: number
+  durationSeconds: number,
+  methodology: SalesMethodology
 ) {
   const personaContext = persona
     ? `
@@ -210,7 +227,7 @@ Script Playbook Guidance:
 ${script.content}
 """
 `
-    : `Prescribed Framework: Standard B2B Sandler blocking-and-tackling for ${input.callStage}.`;
+    : `Prescribed Framework: ${methodology.name} for ${input.callStage}.`;
 
   const coachDirectives = coachContext
     ? `
@@ -226,6 +243,7 @@ ${coachContext}
   const prompt = `
 You are the ultimate AI Sales Manager for a B2B sales team. You act like an experienced, grounded VP of Sales reviewing a call WITH a coach sitting next to you. Pick the call apart beat by beat.
 ${coachDirectives}
+${formatMethodologyBlock(methodology)}
 ${personaContext}
 
 ${scriptContext}
@@ -250,12 +268,15 @@ EVIDENCE RULES (non-negotiable):
 
 Evaluate against:
 1. Blocking-and-tackling / early folding ("Fight for the Win")
-2. Stage-specific Sandler qualification (Pain, Budget, Decision)
+2. The active methodology's qualification slots, in the order given above
 3. Next-step firmness (calendar lock vs demo agreed vs "I'll send something")
 4. Discovery depth (questions vs pitch)
 5. Control & pacing (who drove the call)
 6. Peer authority / tone
 7. Adherence to the prescribed script
+8. The methodology skill checklist, when that methodology lists one
+
+Coaching order is non-negotiable: praiseReinforcement, then tacticalGaps, then remedialDrills. Quote what they did right before you name the miss.
 
 For scriptDivergence, judge EVERY required milestone one-by-one (Hit / Partial / Missed) with timestamp + quote.
 For walkthrough, produce 6–12 sequential coaching steps covering the WHOLE call — not just the disasters. Each step is one moment a coach would pause the tape: what happened, and exactly what they should have done HERE. If they did it right, verdict is "good" and shouldHaveDone is empty.
@@ -321,6 +342,14 @@ ${CORE_OUTCOME_RULES}
   "topFixes": [
     { "title": "Fix #1 title", "description": "Specific tactical behavior to change, citing the timestamp where it failed" },
     { "title": "Fix #2 title", "description": "Specific phrasing or process correction, citing the timestamp" }
+  ],
+  "coachingBrief": {
+    "praiseReinforcement": "Specific techniques they executed properly, each with [m:ss] and a quote. This field comes first.",
+    "tacticalGaps": "Where they left the method or conceded posture, each with [m:ss] and a quote.",
+    "remedialDrills": "Exact corrective lines or reversals to use next time."
+  },
+  "debrief": [
+    { "id": "timePurpose", "status": "Handled|Gap|NotApplicable", "evidence": "[m:ss] quote, or why this step was not in play" }
   ]
 }
 `;
@@ -335,8 +364,10 @@ ${CORE_OUTCOME_RULES}
   const parsed = result.parsed || {};
 
   const missed: MissedOpportunity[] = Array.isArray(parsed.missedOpportunities) ? parsed.missedOpportunities : [];
-  const scorecard: ScorecardMetric[] | undefined = Array.isArray(parsed.scorecard) ? parsed.scorecard : undefined;
+  const parsedScorecard: ScorecardMetric[] | undefined = Array.isArray(parsed.scorecard) ? parsed.scorecard : undefined;
+  const scorecard = mergeMethodologySkills(parsedScorecard, input.transcriptText, methodology, repName);
   const walkthrough: CoachWalkthroughStep[] | undefined = Array.isArray(parsed.walkthrough) ? parsed.walkthrough : undefined;
+  const topFixes = normalizeTopFixes(parsed.topFixes);
 
   return {
     repName,
@@ -346,9 +377,11 @@ ${CORE_OUTCOME_RULES}
     missedOpportunities: missed,
     sandlerBreakdown: normalizeSandlerBreakdown(parsed.sandlerBreakdown),
     scriptDivergence: parsed.scriptDivergence,
-    topFixes: normalizeTopFixes(parsed.topFixes),
+    topFixes,
     scorecard,
     walkthrough,
+    coachingBrief: briefFromModel(parsed.coachingBrief, briefFromScorecard(scorecard, topFixes)),
+    debrief: methodology.id === "sandler" ? mergeDebrief(parsed.debrief, input.transcriptText, repName) : undefined,
     evaluatedWith: {
       provider: providerId,
       model,
@@ -397,6 +430,48 @@ function normalizeTopFixes(raw: unknown): [PriorityFix, PriorityFix] {
   ];
 }
 
+function mergeMethodologySkills(
+  scorecard: ScorecardMetric[] | undefined,
+  transcript: string,
+  methodology: SalesMethodology,
+  repName: string
+): ScorecardMetric[] | undefined {
+  const current = (scorecard || []).filter((metric) => methodology.id === "sandler" || !isMicroSkillKey(metric.key));
+  const skills = scoreMicroSkills(transcript, methodology.microSkills, repName).map((skill) => ({
+    key: skill.key,
+    label: skill.label,
+    status: skill.status,
+    score: skill.score,
+    evidence: skill.evidence,
+  }));
+  if (!current.length && !skills.length) return scorecard;
+  const seen = new Set(current.map((metric) => metric.key));
+  const merged = [...current];
+  for (const skill of skills) {
+    if (!seen.has(skill.key)) merged.push(skill);
+  }
+  return merged;
+}
+
+function briefFromModel(raw: unknown, fallback: CoachingBrief): CoachingBrief {
+  if (!raw || typeof raw !== "object") return fallback;
+  const brief = raw as Partial<CoachingBrief>;
+  const praiseReinforcement = String(brief.praiseReinforcement || "").trim();
+  const tacticalGaps = String(brief.tacticalGaps || "").trim();
+  const remedialDrills = String(brief.remedialDrills || "").trim();
+  if (!praiseReinforcement && !tacticalGaps && !remedialDrills) return fallback;
+  return { praiseReinforcement, tacticalGaps, remedialDrills };
+}
+
+function briefFromScorecard(scorecard: ScorecardMetric[] | undefined, fixes: [PriorityFix, PriorityFix]): CoachingBrief {
+  const metrics = scorecard || [];
+  return deriveCoachingBrief({
+    wins: metrics.filter((metric) => metric.status === "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
+    gaps: metrics.filter((metric) => metric.status !== "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
+    drills: fixes.map((fix) => `${fix.title}. ${fix.description}`),
+  });
+}
+
 function generateRuleBasedEvaluation(
   input: EvaluationInput,
   repName: string,
@@ -404,19 +479,23 @@ function generateRuleBasedEvaluation(
   persona: RepPersona | null,
   script: SalesScript | null,
   coachContext: string,
-  durationSeconds: number
+  durationSeconds: number,
+  methodology: SalesMethodology
 ): Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt"> {
   const text = input.transcriptText.toLowerCase();
   const coachApplied = coachContext.trim().length > 0;
   const turns = parseTranscript(input.transcriptText, durationSeconds);
+  const sandlerScoring = methodology.id === "sandler";
+  const sandlerPain = sandlerScoring ? scoreSandlerPain(input.transcriptText, repName) : null;
+  const sandlerBudget = sandlerScoring ? scoreSandlerBudget(input.transcriptText) : null;
 
   const hasEarlyFold = text.includes("send an email") || text.includes("no problem, thanks") || text.includes("understand, bye") || text.includes("all set") || text.includes("don't need") || text.includes("i'll send that");
   const mentionsBudget = text.includes("budget") || text.includes("cost") || text.includes("price") || text.includes("pricing") || text.includes("range");
   const mentionsDecision = text.includes("decision") || text.includes("timeline") || text.includes("stakeholder") || text.includes("who else") || text.includes("procurement");
   const mentionsPain = text.includes("challenge") || text.includes("frustrat") || text.includes("problem") || text.includes("headache") || text.includes("struggle") || text.includes("delay");
 
-  let painStatus: SandlerStatus = mentionsPain ? "Pass" : "Incomplete";
-  let budgetStatus: SandlerStatus = mentionsBudget ? "Pass" : "Fail";
+  let painStatus: SandlerStatus = sandlerPain?.status ?? (mentionsPain ? "Pass" : "Incomplete");
+  let budgetStatus: SandlerStatus = sandlerBudget?.status ?? (mentionsBudget ? "Pass" : "Fail");
   let decisionStatus: SandlerStatus = mentionsDecision ? "Pass" : "Incomplete";
   let scriptScore = 6;
   const coreOutcome = classifyCoreOutcomeFromTranscript(input.transcriptText);
@@ -500,20 +579,24 @@ function generateRuleBasedEvaluation(
       title: script?.keyMilestones?.[1] ? `Execute Milestone: ${script.keyMilestones[1]}` : "Direct Budget & Decision Thresholds Early",
       description: script?.keyMilestones?.[1]
         ? `Ensure you complete '${script.keyMilestones[1]}' before attempting to lock down calendars or ending the call.`
-        : "Stop waiting until the tail end of the call to talk numbers and stakeholders. Nail down the exact decision criteria and budget bracket."
+        : sandlerScoring
+          ? "Tie the investment to the prospect's own loss, and name who has access plus what the switch costs in time. Map who decides."
+          : "Stop waiting until the tail end of the call to talk numbers and stakeholders. Nail down the exact decision criteria and budget bracket."
     }
   ];
 
   const scriptDivergence = computeScriptDivergence(input.transcriptText, script, scriptScore);
+  const painEvidence = sandlerPain?.evidence || (mentionsPain ? "Rep touched operational bottlenecks but stayed surface level." : "Failed to uncover real operational pain; accepted feature requests at face value.");
+  const budgetEvidence = sandlerBudget?.evidence || (mentionsBudget ? "Mentioned ballpark investment brackets." : "Danced completely around budget. Did not qualify financial commitment.");
   const scorecard = attachCitesToScorecard(
     buildScorecardFromSandler({
       pain: {
         status: painStatus,
-        evidence: mentionsPain ? "Rep touched operational bottlenecks but stayed surface level." : "Failed to uncover real operational pain; accepted feature requests at face value."
+        evidence: painEvidence
       },
       budget: {
         status: budgetStatus,
-        evidence: mentionsBudget ? "Mentioned ballpark investment brackets." : "Danced completely around budget. Did not qualify financial commitment."
+        evidence: budgetEvidence
       },
       decision: {
         status: decisionStatus,
@@ -527,6 +610,7 @@ function generateRuleBasedEvaluation(
     input.transcriptText,
     durationSeconds
   );
+  const scored = mergeMethodologySkills(scorecard, input.transcriptText, methodology, repName) || scorecard;
 
   const walkthrough = buildWalkthroughFromTranscript(input.transcriptText, durationSeconds, missedOpportunities, repName);
 
@@ -540,11 +624,11 @@ function generateRuleBasedEvaluation(
     sandlerBreakdown: {
       pain: {
         status: painStatus,
-        evidence: mentionsPain ? "Rep touched operational bottlenecks but stayed surface level." : "Failed to uncover real operational pain; accepted feature requests at face value."
+        evidence: painEvidence
       },
       budget: {
         status: budgetStatus,
-        evidence: mentionsBudget ? "Mentioned ballpark investment brackets." : "Danced completely around budget. Did not qualify financial commitment."
+        evidence: budgetEvidence
       },
       decision: {
         status: decisionStatus,
@@ -556,8 +640,10 @@ function generateRuleBasedEvaluation(
       }
     },
     topFixes: fixes,
-    scorecard,
+    scorecard: scored,
     walkthrough,
+    coachingBrief: briefFromScorecard(scored, fixes),
+    debrief: methodology.id === "sandler" ? mergeDebrief(undefined, input.transcriptText, repName) : undefined,
     rawMarkdown: `### Manager's Assessment for ${repName}\n${bottomLine}`
   };
 }

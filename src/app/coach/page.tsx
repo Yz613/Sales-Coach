@@ -5,6 +5,8 @@ import { GraduationCap, Sparkles, Plus, Trash2, CheckCircle2, Loader2, Lightbulb
 import { apiPath, formatDate } from "@/lib/utils";
 import type { CoachLesson } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/sandlerCoach";
+import { methodologyForInstructions } from "@/lib/methodology";
+import { debriefSections } from "@/lib/sandlerChecklist";
 
 type View = "loading" | "onboarding" | "editor";
 
@@ -49,6 +51,60 @@ const QUESTIONS: { key: string; label: string; hint: string; placeholder: string
     placeholder: "e.g. Direct and tactical, no fluff — but constructive",
   },
 ];
+
+function MethodologyProfile({ instructions }: { instructions: string }) {
+  const method = methodologyForInstructions(instructions);
+  return (
+    <div className="rounded-2xl glass-card p-6 space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-white">Scoring profile — {method.name}</h2>
+        <p className="text-xs text-slate-400 mt-1">
+          {method.id === "sandler"
+            ? "Sandler rules live here. Another company names a different methodology above and this checklist turns off."
+            : "Sandler tactics are off for this team. Calls are scored from the philosophy above, using the same three qualification slots."}
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {method.pillars.map((pillar, index) => (
+          <div key={pillar.key} className="rounded-xl glass-inset border border-white/[0.08] p-3.5 space-y-1">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+              {index + 1}. {pillar.cardTitle}
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">{pillar.summary}</p>
+          </div>
+        ))}
+      </div>
+      {method.id === "sandler" ? (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-300">
+            Sales Call Debrief and the skills sheet are scored on every Sandler call. A single call is a checkbox. The 1–5 mastery rating is for repeated observation, not one tape.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {debriefSections().map((section) => (
+              <span key={section.section} className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300">
+                {section.section} · {section.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {method.microSkills.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {method.microSkills.map((skill) => (
+            <span key={skill.key} className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-200">
+              {skill.label}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">No Sandler skill checklist on this profile.</p>
+      )}
+      <p className="text-xs text-slate-400">
+        Coaching write-ups lead with {method.coaching.praiseLabel.toLowerCase()}, then {method.coaching.gapsLabel.toLowerCase()}, then {method.coaching.drillsLabel.toLowerCase()}.
+      </p>
+    </div>
+  );
+}
 
 function composeInstructions(answers: Record<string, string>): string {
   const blocks: string[] = [];
@@ -268,6 +324,8 @@ export default function CoachPage() {
           ? "This coach defaults to the Sandler Selling System (Up-Front Contract, Pain Funnel, Budget, Decision, then Fulfillment). Edit the philosophy and save to make it yours."
           : "You're running a customized coach. Reset to Sandler anytime, or keep teaching it with lessons from individual calls."}
       </div>
+
+      <MethodologyProfile instructions={instructions} />
 
       {/* Coaching philosophy */}
       <div className="rounded-2xl glass-card p-6 space-y-5">

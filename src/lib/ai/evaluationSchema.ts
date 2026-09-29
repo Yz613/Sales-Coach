@@ -1,5 +1,9 @@
 import { CORE_OUTCOMES } from "../coreOutcome";
+import { MICRO_SKILL_KEYS } from "../methodology";
+import { SANDLER_DEBRIEF } from "../sandlerChecklist";
 import { SCORECARD_KEYS } from "./review";
+
+const SCORECARD_KEY_ENUM = [...SCORECARD_KEYS, ...MICRO_SKILL_KEYS];
 
 /**
  * JSON Schema sent to Gemini as constrained decoding.
@@ -33,6 +37,7 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
     "walkthrough",
     "scriptDivergence",
     "topFixes",
+    "coachingBrief",
   ],
   properties: {
     callTypeDetected: str,
@@ -80,7 +85,7 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
         additionalProperties: false,
         required: ["key", "label", "status", "score", "evidence"],
         properties: {
-          key: { type: "string", enum: [...SCORECARD_KEYS] },
+          key: { type: "string", enum: SCORECARD_KEY_ENUM },
           label: str,
           status: { type: "string", enum: ["Pass", "Incomplete", "Fail"] },
           score: num,
@@ -148,6 +153,29 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
         properties: {
           title: str,
           description: str,
+        },
+      },
+    },
+    coachingBrief: {
+      type: "object",
+      additionalProperties: false,
+      required: ["praiseReinforcement", "tacticalGaps", "remedialDrills"],
+      properties: {
+        praiseReinforcement: str,
+        tacticalGaps: str,
+        remedialDrills: str,
+      },
+    },
+    debrief: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "status", "evidence"],
+        properties: {
+          id: { type: "string", enum: SANDLER_DEBRIEF.map((item) => item.id) },
+          status: { type: "string", enum: ["Handled", "Gap", "NotApplicable"] },
+          evidence: str,
         },
       },
     },

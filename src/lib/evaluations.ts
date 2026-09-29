@@ -124,6 +124,8 @@ export function hydrateEvaluation(
     topFixes: topFixes as [PriorityFix, PriorityFix],
     scorecard: extended?.scorecard,
     walkthrough: extended?.walkthrough,
+    coachingBrief: extended?.coachingBrief,
+    debrief: extended?.debrief,
     evaluatedWith: extended?.evaluatedWith,
     rawMarkdown: ev.rawMarkdown || undefined,
     createdAt: ev.createdAt,

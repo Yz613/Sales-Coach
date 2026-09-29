@@ -60,7 +60,7 @@ export default function ManagerTalkTrackCard({
 
       {talkTrack.evaluatedCallCount === 0 ? (
         <div className="px-6 py-8 text-sm text-slate-400">
-          No evaluated calls yet. As {first}&apos;s calls land, this fills in four tough spots and four wins — each with a real example you can walk through in the 1:1.
+          No evaluated calls yet. As {first}&apos;s calls land, this fills in four wins and four gaps — praise first, then what to fix, each with a real example.
         </div>
       ) : (
         <div className="p-6 space-y-6">
@@ -75,16 +75,16 @@ export default function ManagerTalkTrackCard({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ThemeColumn
-              title="Tough spots"
-              empty="No repeating miss yet — keep watching the next calls."
-              themes={talkTrack.struggles}
-              tone="struggle"
-            />
-            <ThemeColumn
-              title="Doing really well"
+              title="What went well"
               empty="No clean win on file yet — capture one on the next call."
               themes={talkTrack.strengths}
               tone="strength"
+            />
+            <ThemeColumn
+              title="Gaps to fix"
+              empty="No repeating miss yet — keep watching the next calls."
+              themes={talkTrack.struggles}
+              tone="struggle"
             />
           </div>
         </div>

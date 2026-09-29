@@ -17,6 +17,8 @@ import type {
   CoachLesson
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
+import { methodologyForInstructions } from "@/lib/methodology";
+import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
@@ -738,13 +740,15 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
     });
   }
 
+  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const pillarByKey = Object.fromEntries(methodology.pillars.map((pillar) => [pillar.key, pillar]));
   // Systemic leaks are derived from real qualification miss-rates, not hardcoded.
   const teamLeaks: SuperAdminReport["systemicTeamLeaks"] = [];
   if (totalCalls > 0) {
     const dims = [
-      { key: "Pain", miss: totalCalls - totalPainPass, directive: "Coach reps to uncover and quantify business pain before pitching a solution." },
-      { key: "Budget", miss: totalCalls - totalBudgetPass, directive: "Require a budget-range conversation before any demo or proposal." },
-      { key: "Decision", miss: totalCalls - totalDecisionPass, directive: "Map the economic buyer and approval process on every qualified call." },
+      { key: pillarByKey.pain?.label || "Pain", miss: totalCalls - totalPainPass, directive: pillarByKey.pain?.leakDirective || "" },
+      { key: pillarByKey.budget?.label || "Budget", miss: totalCalls - totalBudgetPass, directive: pillarByKey.budget?.leakDirective || "" },
+      { key: pillarByKey.decision?.label || "Decision", miss: totalCalls - totalDecisionPass, directive: pillarByKey.decision?.leakDirective || "" },
     ];
     dims
       .filter((d) => d.miss / totalCalls >= 0.4)
@@ -841,6 +845,14 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     };
   }).sort((a, b) => b.bookedRate - a.bookedRate || b.avgScriptScore - a.avgScriptScore);
 
+  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const cookbookFunnel = tallyCookbookFunnel(allCalls.map((call) => ({
+    callStage: call.callStage,
+    coreOutcome: call.coreOutcome,
+    durationSeconds: call.durationSeconds,
+    painQualified: call.evaluation?.sandlerBreakdown.pain.status === "Pass",
+  })));
+
   const totalSurrenders = Object.values(objectionMap).reduce((acc, cur) => acc + cur.count, 0) || 1;
   const topObjections = Object.entries(objectionMap).map(([objection, data]) => ({
     objection,
@@ -865,6 +877,13 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
       budget: budgetCounts,
       decision: decisionCounts,
     },
+    methodologyName: methodology.name,
+    pillarLabels: {
+      pain: methodology.pillars.find((pillar) => pillar.key === "pain")?.label || "Pain",
+      budget: methodology.pillars.find((pillar) => pillar.key === "budget")?.label || "Budget",
+      decision: methodology.pillars.find((pillar) => pillar.key === "decision")?.label || "Decision",
+    },
+    cookbookFunnel,
     topObjectionsCausingSurrender: topObjections,
     repLeaderboard,
   };

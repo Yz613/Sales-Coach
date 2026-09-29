@@ -1,4 +1,6 @@
 import type { CoachWalkthroughStep, EvaluatedWith, ScorecardMetric } from "@/lib/ai/review";
+import type { CoachingBrief } from "@/lib/methodology";
+import type { DebriefMark } from "@/lib/sandlerChecklist";
 
 /** Call Stage Target — built-in defaults plus any custom script types a manager adds. */
 export type CallStage = string;
@@ -78,6 +80,8 @@ export interface CallEvaluation {
   topFixes: [PriorityFix, PriorityFix];
   scorecard?: ScorecardMetric[];
   walkthrough?: CoachWalkthroughStep[];
+  coachingBrief?: CoachingBrief;
+  debrief?: DebriefMark[];
   evaluatedWith?: EvaluatedWith;
   rawMarkdown?: string;
   createdAt: string;
@@ -184,6 +188,19 @@ export interface ExecutiveAnalytics {
     budget: { pass: number; incomplete: number; fail: number };
     decision: { pass: number; incomplete: number; fail: number };
   };
+  methodologyName: string;
+  pillarLabels: {
+    pain: string;
+    budget: string;
+    decision: string;
+  };
+  cookbookFunnel: {
+    key: string;
+    label: string;
+    count: number;
+    rateFromStart: number;
+    rateFromPrevious: number;
+  }[];
   topObjectionsCausingSurrender: {
     objection: string;
     surrenderCount: number;
