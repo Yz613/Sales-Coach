@@ -185,7 +185,7 @@ async function sendOneInvite(input: {
   }
 }
 
-/** Clerk's own mail uses the site domain (Refresh Queue). Use it when Resend cannot send. */
+/** Clerk's own mail uses the site domain. Use it when Resend cannot send. */
 async function fallBackToClerkEmail(
   input: {
     organizationId: string;

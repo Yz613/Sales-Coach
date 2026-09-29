@@ -2,6 +2,14 @@
   "name": "sales-coach",
   "version": "0.1.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yz613/Sales-Coach.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yz613/Sales-Coach/issues"
+  },
+  "homepage": "https://refreshqueue.com",
   "scripts": {
     "setup": "node scripts/setup.cjs",
     "build": "next build",

@@ -481,7 +481,7 @@ export default function AdminSettingsPage() {
             <div>
               <h2 className="text-base font-semibold text-[#1d1d1f]">Invite emails</h2>
               <p className="text-xs text-[#6e6e73]">
-                Invite emails are sent from Refresh Queue. A Resend key on invites@refreshqueue.com sends them directly; if that fails, Clerk sends the same invite from the site. Pending invites always keep a copyable link.
+                Invite emails are sent as Sales Coach. A Resend key on your verified From address sends them directly; if that fails, Clerk sends the same invite from the site. Pending invites always keep a copyable link.
               </p>
             </div>
           </div>
@@ -498,7 +498,7 @@ export default function AdminSettingsPage() {
             />
             <p className="text-xs text-[#6e6e73] mt-1.5">
               {hasResendKey ? (
-                <span className="text-[#248A3D] font-medium">✓ Invite emails send from Refresh Queue, with Clerk as the backup.</span>
+                <span className="text-[#248A3D] font-medium">✓ Invite emails send as Sales Coach, with Clerk as the backup.</span>
               ) : (
                 <span>Create a sending key at resend.com and paste it here, or set RESEND_API_KEY as a Worker secret.</span>
               )}
