@@ -9,6 +9,10 @@ export interface DebriefItem {
   label: string;
   /** Prep that lives in LinkedIn, Gong, or the CRM, not on the recording. */
   offTape?: boolean;
+  /** Shown on the quick look at the top of a call. */
+  highlight?: boolean;
+  /** Keyword check for methods other than Sandler. */
+  detect?: RegExp;
 }
 
 export interface DebriefMark extends DebriefItem {
@@ -99,6 +103,19 @@ export const SANDLER_DEBRIEF: DebriefItem[] = [
 
 const DEBRIEF_IDS = new Set(SANDLER_DEBRIEF.map((item) => item.id));
 
+const SANDLER_HIGHLIGHTS = new Set([
+  "timePurpose",
+  "reverseIntent",
+  "strokePainImpact",
+  "thirdLevelPain",
+  "quantifyPain",
+  "stayOutOfFeatures",
+  "thermometerEachPain",
+  "willingAndAble",
+  "decisionAspects",
+  "clearFuture",
+]);
+
 export function debriefSections(): { section: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const item of SANDLER_DEBRIEF) counts.set(item.section, (counts.get(item.section) || 0) + 1);
@@ -150,7 +167,7 @@ function repSpeaker(turns: { speaker: string }[], repName?: string): string {
 }
 
 function mark(item: DebriefItem, status: DebriefStatus, evidence: string): DebriefMark {
-  return { ...item, status, evidence };
+  return { ...item, highlight: item.highlight || SANDLER_HIGHLIGHTS.has(item.id), status, evidence };
 }
 
 export function scoreSandlerDebrief(transcript: string, repName?: string): DebriefMark[] {
@@ -305,11 +322,11 @@ export function scoreSandlerDebrief(transcript: string, repName?: string): Debri
       if (mention && mention.test(text) && /looked at|checked|reviewed|saw on|i (?:read|pulled)/i.test(text)) {
         return mark(item, "Handled", "They mentioned this prep on the call.");
       }
-      return mark(item, "NotApplicable", "Not on the recording.");
+      return mark(item, "Gap", "Not done on this call.");
     }
     const found = byId.get(item.id);
     if (found) return mark(item, found.status, found.evidence);
-    return mark(item, "NotApplicable", "This step wasn't in play on this call.");
+    return mark(item, "Gap", "Not done on this call.");
   });
 }
 

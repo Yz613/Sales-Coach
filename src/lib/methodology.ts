@@ -1,6 +1,8 @@
 import { isDefaultSandlerInstructions } from "./sandlerCoach";
-import { formatSandlerDebriefPrompt } from "./sandlerChecklist";
+import { formatSandlerDebriefPrompt, type DebriefItem } from "./sandlerChecklist";
 import { parseTranscript } from "./transcript";
+
+export type MethodId = "sandler" | "meddic" | "challenger" | "spin" | "bant";
 
 export type PillarKey = "pain" | "budget" | "decision";
 export type PillarStatus = "Pass" | "Incomplete" | "Fail";
@@ -58,8 +60,10 @@ export interface SkillScore {
 }
 
 export interface SalesMethodology {
-  id: "sandler" | "custom";
+  id: MethodId | "custom";
   name: string;
+  narrative?: string;
+  checklist?: DebriefItem[];
   pillars: MethodologyPillar[];
   microSkills: MethodologySkill[];
   coaching: CoachingFrame;
@@ -205,6 +209,15 @@ export function customMethodology(name: string): SalesMethodology {
   };
 }
 
+function formatChecklistPrompt(method: SalesMethodology): string {
+  if (method.checklist?.length) {
+    const lines = method.checklist.map((item) => `- ${item.id}: ${item.section} — ${item.label}`);
+    return `Checklist for ${method.name}. Return a debrief object for every item that applies. status is Handled or Gap. Gap means it was not done. Do not leave items blank.\n${lines.join("\n")}`;
+  }
+  if (method.id === "sandler") return formatSandlerDebriefPrompt();
+  return "Do not score another method's checklist. Leave debrief empty.";
+}
+
 function methodologyName(instructions: string): string | null {
   const match = instructions.match(/Methodology\s*\/\s*framework:\s*(.+)/i);
   const line = match?.[1]?.trim().split("\n")[0]?.trim();
@@ -242,7 +255,7 @@ ${skills}
 
 Coaching output order: ${method.coaching.praiseLabel}, then ${method.coaching.gapsLabel}, then ${method.coaching.drillsLabel}.
 The coachingBrief object must follow that order. Do not open it with failures.
-${method.id === "sandler" ? `\n${formatSandlerDebriefPrompt()}\n` : "Do not score the Sandler Sales Call Debrief. Leave debrief empty."}
+${formatChecklistPrompt(method)}
 === END ACTIVE METHODOLOGY ===`;
 }
 

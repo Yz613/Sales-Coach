@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
-import { getActiveScriptForStage, getRepPersona, getCoachContext, getCoachInstructions } from "../db/service";
+import { getActiveScriptForStage, getRepPersona, getCoachContext, getSalesMethodId } from "../db/service";
 import { latestEvaluationsByCall } from "../evaluations";
 import { computeScriptDivergence } from "../callInsights";
 import { eq, and, desc } from "drizzle-orm";
@@ -30,14 +30,13 @@ import {
   deriveCoachingBrief,
   formatMethodologyBlock,
   isMicroSkillKey,
-  methodologyForInstructions,
   scoreMicroSkills,
   scoreSandlerBudget,
   scoreSandlerPain,
   type CoachingBrief,
   type SalesMethodology,
 } from "../methodology";
-import { mergeDebrief } from "../sandlerChecklist";
+import { methodById, scoreMethodDebrief } from "../salesMethods";
 
 interface EvaluationInput {
   callId: string;
@@ -83,7 +82,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   }).filter(Boolean).join("\n");
 
   const coachContext = await getCoachContext();
-  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const methodology = methodById(await getSalesMethodId());
   const ai = await resolveAiSettings();
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
@@ -381,7 +380,7 @@ ${CORE_OUTCOME_RULES}
     scorecard,
     walkthrough,
     coachingBrief: briefFromModel(parsed.coachingBrief, briefFromScorecard(scorecard, topFixes)),
-    debrief: methodology.id === "sandler" ? mergeDebrief(parsed.debrief, input.transcriptText, repName) : undefined,
+    debrief: scoreMethodDebrief(methodology, input.transcriptText, repName, parsed.debrief),
     evaluatedWith: {
       provider: providerId,
       model,
@@ -643,7 +642,7 @@ function generateRuleBasedEvaluation(
     scorecard: scored,
     walkthrough,
     coachingBrief: briefFromScorecard(scored, fixes),
-    debrief: methodology.id === "sandler" ? mergeDebrief(undefined, input.transcriptText, repName) : undefined,
+    debrief: scoreMethodDebrief(methodology, input.transcriptText, repName),
     rawMarkdown: `### Manager's Assessment for ${repName}\n${bottomLine}`
   };
 }

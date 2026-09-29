@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveScriptForStage, getCoachInstructions } from "@/lib/db/service";
+import { getActiveScriptForStage, getSalesMethodId } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
@@ -21,9 +21,10 @@ import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartyLabel, hasKnownCompany } from "@/lib/callLabel";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
 import CoachingBriefCard from "@/components/CoachingBrief";
-import { deriveCoachingBrief, methodologyForInstructions, scoreMicroSkills } from "@/lib/methodology";
-import { mergeDebrief } from "@/lib/sandlerChecklist";
+import { deriveCoachingBrief, scoreMicroSkills } from "@/lib/methodology";
+import { methodById, scoreMethodDebrief } from "@/lib/salesMethods";
 import SandlerDebrief from "@/components/SandlerDebrief";
+import CallReviewSwitcher from "@/components/CallReviewSwitcher";
 import { getVisibleCallById, getVisibleCalls } from "@/lib/viewer-calls";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ export default async function CallReviewPage({
   }
 
   const ev = call.evaluation;
-  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const methodology = methodById(await getSalesMethodId());
   const officialScript = await getActiveScriptForStage(call.callStage);
   const divergence = ev?.scriptDivergence;
   const divSummary = divergenceSummary(divergence);
@@ -89,9 +90,15 @@ export default async function CallReviewPage({
         drills: (ev.topFixes || []).map((fix) => `${fix.title}. ${fix.description}`),
       })
     : null;
-  const debrief = methodology.id === "sandler" && ev
-    ? mergeDebrief(ev.debrief, call.transcriptText, call.repName)
-    : null;
+  const debrief = ev ? scoreMethodDebrief(methodology, call.transcriptText, call.repName, ev.debrief) : [];
+  const quickPillars = methodology.pillars.map((pillar) => {
+    const slot = ev?.sandlerBreakdown[pillar.key];
+    const done = slot?.status === "Pass";
+    return { id: pillar.key, label: pillar.label, done, evidence: done ? slot?.evidence || "" : slot?.evidence || "Not done on this call." };
+  });
+  const quickHighlights = debrief
+    .filter((mark) => mark.highlight)
+    .map((mark) => ({ id: mark.id, label: mark.label, done: mark.status === "Handled", evidence: mark.evidence }));
 
   // Where this call ranks against every other call in the bank.
   const { calls: visibleCalls } = await getVisibleCalls();
@@ -206,6 +213,7 @@ export default async function CallReviewPage({
         </div>
       </div>
 
+      <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights}>
       <CallRecording
         audioUrl={call.audioUrl}
         transcriptText={call.transcriptText}
@@ -242,7 +250,7 @@ export default async function CallReviewPage({
 
           {coachingBrief && <CoachingBriefCard brief={coachingBrief} />}
 
-          {debrief && <SandlerDebrief marks={debrief} />}
+          {debrief.length > 0 && <SandlerDebrief marks={debrief} methodName={methodology.name} />}
 
           {scorecard.length > 0 && (
             <div className="rounded-2xl glass-card p-6 sm:p-7 space-y-4">
@@ -533,6 +541,7 @@ export default async function CallReviewPage({
 
       {/* Teach the Coach from this call */}
       <TeachCoach callId={call.id} />
+      </CallReviewSwitcher>
     </div>
   );
 }

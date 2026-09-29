@@ -5,8 +5,8 @@ import { GraduationCap, Sparkles, Plus, Trash2, CheckCircle2, Loader2, Lightbulb
 import { apiPath, formatDate } from "@/lib/utils";
 import type { CoachLesson } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/sandlerCoach";
-import { methodologyForInstructions } from "@/lib/methodology";
-import { debriefSections } from "@/lib/sandlerChecklist";
+import type { MethodId } from "@/lib/methodology";
+import { METHOD_CHOICES, checklistSections, methodById } from "@/lib/salesMethods";
 
 type View = "loading" | "onboarding" | "editor";
 
@@ -52,16 +52,16 @@ const QUESTIONS: { key: string; label: string; hint: string; placeholder: string
   },
 ];
 
-function MethodologyProfile({ instructions }: { instructions: string }) {
-  const method = methodologyForInstructions(instructions);
+function MethodologyProfile({ methodId }: { methodId: MethodId }) {
+  const method = methodById(methodId);
   return (
     <div className="rounded-2xl glass-card p-6 space-y-4">
       <div>
         <h2 className="text-base font-semibold text-white">Scoring profile — {method.name}</h2>
         <p className="text-xs text-slate-400 mt-1">
           {method.id === "sandler"
-            ? "Sandler rules live here. Another company names a different methodology above and this checklist turns off."
-            : "Sandler tactics are off for this team. Calls are scored from the philosophy above, using the same three qualification slots."}
+            ? "Sandler is selected. The narrative and the checklist below are the Sandler defaults."
+            : `${method.name} is selected. The narrative and the checklist are the ${method.name} defaults. Sandler rules are off.`}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -74,13 +74,15 @@ function MethodologyProfile({ instructions }: { instructions: string }) {
           </div>
         ))}
       </div>
-      {method.id === "sandler" ? (
+      {method.checklist || method.id === "sandler" ? (
         <div className="space-y-2">
           <p className="text-xs text-slate-300">
-            Sales Call Debrief and the skills sheet are scored on every Sandler call. A single call is a checkbox. The 1–5 mastery rating is for repeated observation, not one tape.
+            {method.id === "sandler"
+              ? "Sales Call Debrief and the skills sheet are scored on every Sandler call. Anything not done shows in red."
+              : `Every ${method.name} call is scored on this checklist. Anything not done shows in red.`}
           </p>
           <div className="flex flex-wrap gap-2">
-            {debriefSections().map((section) => (
+            {checklistSections(method).map((section) => (
               <span key={section.section} className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300">
                 {section.section} · {section.count}
               </span>
@@ -96,9 +98,7 @@ function MethodologyProfile({ instructions }: { instructions: string }) {
             </span>
           ))}
         </div>
-      ) : (
-        <p className="text-xs text-slate-500">No Sandler skill checklist on this profile.</p>
-      )}
+      ) : null}
       <p className="text-xs text-slate-400">
         Coaching write-ups lead with {method.coaching.praiseLabel.toLowerCase()}, then {method.coaching.gapsLabel.toLowerCase()}, then {method.coaching.drillsLabel.toLowerCase()}.
       </p>
@@ -128,12 +128,15 @@ export default function CoachPage() {
   const [building, setBuilding] = useState(false);
   const [addingLesson, setAddingLesson] = useState(false);
   const [isDefault, setIsDefault] = useState(true);
+  const [methodId, setMethodId] = useState<MethodId>("sandler");
 
   const load = () => {
     fetch(apiPath("/api/coach"))
       .then((res) => res.json())
       .then((data) => {
-        const instr = data.instructions || DEFAULT_SANDLER_INSTRUCTIONS;
+        const selected = (data.methodology || "sandler") as MethodId;
+        const instr = data.instructions || methodById(selected).narrative || DEFAULT_SANDLER_INSTRUCTIONS;
+        setMethodId(selected);
         setInstructions(instr);
         setIsDefault(Boolean(data.isDefault));
         setLessons(Array.isArray(data.lessons) ? data.lessons : []);
@@ -149,12 +152,29 @@ export default function CoachPage() {
     load();
   }, []);
 
-  const saveInstructions = async (text: string) => {
+  const saveInstructions = async (text: string, methodology: MethodId = methodId) => {
     await fetch(apiPath("/api/coach"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instructions: text }),
+      body: JSON.stringify({ instructions: text, methodology }),
     });
+  };
+
+  const chooseMethod = async (next: MethodId) => {
+    const narrative = methodById(next).narrative || DEFAULT_SANDLER_INSTRUCTIONS;
+    setMethodId(next);
+    setInstructions(narrative);
+    setIsDefault(true);
+    setSavingInstructions(true);
+    try {
+      await saveInstructions(narrative, next);
+      setSavedInstructions(true);
+      setTimeout(() => setSavedInstructions(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingInstructions(false);
+    }
   };
 
   const buildFromQuestions = async () => {
@@ -178,7 +198,7 @@ export default function CoachPage() {
     setSavedInstructions(false);
     try {
       await saveInstructions(instructions);
-      setIsDefault(instructions.trim() === DEFAULT_SANDLER_INSTRUCTIONS.trim() || !instructions.trim());
+      setIsDefault(instructions.trim() === (methodById(methodId).narrative || "").trim() || !instructions.trim());
       setSavedInstructions(true);
       setTimeout(() => setSavedInstructions(false), 3000);
     } catch (err) {
@@ -235,7 +255,7 @@ export default function CoachPage() {
     <div className="border-b border-white/[0.08] pb-5">
       <div className="flex items-center gap-2 mb-2">
         <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-blue-400 border border-blue-500/20">
-          {isDefault ? "Default: Sandler Selling System" : "Custom Coach"}
+          {isDefault ? `Default: ${methodById(methodId).name}` : methodById(methodId).name}
         </span>
       </div>
       <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
@@ -325,7 +345,23 @@ export default function CoachPage() {
           : "You're running a customized coach. Reset to Sandler anytime, or keep teaching it with lessons from individual calls."}
       </div>
 
-      <MethodologyProfile instructions={instructions} />
+      <div className="rounded-2xl glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Sales method</h2>
+          <p className="text-xs text-slate-400 mt-1">Choosing one loads that method&apos;s narrative and checklist.</p>
+        </div>
+        <select
+          value={methodId}
+          onChange={(e) => chooseMethod(e.target.value as MethodId)}
+          className="rounded-xl glass-inset border border-white/[0.08] bg-slate-900 px-3.5 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none"
+        >
+          {METHOD_CHOICES.map((choice) => (
+            <option key={choice.id} value={choice.id}>{choice.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <MethodologyProfile methodId={methodId} />
 
       {/* Coaching philosophy */}
       <div className="rounded-2xl glass-card p-6 space-y-5">
@@ -342,23 +378,10 @@ export default function CoachPage() {
           <div className="flex items-center gap-2">
             {!isDefault && (
               <button
-                onClick={async () => {
-                  setInstructions(DEFAULT_SANDLER_INSTRUCTIONS);
-                  setSavingInstructions(true);
-                  try {
-                    await saveInstructions("");
-                    setIsDefault(true);
-                    setSavedInstructions(true);
-                    setTimeout(() => setSavedInstructions(false), 3000);
-                  } catch (err) {
-                    console.error(err);
-                  } finally {
-                    setSavingInstructions(false);
-                  }
-                }}
+                onClick={() => chooseMethod(methodId)}
                 className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/[0.08] hover:text-white transition"
               >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset to Sandler
+                <RotateCcw className="h-3.5 w-3.5" /> Reset narrative
               </button>
             )}
             <button

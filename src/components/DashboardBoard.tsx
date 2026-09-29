@@ -29,17 +29,24 @@ import {
   type SectionId,
 } from "@/lib/dashboardLayout";
 import type { SalesMethodology } from "@/lib/methodology";
+import RevenueGoal from "./RevenueGoal";
 
 export default function DashboardBoard({
   report,
   recentCalls,
   needsCoachSetup,
   methodology,
+  teamCloseRate,
+  loggedCalls,
+  repCount,
 }: {
   report: SuperAdminReport;
   recentCalls: Call[];
   needsCoachSetup: boolean;
   methodology: SalesMethodology;
+  teamCloseRate: number;
+  loggedCalls: number;
+  repCount: number;
 }) {
   const progressingCount = report.repTrajectories.filter((r) => r.trajectory === "progressing").length;
   const stagnantCount = report.repTrajectories.filter((r) => r.trajectory === "stagnant").length;
@@ -255,7 +262,7 @@ export default function DashboardBoard({
               <tr>
                 <th className="px-6 py-3.5">Rep & Prospect</th>
                 <th className="px-6 py-3.5">Stage</th>
-                <th className="px-6 py-3.5">{methodology.id === "sandler" ? "Sandler (P / B / D)" : "Qualification"}</th>
+                <th className="px-6 py-3.5">{methodology.name}</th>
                 <th className="px-6 py-3.5">Script Score</th>
                 <th className="px-6 py-3.5">Core Outcome</th>
                 <th className="px-6 py-3.5 text-right">Action</th>
@@ -403,6 +410,8 @@ export default function DashboardBoard({
           </div>
         </div>
       </div>
+
+      <RevenueGoal teamCloseRate={teamCloseRate} loggedCalls={loggedCalls} repCount={repCount} />
 
       <SortableBoard
         scope="sections"

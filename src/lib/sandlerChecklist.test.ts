@@ -30,7 +30,7 @@ assert.match(sandlerPrompt, /dummyCurve/);
 assert.match(sandlerPrompt, /3rd-level pain/);
 const meddicPrompt = formatMethodologyBlock(methodologyForInstructions("Methodology / framework: MEDDIC\n\nMetrics only."));
 assert.doesNotMatch(meddicPrompt, /dummyCurve/);
-assert.match(meddicPrompt, /Do not score the Sandler Sales Call Debrief/);
+assert.match(meddicPrompt, /Do not score another method's checklist/);
 
 const tape = `Rep: We have 15 minutes. You can tell me no. If it makes sense we'll book time.
 Buyer: How much does it cost?
@@ -48,8 +48,8 @@ assert.equal(byId.thirdLevelPain, "Handled");
 assert.equal(byId.quantifyPain, "Handled");
 assert.equal(byId.thermometerEachPain, "Handled");
 assert.equal(byId.negativeReverse, "Handled");
-assert.equal(byId.clearFuture, "NotApplicable");
-assert.equal(byId.linkedinResearch, "NotApplicable");
+assert.equal(byId.clearFuture, "Gap");
+assert.equal(byId.linkedinResearch, "Gap");
 
 const tio = scoreSandlerDebrief("Buyer: Just send me an email and let me think about it.\nRep: Sure, I'll send that.", "Rep");
 assert.equal(Object.fromEntries(tio.map((mark) => [mark.id, mark.status])).noTio, "Gap");

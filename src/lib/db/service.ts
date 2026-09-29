@@ -17,7 +17,7 @@ import type {
   CoachLesson
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
-import { methodologyForInstructions } from "@/lib/methodology";
+import { isMethodId, methodById } from "@/lib/salesMethods";
 import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
@@ -134,19 +134,32 @@ export async function getStoredCoachInstructions(): Promise<string> {
   return (await getSetting("coach_instructions")) || "";
 }
 
+export async function getSalesMethodId(): Promise<import("@/lib/methodology").MethodId> {
+  const stored = await getSetting("coach_methodology");
+  return isMethodId(stored) ? stored : "sandler";
+}
+
+export async function setSalesMethodId(id: string): Promise<void> {
+  await setSetting("coach_methodology", isMethodId(id) ? id : "sandler");
+}
+
 export async function getCoachInstructions(): Promise<string> {
   const stored = await getStoredCoachInstructions();
-  return stored.trim() ? stored : DEFAULT_SANDLER_INSTRUCTIONS;
+  if (stored.trim()) return stored;
+  return methodById(await getSalesMethodId()).narrative || DEFAULT_SANDLER_INSTRUCTIONS;
 }
 
 export async function setCoachInstructions(text: string): Promise<void> {
   const trimmed = (text || "").trim();
-  // Saving empty resets to the Sandler default (stored as empty so fallback applies).
-  await setSetting("coach_instructions", trimmed === DEFAULT_SANDLER_INSTRUCTIONS.trim() ? "" : trimmed);
+  const narrative = (methodById(await getSalesMethodId()).narrative || DEFAULT_SANDLER_INSTRUCTIONS).trim();
+  await setSetting("coach_instructions", !trimmed || trimmed === narrative ? "" : trimmed);
 }
 
 export async function coachUsesDefaultSandler(): Promise<boolean> {
-  return isDefaultSandlerInstructions(await getStoredCoachInstructions());
+  const stored = (await getStoredCoachInstructions()).trim();
+  if (!stored) return true;
+  const narrative = (methodById(await getSalesMethodId()).narrative || "").trim();
+  return stored === narrative || isDefaultSandlerInstructions(stored);
 }
 
 export async function getCoachLessons(): Promise<CoachLesson[]> {
@@ -740,7 +753,7 @@ export async function getSuperAdminReport(): Promise<SuperAdminReport> {
     });
   }
 
-  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const methodology = methodById(await getSalesMethodId());
   const pillarByKey = Object.fromEntries(methodology.pillars.map((pillar) => [pillar.key, pillar]));
   // Systemic leaks are derived from real qualification miss-rates, not hardcoded.
   const teamLeaks: SuperAdminReport["systemicTeamLeaks"] = [];
@@ -845,7 +858,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     };
   }).sort((a, b) => b.bookedRate - a.bookedRate || b.avgScriptScore - a.avgScriptScore);
 
-  const methodology = methodologyForInstructions(await getCoachInstructions());
+  const methodology = methodById(await getSalesMethodId());
   const cookbookFunnel = tallyCookbookFunnel(allCalls.map((call) => ({
     callStage: call.callStage,
     coreOutcome: call.coreOutcome,

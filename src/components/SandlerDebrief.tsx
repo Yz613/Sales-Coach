@@ -1,15 +1,14 @@
-import { CheckCircle2, ClipboardList, MinusCircle, XCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, XCircle } from "lucide-react";
 import type { DebriefMark, DebriefStatus } from "@/lib/sandlerChecklist";
 
 function tone(status: DebriefStatus) {
-  if (status === "Handled") return { icon: CheckCircle2, row: "border-emerald-500/20 bg-emerald-500/[0.05]", label: "text-emerald-300" };
-  if (status === "Gap") return { icon: XCircle, row: "border-rose-500/25 bg-rose-500/[0.06]", label: "text-rose-300" };
-  return { icon: MinusCircle, row: "border-white/[0.06] bg-white/[0.02]", label: "text-slate-500" };
+  if (status === "Handled") return { icon: CheckCircle2, row: "border-emerald-500/20 bg-emerald-500/[0.05]", label: "text-emerald-300", word: "Done" };
+  return { icon: XCircle, row: "border-rose-500/25 bg-rose-500/[0.06]", label: "text-rose-300", word: "Not done" };
 }
 
-export default function SandlerDebrief({ marks }: { marks: DebriefMark[] }) {
+export default function SandlerDebrief({ marks, methodName = "Sandler" }: { marks: DebriefMark[]; methodName?: string }) {
   const handled = marks.filter((mark) => mark.status === "Handled").length;
-  const gaps = marks.filter((mark) => mark.status === "Gap").length;
+  const gaps = marks.length - handled;
   const sections: { section: string; items: DebriefMark[] }[] = [];
   for (const mark of marks) {
     const current = sections[sections.length - 1];
@@ -24,14 +23,14 @@ export default function SandlerDebrief({ marks }: { marks: DebriefMark[] }) {
           <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
             <ClipboardList className="h-4 w-4" /> Sales Call Debrief
           </div>
-          <h2 className="text-lg font-bold text-white mt-1 tracking-tight">Sandler checklist</h2>
+          <h2 className="text-lg font-bold text-white mt-1 tracking-tight">{methodName} checklist</h2>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            The debrief boxes and the skills sheet. One call is a check, not a 1–5 mastery rating. Pre-call prep stays blank unless it shows up on the recording.
+            Green means it was done. Red means it was not. One call is a check, not a mastery rating.
           </p>
         </div>
         <div className="flex items-center gap-2 font-mono text-xs shrink-0">
           <span className="rounded-full bg-emerald-500/10 px-3 py-1 font-bold text-emerald-400 border border-emerald-500/20">{handled} handled</span>
-          <span className="rounded-full bg-rose-500/10 px-3 py-1 font-bold text-rose-400 border border-rose-500/20">{gaps} gaps</span>
+          <span className="rounded-full bg-rose-500/10 px-3 py-1 font-bold text-rose-400 border border-rose-500/20">{gaps} not done</span>
         </div>
       </div>
 
@@ -48,10 +47,13 @@ export default function SandlerDebrief({ marks }: { marks: DebriefMark[] }) {
                     <div className="flex items-start gap-2">
                       <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${style.label}`} />
                       <div className="min-w-0">
-                        <div className="text-sm text-slate-100">{item.label}</div>
-                        {item.status !== "NotApplicable" ? (
-                          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{item.evidence}</p>
-                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm text-slate-100">{item.label}</div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${style.label}`}>{style.word}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                          {item.evidence || "Not done on this call."}
+                        </p>
                       </div>
                     </div>
                   </div>

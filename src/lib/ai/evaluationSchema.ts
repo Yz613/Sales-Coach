@@ -1,6 +1,5 @@
 import { CORE_OUTCOMES } from "../coreOutcome";
 import { MICRO_SKILL_KEYS } from "../methodology";
-import { SANDLER_DEBRIEF } from "../sandlerChecklist";
 import { SCORECARD_KEYS } from "./review";
 
 const SCORECARD_KEY_ENUM = [...SCORECARD_KEYS, ...MICRO_SKILL_KEYS];
@@ -173,7 +172,7 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
         additionalProperties: false,
         required: ["id", "status", "evidence"],
         properties: {
-          id: { type: "string", enum: SANDLER_DEBRIEF.map((item) => item.id) },
+          id: str,
           status: { type: "string", enum: ["Handled", "Gap", "NotApplicable"] },
           evidence: str,
         },
