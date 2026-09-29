@@ -54,7 +54,7 @@ export default function SortableBoard<T extends string>({
             }}
             onPointerUp={finish}
             onPointerCancel={finish}
-            className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-200 cursor-grab active:cursor-grabbing touch-none"
+            className="shrink-0 rounded-md p-1 text-[#86868b] hover:bg-[#E5E5EA] hover:text-[#1d1d1f] cursor-grab active:cursor-grabbing touch-none"
           >
             <GripVertical className="h-4 w-4" />
           </button>

@@ -129,15 +129,15 @@ export function outcomeTone(outcome: string): OutcomeTone {
 export function outcomeBadgeClass(outcome: string): string {
   switch (outcomeTone(outcome)) {
     case "booked":
-      return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+      return "bg-emerald-500/10 text-[#248A3D] border border-emerald-500/25";
     case "demo":
-      return "bg-sky-500/10 text-sky-400 border border-sky-500/30";
+      return "bg-blue-500/10 text-[#007AFF] border border-blue-500/25";
     case "dropped":
-      return "bg-rose-500/10 text-rose-400 border border-rose-500/30";
+      return "bg-rose-500/10 text-[#D70015] border border-rose-500/25";
     case "warn":
-      return "bg-amber-500/10 text-amber-400 border border-amber-500/30";
+      return "bg-amber-500/10 text-[#C45500] border border-amber-500/25";
     default:
-      return "bg-white/[0.05] text-slate-400 border border-white/[0.08]";
+      return "bg-black/[0.04] text-[#6e6e73] border border-black/[0.08]";
   }
 }
 

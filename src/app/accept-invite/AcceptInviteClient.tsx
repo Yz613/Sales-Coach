@@ -24,8 +24,8 @@ function AcceptInviteInner() {
   if (!ticket) {
     return (
       <div className="max-w-md text-center space-y-2">
-        <h1 className="text-xl font-semibold text-white">Invite link needed</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="text-xl font-semibold text-[#1d1d1f]">Invite link needed</h1>
+        <p className="text-sm text-[#6e6e73]">
           This page accepts a team invite. Ask your admin to resend it, or use the copyable link from the Invite page.
         </p>
       </div>
@@ -60,12 +60,12 @@ export default function AcceptInviteClient() {
     <div className="flex min-h-[70vh] items-center justify-center">
       {isClerkConfigured ? (
         <ClerkGate>
-          <Suspense fallback={<p className="text-sm text-slate-400">Opening invite…</p>}>
+          <Suspense fallback={<p className="text-sm text-[#6e6e73]">Opening invite…</p>}>
             <AcceptInviteInner />
           </Suspense>
         </ClerkGate>
       ) : (
-        <div className="mx-auto max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-sm text-amber-200">
+        <div className="mx-auto max-w-lg rounded-2xl border border-[#C45500]/25 bg-[#FF9500]/10 p-6 text-sm text-[#C45500] font-medium text-center">
           Team sign-in is not configured in this environment.
         </div>
       )}

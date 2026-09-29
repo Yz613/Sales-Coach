@@ -9,14 +9,14 @@ export default function InviteTeammatesCard({
   compact?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-slate-900 p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/30 bg-sky-500/15 text-sky-300">
+    <div className="rounded-2xl glass-card p-6 border border-black/[0.08]">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-[#007AFF]">
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Invite teammates</h2>
-          <p className="text-sm text-slate-400">See who joined, who’s pending, and resend or copy a link.</p>
+          <h2 className="text-lg font-bold text-[#1d1d1f]">Invite teammates</h2>
+          <p className="text-sm text-[#6e6e73]">See who joined, who’s pending, and resend or copy a link.</p>
         </div>
       </div>
       <InviteTeammatesForm compact={compact} />

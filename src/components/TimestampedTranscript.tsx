@@ -17,7 +17,7 @@ export default function TimestampedTranscript({
 
   if (!turns.length) {
     return (
-      <pre className="font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap max-h-[32rem] overflow-y-auto rounded-2xl glass-inset p-4">
+      <pre className="font-mono text-xs text-[#3a3a3c] leading-relaxed whitespace-pre-wrap max-h-[32rem] overflow-y-auto rounded-2xl glass-inset p-4">
         {transcriptText}
       </pre>
     );
@@ -46,10 +46,10 @@ export default function TimestampedTranscript({
             key={`${turn.index}-${turn.timestampSeconds}`}
             id={`t-${turn.timestampSeconds}`}
             className={`scroll-mt-24 flex gap-3.5 p-2 rounded-xl transition ${
-              active
-                ? "bg-blue-500/15 border border-blue-500/30"
-                : "hover:bg-white/[0.04] border border-transparent"
-            }`}
+ active
+ ? "bg-blue-500/15 border border-blue-500/30"
+ : "hover:bg-black/[0.04] border border-transparent"
+ }`}
           >
             <a
               href={`#t-${turn.timestampSeconds}`}
@@ -58,7 +58,7 @@ export default function TimestampedTranscript({
                 event.preventDefault();
                 handleClick();
               }}
-              className="shrink-0 font-mono text-[11px] text-blue-400 pt-0.5 w-12 hover:text-blue-300 font-semibold"
+              className="shrink-0 font-mono text-[11px] text-[#007AFF] pt-0.5 w-12 hover:text-[#0071E3] transition font-semibold"
             >
               {turn.timestamp}
             </a>
@@ -67,10 +67,10 @@ export default function TimestampedTranscript({
               onClick={onSeek ? handleClick : undefined}
               className={`text-left flex-1 ${onSeek ? "cursor-pointer" : "cursor-default"}`}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded-full inline-block mb-1 border border-white/[0.06]">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6e6e73] bg-black/[0.04] px-2 py-0.5 rounded-full inline-block mb-1 border border-black/[0.06]">
                 {turn.speaker}
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed font-normal">{turn.text}</p>
+              <p className="text-xs text-[#3a3a3c] leading-relaxed font-normal">{turn.text}</p>
             </button>
           </div>
         );

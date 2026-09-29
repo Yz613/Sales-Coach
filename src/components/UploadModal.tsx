@@ -307,41 +307,41 @@ export default function UploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-      <div className="relative w-full max-w-2xl rounded-3xl glass-panel border border-white/[0.1] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4">
+      <div className="relative w-full max-w-2xl rounded-3xl glass-panel border border-black/[0.1] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4 bg-white/[0.02]">
+        <div className="flex items-center justify-between border-b border-black/[0.08] px-6 py-4 bg-black/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF]">
               <Upload className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Upload Calls for AI Coaching</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-base font-semibold text-[#1d1d1f]">Upload Calls for AI Coaching</h2>
+              <p className="text-xs text-[#6e6e73]">
                 Audio is split and transcribed, then scored for blocking & tackling, early folding, and Sandler qualification.
               </p>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{CALL_DURATION_NOTE}</p>
+              <p className="text-[11px] text-[#86868b] mt-1 leading-relaxed">{CALL_DURATION_NOTE}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-xl p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+            className="rounded-xl p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-white/[0.08] px-6 py-3 gap-2 text-xs font-medium">
+        <div className="flex border-b border-black/[0.08] px-6 py-3 gap-2 text-xs font-medium">
           <button
             type="button"
             onClick={() => { setActiveTab("paste"); setError(null); }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition ${
-              activeTab === "paste"
-                ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-sm"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-            }`}
+ activeTab === "paste"
+ ? "bg-blue-600/20 text-[#007AFF] border border-blue-500/30 shadow-sm"
+ : "text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]"
+ }`}
           >
             <FileText className="h-4 w-4" /> Paste Transcript
           </button>
@@ -350,10 +350,10 @@ export default function UploadModal({
             type="button"
             onClick={() => { setActiveTab("single_file"); setError(null); }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition ${
-              activeTab === "single_file"
-                ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-sm"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-            }`}
+ activeTab === "single_file"
+ ? "bg-blue-600/20 text-[#007AFF] border border-blue-500/30 shadow-sm"
+ : "text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]"
+ }`}
           >
             <Upload className="h-4 w-4" /> Single Audio/Transcript File
           </button>
@@ -362,10 +362,10 @@ export default function UploadModal({
             type="button"
             onClick={() => { setActiveTab("batch"); setError(null); }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition ${
-              activeTab === "batch"
-                ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-sm"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-            }`}
+ activeTab === "batch"
+ ? "bg-blue-600/20 text-[#007AFF] border border-blue-500/30 shadow-sm"
+ : "text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]"
+ }`}
           >
             <Layers className="h-4 w-4" /> Multi-Call Batch Upload
           </button>
@@ -373,11 +373,11 @@ export default function UploadModal({
 
         {batchSuccessCount !== null ? (
           <div className="p-8 text-center space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-[#248A3D] flex items-center justify-center mx-auto border border-emerald-500/20 shadow-lg">
               <CheckCircle2 className="h-6 w-6" />
             </div>
-            <h3 className="text-lg font-bold text-white">Batch Upload Completed!</h3>
-            <p className="text-xs text-slate-300 max-w-md mx-auto">
+            <h3 className="text-lg font-bold text-[#1d1d1f]">Batch Upload Completed!</h3>
+            <p className="text-xs text-[#3a3a3c] max-w-md mx-auto">
               Successfully ingested and coached <strong>{batchSuccessCount} sales calls</strong> across your prescribed scripts and Sandler dimensions.
             </p>
             <div className="pt-2 flex justify-center gap-3">
@@ -386,7 +386,7 @@ export default function UploadModal({
                   onClose();
                   router.push("/calls");
                 }}
-                className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
+                className="rounded-xl bg-[#007AFF] px-5 py-2.5 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition"
               >
                 Go to Call Bank
               </button>
@@ -396,7 +396,7 @@ export default function UploadModal({
                     onClose();
                     router.push("/");
                   }}
-                  className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-5 py-2.5 text-xs font-medium text-white hover:bg-white/[0.1] transition"
+                  className="rounded-xl bg-black/[0.04] border border-black/[0.08] px-5 py-2.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.08] transition"
                 >
                   View Dashboard
                 </button>
@@ -407,34 +407,34 @@ export default function UploadModal({
           /* Multi-Call / Batch Upload Form */
           <form onSubmit={handleBatchSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+              <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-[#FF3B30]">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
             {!canTranscribe && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-[#C45500] font-medium">
+                <AlertCircle className="h-4 w-4 shrink-0 text-[#FF9500]" />
                 <span>{audioBlockedMessage}</span>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                   Assign Rep (Default for batch)
                 </label>
                 {lockToSelf ? (
-                  <div className="rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white">
+                  <div className="rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f]">
                     {user?.name || user?.email || "You"}
-                    <p className="mt-1 text-[11px] text-slate-500">Calls are saved to your account only.</p>
+                    <p className="mt-1 text-[11px] text-[#86868b]">Calls are saved to your account only.</p>
                   </div>
                 ) : (
                   <>
                     <select
                       value={selectedRepId}
                       onChange={(e) => setSelectedRepId(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+                      className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
                     >
                       {reps.map((r) => (
                         <option key={r.id} value={r.id}>
@@ -450,21 +450,21 @@ export default function UploadModal({
                           placeholder="Rep name (e.g. Jordan Lee)"
                           value={newRepName}
                           onChange={(e) => setNewRepName(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                         <input
                           type="text"
                           placeholder="Role (optional, e.g. Account Executive)"
                           value={newRepRole}
                           onChange={(e) => setNewRepRole(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                         <textarea
                           rows={2}
                           placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
                           value={newRepFocus}
                           onChange={(e) => setNewRepFocus(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                       </div>
                     )}
@@ -481,7 +481,7 @@ export default function UploadModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                 Select Multiple Call Transcripts, CSVs, or Audio Files
               </label>
               <div
@@ -498,24 +498,24 @@ export default function UploadModal({
                   }
                 }}
                 className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
-                  isDragging
-                    ? "border-blue-500/60 bg-blue-500/10"
-                    : "border-white/[0.12] bg-white/[0.02] hover:border-blue-500/40 hover:bg-white/[0.04]"
-                }`}
+ isDragging
+ ? "border-blue-500/60 bg-blue-500/10"
+ : "border-black/[0.1] bg-black/[0.02] hover:border-blue-500/40 hover:bg-black/[0.04]"
+ }`}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF] mb-3">
                   <Layers className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-[#1d1d1f]">
                   Drop multiple files here or click to browse
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[#6e6e73] mt-1">
                   {canTranscribe
                     ? "MP3, WAV, M4A are transcribed automatically. Also .txt, .vtt, .srt, .json, .csv."
                     : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Use .txt, .vtt, .srt, .json, or .csv."}
                 </p>
                 {batchFiles.length > 0 && (
-                  <p className="text-xs text-blue-300 mt-2 font-medium">
+                  <p className="text-xs text-[#007AFF] mt-2 font-medium">
                     Batch total: {formatEvalCreditLabel(Math.max(batchCredits, batchFiles.length))} before transcription starts.
                   </p>
                 )}
@@ -533,29 +533,29 @@ export default function UploadModal({
 
             {batchFiles.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Selected Files: <strong className="text-white">{batchFiles.length}</strong></span>
+                <div className="flex items-center justify-between text-xs text-[#6e6e73]">
+                  <span>Selected Files: <strong className="text-[#1d1d1f]">{batchFiles.length}</strong></span>
                   <button
                     type="button"
                     onClick={() => setBatchFiles([])}
-                    className="text-rose-400 hover:text-rose-300 transition text-xs"
+                    className="text-[#FF3B30] hover:text-[#D70015] transition text-xs font-medium"
                   >
                     Clear All
                   </button>
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl glass-inset border border-white/[0.08] p-2.5 font-mono text-xs">
+                <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl glass-inset border border-black/[0.08] p-2.5 font-mono text-xs">
                   {batchFiles.map((f, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-2.5 text-slate-300 hover:bg-white/[0.04] rounded-lg group transition">
+                    <div key={idx} className="flex items-center justify-between py-1.5 px-2.5 text-[#3a3a3c] hover:bg-black/[0.04] rounded-lg group transition">
                       <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <FileText className="h-3.5 w-3.5 text-[#6e6e73] shrink-0" />
                         <span className="truncate max-w-[14rem] sm:max-w-xs">{f.name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-slate-500 text-[10px]">{Math.round(f.size / 1024)} KB</span>
+                        <span className="text-[#86868b] text-[10px]">{Math.round(f.size / 1024)} KB</span>
                         <button
                           type="button"
                           onClick={() => setBatchFiles((prev) => prev.filter((_, i) => i !== idx))}
-                          className="text-slate-500 hover:text-rose-400 p-1 rounded-md transition"
+                          className="text-[#86868b] hover:text-[#D70015] p-1 rounded-md transition"
                           title="Remove file"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -568,25 +568,25 @@ export default function UploadModal({
             )}
 
             {isSubmitting && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-300">
-                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-blue-400" />
+              <div className="flex items-center gap-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-[#007AFF]">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-[#007AFF]" />
                 <span>Evaluating {batchFiles.length} calls with the AI Sales Coach... Please wait.</span>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 border-t border-white/[0.08] pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-black/[0.08] pt-4">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+                className="rounded-xl px-4 py-2 text-xs font-medium text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !batchFiles.length}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[#007AFF] px-5 py-2.5 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
@@ -606,34 +606,34 @@ export default function UploadModal({
           /* Single Call Upload Form */
           <form onSubmit={handleSingleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+              <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-[#FF3B30]">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
             {!canTranscribe && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-[#C45500] font-medium">
+                <AlertCircle className="h-4 w-4 shrink-0 text-[#FF9500]" />
                 <span>{audioBlockedMessage}</span>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                   Sales Rep
                 </label>
                 {lockToSelf ? (
-                  <div className="rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white">
+                  <div className="rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f]">
                     {user?.name || user?.email || "You"}
-                    <p className="mt-1 text-[11px] text-slate-500">Only you can see these calls.</p>
+                    <p className="mt-1 text-[11px] text-[#86868b]">Only you can see these calls.</p>
                   </div>
                 ) : (
                   <>
                     <select
                       value={selectedRepId}
                       onChange={(e) => setSelectedRepId(e.target.value)}
-                      className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+                      className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
                     >
                       {reps.map((r) => (
                         <option key={r.id} value={r.id}>
@@ -649,21 +649,21 @@ export default function UploadModal({
                           placeholder="Rep name (e.g. Jordan Lee)"
                           value={newRepName}
                           onChange={(e) => setNewRepName(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                         <input
                           type="text"
                           placeholder="Role (optional, e.g. Account Executive)"
                           value={newRepRole}
                           onChange={(e) => setNewRepRole(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                         <textarea
                           rows={2}
                           placeholder="What should the coach help this rep work on? (optional) — factored into every evaluation of their calls"
                           value={newRepFocus}
                           onChange={(e) => setNewRepFocus(e.target.value)}
-                          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                         />
                       </div>
                     )}
@@ -681,20 +681,20 @@ export default function UploadModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
-                  Prospect Company <span className="normal-case tracking-normal text-slate-500">(optional)</span>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
+                  Prospect Company <span className="normal-case tracking-normal text-[#86868b]">(optional)</span>
                 </label>
                 <input
                   type="text"
                   placeholder="Leave blank if you don't know it"
                   value={prospectCompany}
                   onChange={(e) => setProspectCompany(e.target.value)}
-                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                   Prospect Contact & Title
                 </label>
                 <input
@@ -702,14 +702,14 @@ export default function UploadModal({
                   placeholder="e.g. Jane Doe (VP Operations)"
                   value={prospectName}
                   onChange={(e) => setProspectName(e.target.value)}
-                  className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                 />
               </div>
             </div>
 
             {activeTab === "paste" ? (
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                   Paste Call Dialogue / Transcript
                 </label>
                 <textarea
@@ -717,28 +717,28 @@ export default function UploadModal({
                   placeholder={`Rep: Hi, this is [rep] from [your company]...\nProspect: We're already working with another vendor.\nRep: Totally understand. Quick question before I let you go — what's the one thing you'd change about how that's working today?`}
                   value={transcriptText}
                   onChange={(e) => setTranscriptText(e.target.value)}
-                  className="w-full rounded-xl glass-inset border border-white/[0.08] p-3 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+                  className="w-full rounded-xl glass-inset border border-black/[0.08] p-3 font-mono text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
                 />
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
                   Call File (.txt, .vtt, .srt, .mp3, .wav)
                 </label>
-                <div className="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/[0.12] bg-white/[0.02] p-8 text-center hover:border-blue-500/40 hover:bg-white/[0.04] transition">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-3">
+                <div className="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-black/[0.1] bg-black/[0.02] p-8 text-center hover:border-blue-500/40 hover:bg-black/[0.04] transition">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF] mb-3">
                     <Upload className="h-6 w-6" />
                   </div>
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-[#1d1d1f]">
                     {singleFile ? singleFile.name : "Select transcript or audio recording"}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[#86868b] mt-1">
                     {canTranscribe
                       ? "Audio is broken into clips and transcribed. Also .txt, .vtt, .srt, .json."
                       : "Audio is blocked until a Gemini, OpenAI, or Groq key is saved. Upload a transcript file instead."}
                   </p>
                   {singleFile && isAudioFile(singleFile) && (
-                    <p className="text-xs text-blue-300 mt-2 font-medium">
+                    <p className="text-xs text-[#007AFF] mt-2 font-medium">
                       This call will use {formatEvalCreditLabel(singleCredits)} before transcription starts.
                     </p>
                   )}
@@ -760,19 +760,19 @@ export default function UploadModal({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 border-t border-white/[0.08] pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-black/[0.08] pt-4">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+                className="rounded-xl px-4 py-2 text-xs font-medium text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[#007AFF] px-5 py-2.5 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>

@@ -64,11 +64,9 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-[#F5F5F7] md:pl-[240px]">
       <Navigation />
-      <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-    </>
+      <main className="apple-content">{children}</main>
+    </div>
   );
 }

@@ -18,7 +18,7 @@ export default async function SignUpPage({
 }) {
   if (!hasClerkPublishableKey()) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center text-sm text-slate-400">
+      <div className="flex min-h-[70vh] items-center justify-center text-sm text-[#6e6e73]">
         Authentication is not configured.
       </div>
     );

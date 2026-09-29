@@ -98,76 +98,76 @@ export default function RevenueGoal({
         className="flex w-full items-start justify-between gap-3 text-left"
       >
         <div>
-          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-[#248A3D] text-xs font-bold uppercase tracking-wider">
             <Target className="h-4 w-4" /> Quarter goal
           </div>
-          <h2 className="text-lg font-bold text-white mt-1 tracking-tight">Calls required to hit the number</h2>
+          <h2 className="text-lg font-bold text-[#1d1d1f] mt-1 tracking-tight">Calls required to hit the number</h2>
           {open ? (
-            <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+            <p className="text-xs text-[#6e6e73] mt-1 max-w-3xl">
               Revenue divided by average customer, then divided by the close rate from calls logged in this tool.
               {loggedCalls > 0
                 ? ` Logged calls are booking a meeting ${formatRate(teamCloseRate)}% of the time.`
                 : " No logged calls yet, so the close rate stays blank until this tool has one."}
             </p>
           ) : (
-            <p className="text-sm text-slate-300 mt-1">
+            <p className="text-sm text-[#3a3a3c] mt-1">
               {plan
                 ? `${count(plan.callsQuarter)} calls this quarter · ${rateLabel} close rate`
                 : "Open to set the revenue number."}
             </p>
           )}
         </div>
-        <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-[#6e6e73] transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <label className="space-y-1.5">
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Revenue to add</span>
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#86868b]">Revenue to add</span>
               <input
                 inputMode="decimal"
                 value={revenue}
                 onChange={(e) => setRevenue(formatGroupedNumber(e.target.value))}
                 placeholder="500,000"
-                className="w-full rounded-xl glass-inset border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono focus:border-blue-500/50 focus:outline-none"
+                className="w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-2.5 text-sm text-[#1d1d1f] font-mono focus:border-blue-500/50 focus:outline-none"
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Avg revenue / customer</span>
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#86868b]">Avg revenue / customer</span>
               <input
                 inputMode="decimal"
                 value={averageRevenue}
                 onChange={(e) => setAverageRevenue(formatGroupedNumber(e.target.value))}
                 placeholder="10,000"
-                className="w-full rounded-xl glass-inset border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono focus:border-blue-500/50 focus:outline-none"
+                className="w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-2.5 text-sm text-[#1d1d1f] font-mono focus:border-blue-500/50 focus:outline-none"
               />
             </label>
             <div className="space-y-1.5">
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Close rate %</span>
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#86868b]">Close rate %</span>
               <div
                 aria-readonly="true"
-                className="w-full rounded-xl glass-inset border border-white/[0.08] px-3 py-2.5 text-sm text-slate-200 font-mono"
+                className="w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-2.5 text-sm text-[#1d1d1f] font-mono"
               >
                 {rateLabel}
               </div>
-              <p className="text-[10px] text-slate-500">From logged calls. Not editable.</p>
+              <p className="text-[10px] text-[#86868b]">From logged calls. Not editable.</p>
             </div>
             <label className="space-y-1.5">
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Selling days / week</span>
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#86868b]">Selling days / week</span>
               <input
                 inputMode="numeric"
                 value={sellingDays}
                 onChange={(e) => setSellingDays(formatGroupedNumber(e.target.value).replace(/\..*$/, ""))}
                 placeholder="5"
-                className="w-full rounded-xl glass-inset border border-white/[0.08] px-3 py-2.5 text-sm text-white font-mono focus:border-blue-500/50 focus:outline-none"
+                className="w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-2.5 text-sm text-[#1d1d1f] font-mono focus:border-blue-500/50 focus:outline-none"
               />
             </label>
           </div>
 
           {plan ? (
             <div className="space-y-3">
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-[#3a3a3c]">
                 {money(parseGroupedNumber(revenue))} / {money(parseGroupedNumber(averageRevenue))} = {count(plan.customers)} customers.
                 At {formatRate(closeRate)}% that is {count(plan.callsQuarter)} calls this quarter.
               </p>
@@ -179,7 +179,7 @@ export default function RevenueGoal({
               </div>
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#86868b]">
               {loggedCalls > 0 && closeRate <= 0
                 ? "Logged calls have a 0% close rate, so the call count cannot be calculated yet."
                 : "Enter revenue and average revenue above zero. Close rate comes from logged calls."}
@@ -193,10 +193,10 @@ export default function RevenueGoal({
 
 function Result({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-xl glass-inset border border-white/[0.08] p-4">
-      <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold text-white font-mono">{value}</div>
-      <div className="text-xs text-slate-400">{hint}</div>
+    <div className="rounded-xl glass-inset border border-black/[0.08] p-4">
+      <div className="text-[10px] uppercase font-semibold tracking-wider text-[#86868b]">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-[#1d1d1f] font-mono">{value}</div>
+      <div className="text-xs text-[#6e6e73]">{hint}</div>
     </div>
   );
 }

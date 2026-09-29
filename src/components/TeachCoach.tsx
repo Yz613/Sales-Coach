@@ -32,12 +32,12 @@ export default function TeachCoach({ callId }: { callId: string }) {
   };
 
   return (
-    <div className="rounded-2xl border border-blue-500/25 bg-blue-500/[0.05] p-6 sm:p-7 space-y-3.5 backdrop-blur-xl shadow-lg">
-      <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
+    <div className="rounded-2xl border border-blue-500/25 bg-blue-500/[0.05] p-6 sm:p-7 space-y-3.5 shadow-lg">
+      <div className="flex items-center gap-2 text-[#007AFF] font-bold text-xs uppercase tracking-wider">
         <GraduationCap className="h-4 w-4" /> Teach the Coach
       </div>
-      <h2 className="text-lg font-bold text-white tracking-tight">What should the rep have done differently?</h2>
-      <p className="text-xs text-slate-400">
+      <h2 className="text-lg font-bold text-[#1d1d1f] tracking-tight">What should the rep have done differently?</h2>
+      <p className="text-xs text-[#6e6e73]">
         Type the lesson from this call. It's saved to your coach and applied to every future evaluation.
       </p>
 
@@ -46,21 +46,21 @@ export default function TeachCoach({ callId }: { callId: string }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="e.g. When the prospect said they were busy, he should have asked for 30 seconds and led with the ROI stat instead of offering to call back."
-        className="w-full rounded-xl border border-white/[0.08] glass-inset p-3.5 text-sm text-slate-200 placeholder-slate-500 leading-relaxed focus:border-blue-500 focus:outline-none transition"
+        className="w-full rounded-xl border border-black/[0.08] glass-inset p-3.5 text-sm text-[#1d1d1f] placeholder:text-[#86868b] leading-relaxed focus:border-blue-500 focus:outline-none transition"
       />
 
-      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {error && <p className="text-xs font-medium text-[#D70015]">{error}</p>}
 
       <div className="flex items-center justify-end gap-3">
         {saved && (
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <span className="flex items-center gap-1.5 text-xs text-[#248A3D]">
             <CheckCircle2 className="h-4 w-4" /> Lesson added to your coach
           </span>
         )}
         <button
           onClick={submit}
           disabled={saving || !text.trim()}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-white/10 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-600/20 transition disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl bg-[#007AFF] hover:bg-[#0071E3] border border-black/10 px-5 py-2 text-xs font-semibold text-white shadow-md transition disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Teach Coach

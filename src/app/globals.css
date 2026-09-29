@@ -1,84 +1,181 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #070a12;
-  --foreground: #f1f5f9;
-  --card: rgba(15, 23, 42, 0.6);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --accent: #3b82f6;
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
+  --card: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --accent: #007aff;
+  --label: #1d1d1f;
+  --secondary-label: #6e6e73;
+  --tertiary-label: #86868b;
+  --separator: rgba(60, 60, 67, 0.12);
+  --fill: #f2f2f7;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 body {
-  background-color: #070a12;
-  color: #e2e8f0;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  letter-spacing: -0.005em;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.011em;
+  font-size: 15px;
+  line-height: 1.47;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Radial washes instead of filter:blur(). Large blurs and backdrop-filter
-   layers are discarded when Chrome backgrounds a tab, which leaves a blank page. */
+/* Soft color only. CSS blur and backdrop-filter are discarded when Chrome
+   backgrounds a tab, which leaves a blank page. Surfaces are strictly solid. */
 .ambient-field {
   background:
-    radial-gradient(900px 420px at 50% -80px, rgba(37, 99, 235, 0.2), transparent 70%),
-    radial-gradient(640px 520px at 110% 34%, rgba(49, 46, 129, 0.22), transparent 72%),
-    radial-gradient(640px 520px at -12% 68%, rgba(30, 58, 138, 0.2), transparent 72%);
+    radial-gradient(980px 420px at 100% -80px, rgba(0, 122, 255, 0.08), transparent 62%),
+    radial-gradient(720px 480px at -10% 0%, rgba(88, 86, 214, 0.05), transparent 60%),
+    #f5f5f7;
 }
 
-/* Modern Monospace */
 code, kbd, samp, pre, .font-mono {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* Modern Frosted Glass Components */
+h1 {
+  letter-spacing: -0.025em;
+}
+
+.apple-content h1 {
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #1d1d1f;
+}
+
+.apple-content {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 24px 20px calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .apple-content {
+    padding: 32px 36px 64px;
+  }
+}
+
+/* Opaque materials that read as Apple surfaces without backdrop-filter. */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
 .glass-card {
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
 .glass-card-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 
 .glass-card-hover:hover {
-  background: rgba(15, 23, 42, 0.7);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
-  transform: translateY(-1px);
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 10px 28px rgba(0, 0, 0, 0.06);
+  transform: none;
 }
 
 .glass-inset {
-  background: rgba(8, 12, 22, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  background: #f2f2f7;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .table-header {
-  background: rgba(15, 23, 42, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  font-size: 0.75rem;
-  letter-spacing: 0.03em;
+  background: #fafafa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  color: #86868b;
+  font-size: 11px;
+  letter-spacing: 0.02em;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
-/* Slick Custom Scrollbar */
+.shadow-lg {
+  --tw-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  --tw-shadow-colored: 0 8px 24px rgba(0, 0, 0, 0.07);
+}
+
+.shadow-2xl {
+  --tw-shadow: 0 20px 48px rgba(0, 0, 0, 0.09);
+  --tw-shadow-colored: 0 20px 48px rgba(0, 0, 0, 0.09);
+}
+
+/* Accessible Apple HIG system colors mapped from any leftover dark-theme tints */
+.text-rose-300,
+.text-rose-200,
+.text-rose-100 { color: #d70015; }
+
+.text-emerald-300,
+.text-emerald-200,
+.text-emerald-100 { color: #248a3d; }
+
+.text-amber-300,
+.text-amber-200,
+.text-amber-100,
+.text-yellow-300,
+.text-yellow-200 { color: #c45500; }
+
+.text-blue-300,
+.text-blue-200,
+.text-blue-100,
+.text-sky-300,
+.text-sky-200,
+.text-sky-400 { color: #0071e3; }
+
+.hover\:text-blue-300:hover,
+.hover\:text-blue-200:hover { color: #0077ed; }
+
+.hover\:text-rose-300:hover,
+.hover\:text-rose-200:hover { color: #b60012; }
+
+.hover\:text-emerald-300:hover,
+.hover\:text-emerald-200:hover { color: #1c6d30; }
+
+.hover\:text-amber-300:hover,
+.hover\:text-amber-200:hover { color: #a34600; }
+
+::selection {
+  background: #007aff;
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -86,12 +183,16 @@ code, kbd, samp, pre, .font-mono {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.16);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.28);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
 /* Clerk popovers/modals must sit above the sticky app header (z-40). */
@@ -104,24 +205,26 @@ code, kbd, samp, pre, .font-mono {
   z-index: 80 !important;
 }
 
-/* Hide vendor footer branding on auth widgets. */
 .cl-footer,
 .cl-internal-b3fm6y,
 [class*="cl-footer"] {
   display: none !important;
 }
 
-/* Clerk's default text is near-black. On the dark card that reads as a blank form. */
 .cl-formFieldLabel,
 .cl-dividerText,
 .cl-socialButtonsBlockButton,
-.cl-socialButtonsBlockButtonText {
-  color: #e2e8f0 !important;
+.cl-socialButtonsBlockButtonText,
+.cl-headerTitle {
+  color: #1d1d1f !important;
+}
+
+.cl-headerSubtitle,
+.cl-formFieldHintText {
+  color: #6e6e73 !important;
 }
 
 .cl-card,
-.cl-cardBox,
-[class*="backdrop-blur"] {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+.cl-cardBox {
+  background-color: #ffffff !important;
 }

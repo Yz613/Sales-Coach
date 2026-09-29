@@ -19,9 +19,9 @@ function ClerkTeamSwitcherContent({ canManage = false }: { canManage?: boolean }
   return (
     <Show when="signed-in">
       <div className="flex items-center gap-1.5">
-        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 hover:border-white/[0.15] hover:bg-white/[0.06] transition backdrop-blur-md">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-          <span className="max-w-[8rem] sm:max-w-[11rem] truncate text-xs font-medium text-slate-200">
+        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-black/[0.08] bg-black/[0.03] px-2.5 py-1.5 hover:border-black/[0.12] hover:bg-black/[0.05] transition">
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-[#007AFF]" />
+          <span className="max-w-[8rem] sm:max-w-[11rem] truncate text-xs font-medium text-[#1d1d1f]">
             {!isLoaded ? "…" : organization?.name || "Select Team"}
           </span>
           <OrganizationSwitcher
@@ -38,7 +38,7 @@ function ClerkTeamSwitcherContent({ canManage = false }: { canManage?: boolean }
         {canManage && !organization && isLoaded && (
           <Link
             href="/select-organization"
-            className="hidden sm:inline-flex rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20 transition"
+            className="hidden sm:inline-flex rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-[#007AFF] hover:bg-blue-500/20 transition"
           >
             Set team
           </Link>

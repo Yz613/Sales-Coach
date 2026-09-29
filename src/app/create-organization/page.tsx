@@ -8,8 +8,8 @@ export default function CreateOrganizationPage() {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4">
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-bold text-white">Create a team</h1>
-        <p className="text-sm text-slate-400">Teams share reps, calls, scripts, and coach settings.</p>
+        <h1 className="text-xl font-bold text-[#1d1d1f]">Create a team</h1>
+        <p className="text-sm text-[#6e6e73]">Teams share reps, calls, scripts, and coach settings.</p>
       </div>
       <ClerkGate>
         <CreateOrganization

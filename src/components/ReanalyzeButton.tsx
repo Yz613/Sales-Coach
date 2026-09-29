@@ -50,13 +50,13 @@ export default function ReanalyzeButton({
           onClick={run}
           disabled={loading}
           title={hasApiKey ? "Reanalyze this call with the current AI key" : "Reanalyze this call"}
-          className="rounded-xl bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition inline-flex items-center gap-1.5 disabled:opacity-50"
+          className="rounded-xl bg-black/[0.04] border border-black/[0.08] hover:bg-black/[0.08] hover:border-black/[0.12] px-2.5 py-1.5 text-xs font-semibold text-[#3a3a3c] hover:text-[#1d1d1f] transition inline-flex items-center gap-1.5 disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           {loading ? "Scoring…" : "Reanalyze"}
         </button>
-        {error && <span className="text-[10px] text-rose-400 max-w-[9rem] text-right">{error}</span>}
-        {warning && !error && <span className="text-[10px] text-amber-300 max-w-[12rem] text-right">{warning}</span>}
+        {error && <span className="text-[10px] text-[#FF3B30] max-w-[9rem] text-right">{error}</span>}
+        {warning && !error && <span className="text-[10px] text-[#C45500] font-medium max-w-[12rem] text-right">{warning}</span>}
       </span>
     );
   }
@@ -67,13 +67,13 @@ export default function ReanalyzeButton({
         type="button"
         onClick={run}
         disabled={loading}
-        className="rounded-xl bg-white/[0.06] border border-white/[0.1] hover:bg-white/[0.12] px-3.5 py-1.5 text-xs font-semibold text-white transition inline-flex items-center gap-1.5 disabled:opacity-50 backdrop-blur-md shadow-sm"
+        className="rounded-xl bg-black/[0.04] border border-black/[0.1] hover:bg-black/[0.08] px-3.5 py-1.5 text-xs font-semibold text-[#1d1d1f] transition inline-flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         {loading ? "Reanalyzing…" : usedLlm ? "Reanalyze call" : "Reanalyze with AI"}
       </button>
-      {error && <span className="text-[11px] text-rose-400">{error}</span>}
-      {warning && !error && <span className="text-[11px] text-amber-300 max-w-sm text-right">{warning}</span>}
+      {error && <span className="text-[11px] text-[#FF3B30]">{error}</span>}
+      {warning && !error && <span className="text-[11px] text-[#C45500] font-medium max-w-sm text-right">{warning}</span>}
     </div>
   );
 }

@@ -4,12 +4,12 @@ import type { SandlerStatus } from "@/types";
 
 function tone(status: SandlerStatus) {
   if (status === "Pass") {
-    return { badge: "bg-emerald-500/20 text-emerald-400", icon: CheckCircle2 };
+    return { badge: "border border-emerald-500/25 bg-emerald-500/10 text-[#248A3D]", icon: CheckCircle2 };
   }
   if (status === "Incomplete") {
-    return { badge: "bg-amber-500/20 text-amber-400", icon: MinusCircle };
+    return { badge: "border border-amber-500/25 bg-amber-500/10 text-[#C45500]", icon: MinusCircle };
   }
-  return { badge: "bg-rose-500/20 text-rose-400", icon: XCircle };
+  return { badge: "border border-rose-500/25 bg-rose-500/10 text-[#D70015]", icon: XCircle };
 }
 
 export default function ScorecardGrid({ metrics }: { metrics: ScorecardMetric[] }) {
@@ -21,17 +21,17 @@ export default function ScorecardGrid({ metrics }: { metrics: ScorecardMetric[] 
         const t = tone(metric.status);
         const Icon = t.icon;
         return (
-          <div key={metric.key} className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-white/[0.06] hover:border-white/[0.14] transition">
+          <div key={metric.key} className="rounded-2xl glass-inset p-4.5 space-y-2.5 border border-black/[0.06] hover:border-black/[0.12] transition">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">{metric.label}</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3a3c]">{metric.label}</span>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${t.badge}`}>
                 <Icon className="h-3 w-3" /> {metric.status}
               </span>
             </div>
-            <p className="font-mono text-lg font-bold text-white">{metric.score}<span className="text-xs text-slate-500 font-normal"> / 10</span></p>
-            <p className="text-xs text-slate-400 leading-relaxed">{metric.evidence}</p>
+            <p className="font-mono text-lg font-bold text-[#1d1d1f]">{metric.score}<span className="text-xs text-[#86868b] font-normal"> / 10</span></p>
+            <p className="text-xs text-[#6e6e73] leading-relaxed">{metric.evidence}</p>
             {metric.cite?.quote && (
-              <a href={`#t-${metric.cite.timestampSeconds}`} className="block text-[11px] text-blue-300 hover:text-blue-200 rounded-xl bg-white/[0.03] border border-white/[0.06] p-2 hover:border-blue-500/30 transition">
+              <a href={`#t-${metric.cite.timestampSeconds}`} className="block text-[11px] text-[#007AFF] hover:text-[#0071E3] rounded-xl bg-black/[0.03] border border-black/[0.06] p-2 hover:border-blue-500/30 transition">
                 <span className="font-mono font-semibold">{metric.cite.timestamp}</span>
                 {" — "}
                 <span className="italic">“{metric.cite.quote}”</span>

@@ -154,17 +154,17 @@ export default function ScriptsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-blue-400 border border-blue-500/20">
+            <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-[#007AFF] border border-blue-500/20">
               Manager Playbooks
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">
             Prescribed Sales Scripts & Milestones
           </h1>
-          <p className="text-xs text-slate-400 mt-1.5">
+          <p className="text-xs text-[#6e6e73] mt-1.5">
             Add any script type you run — not just the defaults. Each Call Stage Target is what the AI grades that playbook against.
           </p>
         </div>
@@ -175,13 +175,13 @@ export default function ScriptsPage() {
               setAddingType(true);
               setTypeError(null);
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-slate-200 hover:bg-white/[0.08] transition"
+            className="inline-flex items-center gap-2 rounded-xl border border-black/[0.08] bg-black/[0.04] px-4 py-2.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.06] transition"
           >
             <Plus className="h-4 w-4" /> Add Script Type
           </button>
           <button
             onClick={() => handleNew()}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#007AFF] px-4 py-2.5 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition"
           >
             <Plus className="h-4 w-4" /> Upload / New Script
           </button>
@@ -191,7 +191,7 @@ export default function ScriptsPage() {
       {addingType && (
         <div className="rounded-2xl glass-card p-5 flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">
-            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
               New Call Stage Target
             </label>
             <input
@@ -204,20 +204,20 @@ export default function ScriptsPage() {
                 if (e.key === "Escape") setAddingType(false);
               }}
               placeholder="e.g. Demo, Renewal, Executive Briefing, Inbound Qualifier"
-              className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+              className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setAddingType(false)}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+              className="rounded-xl px-4 py-2 text-xs font-medium text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             >
               Cancel
             </button>
             <button
               onClick={addScriptType}
               disabled={savingType || !newTypeName.trim()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-50"
             >
               {savingType ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
               Create Type
@@ -227,27 +227,27 @@ export default function ScriptsPage() {
       )}
 
       {typeError && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">
+        <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2.5 text-xs font-medium text-[#D70015]">
           {typeError}
         </div>
       )}
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center text-slate-400">
+        <div className="flex h-64 items-center justify-center text-[#6e6e73]">
           <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading Playbooks...
         </div>
       ) : scripts.length === 0 && displayStages.length === 0 ? (
         <div className="rounded-2xl glass-card p-12 text-center space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mx-auto mb-2">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF] mx-auto mb-2">
             <BookOpen className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-semibold text-white">No Prescribed Scripts Configured Yet</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <h3 className="text-base font-semibold text-[#1d1d1f]">No Prescribed Scripts Configured Yet</h3>
+          <p className="text-xs text-[#6e6e73] max-w-md mx-auto">
             Create a script type (Call Stage Target) and upload the playbook so the AI Coach can benchmark execution against it.
           </p>
           <button
             onClick={() => handleNew()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2.5 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition"
           >
             <Plus className="h-4 w-4" /> Create First Script
           </button>
@@ -260,7 +260,7 @@ export default function ScriptsPage() {
 
             return (
               <div key={stage} className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/[0.08] pb-2.5 gap-2">
+                <div className="flex items-center justify-between border-b border-black/[0.08] pb-2.5 gap-2">
                   {isRenaming ? (
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
                       <input
@@ -271,31 +271,31 @@ export default function ScriptsPage() {
                           if (e.key === "Enter") saveRename(stage);
                           if (e.key === "Escape") setRenamingStage(null);
                         }}
-                        className="w-full rounded-xl glass-inset border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+                        className="w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-1.5 text-xs text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
                       />
                       <button
                         onClick={() => saveRename(stage)}
                         disabled={savingType}
-                        className="rounded-lg p-1.5 text-emerald-400 hover:bg-white/[0.06]"
+                        className="rounded-lg p-1.5 text-[#248A3D] hover:bg-black/[0.05]"
                         title="Save Call Stage Target"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setRenamingStage(null)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06]"
+                        className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05]"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
                     <>
-                      <h2 className="text-xs font-medium uppercase tracking-wider text-white flex items-center gap-2 min-w-0">
-                        <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] shrink-0" />
+                      <h2 className="text-xs font-medium uppercase tracking-wider text-[#1d1d1f] flex items-center gap-2 min-w-0">
+                        <span className="h-2 w-2 rounded-full bg-[#007AFF] shrink-0" />
                         <span className="truncate">{stage}</span>
                       </h2>
                       <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-xs font-mono text-slate-500 mr-1">
+                        <span className="text-xs font-mono text-[#86868b] mr-1">
                           {stageScripts.length}
                         </span>
                         <button
@@ -304,7 +304,7 @@ export default function ScriptsPage() {
                             setRenameValue(stage);
                             setTypeError(null);
                           }}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+                          className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
                           title="Update Call Stage Target"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -312,7 +312,7 @@ export default function ScriptsPage() {
                         {stageScripts.length === 0 && (
                           <button
                             onClick={() => removeStage(stage)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-rose-400 transition"
+                            className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#D70015] transition"
                             title="Remove empty script type"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -320,7 +320,7 @@ export default function ScriptsPage() {
                         )}
                         <button
                           onClick={() => handleNew(stage)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-blue-400 transition"
+                          className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#0071E3] transition"
                           title={`New ${stage} script`}
                         >
                           <Plus className="h-3.5 w-3.5" />
@@ -336,17 +336,17 @@ export default function ScriptsPage() {
                       key={script.id}
                       className={`rounded-2xl border p-5 space-y-4 transition ${
                         script.isActive
-                          ? "border-blue-500/30 bg-slate-900/80 shadow-lg shadow-blue-500/5 backdrop-blur-xl"
-                          : "glass-card opacity-75"
-                      }`}
+                          ? "border-[#007AFF]/30 bg-white shadow-sm"
+                          : "glass-card"
+ }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-white">{script.title}</h3>
+                            <h3 className="text-sm font-semibold text-[#1d1d1f]">{script.title}</h3>
                             {script.isActive && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-[#248A3D] border border-emerald-500/20">
+                                <span className="h-1.5 w-1.5 rounded-full bg-[#34C759]" />
                                 ACTIVE
                               </span>
                             )}
@@ -356,14 +356,14 @@ export default function ScriptsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleEdit(script)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+                            className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
                             title="Edit Script"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(script.id)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-rose-400 transition"
+                            className="rounded-lg p-1.5 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#D70015] transition"
                             title="Delete Script"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -372,14 +372,14 @@ export default function ScriptsPage() {
                       </div>
 
                       {script.keyMilestones.length > 0 && (
-                        <div className="rounded-xl glass-inset border border-white/[0.08] p-3.5 space-y-2">
-                          <span className="text-[10px] uppercase font-medium text-slate-400 block tracking-wider">
+                        <div className="rounded-xl glass-inset border border-black/[0.08] p-3.5 space-y-2">
+                          <span className="text-[10px] uppercase font-medium text-[#6e6e73] block tracking-wider">
                             Required Milestones:
                           </span>
-                          <ul className="space-y-1.5 text-xs text-slate-300">
+                          <ul className="space-y-1.5 text-xs text-[#3a3a3c]">
                             {script.keyMilestones.map((m, idx) => (
                               <li key={idx} className="flex items-start gap-2 font-mono text-[11px]">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5" />
+                                <CheckCircle2 className="h-3.5 w-3.5 text-[#007AFF] shrink-0 mt-0.5" />
                                 <span>{m}</span>
                               </li>
                             ))}
@@ -387,7 +387,7 @@ export default function ScriptsPage() {
                         </div>
                       )}
 
-                      <div className="rounded-xl glass-inset p-3.5 text-xs text-slate-400 font-mono leading-relaxed line-clamp-4 border border-white/[0.08]">
+                      <div className="rounded-xl glass-inset p-3.5 text-xs text-[#6e6e73] font-mono leading-relaxed line-clamp-4 border border-black/[0.08]">
                         {script.content}
                       </div>
                     </div>
@@ -396,7 +396,7 @@ export default function ScriptsPage() {
                   {stageScripts.length === 0 && (
                     <button
                       onClick={() => handleNew(stage)}
-                      className="w-full rounded-2xl border-2 border-dashed border-white/[0.08] p-6 text-center text-xs text-slate-500 hover:border-blue-500/40 hover:text-slate-300 transition"
+                      className="w-full rounded-2xl border-2 border-dashed border-black/[0.08] p-6 text-center text-xs text-[#86868b] hover:border-blue-500/40 hover:text-[#1d1d1f] transition"
                     >
                       No script for {stage}. Click to add one.
                     </button>

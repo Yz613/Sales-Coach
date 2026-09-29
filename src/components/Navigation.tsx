@@ -11,12 +11,9 @@ import {
   BarChart3,
   BookOpen,
   Settings,
-  Menu,
-  X,
   GraduationCap,
   UserPlus,
   ShieldCheck,
-  ChevronDown,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import UploadModal from "./UploadModal";
@@ -24,382 +21,248 @@ import TeamSwitcher from "./TeamSwitcher";
 import { UserButton, Show, SignInButton, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-ui";
 
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+};
+
+function isItemActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/" || pathname === "/app";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function Navigation() {
   const pathname = usePathname();
   const { isAdmin, isClerkConfigured } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadInitialTab, setUploadInitialTab] = useState<"paste" | "single_file" | "batch">("paste");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
 
-  const adminDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click or Escape key
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        adminDropdownRef.current &&
-        !adminDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsAdminDropdownOpen(false);
-      }
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsAdminDropdownOpen(false);
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
         setIsMobileMenuOpen(false);
       }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  // Close dropdown on route changes
   useEffect(() => {
-    setIsAdminDropdownOpen(false);
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  // Primary navigation items (core daily workflow)
-  const primaryNavItems = isAdmin
+  const primaryNavItems: NavItem[] = isAdmin
     ? [
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Call Bank", href: "/calls", icon: PhoneCall },
+        { label: "Calls", href: "/calls", icon: PhoneCall },
         { label: "Coach", href: "/coach", icon: GraduationCap },
         { label: "Reps", href: "/reps", icon: Users },
       ]
     : [
-        { label: "Call Bank", href: "/calls", icon: PhoneCall },
+        { label: "Calls", href: "/calls", icon: PhoneCall },
         ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
       ];
 
-  // Admin dropdown menu items (consolidates Analytics, Scripts, and Settings)
-  const adminMenuItems = [
-    {
-      label: "Analytics",
-      href: "/admin/analytics",
-      icon: BarChart3,
-      description: "Team performance, scores & trends",
-      badgeColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-    },
-    {
-      label: "Scripts",
-      href: "/admin/scripts",
-      icon: BookOpen,
-      description: "Evaluation rubrics & talk tracks",
-      badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    },
-    {
-      label: "Settings",
-      href: "/admin/settings",
-      icon: Settings,
-      description: "API keys, model parameters & configs",
-      badgeColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-    },
-    {
-      label: "Invite",
-      href: "/invite",
-      icon: UserPlus,
-      description: "Email teammates a join link, with a copyable fallback",
-      badgeColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-    },
+  const adminMenuItems: NavItem[] = [
+    { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { label: "Scripts", href: "/admin/scripts", icon: BookOpen },
+    { label: "Settings", href: "/admin/settings", icon: Settings },
+    ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
   ];
 
-  const visibleAdminMenuItems = adminMenuItems.filter(
-    (item) => item.href !== "/invite" || isClerkConfigured
-  );
+  const openUpload = () => {
+    setUploadInitialTab("paste");
+    setIsUploadOpen(true);
+  };
 
-  const isAdminActive =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/invite") ||
-    visibleAdminMenuItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/95 shadow-sm shadow-black/20">
-        <div className="mx-auto flex max-w-[1600px] w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
-          {/* Left: Brand Logo & Navigation */}
-          <div className="flex items-center gap-5 lg:gap-7">
-            <Link
-              href={isAdmin ? "/" : "/calls"}
-              className="flex items-center gap-2.5 group transition shrink-0"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform border border-white/20">
-                SC
-              </div>
-              <span className="font-semibold text-white tracking-tight text-sm sm:text-base">
-                Sales Coach
-              </span>
-            </Link>
-
-            {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-1.5">
-              {primaryNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/" || pathname === "/app"
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition ${
-                      isActive
-                        ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs backdrop-blur-md"
-                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-
-              {/* Admin Tools Dropdown Menu */}
-              {isAdmin && (
-                <div className="relative" ref={adminDropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsAdminDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition ${
-                      isAdminActive || isAdminDropdownOpen
-                        ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs ring-1 ring-indigo-500/30 backdrop-blur-md"
-                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
-                    }`}
-                    aria-expanded={isAdminDropdownOpen}
-                    aria-haspopup="true"
-                  >
-                    <ShieldCheck
-                      className={`h-3.5 w-3.5 ${
-                        isAdminActive ? "text-indigo-400" : "text-slate-400"
-                      }`}
-                    />
-                    <span>Admin</span>
-                    <ChevronDown
-                      className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
-                        isAdminDropdownOpen ? "rotate-180 text-white" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* Dropdown Menu Popover */}
-                  {isAdminDropdownOpen && (
-                    <div className="absolute left-0 mt-2.5 w-76 rounded-2xl border border-white/[0.1] bg-slate-900/90 p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <div className="px-3 py-2 pb-2.5 border-b border-white/[0.08] flex items-center justify-between">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                          Admin Controls
-                        </span>
-                        <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 border border-indigo-500/25 px-2 py-0.5 rounded-full">
-                          Full Access
-                        </span>
-                      </div>
-                      <div className="mt-1.5 space-y-1">
-                        {visibleAdminMenuItems.map((item) => {
-                          const Icon = item.icon;
-                          const isItemActive =
-                            pathname === item.href || pathname.startsWith(`${item.href}/`);
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={() => setIsAdminDropdownOpen(false)}
-                              className={`flex items-start gap-3 rounded-xl p-2.5 transition ${
-                                isItemActive
-                                  ? "bg-white/[0.08] text-white border border-white/[0.12] shadow-xs"
-                                  : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
-                              }`}
-                            >
-                              <div
-                                className={`p-2 rounded-xl border shrink-0 mt-0.5 ${item.badgeColor}`}
-                              >
-                                <Icon className="h-3.5 w-3.5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-semibold">{item.label}</span>
-                                  {isItemActive && (
-                                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400"></span>
-                                  )}
-                                </div>
-                                <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                                  {item.description}
-                                </p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </nav>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] flex-col border-r border-black/[0.08] bg-[#EFEFF4] px-3 py-4 md:flex">
+        <Link href={isAdmin ? "/" : "/calls"} className="mb-5 flex items-center gap-2.5 px-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#007AFF] text-[11px] font-semibold tracking-tight text-white shadow-xs">
+            SC
           </div>
-
-          {/* Right Actions: Team Switcher, Upload Calls & Profile */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {isClerkConfigured && (
-              <div className="hidden sm:block">
-                <TeamSwitcher canManage={isAdmin} />
-              </div>
-            )}
-
-            {/* Upload Calls Action Button */}
-            <button
-              onClick={() => {
-                setUploadInitialTab("paste");
-                setIsUploadOpen(true);
-              }}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-600/20 transition active:scale-95"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Upload Calls</span>
-            </button>
-
-            {/* Auth / User Profile */}
-            {isClerkConfigured ? (
-              <div className="flex items-center ml-1">
-                <ClerkLoading>
-                  <div className="h-7 w-7 rounded-full bg-slate-800 ring-1 ring-white/10" aria-hidden />
-                </ClerkLoading>
-                <ClerkLoaded>
-                  <Show
-                    when="signed-in"
-                    fallback={
-                      <SignInButton mode="redirect">
-                        <button className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.1] transition backdrop-blur-md">
-                          Sign In
-                        </button>
-                      </SignInButton>
-                    }
-                  >
-                    <UserButton
-                      userProfileMode="modal"
-                      appearance={clerkAppearance}
-                    />
-                  </Show>
-                </ClerkLoaded>
-              </div>
-            ) : (
-              <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-white/10 text-[11px] font-medium text-slate-300">
-                <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                <span>Local Admin</span>
-              </div>
-            )}
-
-            {/* Mobile Hamburger Button */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 hover:text-white transition"
-            >
-              {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </button>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#1d1d1f]">Sales Coach</div>
+            <div className="text-[11px] text-[#86868b] font-normal">{isAdmin ? "Admin" : "Member"}</div>
           </div>
-        </div>
+        </Link>
 
-        {/* Mobile Dropdown Drawer */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-white/[0.08] bg-slate-950/95 px-4 py-3 space-y-3 backdrop-blur-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-              <span className="text-xs text-slate-400">Current Role:</span>
-              <span
-                suppressHydrationWarning
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
-                  isAdmin
-                    ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
+          {primaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isItemActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2.5 rounded-[8px] px-2.5 py-[7px] text-[13px] transition-colors ${
+                  active ? "bg-[#007AFF] text-white font-semibold shadow-xs" : "text-[#1d1d1f] font-medium hover:bg-black/[0.05]"
                 }`}
               >
-                {isAdmin ? "Admin (Full Access)" : "Member (Calls Only)"}
-              </span>
-            </div>
+                <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#6e6e73]"}`} strokeWidth={active ? 2 : 1.75} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
 
-            {isClerkConfigured && (
-              <div className="sm:hidden pb-2">
-                <TeamSwitcher canManage={isAdmin} />
-              </div>
-            )}
-
-            {/* Primary navigation items */}
-            <nav className="space-y-1">
-              {primaryNavItems.map((item) => {
+          {isAdmin && (
+            <>
+              <div className="px-2.5 pb-1.5 pt-5 text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">Admin</div>
+              {adminMenuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/" || pathname === "/app"
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
-
+                const active = isItemActive(pathname, item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition ${
-                      isActive
-                        ? "bg-white/[0.1] text-white border border-white/[0.12] shadow-xs"
-                        : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
+                    className={`flex items-center gap-2.5 rounded-[8px] px-2.5 py-[7px] text-[13px] transition-colors ${
+                      active ? "bg-[#007AFF] text-white font-semibold shadow-xs" : "text-[#1d1d1f] font-medium hover:bg-black/[0.05]"
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#6e6e73]"}`} strokeWidth={active ? 2 : 1.75} />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
+            </>
+          )}
+        </nav>
+      </aside>
 
-              {isClerkConfigured && (
-                <Link
-                  href="/invite"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-sky-200 hover:bg-white/[0.05] transition"
-                >
-                  <UserPlus className="h-4 w-4 text-sky-400" />
-                  <span>Invite teammates</span>
-                </Link>
-              )}
-
-              {/* Admin suite section on mobile */}
-              {isAdmin && (
-                <div className="pt-2.5 mt-2 border-t border-white/[0.08] space-y-1">
-                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    Admin Tools
-                  </div>
-                  {visibleAdminMenuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isItemActive =
-                      pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition ${
-                          isItemActive
-                            ? "bg-white/[0.1] text-white border border-white/[0.12] shadow-xs"
-                            : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </nav>
+      <div className="sticky top-0 z-30 flex h-[52px] items-center justify-between gap-3 border-b border-black/[0.06] bg-[#F5F5F7] px-4 md:justify-end md:px-8">
+        <Link href={isAdmin ? "/" : "/calls"} className="flex items-center gap-2 md:hidden">
+          <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007AFF] text-[10px] font-semibold text-white shadow-xs">
+            SC
           </div>
-        )}
-      </header>
+          <span className="text-[15px] font-semibold tracking-[-0.02em] text-[#1d1d1f]">Sales Coach</span>
+        </Link>
 
-      {/* Upload Modal */}
+        <div className="flex items-center gap-2.5">
+          {isClerkConfigured && (
+            <div className="hidden sm:block">
+              <TeamSwitcher canManage={isAdmin} />
+            </div>
+          )}
+          <button
+            onClick={openUpload}
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-[#007AFF] px-3.5 text-[13px] font-semibold text-white transition hover:bg-[#0071E3] active:scale-[0.98] shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+            <span>Upload</span>
+          </button>
+          {isClerkConfigured ? (
+            <div className="ml-0.5 flex items-center">
+              <ClerkLoading>
+                <div className="h-7 w-7 rounded-full bg-[#E5E5EA]" aria-hidden />
+              </ClerkLoading>
+              <ClerkLoaded>
+                <Show
+                  when="signed-in"
+                  fallback={
+                    <SignInButton mode="redirect">
+                      <button className="rounded-full px-3 py-1.5 text-[13px] font-medium text-[#007AFF] hover:bg-[#007AFF]/10">
+                        Sign in
+                      </button>
+                    </SignInButton>
+                  }
+                >
+                  <UserButton userProfileMode="modal" appearance={clerkAppearance} />
+                </Show>
+              </ClerkLoaded>
+            </div>
+          ) : (
+            <div className="hidden h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-medium text-[#3a3a3c] border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:inline-flex">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#007AFF]" />
+              <span>Local Admin</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-[#F8F8F8] pb-[env(safe-area-inset-bottom)] md:hidden">
+        <div
+          className="grid items-center"
+          style={{ gridTemplateColumns: `repeat(${primaryNavItems.length + (isAdmin ? 1 : 0)}, minmax(0, 1fr))` }}
+        >
+          {primaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isItemActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] transition-colors ${
+                  active ? "text-[#007AFF] font-semibold" : "text-[#8E8E93] font-medium"
+                }`}
+              >
+                <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen((open) => !open)}
+              className={`flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] transition-colors ${
+                isMobileMenuOpen || pathname.startsWith("/admin") || pathname.startsWith("/invite")
+                  ? "text-[#007AFF] font-semibold"
+                  : "text-[#8E8E93] font-medium"
+              }`}
+            >
+              <ShieldCheck className="h-[22px] w-[22px]" strokeWidth={1.75} />
+              <span>More</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {isMobileMenuOpen && isAdmin && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div ref={moreRef} className="fixed inset-x-3 bottom-[calc(60px+env(safe-area-inset-bottom,0px))] z-50 rounded-[18px] border border-black/[0.08] bg-white p-2 shadow-[0_12px_36px_rgba(0,0,0,0.14)] md:hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">Admin</div>
+            {isClerkConfigured && (
+              <div className="px-2 pb-2 sm:hidden">
+                <TeamSwitcher canManage={isAdmin} />
+              </div>
+            )}
+            {adminMenuItems.map((item) => {
+              const Icon = item.icon;
+              const active = isItemActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[14px] transition-colors ${
+                    active ? "bg-[#007AFF] text-white font-semibold" : "text-[#1d1d1f] font-medium hover:bg-black/[0.04]"
+                  }`}
+                >
+                  <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#6e6e73]"}`} strokeWidth={active ? 2 : 1.75} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}

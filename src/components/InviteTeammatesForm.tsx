@@ -40,7 +40,7 @@ function RoleSelect({
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as InviteRole)}
-      className="rounded-lg border border-white/[0.08] bg-slate-950/60 px-2 py-1 text-[11px] text-white focus:border-blue-500/50 focus:outline-none disabled:opacity-50"
+      className="rounded-lg border border-black/[0.08] bg-[#F2F2F7] px-2 py-1 text-[11px] text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none disabled:opacity-50"
     >
       <option value="org:member">Member</option>
       <option value="org:admin">Admin</option>
@@ -264,22 +264,22 @@ function ClerkInviteTeammatesForm({
   };
 
   if (userLoaded && !isSignedIn) {
-    return <p className="text-sm text-slate-300">Sign in first, then you can send invites.</p>;
+    return <p className="text-sm text-[#3a3a3c]">Sign in first, then you can send invites.</p>;
   }
 
   if (!isLoaded) {
     if (loadTimedOut) {
       return (
-        <div className="space-y-2 text-sm text-slate-300">
+        <div className="space-y-2 text-sm text-[#3a3a3c]">
           <p>Couldn’t load the team. Refresh, or pick a team and try again.</p>
-          <Link href="/select-organization" className="inline-flex text-sky-300 hover:text-sky-200">
+          <Link href="/select-organization" className="inline-flex font-medium text-[#007AFF] hover:text-[#0071E3] hover:underline">
             Choose team
           </Link>
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-2 text-sm text-slate-400">
+      <div className="flex items-center gap-2 text-sm text-[#6e6e73]">
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading team…
       </div>
@@ -287,14 +287,14 @@ function ClerkInviteTeammatesForm({
   }
 
   if (!isSignedIn) {
-    return <p className="text-sm text-slate-300">Sign in first, then you can send invites.</p>;
+    return <p className="text-sm text-[#3a3a3c]">Sign in first, then you can send invites.</p>;
   }
 
   if (!organization) {
     return (
-      <div className="space-y-2 text-sm text-slate-300">
+      <div className="space-y-2 text-sm text-[#3a3a3c]">
         <p>Select a team first, then you can send invites.</p>
-        <Link href="/select-organization" className="inline-flex text-sky-300 hover:text-sky-200">
+        <Link href="/select-organization" className="inline-flex font-medium text-[#007AFF] hover:text-[#0071E3] hover:underline">
           Choose team
         </Link>
       </div>
@@ -302,26 +302,26 @@ function ClerkInviteTeammatesForm({
   }
 
   if (!canInvite) {
-    return <p className="text-sm text-slate-400">Only team admins can invite teammates.</p>;
+    return <p className="text-sm text-[#6e6e73]">Only team admins can invite teammates.</p>;
   }
 
   return (
     <form onSubmit={sendInvites} className="space-y-4">
       {!compact && (
         <div>
-          <h2 className="text-base font-semibold text-white">Invite teammates</h2>
-          <p className="mt-1 text-xs text-slate-400">
+          <h2 className="text-base font-semibold text-[#1d1d1f]">Invite teammates</h2>
+          <p className="mt-1 text-xs text-[#6e6e73]">
             Paste one or more emails. They’ll get an email with a link to join {organization.name}.
           </p>
         </div>
       )}
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-[#6e6e73]">
         {emailConfigured
           ? "Invites are emailed from Refresh Queue. If that send fails, the site’s own invite mail is used. A copyable join link is also saved under Pending invites."
           : "Invites are emailed by Refresh Queue. A copyable join link is also saved under Pending invites."}
       </p>
       <label className="block">
-        <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-400">
+        <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[#6e6e73]">
           <Mail className="h-3.5 w-3.5" />
           Emails
         </span>
@@ -330,14 +330,14 @@ function ClerkInviteTeammatesForm({
           onChange={(e) => setEmailText(e.target.value)}
           rows={compact ? 3 : 4}
           placeholder={"alex@company.com\nsam@company.com"}
-          className="w-full rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+          className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
         />
       </label>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
         <select
           value={inviteRole}
           onChange={(e) => setInviteRole(e.target.value as InviteRole)}
-          className="rounded-xl glass-inset border border-white/[0.08] px-3.5 py-2 text-xs text-white focus:border-blue-500/50 focus:outline-none"
+          className="rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
         >
           <option value="org:member">Member — calls only</option>
           <option value="org:admin">Admin — full access</option>
@@ -345,7 +345,7 @@ function ClerkInviteTeammatesForm({
         <button
           type="submit"
           disabled={inviting}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 transition"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] disabled:opacity-50 transition"
         >
           {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
           Send invites
@@ -354,46 +354,46 @@ function ClerkInviteTeammatesForm({
           <button
             type="button"
             onClick={onClose}
-            className="text-xs font-medium text-slate-400 hover:text-white transition px-2"
+            className="text-xs font-medium text-[#6e6e73] hover:text-[#1d1d1f] transition px-2"
           >
             Cancel
           </button>
         )}
       </div>
       {message && (
-        <p className={`text-xs ${message.tone === "ok" ? "text-emerald-400" : "text-rose-300"}`}>
+        <p className={`text-xs ${message.tone === "ok" ? "text-[#248A3D]" : "text-[#D70015]"}`}>
           {message.text}
         </p>
       )}
-      <div className="space-y-5 border-t border-white/[0.08] pt-4">
+      <div className="space-y-5 border-t border-black/[0.08] pt-4">
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">On the team</div>
+          <div className="text-[11px] font-medium uppercase tracking-wider text-[#6e6e73]">On the team</div>
           {!rosterLoaded ? (
-            <p className="flex items-center gap-2 text-xs text-slate-400">
+            <p className="flex items-center gap-2 text-xs text-[#6e6e73]">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Loading teammates…
             </p>
           ) : members.length === 0 ? (
-            <p className="text-xs text-slate-500">No one has joined this team yet.</p>
+            <p className="text-xs text-[#86868b]">No one has joined this team yet.</p>
           ) : (
             <ul className="space-y-1.5">
               {members.map((member) => (
                 <li
                   key={member.userId}
-                  className="flex flex-col gap-2 rounded-xl glass-inset border border-white/[0.06] p-2.5 text-xs text-slate-300 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-xl glass-inset border border-black/[0.06] p-2.5 text-xs text-[#3a3a3c] sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="truncate font-medium text-white">{member.name}</span>
+                      <span className="truncate font-medium text-[#1d1d1f]">{member.name}</span>
                       {member.userId === user?.id && (
-                        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-slate-400">You</span>
+                        <span className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[10px] text-[#6e6e73]">You</span>
                       )}
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
+                      <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-[#248A3D]">
                         Joined
                       </span>
                     </div>
                     {member.email && member.email !== member.name && (
-                      <div className="truncate text-[11px] text-slate-400">{member.email}</div>
+                      <div className="truncate text-[11px] text-[#6e6e73]">{member.email}</div>
                     )}
                   </div>
                   <RoleSelect
@@ -412,9 +412,9 @@ function ClerkInviteTeammatesForm({
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Pending invites</div>
+          <div className="text-[11px] font-medium uppercase tracking-wider text-[#6e6e73]">Pending invites</div>
           {!rosterLoaded ? null : pending.length === 0 ? (
-            <p className="text-xs text-slate-500">No pending invites.</p>
+            <p className="text-xs text-[#86868b]">No pending invites.</p>
           ) : (
             <ul className="space-y-1.5">
               {pending.map((invitation) => {
@@ -423,12 +423,12 @@ function ClerkInviteTeammatesForm({
                 return (
                   <li
                     key={invitation.id}
-                    className="flex flex-col gap-2 rounded-xl glass-inset border border-white/[0.06] p-2.5 text-xs text-slate-300 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-2 rounded-xl glass-inset border border-black/[0.06] p-2.5 text-xs text-[#3a3a3c] sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="truncate font-medium text-white">{invitation.emailAddress}</span>
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                        <span className="truncate font-medium text-[#1d1d1f]">{invitation.emailAddress}</span>
+                        <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-[#C45500]">
                           Pending
                         </span>
                       </div>
@@ -447,7 +447,7 @@ function ClerkInviteTeammatesForm({
                         type="button"
                         disabled={rowBusy}
                         onClick={() => resendInvite(invitation)}
-                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-slate-300 hover:text-white disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-[#3a3a3c] hover:text-[#1d1d1f] disabled:opacity-50"
                       >
                         {busyKey === `resend:${invitation.id}` ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -459,7 +459,7 @@ function ClerkInviteTeammatesForm({
                       <button
                         type="button"
                         onClick={() => copyLink(invitation)}
-                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-slate-300 hover:text-sky-300"
+                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-[#3a3a3c] hover:text-[#0071E3]"
                       >
                         {copiedId === invitation.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         {copiedId === invitation.id ? "Copied" : "Copy link"}
@@ -467,7 +467,7 @@ function ClerkInviteTeammatesForm({
                       <button
                         type="button"
                         onClick={() => revokeInvite(invitation.id)}
-                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-slate-400 hover:text-rose-400"
+                        className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-[#6e6e73] hover:text-[#D70015]"
                       >
                         <X className="h-3.5 w-3.5" />
                         Revoke
@@ -493,8 +493,8 @@ export default function InviteTeammatesForm(props: {
   if (!isClerkConfigured) {
     return (
       <div className="text-center py-6 space-y-3">
-        <p className="text-sm text-slate-300 font-medium">Multi-user authentication is not configured.</p>
-        <p className="text-xs text-slate-400 max-w-md mx-auto">
+        <p className="text-sm text-[#3a3a3c] font-medium">Multi-user authentication is not configured.</p>
+        <p className="text-xs text-[#6e6e73] max-w-md mx-auto">
           Sales Coach is currently running in standalone mode. To create teams and invite teammates, configure Clerk in your environment variables.
         </p>
       </div>

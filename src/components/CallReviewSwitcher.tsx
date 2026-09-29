@@ -26,14 +26,12 @@ export default function CallReviewSwitcher({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="inline-flex rounded-full bg-[#E5E5EA] p-0.5">
         <button
           type="button"
           onClick={() => setMode("quick")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold border transition ${
-            mode === "quick"
-              ? "bg-white text-slate-900 border-white"
-              : "bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]"
+          className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+            mode === "quick" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#3a3a3c]"
           }`}
         >
           Quick look
@@ -41,10 +39,8 @@ export default function CallReviewSwitcher({
         <button
           type="button"
           onClick={() => setMode("full")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold border transition ${
-            mode === "full"
-              ? "bg-white text-slate-900 border-white"
-              : "bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]"
+          className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+            mode === "full" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#3a3a3c]"
           }`}
         >
           Full review
@@ -54,8 +50,8 @@ export default function CallReviewSwitcher({
       {mode === "quick" ? (
         <div className="rounded-2xl glass-card p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">{methodName}</h2>
-            <p className="text-xs text-slate-400 mt-1">The checks that matter on this call. Open the full review for the rest.</p>
+            <h2 className="text-lg font-bold text-[#1d1d1f] tracking-tight">{methodName}</h2>
+            <p className="text-xs text-[#6e6e73] mt-1">The checks that matter on this call. Open the full review for the rest.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {rows.map((row) => (
@@ -66,20 +62,20 @@ export default function CallReviewSwitcher({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {row.done ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <XCircle className="h-4 w-4 text-rose-400" />}
-                  <span className="text-sm font-semibold text-white">{row.label}</span>
-                  <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider ${row.done ? "text-emerald-300" : "text-rose-300"}`}>
+                  {row.done ? <CheckCircle2 className="h-4 w-4 text-[#248A3D]" /> : <XCircle className="h-4 w-4 text-[#FF3B30]" />}
+                  <span className="text-sm font-semibold text-[#1d1d1f]">{row.label}</span>
+                  <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider ${row.done ? "text-[#248A3D]" : "text-[#D70015]"}`}>
                     {row.done ? "Done" : "Not done"}
                   </span>
                 </div>
-                {row.evidence ? <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{row.evidence}</p> : null}
+                {row.evidence ? <p className="text-xs text-[#6e6e73] mt-1.5 leading-relaxed">{row.evidence}</p> : null}
               </div>
             ))}
           </div>
           <button
             type="button"
             onClick={() => setMode("full")}
-            className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+            className="text-xs font-semibold text-[#007AFF] hover:text-[#0071E3] transition"
           >
             Open the full review
           </button>

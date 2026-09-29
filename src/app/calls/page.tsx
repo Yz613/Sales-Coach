@@ -23,17 +23,17 @@ export default async function CallBankPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-black/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20">
+            <span className="rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-[#007AFF] border border-blue-500/20">
               Call Bank
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">
             {auth.canViewAllCalls ? "Ranked Calls & Evaluations" : "Your Calls"}
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#6e6e73] mt-1">
             {auth.canViewAllCalls
               ? "Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong."
               : "Only your calls. Teammates cannot see these, and you cannot see theirs."}
@@ -53,9 +53,9 @@ export default async function CallBankPage() {
       />
 
       {/* Ranked Calls Table */}
-      <div className="rounded-2xl glass-card overflow-hidden shadow-2xl border border-white/[0.08]">
+      <div className="rounded-2xl glass-card overflow-hidden shadow-2xl border border-black/[0.08]">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
+          <table className="w-full text-left text-sm text-[#3a3a3c]">
             <thead className="table-header">
               <tr>
                 <th className="px-4 py-3.5 text-center w-12 font-semibold">Rank</th>
@@ -69,10 +69,10 @@ export default async function CallBankPage() {
                 <th className="px-4 py-3.5 text-right whitespace-nowrap font-semibold">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.06]">
+            <tbody className="divide-y divide-black/[0.06]">
               {rankedCalls.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-400">
+                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-[#6e6e73]">
                     {auth.canViewAllCalls
                       ? "No calls have been uploaded yet."
                       : "You have not uploaded any calls yet. Use Upload Calls to add your own."}
@@ -85,15 +85,15 @@ export default async function CallBankPage() {
                 const isTopThree = call.rank <= 3;
 
                 return (
-                  <tr key={call.id} className="hover:bg-white/[0.02] transition">
+                  <tr key={call.id} className="hover:bg-black/[0.03] transition">
                     <td className="px-4 py-3.5 text-center">
                       <span
                         className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold font-mono border ${
                           call.rank === 1
-                            ? "bg-amber-400/20 text-amber-300 border-amber-400/40 shadow-xs shadow-amber-400/20"
+                            ? "bg-[#FF9500]/15 text-[#C45500] border-[#FF9500]/30"
                             : isTopThree
-                            ? "bg-white/[0.08] text-slate-200 border-white/20"
-                            : "bg-white/[0.04] text-slate-400 border-white/[0.08]"
+                            ? "bg-black/[0.06] text-[#1d1d1f] border-black/10"
+                            : "bg-black/[0.04] text-[#6e6e73] border-black/[0.08]"
                         }`}
                       >
                         {call.rank === 1 ? <Trophy className="h-3.5 w-3.5" /> : call.rank}
@@ -101,17 +101,17 @@ export default async function CallBankPage() {
                     </td>
 
                     <td className="px-4 py-3.5 min-w-[150px]">
-                      <div className="font-semibold text-white truncate max-w-[200px] inline-flex items-center gap-1.5">
-                        {call.audioUrl ? <Headphones className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : null}
+                      <div className="font-semibold text-[#1d1d1f] truncate max-w-[200px] inline-flex items-center gap-1.5">
+                        {call.audioUrl ? <Headphones className="h-3.5 w-3.5 text-[#007AFF] shrink-0" /> : null}
                         <span className="truncate">{call.repName}</span>
                       </div>
-                      <div className="text-xs text-slate-400 truncate max-w-[200px]">
+                      <div className="text-xs text-[#6e6e73] truncate max-w-[200px]">
                         {callPartySubtitle(call)}
                       </div>
                     </td>
 
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-xs text-slate-300 border border-white/[0.08]">
+                      <span className="rounded-full bg-black/[0.04] px-2.5 py-0.5 text-xs text-[#3a3a3c] border border-black/[0.08]">
                         {call.callStage}
                       </span>
                     </td>
@@ -123,10 +123,10 @@ export default async function CallBankPage() {
                             title={`Pain: ${ev.sandlerBreakdown.pain.status}`}
                             className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.pain.status === "Pass"
-                                ? "bg-emerald-500/20 text-emerald-400"
+                                ? "bg-emerald-500/20 text-[#248A3D]"
                                 : ev.sandlerBreakdown.pain.status === "Incomplete"
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-rose-500/20 text-rose-400"
+                                ? "bg-amber-500/20 text-[#C45500]"
+                                : "bg-rose-500/20 text-[#FF3B30]"
                             }`}
                           >
                             P: {ev.sandlerBreakdown.pain.status[0]}
@@ -135,10 +135,10 @@ export default async function CallBankPage() {
                             title={`Budget: ${ev.sandlerBreakdown.budget.status}`}
                             className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.budget.status === "Pass"
-                                ? "bg-emerald-500/20 text-emerald-400"
+                                ? "bg-emerald-500/20 text-[#248A3D]"
                                 : ev.sandlerBreakdown.budget.status === "Incomplete"
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-rose-500/20 text-rose-400"
+                                ? "bg-amber-500/20 text-[#C45500]"
+                                : "bg-rose-500/20 text-[#FF3B30]"
                             }`}
                           >
                             B: {ev.sandlerBreakdown.budget.status[0]}
@@ -147,17 +147,17 @@ export default async function CallBankPage() {
                             title={`Decision: ${ev.sandlerBreakdown.decision.status}`}
                             className={`px-2 py-0.5 rounded-md font-bold ${
                               ev.sandlerBreakdown.decision.status === "Pass"
-                                ? "bg-emerald-500/20 text-emerald-400"
+                                ? "bg-emerald-500/20 text-[#248A3D]"
                                 : ev.sandlerBreakdown.decision.status === "Incomplete"
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-rose-500/20 text-rose-400"
+                                ? "bg-amber-500/20 text-[#C45500]"
+                                : "bg-rose-500/20 text-[#FF3B30]"
                             }`}
                           >
                             D: {ev.sandlerBreakdown.decision.status[0]}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500 font-mono">Analyzing...</span>
+                        <span className="text-xs text-[#86868b] font-mono">Analyzing...</span>
                       )}
                     </td>
 
@@ -165,10 +165,10 @@ export default async function CallBankPage() {
                       {ev ? (
                         <span className={`font-mono text-xs font-bold ${
                           ev.sandlerBreakdown.scriptAdherence.score >= 8
-                            ? "text-emerald-400"
+                            ? "text-[#248A3D]"
                             : ev.sandlerBreakdown.scriptAdherence.score >= 6
-                            ? "text-amber-400"
-                            : "text-rose-400"
+                            ? "text-[#C45500]"
+                            : "text-[#FF3B30]"
                         }`}>
                           {ev.sandlerBreakdown.scriptAdherence.score}/10
                         </span>
@@ -180,7 +180,7 @@ export default async function CallBankPage() {
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       {ev ? (
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-14 rounded-full bg-slate-950/60 overflow-hidden border border-white/[0.06]">
+                          <div className="h-2 w-14 rounded-full bg-[#F2F2F7] overflow-hidden border border-black/[0.06]">
                             <div
                               className={`h-full rounded-full ${
                                 call.score >= 75
@@ -192,7 +192,7 @@ export default async function CallBankPage() {
                               style={{ width: `${call.score}%` }}
                             />
                           </div>
-                          <span className="font-mono text-xs font-bold text-slate-200">{call.score}</span>
+                          <span className="font-mono text-xs font-bold text-[#1d1d1f]">{call.score}</span>
                         </div>
                       ) : (
                         "—"
@@ -203,10 +203,10 @@ export default async function CallBankPage() {
                       <span
                         className={`inline-flex items-start gap-1.5 text-xs font-medium leading-relaxed ${
                           issue.severity === "critical"
-                            ? "text-rose-300"
+                            ? "text-[#D70015]"
                             : issue.severity === "warn"
-                            ? "text-amber-300"
-                            : "text-emerald-300"
+                            ? "text-[#C45500]"
+                            : "text-[#248A3D]"
                         }`}
                       >
                         {issue.severity === "good" ? (
@@ -234,7 +234,7 @@ export default async function CallBankPage() {
                         />
                         <Link
                           href={`/calls/${call.id}`}
-                          className="rounded-xl bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-600 hover:text-white transition inline-flex items-center gap-1 backdrop-blur-md"
+                          className="rounded-xl bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-[#007AFF] hover:bg-[#0071E3] hover:text-white transition inline-flex items-center gap-1"
                         >
                           Review <ArrowUpRight className="h-3 w-3" />
                         </Link>

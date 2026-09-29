@@ -62,23 +62,23 @@ export default function CallRecording({
   const progress = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden">
-      <div className="border-b border-slate-800 px-6 py-4 flex items-center justify-between gap-3">
+    <div className="rounded-xl border border-black/[0.08] bg-white overflow-hidden">
+      <div className="border-b border-black/[0.08] px-6 py-4 flex items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-[#007AFF] font-bold text-xs uppercase tracking-wider">
             <Headphones className="h-4 w-4" /> Call recording
           </div>
-          <h3 className="text-lg font-bold text-white mt-1">Listen and read the transcript</h3>
+          <h3 className="text-lg font-bold text-[#1d1d1f] mt-1">Listen and read the transcript</h3>
         </div>
         {src ? (
-          <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-[11px] text-slate-300 border border-slate-700">
+          <span className="rounded bg-[#E5E5EA] px-2 py-0.5 font-mono text-[11px] text-[#3a3a3c] border border-black/[0.08]">
             {formatDuration(Math.floor(current))} / {formatDuration(Math.floor(duration || durationSeconds))}
           </span>
         ) : null}
       </div>
 
       {src ? (
-        <div className="px-6 py-4 border-b border-slate-800 bg-slate-950/70 space-y-3">
+        <div className="px-6 py-4 border-b border-black/[0.08] bg-[#F5F5F7] space-y-3">
           <audio
             ref={audioRef}
             src={src}
@@ -97,7 +97,7 @@ export default function CallRecording({
             <button
               type="button"
               onClick={toggle}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-500 transition shrink-0"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#007AFF] text-white hover:bg-[#0071E3] transition shrink-0"
               aria-label={playing ? "Pause recording" : "Play recording"}
             >
               {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -105,28 +105,28 @@ export default function CallRecording({
             <button
               type="button"
               onClick={onBarClick}
-              className="relative h-2 flex-1 rounded-full bg-slate-800 overflow-hidden"
+              className="relative h-2 flex-1 rounded-full bg-[#E5E5EA] overflow-hidden"
               aria-label="Seek in recording"
             >
               <span
-                className="absolute inset-y-0 left-0 bg-blue-500"
+                className="absolute inset-y-0 left-0 bg-[#007AFF]"
                 style={{ width: `${progress}%` }}
               />
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-[#86868b]">
             Click a timestamp in the transcript — or in the scorecard — to jump to that moment.
           </p>
         </div>
       ) : (
-        <div className="px-6 py-3 border-b border-slate-800 bg-slate-950/70">
-          <p className="text-xs text-slate-400">
+        <div className="px-6 py-3 border-b border-black/[0.08] bg-[#F5F5F7]">
+          <p className="text-xs text-[#6e6e73]">
             No recording is stored for this call. The full transcript is below.
           </p>
         </div>
       )}
 
-      <div className="p-6 bg-slate-950">
+      <div className="p-6 bg-[#F5F5F7]">
         <TimestampedTranscript
           transcriptText={transcriptText}
           durationSeconds={duration || durationSeconds}

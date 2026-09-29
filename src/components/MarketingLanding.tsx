@@ -39,10 +39,10 @@ const navLinks = [
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <a href="/" className="flex items-center gap-2.5 group shrink-0">
-      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform border border-white/20">
+      <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#007AFF] text-white font-semibold text-[11px]">
         SC
       </div>
-      <span className={`font-semibold text-white tracking-tight ${compact ? "text-sm" : "text-sm sm:text-base"}`}>
+      <span className={`font-semibold text-[#1d1d1f] tracking-tight ${compact ? "text-sm" : "text-sm sm:text-base"}`}>
         Sales Coach
       </span>
     </a>
@@ -59,14 +59,14 @@ function ScorecardMock() {
 
   return (
     <div className="relative">
-      <div className="absolute -inset-4 bg-blue-500/10 blur-3xl rounded-full pointer-events-none" aria-hidden="true" />
+      <div className="absolute -inset-2 sm:-inset-4 rounded-[28px] sm:rounded-[36px] bg-[#007AFF]/[0.06] pointer-events-none" aria-hidden="true" />
       <div className="relative rounded-3xl glass-panel overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.08]">
           <div>
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Call evaluation</p>
-            <p className="text-sm font-semibold text-white mt-0.5">Outbound · Discovery · 12:04</p>
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#6e6e73]">Call evaluation</p>
+            <p className="text-sm font-semibold text-[#1d1d1f] mt-0.5">Outbound · Discovery · 12:04</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/25 px-2.5 py-1 text-[11px] font-semibold">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/20 px-2.5 py-1 text-[11px] font-semibold">
             <Sparkles className="h-3 w-3" /> 3 missed opportunities
           </span>
         </div>
@@ -74,33 +74,33 @@ function ScorecardMock() {
           {rows.map((row) => {
             const tone =
               row.status === "Pass"
-                ? { badge: "bg-emerald-500/20 text-emerald-400", Icon: CheckCircle2 }
+                ? { badge: "bg-emerald-500/10 text-[#248A3D] border-emerald-500/20", Icon: CheckCircle2 }
                 : row.status === "Incomplete"
-                  ? { badge: "bg-amber-500/20 text-amber-400", Icon: MinusCircle }
-                  : { badge: "bg-rose-500/20 text-rose-400", Icon: XCircle };
+                  ? { badge: "bg-amber-500/10 text-[#C45500] border-amber-500/20", Icon: MinusCircle }
+                  : { badge: "bg-rose-500/10 text-[#FF3B30] border-rose-500/20", Icon: XCircle };
             const Icon = tone.Icon;
             return (
               <div key={row.label} className="rounded-2xl glass-inset p-3.5 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">{row.label}</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${tone.badge}`}>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3a3c]">{row.label}</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone.badge}`}>
                       <Icon className="h-3 w-3" /> {row.status}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{row.note}</p>
+                  <p className="text-xs text-[#6e6e73] mt-1.5 leading-relaxed">{row.note}</p>
                 </div>
-                <p className="font-mono text-lg font-bold text-white shrink-0">
+                <p className="font-mono text-lg font-bold text-[#1d1d1f] shrink-0">
                   {row.score}
-                  <span className="text-[10px] text-slate-500 font-normal"> / 10</span>
+                  <span className="text-[10px] text-[#86868b] font-normal"> / 10</span>
                 </p>
               </div>
             );
           })}
         </div>
-        <div className="px-5 py-3.5 border-t border-white/[0.08] bg-white/[0.02]">
-          <p className="text-xs text-slate-300 leading-relaxed">
-            <span className="text-blue-300 font-semibold">Coach:</span> Pivot on “we’re set” with the customs-delay probe. Ask budget before offering Tuesday.
+        <div className="px-5 py-3.5 border-t border-black/[0.08] bg-black/[0.02]">
+          <p className="text-xs text-[#3a3a3c] leading-relaxed">
+            <span className="text-[#007AFF] font-semibold">Coach:</span> Pivot on “we’re set” with the customs-delay probe. Ask budget before offering Tuesday.
           </p>
         </div>
       </div>
@@ -111,16 +111,16 @@ function ScorecardMock() {
 function PlanCard({ plan }: { plan: PricingPlan }) {
   const highlighted = Boolean(plan.highlighted);
   const ctaClass = highlighted
-    ? "bg-blue-600 hover:bg-blue-500 text-white border-blue-400/30 shadow-lg shadow-blue-600/25"
+    ? "bg-[#007AFF] hover:bg-[#0071E3] text-white border-transparent shadow-sm"
     : plan.id === "oss"
-      ? "bg-white/[0.04] hover:bg-white/[0.08] text-white border-white/[0.12]"
-      : "bg-white/[0.06] hover:bg-blue-600 hover:text-white hover:border-blue-400/30 text-slate-100 border-white/[0.12]";
+      ? "bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1d1d1f] border-transparent font-semibold"
+      : "bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#1d1d1f] border-transparent font-semibold";
 
   const cta = (
     <a
       href={plan.cta.href}
       {...(plan.cta.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border transition ${ctaClass}`}
+      className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${ctaClass}`}
     >
       {plan.cta.label}
       {plan.id === "oss" ? <Github className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
@@ -131,31 +131,31 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
     <article
       className={`relative flex flex-col rounded-3xl p-6 sm:p-7 h-full ${
         highlighted
-          ? "glass-panel ring-2 ring-blue-500/70 shadow-blue-600/20"
-          : "glass-card"
+          ? "bg-white ring-2 ring-[#007AFF] border border-[#007AFF]/30 shadow-[0_12px_40px_rgba(0,122,255,0.12)]"
+          : "bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)]"
       }`}
     >
       {plan.badge && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 shadow-lg shadow-blue-600/40">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#007AFF] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 shadow-sm">
           {plan.badge}
         </span>
       )}
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{plan.name}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-[#6e6e73]">{plan.name}</p>
       <div className="mt-3 flex items-baseline gap-1">
-        <span className="text-4xl font-bold tracking-tight text-white">{plan.price}</span>
-        {plan.period && <span className="text-sm text-slate-400">{plan.period}</span>}
+        <span className="text-4xl font-bold tracking-tight text-[#1d1d1f]">{plan.price}</span>
+        {plan.period && <span className="text-sm text-[#6e6e73]">{plan.period}</span>}
       </div>
-      <p className="mt-2 text-sm text-slate-400 leading-relaxed">{plan.blurb}</p>
+      <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">{plan.blurb}</p>
       <ul className="mt-6 space-y-2.5 flex-1">
         {plan.features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2.5 text-sm text-slate-200">
-            <Check className={`h-4 w-4 mt-0.5 shrink-0 ${highlighted ? "text-blue-400" : "text-slate-400"}`} />
+          <li key={feature} className="flex items-start gap-2.5 text-sm text-[#1d1d1f]">
+            <Check className={`h-4 w-4 mt-0.5 shrink-0 ${highlighted ? "text-[#007AFF]" : "text-[#248A3D]"}`} />
             <span>{feature}</span>
           </li>
         ))}
         {plan.overageLine && (
-          <li className="flex items-start gap-2.5 text-sm text-slate-200">
-            <Check className={`h-4 w-4 mt-0.5 shrink-0 ${highlighted ? "text-blue-400" : "text-slate-400"}`} />
+          <li className="flex items-start gap-2.5 text-sm text-[#1d1d1f]">
+            <Check className={`h-4 w-4 mt-0.5 shrink-0 ${highlighted ? "text-[#007AFF]" : "text-[#248A3D]"}`} />
             <span>{plan.overageLine}</span>
           </li>
         )}
@@ -171,7 +171,7 @@ export default function MarketingLanding() {
 
   return (
     <div className="relative min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-slate-950/95">
+      <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#F5F5F7]">
         <div className="mx-auto flex max-w-6xl w-full items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           <BrandMark />
           <nav className="hidden md:flex items-center gap-1">
@@ -182,7 +182,7 @@ export default function MarketingLanding() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 transition"
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] transition"
                 >
                   {link.label}
                 </a>
@@ -190,7 +190,7 @@ export default function MarketingLanding() {
                 <a
                   key={link.label}
                   href={link.href}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 transition"
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] transition"
                 >
                   {link.label}
                 </a>
@@ -200,13 +200,13 @@ export default function MarketingLanding() {
           <div className="hidden md:flex items-center gap-2">
             <a
               href="/app/sign-in"
-              className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white transition"
+              className="px-3 py-1.5 rounded-xl text-xs font-medium text-[#3a3a3c] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             >
               Sign in
             </a>
             <a
               href="/app"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 shadow-md shadow-blue-600/20 border border-blue-400/20 transition"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-[13px] font-medium px-4 py-1.5 transition"
             >
               Open app
               <ArrowRight className="h-3.5 w-3.5" />
@@ -214,7 +214,7 @@ export default function MarketingLanding() {
           </div>
           <button
             type="button"
-            className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.1] text-slate-200"
+            className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/[0.1] text-[#1d1d1f]"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
@@ -223,7 +223,7 @@ export default function MarketingLanding() {
           </button>
         </div>
         {menuOpen && (
-          <div className="md:hidden border-t border-white/[0.08] px-4 py-3 space-y-1 bg-slate-950/90">
+          <div className="md:hidden border-t border-black/[0.08] px-4 py-3 space-y-1 bg-white">
             {navLinks.map((link) =>
               link.external ? (
                 <a
@@ -231,7 +231,7 @@ export default function MarketingLanding() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.05]"
+                  className="block rounded-xl px-3 py-2 text-sm text-[#3a3a3c] hover:bg-black/[0.05]"
                   onClick={() => setMenuOpen(false)}
                 >
                   {link.label}
@@ -240,19 +240,19 @@ export default function MarketingLanding() {
                 <a
                   key={link.label}
                   href={link.href}
-                  className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.05]"
+                  className="block rounded-xl px-3 py-2 text-sm text-[#3a3a3c] hover:bg-black/[0.05]"
                   onClick={() => setMenuOpen(false)}
                 >
                   {link.label}
                 </a>
               )
             )}
-            <a href="/app/sign-in" className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.05]" onClick={() => setMenuOpen(false)}>
+            <a href="/app/sign-in" className="block rounded-xl px-3 py-2 text-sm text-[#3a3a3c] hover:bg-black/[0.05]" onClick={() => setMenuOpen(false)}>
               Sign in
             </a>
             <a
               href="/app"
-              className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-blue-600 text-center"
+              className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-[#007AFF] text-center"
               onClick={() => setMenuOpen(false)}
             >
               Open app
@@ -265,21 +265,20 @@ export default function MarketingLanding() {
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-24 sm:pb-28">
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full glass-inset px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-blue-300 border border-blue-500/20">
-                <Sparkles className="h-3.5 w-3.5" />
+              <p className="text-[17px] font-medium text-[#007AFF]">
                 AI sales coaching
               </p>
-              <h1 className="mt-5 text-4xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-white leading-[1.08]">
+              <h1 className="mt-3 text-[40px] sm:text-[56px] lg:text-[68px] font-semibold tracking-[-0.03em] text-[#1d1d1f] leading-[1.05]">
                 AI coaching that finds missed opportunities on every call.
               </h1>
-              <p className="mt-5 text-base sm:text-lg text-slate-400 leading-relaxed max-w-xl">
+              <p className="mt-5 text-[17px] sm:text-[19px] text-[#6e6e73] leading-snug max-w-xl">
                 Upload or transcribe sales calls, score them against stage-aware talk-tracks (Sandler and your own),
                 and give every rep a precise next move — hosted for your team, or self-hosted for free.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <a
                   href="#pricing"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-3 shadow-lg shadow-blue-600/25 border border-blue-400/20 transition"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-[17px] font-medium px-6 py-3 transition"
                 >
                   Start hosted trial
                   <ArrowRight className="h-4 w-4" />
@@ -288,13 +287,13 @@ export default function MarketingLanding() {
                   href={GITHUB_REPO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-100 text-sm font-semibold px-5 py-3 border border-white/[0.12] transition"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white text-[#1d1d1f] text-[17px] font-medium px-6 py-3 shadow-[0_0_0_1px_rgba(0,0,0,0.08)] hover:bg-black/[0.03] transition"
                 >
                   <Github className="h-4 w-4" />
                   Self-host free
                 </a>
               </div>
-              <p className="mt-5 text-xs font-medium text-slate-500 tracking-wide">
+              <p className="mt-5 text-xs font-medium text-[#86868b] tracking-wide">
                 Open source · MIT · Self-host or hosted
               </p>
             </div>
@@ -324,11 +323,11 @@ export default function MarketingLanding() {
               const Icon = card.icon;
               return (
                 <div key={card.title} className="rounded-3xl glass-card p-6">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF]">
                     <Icon className="h-4 w-4" />
                   </div>
-                  <h2 className="mt-4 text-base font-semibold text-white">{card.title}</h2>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{card.body}</p>
+                  <h2 className="mt-4 text-base font-semibold text-[#1d1d1f]">{card.title}</h2>
+                  <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">{card.body}</p>
                 </div>
               );
             })}
@@ -337,9 +336,9 @@ export default function MarketingLanding() {
 
         <section id="features" className="scroll-mt-24 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Features</p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-white">Everything a sales manager actually uses.</h2>
-            <p className="mt-3 text-slate-400 text-sm sm:text-base leading-relaxed">
+            <p className="text-[13px] font-medium text-[#007AFF]">Features</p>
+            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Everything a sales manager actually uses.</h2>
+            <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
               Built for B2B call evaluation: transcription, rubrics, personas, and optional team workspaces.
             </p>
           </div>
@@ -379,11 +378,11 @@ export default function MarketingLanding() {
               const Icon = feature.icon;
               return (
                 <div key={feature.title} className="rounded-3xl glass-card glass-card-hover p-6">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-[#007AFF]">
                     <Icon className="h-4 w-4" />
                   </div>
-                  <h3 className="mt-4 text-base font-semibold text-white">{feature.title}</h3>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{feature.body}</p>
+                  <h3 className="mt-4 text-base font-semibold text-[#1d1d1f]">{feature.title}</h3>
+                  <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">{feature.body}</p>
                 </div>
               );
             })}
@@ -392,8 +391,8 @@ export default function MarketingLanding() {
 
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">How it works</p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-white">Three steps from call to coaching.</h2>
+            <p className="text-[13px] font-medium text-[#007AFF]">How it works</p>
+            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Three steps from call to coaching.</h2>
           </div>
           <div className="mt-10 grid md:grid-cols-3 gap-4">
             {[
@@ -402,9 +401,9 @@ export default function MarketingLanding() {
               { step: "03", title: "Coach the rep", body: "Send a scorecard, missed-opportunity notes, and a manager 1:1 talk-track — not a vague pep talk." },
             ].map((item) => (
               <div key={item.step} className="rounded-3xl glass-card p-6">
-                <p className="font-mono text-xs font-semibold text-blue-300">{item.step}</p>
-                <h3 className="mt-3 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">{item.body}</p>
+                <p className="font-mono text-xs font-semibold text-[#007AFF]">{item.step}</p>
+                <h3 className="mt-3 text-lg font-semibold text-[#1d1d1f]">{item.title}</h3>
+                <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">{item.body}</p>
               </div>
             ))}
           </div>
@@ -412,9 +411,9 @@ export default function MarketingLanding() {
 
         <section id="pricing" className="scroll-mt-24 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">
           <div className="text-center max-w-2xl mx-auto">
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Pricing</p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-white">Free to run. Priced to host.</h2>
-            <p className="mt-3 text-slate-400 text-sm sm:text-base leading-relaxed">
+            <p className="text-[13px] font-medium text-[#007AFF]">Pricing</p>
+            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Free to run. Priced to host.</h2>
+            <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
               Open source is free forever. Cloud is for teams that want zero ops and managed AI.
             </p>
           </div>
@@ -423,10 +422,10 @@ export default function MarketingLanding() {
               <PlanCard key={plan.id} plan={plan} />
             ))}
           </div>
-          <p className="mt-6 text-center text-xs text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-center text-xs text-[#6e6e73] max-w-2xl mx-auto leading-relaxed">
             {PRICING_DURATION_NOTE}
           </p>
-          <p className="mt-3 text-center text-xs text-slate-500">
+          <p className="mt-3 text-center text-xs text-[#86868b]">
             Hosted Coach and Hosted Team start with card payments. Create your account after payment. Enterprise is custom.
           </p>
 
@@ -441,11 +440,11 @@ export default function MarketingLanding() {
                     aria-expanded={open}
                     onClick={() => setOpenFaq(open ? null : index)}
                   >
-                    <span className="text-sm font-semibold text-white">{item.question}</span>
-                    <span className="text-slate-400 text-lg leading-none">{open ? "–" : "+"}</span>
+                    <span className="text-sm font-semibold text-[#1d1d1f]">{item.question}</span>
+                    <span className="text-[#6e6e73] text-lg leading-none">{open ? "–" : "+"}</span>
                   </button>
                   {open && (
-                    <p className="px-5 pb-4 text-sm text-slate-400 leading-relaxed">{item.answer}</p>
+                    <p className="px-5 pb-4 pt-1 text-sm text-[#6e6e73] leading-relaxed border-t border-black/[0.04]">{item.answer}</p>
                   )}
                 </div>
               );
@@ -456,9 +455,9 @@ export default function MarketingLanding() {
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
           <div className="rounded-3xl glass-panel p-6 sm:p-10 grid md:grid-cols-2 gap-8 md:gap-12">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Open source</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">You already own the product.</h3>
-              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#6e6e73]">Open source</p>
+              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">You already own the product.</h3>
+              <p className="mt-3 text-sm text-[#6e6e73] leading-relaxed">
                 Clone it, run it yourself, and point it at your own model keys. Unlimited local evaluations, MIT licensed,
                 no seat caps. You operate the box.
               </p>
@@ -466,20 +465,20 @@ export default function MarketingLanding() {
                 href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]"
               >
                 <Github className="h-4 w-4" />
                 github.com/Yz613/Sales-Coach
               </a>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Hosted cloud</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">We run transcription, scoring, and uptime.</h3>
-              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+              <p className="text-[13px] font-medium text-[#007AFF]">Hosted cloud</p>
+              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">We run transcription, scoring, and uptime.</h3>
+              <p className="mt-3 text-sm text-[#6e6e73] leading-relaxed">
                 Hosted Coach, Hosted Team, and Enterprise are for teams that do not want to self-host: managed models,
                 seats, and support on refreshqueue.com. Same Sales Coach engine — none of the ops.
               </p>
-              <a href="#pricing" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
+              <a href="#pricing" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
                 Start a hosted workspace
                 <ArrowRight className="h-4 w-4" />
               </a>
@@ -488,20 +487,20 @@ export default function MarketingLanding() {
         </section>
       </main>
 
-      <footer className="border-t border-white/[0.08]">
+      <footer className="border-t border-black/[0.08]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-500">© 2026 Yz613. Sales Coach AI. MIT License.</p>
-          <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400">
-            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+          <p className="text-xs text-[#86868b]">© 2026 Yz613. Sales Coach AI. MIT License.</p>
+          <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               GitHub
             </a>
-            <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+            <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               LICENSE
             </a>
-            <a href="/app" className="hover:text-white transition">
+            <a href="/app" className="hover:text-[#1d1d1f] transition">
               Open app
             </a>
-            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white transition">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-[#1d1d1f] transition">
               {CONTACT_EMAIL}
             </a>
           </div>

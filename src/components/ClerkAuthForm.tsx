@@ -18,14 +18,14 @@ export default function ClerkAuthForm({ children }: { children: React.ReactNode 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center px-4">
       <ClerkLoading>
-        <div className="max-w-sm text-center text-sm text-slate-200">
+        <div className="max-w-sm text-center text-sm text-[#1d1d1f]">
           {slow
             ? "Sign-in is still loading. Refresh the page if this stays empty."
             : "Loading sign-in…"}
         </div>
       </ClerkLoading>
       {stalled ? (
-        <div className="max-w-sm text-center text-sm text-slate-200">
+        <div className="max-w-sm text-center text-sm text-[#1d1d1f]">
           Sign-in could not load. Refresh the page and try again.
         </div>
       ) : null}
