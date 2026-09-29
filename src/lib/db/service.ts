@@ -18,6 +18,13 @@ import type {
 } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, isDefaultSandlerInstructions } from "@/lib/sandlerCoach";
 import { isMethodId, methodById } from "@/lib/salesMethods";
+import {
+  formatWeightDirective,
+  mergeIncomingWeights,
+  readStoredWeights,
+  weightsForMethod,
+} from "@/lib/scoreWeights";
+import type { SalesMethodology } from "@/lib/methodology";
 import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall } from "@/lib/evaluations";
@@ -143,6 +150,20 @@ export async function setSalesMethodId(id: string): Promise<void> {
   await setSetting("coach_methodology", isMethodId(id) ? id : "sandler");
 }
 
+const SCORE_WEIGHTS_KEY = "score_weights";
+
+export async function getScoreWeights(method?: SalesMethodology): Promise<Record<string, number>> {
+  const active = method ?? methodById(await getSalesMethodId());
+  return weightsForMethod(readStoredWeights(await getSetting(SCORE_WEIGHTS_KEY)), active);
+}
+
+export async function setScoreWeights(incoming: unknown): Promise<Record<string, number>> {
+  const method = methodById(await getSalesMethodId());
+  const next = mergeIncomingWeights(readStoredWeights(await getSetting(SCORE_WEIGHTS_KEY)), incoming);
+  await setSetting(SCORE_WEIGHTS_KEY, JSON.stringify(next));
+  return weightsForMethod(next, method);
+}
+
 export async function getCoachInstructions(): Promise<string> {
   const stored = await getStoredCoachInstructions();
   if (stored.trim()) return stored;
@@ -209,6 +230,9 @@ export async function getCoachContext(): Promise<string> {
         lessons.map((l, i) => `${i + 1}. ${l.text}`).join("\n")
     );
   }
+  const method = methodById(await getSalesMethodId());
+  const weightDirective = formatWeightDirective(method, await getScoreWeights(method));
+  if (weightDirective) parts.push(weightDirective);
   return parts.join("\n\n");
 }
 

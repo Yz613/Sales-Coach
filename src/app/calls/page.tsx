@@ -9,20 +9,20 @@ import { getProvider } from "@/lib/ai/providers";
 import { usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartySubtitle } from "@/lib/callLabel";
-import InviteTeammatesCard from "@/components/InviteTeammatesCard";
 import { getVisibleCalls } from "@/lib/viewer-calls";
+import { getSalesMethodId, getScoreWeights } from "@/lib/db/service";
+import { methodById } from "@/lib/salesMethods";
 
 export const dynamic = "force-dynamic";
 
 export default async function CallBankPage() {
   const { auth, calls } = await getVisibleCalls();
-  const rankedCalls = rankCalls(calls);
+  const methodology = methodById(await getSalesMethodId());
+  const rankedCalls = rankCalls(calls, { weights: await getScoreWeights(methodology), method: methodology });
   const ai = await resolveAiSettings();
 
   return (
     <div className="space-y-6">
-      {auth.canViewAllCalls && <InviteTeammatesCard compact />}
-
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">

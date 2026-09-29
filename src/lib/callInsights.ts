@@ -6,6 +6,13 @@ import type {
   SandlerStatus,
 } from "@/types";
 import { isDemoAgreed, isMeetingBooked } from "./coreOutcome";
+import type { SalesMethodology } from "./methodology";
+import { collectMetricScores, weightedCallScore, weightsAreCustom } from "./scoreWeights";
+
+export interface ScoreOptions {
+  weights?: Record<string, number>;
+  method?: SalesMethodology;
+}
 
 
 export interface RankedCall extends Call {
@@ -36,9 +43,14 @@ function outcomeBonus(outcome: string): number {
 // Composite 0-100 performance score used to rank calls against each other.
 // Weighting: script adherence (0-50) + Sandler qualification (0-30) +
 // outcome (0-15), minus a penalty for flagged surrender moments.
-export function computeCallScore(call: Call): number {
+export function computeCallScore(call: Call, options?: ScoreOptions): number {
   const ev = call.evaluation;
   if (!ev) return 0;
+
+  if (options?.method && options.weights && weightsAreCustom(options.weights, options.method)) {
+    const weighted = weightedCallScore(collectMetricScores(call, options.method), options.weights, options.method);
+    if (weighted != null) return weighted;
+  }
 
   const scriptPoints = ev.sandlerBreakdown.scriptAdherence.score * 5; // 0-50
 
@@ -64,9 +76,9 @@ export function computeCallScore(call: Call): number {
 
 // Ranks calls best-to-worst by composite score. Ties break on the higher
 // script-adherence score, then the more recent call.
-export function rankCalls(calls: Call[]): RankedCall[] {
+export function rankCalls(calls: Call[], options?: ScoreOptions): RankedCall[] {
   return calls
-    .map((call) => ({ ...call, score: computeCallScore(call) }))
+    .map((call) => ({ ...call, score: computeCallScore(call, options) }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       const scoreA = a.evaluation?.sandlerBreakdown.scriptAdherence.score ?? 0;

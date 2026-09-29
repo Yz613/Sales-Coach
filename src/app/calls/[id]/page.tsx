@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveScriptForStage, getSalesMethodId } from "@/lib/db/service";
+import { getActiveScriptForStage, getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration } from "@/lib/utils";
@@ -102,7 +102,7 @@ export default async function CallReviewPage({
 
   // Where this call ranks against every other call in the bank.
   const { calls: visibleCalls } = await getVisibleCalls();
-  const ranked = rankCalls(visibleCalls);
+  const ranked = rankCalls(visibleCalls, { weights: await getScoreWeights(methodology), method: methodology });
   const thisRank = ranked.find((r) => r.id === call.id);
 
   return (

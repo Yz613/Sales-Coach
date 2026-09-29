@@ -1,5 +1,23 @@
 export const WEEKS_PER_QUARTER = 13;
 
+/** Group a typed number with commas, keeping at most one decimal and two fraction digits. */
+export function formatGroupedNumber(input: string): string {
+  const cleaned = input.replace(/,/g, "").replace(/[^0-9.]/g, "");
+  if (!cleaned) return "";
+  const dot = cleaned.indexOf(".");
+  const wholeRaw = dot === -1 ? cleaned : cleaned.slice(0, dot);
+  const fraction = dot === -1 ? null : cleaned.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+  const wholeDigits = wholeRaw.replace(/^0+(?=\d)/, "");
+  const grouped = wholeDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (fraction === null) return grouped;
+  return `${grouped || "0"}.${fraction}`;
+}
+
+export function parseGroupedNumber(input: string): number {
+  const value = Number(String(input).replace(/,/g, ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
 export interface RevenueGoalInput {
   /** Revenue to add this quarter. */
   revenue: number;

@@ -7,6 +7,7 @@ import type { CoachLesson } from "@/types";
 import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/sandlerCoach";
 import type { MethodId } from "@/lib/methodology";
 import { METHOD_CHOICES, checklistSections, methodById } from "@/lib/salesMethods";
+import { MAX_METRIC_WEIGHT, metricsForMethod, weightShare, weightsAreCustom } from "@/lib/scoreWeights";
 
 type View = "loading" | "onboarding" | "editor";
 
@@ -52,17 +53,92 @@ const QUESTIONS: { key: string; label: string; hint: string; placeholder: string
   },
 ];
 
-function MethodologyProfile({ methodId }: { methodId: MethodId }) {
+function MethodologyProfile({
+  methodId,
+  weights,
+  onWeight,
+  onSave,
+  saving,
+  saved,
+}: {
+  methodId: MethodId;
+  weights: Record<string, number>;
+  onWeight: (key: string, value: number) => void;
+  onSave: () => void;
+  saving: boolean;
+  saved: boolean;
+}) {
   const method = methodById(methodId);
+  const metrics = metricsForMethod(method);
+  const custom = weightsAreCustom(weights, method);
   return (
     <div className="rounded-2xl glass-card p-6 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-white">Scoring profile — {method.name}</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          {method.id === "sandler"
-            ? "Sandler is selected. The narrative and the checklist below are the Sandler defaults."
-            : `${method.name} is selected. The narrative and the checklist are the ${method.name} defaults. Sandler rules are off.`}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-white">Scoring profile — {method.name}</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            {method.id === "sandler"
+              ? "Sandler is selected. The narrative and the checklist below are the Sandler defaults."
+              : `${method.name} is selected. The narrative and the checklist are the ${method.name} defaults. Sandler rules are off.`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {saved && (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" /> Saved
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Save weights
+          </button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Metric weights</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+              Admins set how much each metric the AI scores counts toward the call score. Each starts at 1.
+              Call scores keep the current formula until you save a weight other than 1. After that, the score is the weighted average of these metrics. Zero leaves a metric out.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {metrics.map((metric) => {
+            const weight = weights[metric.key] ?? 1;
+            return (
+              <label key={metric.key} className="flex items-center justify-between gap-3 rounded-xl glass-inset border border-white/[0.08] px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-sm text-white truncate">{metric.label}</span>
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-500">
+                    {custom ? `${weightShare(weights, method, metric.key)}% of the score` : "Even"}
+                  </span>
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_METRIC_WEIGHT}
+                  step={1}
+                  inputMode="numeric"
+                  aria-label={`${metric.label} weight`}
+                  value={weight}
+                  onChange={(e) => {
+                    const next = e.target.value === "" ? 0 : Number(e.target.value);
+                    if (!Number.isFinite(next)) return;
+                    onWeight(metric.key, Math.min(MAX_METRIC_WEIGHT, Math.max(0, Math.round(next))));
+                  }}
+                  className="w-16 rounded-lg border border-white/[0.1] bg-slate-950/50 px-2 py-1.5 text-right text-sm font-mono text-white focus:border-blue-500/50 focus:outline-none"
+                />
+              </label>
+            );
+          })}
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {method.pillars.map((pillar, index) => (
@@ -129,6 +205,9 @@ export default function CoachPage() {
   const [addingLesson, setAddingLesson] = useState(false);
   const [isDefault, setIsDefault] = useState(true);
   const [methodId, setMethodId] = useState<MethodId>("sandler");
+  const [weights, setWeights] = useState<Record<string, number>>({});
+  const [savingWeights, setSavingWeights] = useState(false);
+  const [savedWeights, setSavedWeights] = useState(false);
 
   const load = () => {
     fetch(apiPath("/api/coach"))
@@ -140,6 +219,7 @@ export default function CoachPage() {
         setInstructions(instr);
         setIsDefault(Boolean(data.isDefault));
         setLessons(Array.isArray(data.lessons) ? data.lessons : []);
+        setWeights(data.weights && typeof data.weights === "object" ? data.weights : {});
         setView("editor");
       })
       .catch((err) => {
@@ -158,6 +238,26 @@ export default function CoachPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ instructions: text, methodology }),
     });
+  };
+
+  const saveWeights = async () => {
+    setSavingWeights(true);
+    setSavedWeights(false);
+    try {
+      const res = await fetch(apiPath("/api/coach"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weights }),
+      });
+      const data = await res.json();
+      if (data.weights && typeof data.weights === "object") setWeights(data.weights);
+      setSavedWeights(true);
+      setTimeout(() => setSavedWeights(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingWeights(false);
+    }
   };
 
   const chooseMethod = async (next: MethodId) => {
@@ -361,7 +461,14 @@ export default function CoachPage() {
         </select>
       </div>
 
-      <MethodologyProfile methodId={methodId} />
+      <MethodologyProfile
+        methodId={methodId}
+        weights={weights}
+        onWeight={(key, value) => setWeights((current) => ({ ...current, [key]: value }))}
+        onSave={saveWeights}
+        saving={savingWeights}
+        saved={savedWeights}
+      />
 
       {/* Coaching philosophy */}
       <div className="rounded-2xl glass-card p-6 space-y-5">
