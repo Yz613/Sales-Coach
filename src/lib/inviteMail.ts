@@ -1,5 +1,13 @@
-export const DEFAULT_INVITE_FROM =
-  process.env.RESEND_FROM_EMAIL?.trim() || "Sales Coach <invites@example.com>";
+/** From address Clerk/Resend may send as. Placeholder domains are not deliverable. */
+export function resolveInviteFrom(fromEmail?: string | null): string | null {
+  const from = (fromEmail ?? process.env.RESEND_FROM_EMAIL ?? "").trim();
+  if (!from || !from.includes("@") || /example\.com/i.test(from)) return null;
+  return from;
+}
+
+export function inviteProductName(): string {
+  return process.env.INVITE_PRODUCT_NAME?.trim() || "Refresh Queue";
+}
 
 export type InviteEmailContent = {
   subject: string;
@@ -11,12 +19,14 @@ export function buildInviteEmail(input: {
   organizationName: string;
   acceptUrl: string;
   roleLabel: string;
+  productName?: string;
 }): InviteEmailContent {
   const org = input.organizationName.trim() || "your team";
   const role = input.roleLabel.trim() || "Member";
-  const subject = `Join ${org} on Sales Coach`;
+  const product = input.productName?.trim() || inviteProductName();
+  const subject = `Join ${org} on ${product}`;
   const text = [
-    `You've been invited to join ${org} on Sales Coach as ${role}.`,
+    `You've been invited to join ${org} on ${product} as ${role}.`,
     "",
     "Open this link to accept the invite:",
     input.acceptUrl,
@@ -38,7 +48,7 @@ export function buildInviteEmail(input: {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#0a0f1d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;">
             <tr>
               <td>
-                <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;">Sales Coach</p>
+                <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;">${escapeHtml(product)}</p>
                 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#f8fafc;">Join ${escapeHtml(org)}</h1>
                 <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#cbd5e1;">
                   You've been invited to join <strong style="color:#f8fafc;">${escapeHtml(org)}</strong> as
@@ -89,7 +99,10 @@ export async function sendInviteMail(
   input: SendInviteMailInput,
   fetchImpl: typeof fetch = fetch
 ): Promise<SendInviteMailResult> {
-  const from = (input.from || DEFAULT_INVITE_FROM).trim();
+  const from = resolveInviteFrom(input.from);
+  if (!from) {
+    return { ok: false, error: "Invite email has no From address on the site domain." };
+  }
   const res = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",
     headers: {

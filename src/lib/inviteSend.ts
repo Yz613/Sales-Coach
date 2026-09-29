@@ -1,5 +1,5 @@
 import { inviteRoleLabel, type InviteRole } from "./inviteEmails";
-import { buildInviteEmail, sendInviteMail, type SendInviteMailResult } from "./inviteMail";
+import { buildInviteEmail, resolveInviteFrom, sendInviteMail, type SendInviteMailResult } from "./inviteMail";
 
 export type ClerkInvitation = {
   id: string;
@@ -74,11 +74,20 @@ export async function sendOrganizationInvites(input: {
 }): Promise<InviteSendResult[]> {
   const pending = await input.clerk.listPending(input.organizationId);
   const byEmail = new Map(pending.map((item) => [item.emailAddress.toLowerCase(), item]));
-  const useResend = Boolean(input.resendApiKey?.trim());
+  const fromEmail = resolveInviteFrom(input.fromEmail);
+  const useResend = Boolean(input.resendApiKey?.trim() && fromEmail);
   const results: InviteSendResult[] = [];
 
   for (const email of input.emails) {
-    results.push(await sendOneInvite({ ...input, email, existing: byEmail.get(email.toLowerCase()), useResend }));
+    results.push(
+      await sendOneInvite({
+        ...input,
+        email,
+        fromEmail: fromEmail ?? undefined,
+        existing: byEmail.get(email.toLowerCase()),
+        useResend,
+      })
+    );
   }
   return results;
 }
@@ -126,14 +135,23 @@ async function sendOneInvite(input: {
 
     if (input.useResend && invitation.url) {
       const mailed = await deliverResend(input, invitation);
-      if (!mailed.ok) {
+      if (mailed.ok) {
         return {
           email: input.email,
           ok: true,
           invitationId: invitation.id,
           url: invitation.url,
-          emailDelivery: "link_only",
-          error: mailed.error,
+          emailDelivery: "resend",
+        };
+      }
+      const fallback = await fallBackToClerkEmail(input, invitation);
+      if (fallback) {
+        return {
+          email: input.email,
+          ok: true,
+          invitationId: fallback.id,
+          url: fallback.url,
+          emailDelivery: "clerk",
         };
       }
       return {
@@ -141,7 +159,8 @@ async function sendOneInvite(input: {
         ok: true,
         invitationId: invitation.id,
         url: invitation.url,
-        emailDelivery: "resend",
+        emailDelivery: "link_only",
+        error: mailed.error,
       };
     }
 
@@ -160,6 +179,37 @@ async function sendOneInvite(input: {
       emailDelivery: input.useResend ? "link_only" : "clerk",
       error: clerkErrorMessage(err),
     };
+  }
+}
+
+/** Clerk's own mail uses the site domain (Refresh Queue). Use it when Resend cannot send. */
+async function fallBackToClerkEmail(
+  input: {
+    organizationId: string;
+    inviterUserId: string;
+    email: string;
+    role: InviteRole;
+    redirectUrl: string;
+    clerk: ClerkInviteApi;
+  },
+  invitation: ClerkInvitation
+): Promise<ClerkInvitation | null> {
+  try {
+    await input.clerk.revoke({
+      organizationId: input.organizationId,
+      invitationId: invitation.id,
+      requestingUserId: input.inviterUserId,
+    });
+    return await input.clerk.create({
+      organizationId: input.organizationId,
+      inviterUserId: input.inviterUserId,
+      emailAddress: input.email,
+      role: input.role,
+      redirectUrl: input.redirectUrl,
+      notify: true,
+    });
+  } catch {
+    return null;
   }
 }
 

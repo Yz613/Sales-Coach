@@ -128,23 +128,26 @@ function ClerkInviteTeammatesForm({
       const results = data.results || [];
       const sent = results.filter((item) => item.ok);
       const failed = results.filter((item) => !item.ok);
-      const emailed = sent.filter((item) => item.emailDelivery === "resend" || item.emailDelivery === "clerk");
-      if (failed.length === 0) {
+      const notEmailed = sent.filter((item) => item.emailDelivery === "link_only");
+      if (failed.length === 0 && notEmailed.length === 0) {
         setEmailText("");
-        if (emailed.length === sent.length && sent.length > 0) {
-          setMessage({
-            tone: "ok",
-            text:
-              sent.length === 1
-                ? `Invite emailed to ${sent[0].email}. A copyable link is in Pending invites.`
-                : `Invites emailed to ${sent.length} people. Copy a link from Pending invites if someone still doesn't see it.`,
-          });
-        } else {
-          setMessage({
-            tone: "ok",
-            text: "Invite created. Email may be delayed — copy the link from Pending invites and send it directly.",
-          });
-        }
+        setMessage({
+          tone: "ok",
+          text:
+            sent.length === 1
+              ? `Invite emailed to ${sent[0].email} from Refresh Queue. A copyable link is in Pending invites.`
+              : `Invites emailed to ${sent.length} people from Refresh Queue. Copy a link from Pending invites if someone still doesn't see it.`,
+        });
+        return;
+      }
+      if (failed.length === 0) {
+        setMessage({
+          tone: "err",
+          text: notEmailed
+            .map((item) => item.error || `Invite created for ${item.email}, but the email was not sent.`)
+            .join(" ")
+            .concat(" Copy the link from Pending invites."),
+        });
         return;
       }
       setMessage({
@@ -314,8 +317,8 @@ function ClerkInviteTeammatesForm({
       )}
       <p className="text-xs text-slate-400">
         {emailConfigured
-          ? "Invites are emailed directly via Resend. A copyable join link is also saved under Pending invites."
-          : "A join link is created even if the email is slow or filtered. Copy it from Pending invites, or add a Resend API key in Admin → Settings to send emails automatically."}
+          ? "Invites are emailed from Refresh Queue. If that send fails, the site’s own invite mail is used. A copyable join link is also saved under Pending invites."
+          : "Invites are emailed by Refresh Queue. A copyable join link is also saved under Pending invites."}
       </p>
       <label className="block">
         <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-400">

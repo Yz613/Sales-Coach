@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildInviteEmail, maskSecret, sendInviteMail } from "./inviteMail";
+import { buildInviteEmail, maskSecret, resolveInviteFrom, sendInviteMail } from "./inviteMail";
 
 describe("invite email content", () => {
   it("includes the org name, role, and accept URL", () => {
@@ -13,7 +13,14 @@ describe("invite email content", () => {
     assert.match(email.text, /https:\/\/example.com\/app\/accept-invite\?ticket=1/);
     assert.match(email.html, /Join Acme &lt;Sales&gt;/);
     assert.match(email.html, /Accept invite/);
+    assert.match(email.subject, /Refresh Queue/);
+    assert.match(email.html, /Refresh Queue/);
     assert.equal(email.html.includes(`<html lang="en">`), true);
+  });
+
+  it("refuses placeholder from addresses", () => {
+    assert.equal(resolveInviteFrom("Sales Coach <invites@example.com>"), null);
+    assert.equal(resolveInviteFrom("Refresh Queue <invites@refreshqueue.com>"), "Refresh Queue <invites@refreshqueue.com>");
   });
 
   it("masks stored keys", () => {
@@ -32,6 +39,7 @@ describe("sendInviteMail", () => {
       {
         apiKey: "re_test",
         to: "alex@team.com",
+        from: "Refresh Queue <invites@refreshqueue.com>",
         idempotencyKey: "org-invite/inv_1",
         content: buildInviteEmail({
           organizationName: "Acme",
@@ -55,6 +63,7 @@ describe("sendInviteMail", () => {
       {
         apiKey: "re_test",
         to: "alex@team.com",
+        from: "Refresh Queue <invites@refreshqueue.com>",
         idempotencyKey: "org-invite/inv_2",
         content: buildInviteEmail({
           organizationName: "Acme",

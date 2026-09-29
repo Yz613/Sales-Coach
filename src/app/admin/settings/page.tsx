@@ -481,7 +481,7 @@ export default function AdminSettingsPage() {
             <div>
               <h2 className="text-base font-semibold text-white">Invite emails</h2>
               <p className="text-xs text-slate-400">
-                Clerk invite emails often get delayed or filtered. A Resend key sends join links directly via your verified domain instead. Pending invites still get a copyable link either way.
+                Invite emails are sent from Refresh Queue. A Resend key on invites@refreshqueue.com sends them directly; if that fails, Clerk sends the same invite from the site. Pending invites always keep a copyable link.
               </p>
             </div>
           </div>
@@ -498,7 +498,7 @@ export default function AdminSettingsPage() {
             />
             <p className="text-xs text-slate-400 mt-1.5">
               {hasResendKey ? (
-                <span className="text-emerald-400 font-medium">✓ Invite emails will send through Resend.</span>
+                <span className="text-emerald-400 font-medium">✓ Invite emails send from Refresh Queue, with Clerk as the backup.</span>
               ) : (
                 <span>Create a sending key at resend.com and paste it here, or set RESEND_API_KEY as a Worker secret.</span>
               )}

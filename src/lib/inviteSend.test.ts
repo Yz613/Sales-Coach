@@ -67,6 +67,7 @@ describe("sendOrganizationInvites", () => {
         redirectUrl: "https://example.com/app/accept-invite",
         clerk,
         resendApiKey: "re_test",
+        fromEmail: "Refresh Queue <invites@refreshqueue.com>",
       });
       assert.equal(results[0].ok, true);
       assert.equal(results[0].emailDelivery, "resend");
@@ -74,6 +75,7 @@ describe("sendOrganizationInvites", () => {
       assert.deepEqual(calls, ["revoke:orginv_old", "create:alex@team.com:notify=false"]);
       assert.equal(fetchCalls.length, 1);
       assert.match(fetchCalls[0], /alex@team.com/);
+      assert.match(fetchCalls[0], /Refresh Queue <invites@refreshqueue.com>/);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -105,13 +107,42 @@ describe("sendOrganizationInvites", () => {
     assert.equal(results[0].emailDelivery, "clerk");
   });
 
-  it("returns a copyable link when Resend fails after Clerk creates the invite", async () => {
+  it("keeps Clerk email when a Resend key has no site From address", async () => {
     const clerk: ClerkInviteApi = {
       async listPending() {
         return [];
       },
-      async create() {
+      async create(params) {
+        assert.equal(params.notify, true);
         return invitation();
+      },
+      async revoke() {
+        throw new Error("should not revoke");
+      },
+    };
+    const results = await sendOrganizationInvites({
+      organizationId: "org_1",
+      organizationName: "Acme",
+      inviterUserId: "user_1",
+      emails: ["alex@team.com"],
+      role: "org:member",
+      redirectUrl: "https://example.com/app/accept-invite",
+      clerk,
+      resendApiKey: "re_test",
+      fromEmail: "Sales Coach <invites@example.com>",
+    });
+    assert.equal(results[0].emailDelivery, "clerk");
+  });
+
+  it("asks Clerk to email from the site when Resend rejects the send", async () => {
+    const notifies: boolean[] = [];
+    const clerk: ClerkInviteApi = {
+      async listPending() {
+        return [];
+      },
+      async create(params) {
+        notifies.push(params.notify);
+        return invitation({ id: params.notify ? "orginv_clerk" : "orginv_resend" });
       },
       async revoke() {},
     };
@@ -128,11 +159,12 @@ describe("sendOrganizationInvites", () => {
         redirectUrl: "https://example.com/app/accept-invite",
         clerk,
         resendApiKey: "re_test",
+        fromEmail: "Refresh Queue <invites@refreshqueue.com>",
       });
       assert.equal(results[0].ok, true);
-      assert.equal(results[0].emailDelivery, "link_only");
-      assert.match(results[0].error || "", /domain not verified/);
-      assert.ok(results[0].url);
+      assert.equal(results[0].emailDelivery, "clerk");
+      assert.equal(results[0].invitationId, "orginv_clerk");
+      assert.deepEqual(notifies, [false, true]);
     } finally {
       globalThis.fetch = originalFetch;
     }

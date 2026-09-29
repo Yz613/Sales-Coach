@@ -155,7 +155,8 @@ To send teammate invitations via transactional email, add a [Resend](https://res
 
 ```bash
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL="Sales Coach <invites@yourdomain.com>"
+RESEND_FROM_EMAIL="Refresh Queue <invites@refreshqueue.com>"
+INVITE_PRODUCT_NAME="Refresh Queue"
 ```
 *(You can also configure this anytime in Admin → Settings.)*
 
