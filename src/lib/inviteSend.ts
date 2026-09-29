@@ -1,4 +1,5 @@
 import { inviteRoleLabel, type InviteRole } from "./inviteEmails";
+import { inviteUrlOnApp } from "./inviteRedirect";
 import { buildInviteEmail, resolveInviteFrom, sendInviteMail, type SendInviteMailResult } from "./inviteMail";
 
 export type ClerkInvitation = {
@@ -133,6 +134,8 @@ async function sendOneInvite(input: {
       }
     }
 
+    invitation = { ...invitation, url: inviteUrlOnApp(invitation.url, input.redirectUrl) };
+
     if (input.useResend && invitation.url) {
       const mailed = await deliverResend(input, invitation);
       if (mailed.ok) {
@@ -200,7 +203,7 @@ async function fallBackToClerkEmail(
       invitationId: invitation.id,
       requestingUserId: input.inviterUserId,
     });
-    return await input.clerk.create({
+    const created = await input.clerk.create({
       organizationId: input.organizationId,
       inviterUserId: input.inviterUserId,
       emailAddress: input.email,
@@ -208,6 +211,7 @@ async function fallBackToClerkEmail(
       redirectUrl: input.redirectUrl,
       notify: true,
     });
+    return { ...created, url: inviteUrlOnApp(created.url, input.redirectUrl) };
   } catch {
     return null;
   }

@@ -22,6 +22,28 @@ export function buildInviteRedirectUrl(requestUrl: string): string {
 }
 
 /**
+ * Clerk's raw invite URL opens the Frontend API host, which Cloudflare challenges.
+ * The same ticket works on the app accept page, which talks to Clerk through the proxy.
+ */
+export function inviteUrlOnApp(invitationUrl: string | null | undefined, redirectUrl: string): string | null {
+  if (!invitationUrl) return null;
+  let src: URL;
+  try {
+    src = new URL(invitationUrl);
+  } catch {
+    return invitationUrl;
+  }
+  if (src.pathname !== "/v1/tickets/accept") return invitationUrl;
+  const ticket = src.searchParams.get("ticket") || src.searchParams.get("__clerk_ticket");
+  if (!ticket) return invitationUrl;
+  const dest = new URL(redirectUrl);
+  dest.searchParams.set("__clerk_ticket", ticket);
+  const status = src.searchParams.get("__clerk_status");
+  if (status) dest.searchParams.set("__clerk_status", status);
+  return dest.href;
+}
+
+/**
  * If an invite ticket landed on a protected app URL, send it to the accept page
  * before auth middleware strips the query string.
  */

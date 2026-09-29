@@ -71,11 +71,13 @@ describe("sendOrganizationInvites", () => {
       });
       assert.equal(results[0].ok, true);
       assert.equal(results[0].emailDelivery, "resend");
-      assert.equal(results[0].url, created.url);
+      assert.equal(results[0].url, "https://example.com/app/accept-invite?__clerk_ticket=abc");
       assert.deepEqual(calls, ["revoke:orginv_old", "create:alex@team.com:notify=false"]);
       assert.equal(fetchCalls.length, 1);
       assert.match(fetchCalls[0], /alex@team.com/);
       assert.match(fetchCalls[0], /Refresh Queue <invites@refreshqueue.com>/);
+      assert.match(fetchCalls[0], /https:\/\/example.com\/app\/accept-invite\?__clerk_ticket=abc/);
+      assert.equal(fetchCalls[0].includes("clerk.example.com"), false);
     } finally {
       globalThis.fetch = originalFetch;
     }

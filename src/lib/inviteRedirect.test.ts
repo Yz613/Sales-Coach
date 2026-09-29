@@ -5,6 +5,7 @@ import {
   acceptInvitePath,
   buildInviteRedirectUrl,
   getInviteTicketRedirect,
+  inviteUrlOnApp,
 } from "./inviteRedirect";
 
 describe("invite redirect URLs", () => {
@@ -40,5 +41,22 @@ describe("invite redirect URLs", () => {
       null
     );
     assert.equal(getInviteTicketRedirect("https://example.com/app/calls"), null);
+  });
+
+  it("moves Clerk ticket links onto the app accept page", () => {
+    assert.equal(
+      inviteUrlOnApp(
+        "https://clerk.refreshqueue.com/v1/tickets/accept?ticket=abc",
+        "https://refreshqueue.com/app/accept-invite"
+      ),
+      "https://refreshqueue.com/app/accept-invite?__clerk_ticket=abc"
+    );
+    assert.equal(
+      inviteUrlOnApp(
+        "https://refreshqueue.com/app/accept-invite?__clerk_ticket=abc",
+        "https://refreshqueue.com/app/accept-invite"
+      ),
+      "https://refreshqueue.com/app/accept-invite?__clerk_ticket=abc"
+    );
   });
 });

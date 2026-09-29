@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getSetting } from "@/lib/db/service";
 import { createClerkInviteApi, listTeamMembers } from "@/lib/clerkInvites";
+import { inviteUrlOnApp } from "@/lib/inviteRedirect";
 import type { ClerkInvitation } from "@/lib/inviteSend";
 import type { TeamMember } from "@/lib/teamRoster";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
@@ -47,12 +48,21 @@ export async function organizationName(orgId: string): Promise<string> {
   }
 }
 
-export async function loadInviteRoster(orgId: string): Promise<InviteRoster> {
+export async function loadInviteRoster(orgId: string, redirectUrl?: string): Promise<InviteRoster> {
   const clerk = await createClerkInviteApi();
   const [invitations, members, resendApiKey] = await Promise.all([
     clerk.listPending(orgId),
     listTeamMembers(orgId),
     resolveResendApiKey(),
   ]);
-  return { invitations, members, emailConfigured: Boolean(resendApiKey) };
+  return {
+    invitations: redirectUrl
+      ? invitations.map((invitation) => ({
+          ...invitation,
+          url: inviteUrlOnApp(invitation.url, redirectUrl),
+        }))
+      : invitations,
+    members,
+    emailConfigured: Boolean(resendApiKey),
+  };
 }

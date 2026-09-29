@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     fromEmail: process.env.RESEND_FROM_EMAIL,
   });
   const failed = results.find((item) => !item.ok);
-  const roster = await loadInviteRoster(gate.orgId);
+  const roster = await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url));
   if (failed) {
     return NextResponse.json({ error: failed.error || "Could not resend that invite.", ...roster }, { status: 400 });
   }

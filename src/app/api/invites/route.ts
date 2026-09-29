@@ -12,10 +12,10 @@ import {
 } from "@/lib/inviteAdmin";
 import { memberRoleChangeError } from "@/lib/teamRoster";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
-  return NextResponse.json(await loadInviteRoster(gate.orgId));
+  return NextResponse.json(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url)));
 }
 
 export async function POST(req: NextRequest) {
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     results,
-    ...(await loadInviteRoster(gate.orgId)),
+    ...(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url))),
   });
 }
 
@@ -92,7 +92,7 @@ export async function PATCH(req: NextRequest) {
     } catch (err) {
       return NextResponse.json({ error: clerkErrorMessage(err, "Could not change that role") }, { status: 400 });
     }
-    return NextResponse.json(await loadInviteRoster(gate.orgId));
+    return NextResponse.json(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url)));
   }
 
   const clerk = await createClerkInviteApi();
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "That invite is no longer pending." }, { status: 404 });
   }
   if (invitation.role === body.role) {
-    return NextResponse.json(await loadInviteRoster(gate.orgId));
+    return NextResponse.json(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url)));
   }
 
   const resendApiKey = await resolveResendApiKey();
@@ -123,14 +123,14 @@ export async function PATCH(req: NextRequest) {
   const failed = results.find((item) => !item.ok);
   if (failed) {
     return NextResponse.json(
-      { error: failed.error || "Could not change that invite.", ...(await loadInviteRoster(gate.orgId)) },
+      { error: failed.error || "Could not change that invite.", ...(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url))) },
       { status: 400 }
     );
   }
 
   return NextResponse.json({
     results,
-    ...(await loadInviteRoster(gate.orgId)),
+    ...(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url))),
   });
 }
 
@@ -155,5 +155,5 @@ export async function DELETE(req: NextRequest) {
     invitationId,
     requestingUserId: gate.userId,
   });
-  return NextResponse.json({ ok: true, ...(await loadInviteRoster(gate.orgId)) });
+  return NextResponse.json({ ok: true, ...(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url))) });
 }
