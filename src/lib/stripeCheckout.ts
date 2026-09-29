@@ -275,6 +275,7 @@ export async function claimPendingCheckout(input: {
   if (!sessionId) return null;
   const record = (await finalizeCheckoutSession(sessionId).catch(() => loadCheckoutRecord(sessionId))) || null;
   if (!record || record.status !== "paid") return null;
+  if (record.claimedOrgId === orgId) return record.planId;
   if (record.claimedOrgId && record.claimedOrgId !== orgId) return null;
   await runWithTenant(orgId, () => activateHostedPlan(record.planId));
   record.claimedOrgId = orgId;

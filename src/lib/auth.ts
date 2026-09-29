@@ -1,9 +1,12 @@
+import { cache } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveCanViewAllCalls } from "@/lib/call-access";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
 import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/billingAccess";
 import type { HostedPlanId } from "@/lib/billing";
+import { parseHostedPlanId } from "@/lib/billing";
 import { LOCAL_TENANT_ID, TenantRequiredError, bindTenant } from "@/lib/tenant";
 import { toAppPath } from "@/lib/public-path";
 
@@ -88,8 +91,16 @@ function isNextControlFlowError(err: unknown): boolean {
 /**
  * Get the current user and their role on the server.
  * Reads role from the active team, then publicMetadata.role.
+ * Deduped within one request so the layout and the page do not each call Clerk.
  */
-export async function getServerAuth(): Promise<AuthUser> {
+export const getServerAuth = cache(readServerAuth);
+
+/** Re-read billing after a checkout claim. Must not reuse the request cache. */
+export function rereadServerAuth(): Promise<AuthUser> {
+  return readServerAuth();
+}
+
+async function readServerAuth(): Promise<AuthUser> {
   try {
     return await loadServerAuth();
   } catch (err) {
@@ -129,9 +140,19 @@ async function loadServerAuth(): Promise<AuthUser> {
   let clerkHas: ClerkHas = undefined;
   let clerkPlanId: HostedPlanId | null = null;
 
-  // Only call auth() when clerkMiddleware will also run. An inlined
-  // publishable key alone makes Clerk throw "can't detect clerkMiddleware".
-  if (hasClerkServerAuth()) {
+  // Middleware already verified the session. Reuse that instead of calling Clerk again.
+  const headerStore = await headers();
+  const stamped = headerStore.get("x-sc-auth") === "1" && hasClerkServerAuth();
+  if (stamped) {
+    userId = headerStore.get("x-sc-user-id");
+    orgId = headerStore.get("x-sc-org-id");
+    orgRole = headerStore.get("x-sc-org-role");
+    email = headerStore.get("x-sc-email") || undefined;
+    name = headerStore.get("x-sc-name") || undefined;
+    metadataRole = headerStore.get("x-sc-metadata-role") || undefined;
+    hasOrgAdmin = headerStore.get("x-sc-org-admin") === "1" || orgRole === "org:admin";
+    clerkPlanId = parseHostedPlanId(headerStore.get("x-sc-plan"));
+  } else if (hasClerkServerAuth()) {
     try {
       const { auth, currentUser } = await import("@clerk/nextjs/server");
       const authData = await auth();
@@ -144,7 +165,7 @@ async function loadServerAuth(): Promise<AuthUser> {
         authData.orgRole === "org:admin";
       clerkPlanId = planFromClerkHas(clerkHas);
 
-      if (userId) {
+      if (userId && (!email || !name)) {
         const user = await currentUser();
         if (user) {
           email =
@@ -168,6 +189,33 @@ async function loadServerAuth(): Promise<AuthUser> {
   });
 
   const isAdmin = effectiveRole === "admin";
+  // Admins can see every call without an email. Members need the address, so
+  // only they pay for a Clerk user fetch when the session token lacks it.
+  if (stamped && userId && !isAdmin && !email) {
+    try {
+      const { currentUser } = await import("@clerk/nextjs/server");
+      const user = await currentUser();
+      if (user) {
+        email =
+          email ||
+          user.primaryEmailAddress?.emailAddress ||
+          user.emailAddresses?.[0]?.emailAddress;
+        name = name || user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : undefined);
+        metadataRole = metadataRole || ((user.publicMetadata as Record<string, unknown>)?.role as string | undefined);
+      }
+    } catch (err) {
+      console.warn("Clerk user profile warning:", err);
+    }
+  }
+
+  const roleAfterProfile = resolveUserRole({
+    orgRole,
+    hasOrgAdmin,
+    metadataRole,
+    clerkConfigured,
+    userId,
+  });
+  const resolvedIsAdmin = roleAfterProfile === "admin";
   const hosted = hostedBillingRequired();
   const standalone = !hosted && !hasClerkServerAuth();
   let tenantId: string | null = null;
@@ -189,15 +237,17 @@ async function loadServerAuth(): Promise<AuthUser> {
   let billingPaid = standalone;
   if (tenantId && clerkConfigured && hasClerkServerAuth()) {
     try {
-      if (hostedBillingRequired() && !clerkPlanId) {
-        const { claimPendingCheckout } = await import("@/lib/stripeCheckout");
-        await claimPendingCheckout({ orgId: tenantId, email });
-      }
       const { loadBillingAccount } = await import("@/lib/billingQuota");
-      const account = await loadBillingAccount(
-        { isClerkConfigured: true, orgId, clerkPlanId },
-        clerkHas
-      );
+      const billingAuth = { isClerkConfigured: true as const, orgId, clerkPlanId };
+      let account = await loadBillingAccount(billingAuth, clerkHas);
+      if (!account.paid && hostedBillingRequired()) {
+        const { claimPendingCheckout } = await import("@/lib/stripeCheckout");
+        const claimed = await claimPendingCheckout({ orgId: tenantId, email });
+        if (claimed) {
+          clerkPlanId = clerkPlanId || claimed;
+          account = await loadBillingAccount({ ...billingAuth, clerkPlanId }, clerkHas);
+        }
+      }
       billingPaid = account.paid;
     } catch (err) {
       if (err instanceof TenantRequiredError) {
@@ -221,11 +271,11 @@ async function loadServerAuth(): Promise<AuthUser> {
       userId,
       orgRole,
       hasOrgAdmin,
-      isAdmin,
+      isAdmin: resolvedIsAdmin,
     }),
-    role: effectiveRole,
-    isAdmin,
-    isMember: effectiveRole === "member",
+    role: roleAfterProfile,
+    isAdmin: resolvedIsAdmin,
+    isMember: roleAfterProfile === "member",
     isClerkConfigured: clerkConfigured,
     tenantId,
     clerkPlanId,

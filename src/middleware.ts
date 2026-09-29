@@ -13,6 +13,7 @@ import {
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
+import { planFromClerkHas, type ClerkHas } from "@/lib/billingAccess";
 
 const isAdminRoute = createRouteMatcher([
   "/",
@@ -53,9 +54,11 @@ function clerkHandlerImpl() {
         return nextWithPath(req, publicPath);
       }
 
-      const pendingAuth = await auth({ treatPendingAsSignedOut: false });
+      // One Clerk read per request. A second auth() plus currentUser() in the layout
+      // was a full extra round trip on every click.
+      const authData = await auth({ treatPendingAsSignedOut: false });
       const pendingTeamPath = pendingTeamSelectionPath({
-        sessionStatus: pendingAuth.sessionStatus,
+        sessionStatus: authData.sessionStatus,
         publicPath,
       });
       if (pendingTeamPath && !isApiRoute(publicPath) && !isPublicApiRoute(publicPath, req.method)) {
@@ -70,8 +73,6 @@ function clerkHandlerImpl() {
       if (pendingTeamPath && isApiRoute(publicPath)) {
         return NextResponse.json({ error: "Choose a team to finish signing in." }, { status: 401 });
       }
-
-      const authData = await auth();
 
       if (!authData.userId) {
         if (isApiRoute(publicPath)) {
@@ -104,7 +105,7 @@ function clerkHandlerImpl() {
         if (denied) return denied;
       }
 
-      return nextWithPath(req, publicPath);
+      return nextWithPath(req, publicPath, authData);
     }, {
       // Do not advertise /__auth (Next's stripped path). Handshake must stay on /app/__auth.
       frontendApiProxy: { enabled: false },
@@ -131,9 +132,69 @@ function redirectInviteTickets(req: NextRequest): NextResponse | null {
   return NextResponse.redirect(ticket.location, ticket.status);
 }
 
-function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
+const AUTH_HEADERS = [
+  "x-sc-auth",
+  "x-sc-user-id",
+  "x-sc-org-id",
+  "x-sc-org-role",
+  "x-sc-org-admin",
+  "x-sc-email",
+  "x-sc-name",
+  "x-sc-metadata-role",
+  "x-sc-plan",
+] as const;
+
+function claimString(claims: Record<string, unknown> | null | undefined, key: string): string {
+  const value = claims?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function nextWithPath(
+  req: NextRequest,
+  publicPath: string,
+  authData?: {
+    userId: string | null;
+    orgId?: string | null;
+    orgRole?: string | null;
+    sessionStatus?: string | null;
+    sessionClaims?: unknown;
+    has?: (params: { role: string } | { plan: string } | { feature: string }) => boolean;
+  }
+): NextResponse {
   const requestHeaders = new Headers(req.headers);
+  for (const key of AUTH_HEADERS) requestHeaders.delete(key);
   requestHeaders.set("x-salescoach-path", publicPath);
+
+  const claims = (authData?.sessionClaims || null) as Record<string, unknown> | null;
+  const active = Boolean(authData?.userId) && authData?.sessionStatus !== "pending";
+  if (active && authData) {
+    const hasOrgAdmin =
+      (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
+      authData.orgRole === "org:admin";
+    const metadata = claims?.metadata as { role?: string } | undefined;
+    const first = claimString(claims, "first_name") || claimString(claims, "firstName");
+    const last = claimString(claims, "last_name") || claimString(claims, "lastName");
+    const name =
+      claimString(claims, "name") ||
+      claimString(claims, "full_name") ||
+      claimString(claims, "fullName") ||
+      [first, last].filter(Boolean).join(" ");
+    requestHeaders.set("x-sc-auth", "1");
+    requestHeaders.set("x-sc-user-id", authData.userId || "");
+    if (authData.orgId) requestHeaders.set("x-sc-org-id", authData.orgId);
+    if (authData.orgRole) requestHeaders.set("x-sc-org-role", authData.orgRole);
+    if (hasOrgAdmin) requestHeaders.set("x-sc-org-admin", "1");
+    const email =
+      claimString(claims, "email") ||
+      claimString(claims, "email_address") ||
+      claimString(claims, "primary_email_address");
+    if (email) requestHeaders.set("x-sc-email", email);
+    if (name) requestHeaders.set("x-sc-name", name);
+    if (metadata?.role) requestHeaders.set("x-sc-metadata-role", metadata.role);
+    const planId = planFromClerkHas(typeof authData.has === "function" ? (authData.has as ClerkHas) : undefined);
+    if (planId) requestHeaders.set("x-sc-plan", planId);
+  }
+
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

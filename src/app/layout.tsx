@@ -28,14 +28,15 @@ export default async function RootLayout({
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
   const path = (await headers()).get("x-salescoach-path") || "";
   const publicAuth = isPublicAuthRoute(path);
+  const marketing = isPublicMarketingPath(path);
   const gatedPage =
     path &&
-    !isPublicMarketingPath(path) &&
+    !marketing &&
     !publicAuth &&
     !isApiRoute(path);
 
-  // Sign-in/up must not wait on D1 or billing. A hung getServerAuth() renders a blank page.
-  const auth = publicAuth ? publicGuestAuth() : await getServerAuth();
+  // Marketing and sign-in must not wait on Clerk, D1, or billing.
+  const auth = publicAuth || marketing ? publicGuestAuth() : await getServerAuth();
   const dest = gatedPage ? authRedirectPath(auth) : null;
   if (dest) {
     redirect(dest);
@@ -47,7 +48,7 @@ export default async function RootLayout({
         <AuthProvider
           initialRole={auth.role}
           publishableKey={publishableKey}
-          skipRoleFetch={publicAuth}
+          skipRoleFetch={publicAuth || marketing}
           initialUser={
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerAuth } from "@/lib/auth";
+import { getServerAuth, rereadServerAuth } from "@/lib/auth";
 import { CONTACT_MAILTO, PRICING_PLANS } from "@/lib/marketing";
 import { hostedBillingRequired } from "@/lib/billingAccess";
 import { toAppPath } from "@/lib/public-path";
@@ -24,7 +24,7 @@ export default async function SubscribePage() {
     await claimPendingCheckout({ orgId: auth.orgId, email: auth.email, sessionId });
   }
 
-  const latest = await getServerAuth();
+  const latest = await rereadServerAuth();
   if (latest.billingPaid || !hostedBillingRequired()) {
     redirect(toAppPath("/"));
   }

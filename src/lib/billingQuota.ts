@@ -103,13 +103,19 @@ export async function loadBillingAccount(
 ): Promise<BillingAccount> {
   const unlimited = !auth.isClerkConfigured || !hostedBillingRequired();
   const clerkPlan = auth.clerkPlanId || planFromClerkHas(has);
-  const storedPlan = parseHostedPlanId(await getSetting(planKey()));
-  const entitled = clerkPlan || (isPaidHostedPlan(storedPlan) ? storedPlan : null);
-
+  const month = utcMonthKey();
+  const [storedPlanRaw, overrideRaw, storedOverage, usageRaw] = await Promise.all([
+    getSetting(planKey()),
+    getSetting(limitOverrideKey()),
+    getSetting(overageKey()),
+    getSetting(usageKey(month)),
+  ]);
+  const storedPlan = parseHostedPlanId(storedPlanRaw);
   if (clerkPlan && clerkPlan !== storedPlan) {
     await setSetting(planKey(), clerkPlan);
   }
 
+  const entitled = clerkPlan || (isPaidHostedPlan(storedPlan) ? storedPlan : null);
   let planId: HostedPlanId;
   let paid: boolean;
   if (unlimited) {
@@ -124,7 +130,7 @@ export async function loadBillingAccount(
   }
 
   const plan = HOSTED_PLANS[planId];
-  const override = Number.parseInt((await getSetting(limitOverrideKey())) || "", 10);
+  const override = Number.parseInt(overrideRaw || "", 10);
   const monthlyLimit = unlimited
     ? null
     : !paid
@@ -135,12 +141,10 @@ export async function loadBillingAccount(
           ? override
           : plan.monthlyEvals;
 
-  const storedOverage = await getSetting(overageKey());
   const overageOptIn =
     storedOverage == null ? plan.defaultOverageOptIn : storedOverage === "true";
 
-  const month = utcMonthKey();
-  const usage = parseUsage(await getSetting(usageKey(month)), month);
+  const usage = parseUsage(usageRaw, month);
 
   return {
     scope: unlimited ? LOCAL_TENANT_ID : billingScope(auth),
