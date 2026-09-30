@@ -87,6 +87,16 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 ---
 
+## Team Revenue Goals
+
+Admins can use the dashboard’s **Team goals** card to plan revenue by quarter, month, or week. Use **Manage teams & reps** to name teams and assign existing reps. Each rep belongs to one goal team; unassigned reps do not affect team rates. These goal teams are groups inside the current workspace and share its admin permissions.
+
+Each team has its own revenue goal, average customer revenue, selling days, and planning rep count. The count follows its roster unless manually overridden; **Use assigned count** restores that behavior. Click **Save team goals** to persist goals and assignments for all admins in the current workspace.
+
+Close rates remain read-only and come from logged calls with the **Meeting booked** outcome. The team estimate uses its combined historical rate. Individual targets split revenue equally across the planning rep count and use each rep’s own rate, so a 5% rep needs twice the calls of a 10% rep for the same customer target. The individual total can differ from the combined-rate estimate. Reps without logged calls or booked meetings show no call target until a usable rate exists. Planning assumes 13 weeks per quarter and 4⅓ weeks per month, and call targets round up.
+
+---
+
 ## Adding Your Own AI API Keys
 
 You can add your API keys either directly in the web UI or via environment variables:

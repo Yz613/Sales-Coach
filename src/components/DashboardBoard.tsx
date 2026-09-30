@@ -30,23 +30,22 @@ import {
 } from "@/lib/dashboardLayout";
 import type { SalesMethodology } from "@/lib/methodology";
 import RevenueGoal from "./RevenueGoal";
+import type { GoalRep, GoalTeam } from "@/lib/goalTeams";
 
 export default function DashboardBoard({
   report,
   recentCalls,
   needsCoachSetup,
   methodology,
-  teamCloseRate,
-  loggedCalls,
-  repCount,
+  goalTeams,
+  goalReps,
 }: {
   report: SuperAdminReport;
   recentCalls: Call[];
   needsCoachSetup: boolean;
   methodology: SalesMethodology;
-  teamCloseRate: number;
-  loggedCalls: number;
-  repCount: number;
+  goalTeams: GoalTeam[];
+  goalReps: GoalRep[];
 }) {
   const progressingCount = report.repTrajectories.filter((r) => r.trajectory === "progressing").length;
   const stagnantCount = report.repTrajectories.filter((r) => r.trajectory === "stagnant").length;
@@ -411,7 +410,7 @@ export default function DashboardBoard({
         </div>
       </div>
 
-      <RevenueGoal teamCloseRate={teamCloseRate} loggedCalls={loggedCalls} repCount={repCount} />
+      <RevenueGoal initialTeams={goalTeams} reps={goalReps} />
 
       <SortableBoard
         scope="sections"

@@ -941,9 +941,9 @@ export async function getCallById(id: string): Promise<Call | null> {
   };
 }
 
-export async function getDashboardSnapshot(): Promise<{ report: SuperAdminReport; calls: Call[] }> {
+export async function getDashboardSnapshot(): Promise<{ report: SuperAdminReport; calls: Call[]; reps: Rep[] }> {
   const [allReps, allCalls] = await Promise.all([getAllReps(), getCallSummaries()]);
-  return { report: await buildSuperAdminReport(allReps, allCalls), calls: allCalls };
+  return { report: await buildSuperAdminReport(allReps, allCalls), calls: allCalls, reps: allReps };
 }
 
 export async function getSuperAdminReport(): Promise<SuperAdminReport> {

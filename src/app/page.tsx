@@ -1,33 +1,34 @@
-import { getDashboardSnapshot, getCoachInstructions, getSalesMethodId } from "@/lib/db/service";
+import { getDashboardSnapshot, getCoachInstructions, getSalesMethodId, getSetting } from "@/lib/db/service";
 import { requireAdmin } from "@/lib/auth";
 import DashboardBoard from "@/components/DashboardBoard";
 import { methodById } from "@/lib/salesMethods";
-import { isMeetingBooked } from "@/lib/coreOutcome";
+import { GOAL_TEAMS_SETTING_KEY, buildGoalReps, readGoalTeams } from "@/lib/goalTeams";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboard() {
-  await requireAdmin();
-  const [{ report, calls: allCalls }, coachInstructions, salesMethodId] = await Promise.all([
+  const auth = await requireAdmin();
+  const [{ report, calls: allCalls, reps }, coachInstructions, salesMethodId, savedTeams] = await Promise.all([
     getDashboardSnapshot(),
     getCoachInstructions(),
     getSalesMethodId(),
+    getSetting(GOAL_TEAMS_SETTING_KEY),
   ]);
   const recentCalls = allCalls.slice(0, 6);
   const needsCoachSetup = !coachInstructions.trim();
   const methodology = methodById(salesMethodId);
-  const bookedCalls = allCalls.filter((call) => isMeetingBooked(call.coreOutcome)).length;
-  const teamCloseRate = allCalls.length ? Math.round((bookedCalls / allCalls.length) * 1000) / 10 : 0;
+  const goalReps = buildGoalReps(reps, allCalls);
+  const goalTeams = readGoalTeams(savedTeams, reps);
 
   return (
     <DashboardBoard
+      key={auth.tenantId ?? "local"}
       report={report}
       recentCalls={recentCalls}
       needsCoachSetup={needsCoachSetup}
       methodology={methodology}
-      teamCloseRate={teamCloseRate}
-      loggedCalls={allCalls.length}
-      repCount={report.totalReps || report.repTrajectories.length}
+      goalTeams={goalTeams}
+      goalReps={goalReps}
     />
   );
 }
