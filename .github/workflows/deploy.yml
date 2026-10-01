@@ -90,3 +90,7 @@ jobs:
             exit 1
           fi
           npm run deploy
+      - name: Encrypt legacy D1 secret settings
+        env:
+          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+        run: npx tsx scripts/encrypt-d1-settings.ts

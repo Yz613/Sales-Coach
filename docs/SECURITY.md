@@ -51,6 +51,8 @@ For Docker, set these values in the container environment. The runtime uses the 
 
 ## Storage and migration
 
+The Cloudflare deployment also encrypts existing D1 secret settings after the new worker is live, validates the original key, and verifies that no nonempty secret setting remains plaintext. It uses conditional updates to preserve concurrent changes and prints counts only. The migration can be repeated safely; it fails before writes if existing ciphertext cannot be decrypted.
+
 Use a secret manager for the encryption key and keep its backups separate from database backups. Restoring the wrong key makes encrypted data unreadable. This implementation uses a single deployment encryption key; online key rotation, per-tenant envelope keys, customer-managed keys, and KMS integration are not implemented.
 
 Existing plaintext secret settings are encrypted atomically on their next server read; new writes are always encrypted. Existing recordings remain readable for migration compatibility. For local/private-file deployments, stop app and worker writes, back up storage and the original encryption key, then run `npm run security:migrate` as the host operator. The command encrypts all legacy secret settings and re-saves stored recordings under each call's tenant; it prints counts only and exits unsuccessfully if referenced recordings are unavailable. Review those missing assets before resuming writes. For existing Cloudflare R2 objects, run the migration logic inside an authenticated operator environment with D1/R2 bindings or re-import recordings; the Node migration command does not connect to remote Cloudflare storage. Previously published files or older container/worker versions require removal through the hosting provider, including any CDN copies.
