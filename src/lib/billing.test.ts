@@ -33,7 +33,7 @@ describe("assessEvalQuota", () => {
     const decision = assessEvalQuota({
       planId: "coach",
       monthlyLimit: HOSTED_COACH_EVALS,
-      creditsUsed: 249,
+      creditsUsed: HOSTED_COACH_EVALS - 1,
       requestedCredits: 2,
       overageOptIn: true,
     });
@@ -60,7 +60,7 @@ describe("assessEvalQuota", () => {
     }
   });
 
-  it("caps Enterprise at 4,000 with no $0.85 overage", () => {
+  it("caps Enterprise at 4,000 with no per-eval overage", () => {
     const decision = assessEvalQuota({
       planId: "enterprise",
       monthlyLimit: ENTERPRISE_FAIR_USE_EVALS,
@@ -89,18 +89,24 @@ describe("assessEvalQuota", () => {
 
 describe("hosted plan copy constants", () => {
   it("keeps Coach / Team / Enterprise numbers aligned", () => {
-    assert.equal(HOSTED_PLANS.coach.monthlyPriceUsd, 249);
+    assert.equal(HOSTED_PLANS.oss.monthlyPriceUsd, 0);
+    assert.equal(HOSTED_PLANS.coach.monthlyPriceUsd, 399);
+    assert.equal(Math.round(HOSTED_PLANS.coach.monthlyPriceUsd * 100), 39900);
     assert.equal(HOSTED_PLANS.coach.monthlyEvals, 250);
-    assert.equal(HOSTED_PLANS.team.monthlyPriceUsd, 899);
+    assert.equal(HOSTED_PLANS.team.monthlyPriceUsd, 1499);
+    assert.equal(Math.round(HOSTED_PLANS.team.monthlyPriceUsd * 100), 149900);
     assert.equal(HOSTED_PLANS.team.monthlyEvals, 1200);
-    assert.equal(HOSTED_PLANS.enterprise.monthlyPriceUsd, 2997);
+    assert.equal(HOSTED_PLANS.enterprise.monthlyPriceUsd, 4997);
+    assert.equal(Math.round(HOSTED_PLANS.enterprise.monthlyPriceUsd * 100), 499700);
     assert.equal(HOSTED_PLANS.enterprise.monthlyEvals, 4000);
+    assert.equal(EVAL_OVERAGE_RATE_USD, 1.25);
     assert.equal(parseHostedPlanId("starter"), "coach");
     assert.equal(parseHostedPlanId("pro"), "team");
-    assert.match(OVERAGE_LINE, /\$0\.85/);
+    assert.match(OVERAGE_LINE, /\$1\.25/);
     assert.match(CALL_DURATION_NOTE, /60 minutes/);
     assert.match(ENTERPRISE_SEATS_BULLET, /4,000 call evaluations/);
-    assert.match(FAQ_EXCEED_MONTHLY.answer, /\$0\.85\/call/);
+    assert.match(FAQ_EXCEED_MONTHLY.answer, /\$1\.25\/call/);
     assert.match(FAQ_ENTERPRISE_FAIR_USE.answer, /4,000 monthly calls/);
+    assert.match(FAQ_ENTERPRISE_FAIR_USE.answer, /~\$1\.25 effective cost\/call/);
   });
 });

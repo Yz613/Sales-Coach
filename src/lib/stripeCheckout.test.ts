@@ -51,7 +51,8 @@ describe("Stripe checkout params", () => {
     });
     assert.equal(params.mode, "subscription");
     assert.equal(params["metadata[plan]"], "coach");
-    assert.equal(params["line_items[0][price_data][unit_amount]"], "24900");
+    assert.equal(params["line_items[0][price_data][unit_amount]"], "39900");
+    assert.equal(checkoutLineItemFields("team", {})["line_items[0][price_data][unit_amount]"], "149900");
     assert.equal(params["line_items[0][price_data][recurring][interval]"], "month");
     assert.equal(params.success_url, urls.successUrl);
     assert.equal(params.customer_email, undefined);

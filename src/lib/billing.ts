@@ -1,4 +1,4 @@
-export const EVAL_OVERAGE_RATE_USD = 0.85;
+export const EVAL_OVERAGE_RATE_USD = 1.25;
 export const STANDARD_CALL_MINUTES = 60;
 export const EXTRA_CALL_BLOCK_MINUTES = 30;
 export const ENTERPRISE_FAIR_USE_EVALS = 4000;
@@ -8,7 +8,7 @@ export const HOSTED_TEAM_EVALS = 1200;
 export const CALL_DURATION_NOTE =
   "Covers standard sales calls up to 60 minutes. Calls exceeding 60 minutes consume 1 evaluation credit per additional 30-minute block.";
 
-export const OVERAGE_LINE = "+ $0.85 per additional evaluation after plan limit";
+export const OVERAGE_LINE = "+ $1.25 per additional evaluation after plan limit";
 
 export const ENTERPRISE_SEATS_BULLET =
   "Unlimited seats · Fair-use quota of up to 4,000 call evaluations/mo (custom high-volume tiers available).";
@@ -16,13 +16,13 @@ export const ENTERPRISE_SEATS_BULLET =
 export const FAQ_EXCEED_MONTHLY = {
   question: "What happens if we exceed our monthly evaluations?",
   answer:
-    "You can continue evaluating calls uninterrupted at a flat rate of $0.85/call, billed at the end of your billing cycle.",
+    "You can continue evaluating calls uninterrupted at a flat rate of $1.25/call, billed at the end of your billing cycle.",
 };
 
 export const FAQ_ENTERPRISE_FAIR_USE = {
   question: "Enterprise fair use",
   answer:
-    "Enterprise fair use is set at 4,000 monthly calls (~$0.75 effective cost/call with dedicated infrastructure and SLA). Organizations requiring higher throughput get dedicated pooled clusters.",
+    "Enterprise fair use is set at 4,000 monthly calls (~$1.25 effective cost/call with dedicated infrastructure and SLA). Organizations requiring higher throughput get dedicated pooled clusters.",
 };
 
 export type HostedPlanId = "oss" | "coach" | "team" | "enterprise";
@@ -48,7 +48,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlan> = {
   coach: {
     id: "coach",
     name: "Hosted Coach",
-    monthlyPriceUsd: 249,
+    monthlyPriceUsd: 399,
     monthlyEvals: HOSTED_COACH_EVALS,
     allowsOverage: true,
     defaultOverageOptIn: true,
@@ -56,7 +56,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlan> = {
   team: {
     id: "team",
     name: "Hosted Team",
-    monthlyPriceUsd: 899,
+    monthlyPriceUsd: 1499,
     monthlyEvals: HOSTED_TEAM_EVALS,
     allowsOverage: true,
     defaultOverageOptIn: true,
@@ -64,7 +64,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlan> = {
   enterprise: {
     id: "enterprise",
     name: "Enterprise",
-    monthlyPriceUsd: 2997,
+    monthlyPriceUsd: 4997,
     monthlyEvals: ENTERPRISE_FAIR_USE_EVALS,
     allowsOverage: false,
     defaultOverageOptIn: false,
