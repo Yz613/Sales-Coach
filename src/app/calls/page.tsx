@@ -13,6 +13,8 @@ import { callPartySubtitle } from "@/lib/callLabel";
 import { getVisibleCalls } from "@/lib/viewer-calls";
 import { getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { methodById } from "@/lib/salesMethods";
+import { hasConnectedIntegrations } from "@/lib/revenue/connections";
+import LiveFeedRefresh from "@/components/revenue/LiveFeedRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ async function CallBankPage() {
               ? "Every ingested call ranked best-to-worst by the AI Sales Manager, with a pointer on exactly what went wrong."
               : "Only your calls. Teammates cannot see these, and you cannot see theirs."}
           </p>
+          <LiveFeedRefresh enabled={await hasConnectedIntegrations("calls")} />
         </div>
 
         <CallBankActions totalCalls={rankedCalls.length} />

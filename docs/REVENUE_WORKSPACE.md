@@ -8,7 +8,7 @@
 - Coaching library: saved call ranges organized into named collections, with the same access rules as their source calls.
 - Topics: configurable keyword/phrase trackers, speaker filters and timestamped matches. Speaker activity reports transcript word share and questions.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
-- Integrations: verified credentials encrypted at rest; HubSpot CRM import; Fathom meeting import and signed webhooks; initial and incremental sync; connection controls and job history.
+- Integrations: ten logo cards with individual connection guides; five native call connectors (Fathom, Fireflies, tl;dv, Gong, Close), three CRM connectors (HubSpot, Pipedrive, Attio), and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
 - Data management: workspace retention settings, manual purge, permanent local deletion, import tombstones, JSON/VTT/SRT exports and an audit log.
 - Storage: tenant-scoped local recordings or Cloudflare R2. Existing uploads and evaluations remain available.
@@ -27,7 +27,7 @@ Open http://localhost:3000/app. Start a second terminal for scheduled imports an
 
     npm run worker
 
-The app processes a few jobs after a connect, sync or webhook request. The worker is needed to finish larger imports and keep syncing while nobody is using the app. It checks for eligible syncs every minute, polls jobs every three seconds, and schedules each automatic integration sync about every 15 minutes. One run is available with npm run worker:once.
+The app processes a few jobs after a connect, sync or webhook request. The worker is needed to finish larger imports and keep syncing while nobody is using the app. It checks for eligible syncs every minute, polls jobs every three seconds, and schedules automatic sync every five minutes for Fathom/HubSpot, hourly for Fireflies, and every 15 minutes for tl;dv/Gong/Close/Pipedrive/Attio. Zapier and Make receive incoming calls and do not poll. One run is available with npm run worker:once.
 
 SQLite creates the new tables automatically. The default database is sales_coach.db; SALES_COACH_DB_PATH overrides it. Tests use isolated temporary databases.
 
@@ -47,7 +47,7 @@ For Clerk or Cloudflare installations, set INTEGRATION_ENCRYPTION_KEY explicitly
 
 Use the same key in the app and worker. Changing it without re-encrypting credentials requires reconnecting the integrations. This key protects integration credentials; it does not encrypt the entire database.
 
-PUBLIC_APP_URL should be the public HTTPS origin, for example https://your-domain.example. Fathom webhook registration requires an externally reachable HTTPS origin.
+PUBLIC_APP_URL should be the public HTTPS origin, for example https://your-domain.example. Live feed setup requires an externally reachable HTTPS origin. Fathom registration runs automatically when connecting; setup failures leave the connection usable for polling and show a retryable warning.
 
 ### HubSpot setup
 
@@ -57,7 +57,8 @@ PUBLIC_APP_URL should be the public HTTPS origin, for example https://your-domai
    - crm.objects.deals.read
 2. Open Admin → Integrations, choose HubSpot, and paste the credential.
 3. Connect verifies all three object endpoints and deal pipelines, then queues the initial sync.
-4. Open Deals after the job history shows the import completed.
+4. For live updates, use a webhook-capable HubSpot app access token and its client secret. The setup page verifies the token’s account ID and shows the feed URL. Add it as the app webhook target and subscribe to deal creation, deletion, and property changes (dealstage, dealname, amount, closedate, pipeline, hubspot_owner_id). Contact/company subscriptions keep conversation matching current.
+5. Open Deals after the job history shows the import completed. Signed events update changed records immediately; the pipeline refreshes while open.
 
 Existing legacy private-app tokens also work. Service keys are the preferred new credential. This release reads HubSpot and stores CRM changes locally; it does not write notes, tasks or scores back to HubSpot. Multi-account public distribution still needs OAuth.
 
@@ -66,13 +67,25 @@ Existing legacy private-app tokens also work. Service keys are the preferred new
 1. Generate a Fathom API key in Fathom and connect it in Admin → Integrations.
 2. The initial import requests accessible meetings, timed transcripts, summaries, action items and CRM matches.
 3. Optionally enable automatic coaching. It uses the existing workspace AI configuration and evaluation allowance. It is off by default.
-4. On a public HTTPS deployment, use Enable live webhook. The app registers the content-ready webhook and stores its signing secret encrypted.
+4. On a public HTTPS deployment, connecting automatically registers the content-ready feed and stores its signing secret encrypted. Existing connections can use Enable live feed. History sync remains available as a fallback.
 5. On a call, open the full review and select Load recording. Fathom prepares a download; the app polls its status and plays the returned video or audio URL.
 6. Connect HubSpot as well to associate Fathom participants and CRM matches with company/contact/deal records. The order of connection does not matter.
 
 A Fathom key inherits its user's visibility; an administrator key does not automatically expose every unshared recording. Downloads may have narrower recording permissions and return 403 even when transcript data is accessible. Refresh a recording when its signed URL expires. The app does not copy Fathom recording files into local storage.
 
-Fathom periodic sync uses a one-hour overlap around the last successful sync. Full sync is available for historical backfill or delayed older meetings. The webhook and polling paths deduplicate on connection plus recording ID. Separate connections can import the same recording twice; use one connection per intended meeting set.
+Native call periodic sync uses a 24-hour overlap around the last successful sync. Full sync is available for historical backfill or delayed older meetings. The webhook and polling paths deduplicate on connection plus recording ID. Separate connections can import the same recording twice; use one connection per intended meeting set.
+
+### Other tools
+
+- **Fireflies:** API key; transcript/speaker/summary reads through GraphQL. Add the displayed URL and signing secret in Fireflies Webhooks V2; subscribe to meeting.transcribed and meeting.summarized. Summary-ready events enrich existing calls and preserve completed action items and manager reviews.
+- **tl;dv:** personal API key; meeting metadata and transcript export. Organizer plan determines export access. Scheduled reads are paginated; each transcript has its own retryable job.
+- **Gong:** access key and secret; extensive call details and transcripts. Requests use Basic authentication. Call parties and provider timestamps are retained; requires the customer’s Gong API scopes.
+- **Close:** API key; call and voicemail transcripts explicitly requested through the call activity API. Calls without completed transcripts are skipped until a later sync. CRM object import is not included for Close.
+- **Pipedrive:** personal API token in the x-api-token header; v2 organizations, persons, deals and stages. Deals link to normalized people/company records.
+- **Attio:** scoped workspace access token; standard companies, people and deals. Custom object/attribute mapping, notes and tasks are not included.
+- **Zapier / Make:** create a connection to get a private feed URL and token. Add a POST request in your automation with Content-Type: application/json and Authorization: Bearer TOKEN. Send a stable externalId and transcriptText; optional title, repName, repEmail, prospectName, prospectCompany, createdAt, durationSeconds and summary add context. A segments array can provide speaker, text, start and end in seconds instead of transcriptText. The setup page supplies a copyable example.
+
+Live events are saved before acknowledgement, then processed immediately through a dedicated job selection so historical imports cannot block them. HubSpot batches are split into a job per changed record. Retries use leases/backoff; duplicate events upsert existing records or deduplicate call IDs. The worker finishes event bursts and evaluations. Conversation, call bank, and deal lists refresh every ten seconds while visible, pausing while a user edits a field.
 
 ## Cloudflare
 
