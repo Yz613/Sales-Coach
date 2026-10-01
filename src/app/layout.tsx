@@ -10,6 +10,7 @@ import {
   isPublicAuthRoute,
   isPublicMarketingPath,
   toAppPath,
+  stripAppBasePath,
 } from "@/lib/public-path";
 
 export const metadata: Metadata = {
@@ -41,7 +42,8 @@ export default async function RootLayout({
   const auth = publicAuth || marketing ? publicGuestAuth() : await getServerAuth();
   const dest = gatedPage ? authRedirectPath(auth) : null;
   if (dest) {
-    redirect(dest);
+    // Next server redirects add basePath themselves; middleware/Clerk URLs do not.
+    redirect(stripAppBasePath(dest));
   }
 
   return (

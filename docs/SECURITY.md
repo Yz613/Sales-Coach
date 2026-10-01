@@ -77,3 +77,7 @@ The repository cannot verify your TLS termination, cloud IAM, database/bucket ac
 Run `npm test`, `npx tsc --noEmit`, `npm audit --audit-level=moderate`, and `npx opennextjs-cloudflare build`. `npm run test:security` also creates an isolated temporary database. Security regressions cover production failure modes, privileged routes without middleware, cross-origin writes, chunked body limits, parallel rate counters, tenant isolation, encrypted setting migration, recording tampering and swapping, MFA policy, profile-name impersonation, retired endpoints, safe errors, checkout claim races, and audit redaction.
 
 The dependency baseline was checked on 2026-10-01: zero known advisories after updates. This is a point-in-time dependency result, not proof that dependencies or the application have no vulnerabilities.
+
+## Session recovery
+
+Clerk verifies every session signature before application authorization. When a signed session includes the authorized-party (`azp`) claim, it must match the canonical application origin; Clerk can omit that optional claim for privacy-sensitive requests. This follows [Clerk session token guidance](https://clerk.com/docs/guides/sessions/session-tokens). Foreign or malformed claims are rejected. Failed session verification uses a public recovery page, never a sign-in/dashboard redirect cycle. Next server redirects use paths without the base path; browser and middleware redirects use the full public path. Repeated `/app` prefixes are canonicalized while preserving query parameters.

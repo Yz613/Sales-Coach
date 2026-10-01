@@ -19,6 +19,24 @@ import {
 } from "./public-path";
 
 describe("toAppPath", () => {
+  it("keeps server redirects compatible with Next's automatic base path", () => {
+    const { addPathPrefix } = require("next/dist/shared/lib/router/utils/add-path-prefix");
+    for (const path of ["/sign-in", "/select-organization", "/subscribe", "/calls", "/user?security=mfa"]) {
+      const nextTarget = addPathPrefix(stripAppBasePath(toAppPath(path)), APP_BASE_PATH);
+      assert.equal(nextTarget, toAppPath(path));
+      assert.ok(!nextTarget.startsWith("/app/app/"));
+    }
+  });
+
+  it("recovers repeated base paths without losing query parameters", () => {
+    for (const prefix of ["/app/app", "/app/app/app"]) {
+      const original = `https://refreshqueue.com${prefix}/sign-in?redirect_url=%2Fapp%2Fcalls`;
+      const result = getApexAliasRedirect(original);
+      assert.deepEqual(result, { location: "https://refreshqueue.com/app/sign-in?redirect_url=%2Fapp%2Fcalls", status: 307 });
+      assert.equal(getApexAliasRedirect(result!.location), null);
+    }
+    assert.equal(getApexAliasRedirect("https://refreshqueue.com/app/applications"), null);
+  });
   it("prefixes a root-relative path with /app", () => {
     assert.equal(toAppPath("/calls"), "/app/calls");
     assert.equal(toAppPath("calls"), "/app/calls");
