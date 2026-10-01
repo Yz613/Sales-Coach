@@ -32,12 +32,15 @@ export default async function SubscribePage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+      <Link href="/workspaces" className="mb-8 inline-flex text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
+        ← Back to main menu
+      </Link>
       <div className="text-center space-y-3 mb-10">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#007AFF]">Hosted workspace</p>
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#1d1d1f]">Pay with Stripe to continue</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-[#1d1d1f]">Choose a plan for this team</h1>
         <p className="text-sm text-[#6e6e73] max-w-2xl mx-auto leading-relaxed">
-          Checkout happens before you create an account. New teams start empty and locked until Stripe
-          confirms payment. You will not see another account&apos;s calls, transcripts, or API keys.
+          Access is managed separately for each team. If you already have a paid account, return to
+          the main menu and open your existing team. You do not need to pay again to use a team with access.
         </p>
       </div>
 
@@ -66,7 +69,7 @@ export default async function SubscribePage() {
           Talk to us
         </a>
         .{" "}
-        <Link href="/" className="text-[#6e6e73] hover:text-[#1d1d1f]">
+        <Link href="/marketing#pricing" className="text-[#6e6e73] hover:text-[#1d1d1f]">
           Back to pricing
         </Link>
       </p>

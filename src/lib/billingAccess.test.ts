@@ -7,6 +7,19 @@ import {
   planFromClerkHas,
   planFromMetadata,
 } from "./billingAccess";
+import { workspaceAccessLabel, workspaceMenuDestination } from "./workspaceMenu";
+
+describe("workspace menu", () => {
+  it("opens entitled teams and keeps unpaid teams behind checkout", () => {
+    for (const access of ["included", "paid", "unavailable"] as const) {
+      assert.equal(workspaceMenuDestination(access), "/");
+    }
+    assert.equal(workspaceMenuDestination("unpaid"), "/subscribe");
+    assert.match(workspaceAccessLabel("included"), /No payment needed/);
+    assert.match(workspaceAccessLabel("paid"), /Subscription active/);
+    assert.match(workspaceAccessLabel("unavailable"), /couldn’t check access/);
+  });
+});
 
 describe("operator billing exemptions", () => {
   it("matches only the exact verified organization in the operator allowlist", () => {

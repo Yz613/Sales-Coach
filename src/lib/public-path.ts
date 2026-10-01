@@ -37,6 +37,7 @@ const PUBLIC_AUTH_PREFIXES = [
   "/organization",
   "/accept-invite",
   "/subscribe",
+  "/workspaces",
   "/checkout",
 ];
 

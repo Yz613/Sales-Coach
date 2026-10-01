@@ -21,7 +21,7 @@ import {
 describe("toAppPath", () => {
   it("keeps server redirects compatible with Next's automatic base path", () => {
     const { addPathPrefix } = require("next/dist/shared/lib/router/utils/add-path-prefix");
-    for (const path of ["/sign-in", "/select-organization", "/subscribe", "/calls", "/user?security=mfa"]) {
+    for (const path of ["/sign-in", "/select-organization", "/subscribe", "/workspaces", "/calls", "/user?security=mfa"]) {
       const nextTarget = addPathPrefix(stripAppBasePath(toAppPath(path)), APP_BASE_PATH);
       assert.equal(nextTarget, toAppPath(path));
       assert.ok(!nextTarget.startsWith("/app/app/"));
@@ -83,6 +83,8 @@ describe("route classifiers", () => {
     assert.equal(isPublicAuthRoute("/accept-invite"), true);
     assert.equal(isPublicAuthRoute("/app/subscribe"), true);
     assert.equal(isPublicAuthRoute("/subscribe"), true);
+    assert.equal(isPublicAuthRoute("/app/workspaces"), true);
+    assert.equal(isPublicAuthRoute("/workspaces"), true);
     assert.equal(isPublicAuthRoute("/app/checkout/success"), true);
     assert.equal(isPublicAuthRoute("/checkout/success"), true);
     assert.equal(isCheckoutPath("/app/checkout/success"), true);
