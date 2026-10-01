@@ -102,3 +102,7 @@ jobs:
           INTEGRATION_CRON_SECRET: ${{ secrets.INTEGRATION_CRON_SECRET }}
           PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
         run: node scripts/verify-worker.cjs
+      - name: Verify deployed login bundles
+        env:
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+        run: node scripts/verify-login-assets.cjs

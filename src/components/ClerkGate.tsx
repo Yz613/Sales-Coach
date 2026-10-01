@@ -1,9 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useAppAuth } from "@/lib/auth-context";
+import { ClerkAuthContent } from "@/components/ClerkAuthForm";
 
 export default function ClerkGate({ children }: { children: ReactNode }) {
-  const ready = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim());
+  // The provider receives runtime configuration from the server layout.
+  const { isClerkConfigured: ready } = useAppAuth();
   if (!ready) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-[#C45500]/25 bg-[#FF9500]/10 p-6 text-sm text-[#C45500] font-medium text-center">
@@ -11,5 +14,5 @@ export default function ClerkGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  return <ClerkAuthContent>{children}</ClerkAuthContent>;
 }

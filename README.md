@@ -157,6 +157,8 @@ CLERK_SECRET_KEY=sk_test_...
    - **Admin (`org:admin`):** Full access to settings, scripts, analytics, rep personas, and team invites.
    - **Member (`org:member`):** Scoped access to the Call Bank, call uploads, and call evaluations.
 
+Hosted login scripts and their lazy chunks use the first-party `/app/__auth/assets/` proxy. Login, sign-up, invites, and team selection show loading and recovery messages when authentication requests fail or a form cannot mount. `ERR_BLOCKED_BY_CLIENT` can also come from the optional Cloudflare analytics beacon; that request is not required for login. If sign-in fails, use **Reload sign-in** or try a private window to check whether a browser extension is blocking required requests.
+
 Hosted deployments (`BILLING_REQUIRED=true`, the default whenever Clerk keys are present) send new teams through **Stripe Checkout first**. Coach and Team CTAs open Stripe; Clerk sign-up is blocked until that session is paid. Sign-in stays available for existing customers. Invited teammates skip checkout. Self-hosters using Clerk only for RBAC should set `BILLING_REQUIRED=false`.
 
 ```bash

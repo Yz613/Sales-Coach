@@ -6,6 +6,7 @@ import { SignIn, SignUp, useAuth } from "@clerk/nextjs";
 import ClerkGate from "@/components/ClerkGate";
 import { clerkAppearance, CLERK_PATHS } from "@/lib/clerk-ui";
 import { useAppAuth } from "@/lib/auth-context";
+import { ClerkAuthFeedback } from "@/components/ClerkAuthForm";
 
 function AcceptInviteInner() {
   const params = useSearchParams();
@@ -35,6 +36,7 @@ function AcceptInviteInner() {
   if (status === "sign_in") {
     return (
       <SignIn
+        fallback={<ClerkAuthFeedback />}
         routing="hash"
         appearance={clerkAppearance}
         forceRedirectUrl={CLERK_PATHS.afterSignIn}
@@ -45,6 +47,7 @@ function AcceptInviteInner() {
 
   return (
     <SignUp
+      fallback={<ClerkAuthFeedback />}
       routing="hash"
       appearance={clerkAppearance}
       forceRedirectUrl={CLERK_PATHS.afterSignIn}

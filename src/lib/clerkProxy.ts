@@ -6,8 +6,10 @@ export const CLERK_JS_PROXY_FILE = "sdk.js";
 export const CLERK_JS_UPSTREAM_FILE = "clerk.browser.js";
 export const CLERK_UI_PROXY_FILE = "ui.js";
 export const CLERK_UI_UPSTREAM_FILE = "ui.browser.js";
-export const CLERK_JS_PROXY_SRC = `${CLERK_PROXY_PUBLIC_PATH}/npm/@clerk/clerk-js@6/dist/${CLERK_JS_PROXY_FILE}`;
-export const CLERK_UI_PROXY_SRC = `${CLERK_PROXY_PUBLIC_PATH}/npm/@clerk/ui@1/dist/${CLERK_UI_PROXY_FILE}`;
+// Keep package names out of browser-facing URLs. Preserve the version and dist
+// directory so redirects and lazily loaded chunks use the same SDK release.
+export const CLERK_JS_PROXY_SRC = `${CLERK_PROXY_PUBLIC_PATH}/assets/session@6/${CLERK_JS_PROXY_FILE}`;
+export const CLERK_UI_PROXY_SRC = `${CLERK_PROXY_PUBLIC_PATH}/assets/interface@1/${CLERK_UI_PROXY_FILE}`;
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -34,6 +36,9 @@ export function isClerkProxyPath(pathname: string): boolean {
 }
 
 export function disguiseClerkAssetPath(pathname: string): string {
+  pathname = pathname
+    .replace(/^\/npm\/@clerk\/clerk-js@([^/]+)\/dist\//, "/assets/session@$1/")
+    .replace(/^\/npm\/@clerk\/ui@([^/]+)\/dist\//, "/assets/interface@$1/");
   if (pathname.endsWith(`/${CLERK_JS_UPSTREAM_FILE}`)) {
     return `${pathname.slice(0, -CLERK_JS_UPSTREAM_FILE.length)}${CLERK_JS_PROXY_FILE}`;
   }
@@ -45,6 +50,9 @@ export function disguiseClerkAssetPath(pathname: string): string {
 
 export function rewriteClerkProxyRest(pathname: string, prefix: string): string {
   let rest = pathname.slice(prefix.length) || "/";
+  rest = rest
+    .replace(/^\/assets\/session@([^/]+)\//, "/npm/@clerk/clerk-js@$1/dist/")
+    .replace(/^\/assets\/interface@([^/]+)\//, "/npm/@clerk/ui@$1/dist/");
   if (!rest.startsWith("/")) rest = `/${rest}`;
   if (rest.endsWith(`/${CLERK_JS_PROXY_FILE}`)) {
     return `${rest.slice(0, -CLERK_JS_PROXY_FILE.length)}${CLERK_JS_UPSTREAM_FILE}`;

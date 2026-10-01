@@ -4,6 +4,7 @@ import { OrganizationList, TaskChooseOrganization, useSession } from "@clerk/nex
 import ClerkGate from "@/components/ClerkGate";
 import { clerkAppearance, clerkUrl } from "@/lib/clerk-ui";
 import { useAppAuth } from "@/lib/auth-context";
+import { ClerkAuthFeedback } from "@/components/ClerkAuthForm";
 
 function ClerkSelectTeamContent() {
   const { isLoaded, session } = useSession();
@@ -15,11 +16,13 @@ function ClerkSelectTeamContent() {
         <p className="text-sm text-[#6e6e73]">Loading teams…</p>
       ) : pendingChooseTeam ? (
         <TaskChooseOrganization
+          fallback={<ClerkAuthFeedback />}
           redirectUrlComplete={clerkUrl("/")}
           appearance={clerkAppearance}
         />
       ) : (
         <OrganizationList
+          fallback={<ClerkAuthFeedback />}
           hidePersonal
           afterSelectOrganizationUrl={clerkUrl("/")}
           afterCreateOrganizationUrl={clerkUrl("/subscribe")}

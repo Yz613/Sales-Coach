@@ -1,5 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
-import ClerkAuthForm from "@/components/ClerkAuthForm";
+import ClerkAuthForm, { ClerkAuthFeedback } from "@/components/ClerkAuthForm";
 import { hasClerkPublishableKey } from "@/lib/clerk-env";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default function SignInPage() {
   return (
     <ClerkAuthForm>
       {/* Hash routing avoids Clerk path-sub-route miscomputation under the /app basePath. */}
-      <SignIn routing="hash" />
+      <SignIn routing="hash" fallback={<ClerkAuthFeedback />} />
     </ClerkAuthForm>
   );
 }

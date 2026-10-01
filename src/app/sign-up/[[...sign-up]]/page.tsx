@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignUp } from "@clerk/nextjs";
+import ClerkAuthForm, { ClerkAuthFeedback } from "@/components/ClerkAuthForm";
 import { hostedBillingRequired } from "@/lib/billingAccess";
 import { hasClerkPublishableKey } from "@/lib/clerk-env";
 import {
@@ -36,9 +37,9 @@ export default async function SignUpPage({
   }
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center">
+    <ClerkAuthForm>
       {/* Hash routing avoids Clerk path-sub-route miscomputation under the /app basePath. */}
-      <SignUp routing="hash" />
-    </div>
+      <SignUp routing="hash" fallback={<ClerkAuthFeedback />} />
+    </ClerkAuthForm>
   );
 }
