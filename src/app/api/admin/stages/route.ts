@@ -1,8 +1,9 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { addCallStage, deleteCallStage, getCallStages, renameCallStage } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function GET() {
+async function GETHandler() {
   try {
     await requireWorkspace();
     const stages = await getCallStages();
@@ -12,7 +13,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -41,7 +42,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+async function DELETEHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -55,3 +56,10 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: msg }, { status });
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+export const PATCH = withWorkspaceApi(PATCHHandler, { admin: true });
+export const DELETE = withWorkspaceApi(DELETEHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

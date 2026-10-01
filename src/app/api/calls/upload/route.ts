@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
@@ -19,7 +20,7 @@ import {
 } from "@/lib/billingQuota";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const auth = await requireWorkspace();
     const status = await getTranscriptionStatus();
@@ -34,7 +35,7 @@ export async function GET() {
 
 export const maxDuration = 300;
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     const auth = await requireWorkspace();
     const contentType = req.headers.get("content-type") || "";
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
     const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
     const audioUrl = audioBytes
-      ? saveCallAudio(callId, audioBytes, audioMimeType, audioFileName)
+      ? await saveCallAudio(callId, audioBytes, audioMimeType, audioFileName)
       : undefined;
 
     // Insert call
@@ -168,9 +169,14 @@ export async function POST(req: Request) {
     }
     const gated = workspaceErrorResponse(error);
     if (gated.status !== 500) return gated;
-    console.error("Upload & Evaluation Error:", error);
+    console.error("Upload & Evaluation Error:");
     const message = error?.message || "Failed to process call";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
     return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, {});
+export const POST = withWorkspaceApi(POSTHandler, {});
+
+export const dynamic = "force-dynamic";

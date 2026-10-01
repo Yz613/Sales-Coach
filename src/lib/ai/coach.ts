@@ -104,13 +104,13 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
       );
     } catch (err) {
       const message = llmErrorMessage(err);
-      console.error("LLM evaluation error, falling back to rule-based evaluator:", message);
+      console.error("LLM evaluation failed; using the rule engine.");
       evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds, methodology);
       evaluationResult.evaluatedWith = {
         provider: ai.providerId,
         model: ai.model,
         fallback: "rules",
-        error: message,
+        error: "The AI provider could not complete this review. Check the provider configuration.",
       };
     }
   } else {
@@ -211,7 +211,6 @@ Rep Persona & Background:
 - Coaching Tone Preference: ${persona.coachingTone}
 - Known Blindspots: ${persona.knownBlindspots.join(", ")}
 - Rep Strengths: ${persona.strengths.join(", ")}
-- Manager's Private 1-on-1 Notes: "${persona.managerNotes}"
 `
     : `Rep: ${repName}`;
 

@@ -1,8 +1,9 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { deleteScript } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function DELETE(
+async function DELETEHandler(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -15,3 +16,7 @@ export async function DELETE(
     return workspaceErrorResponse(err);
   }
 }
+
+export const DELETE = withWorkspaceApi(DELETEHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

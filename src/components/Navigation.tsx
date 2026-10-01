@@ -15,6 +15,8 @@ import {
   GraduationCap,
   UserPlus,
   ShieldCheck,
+  Plug,
+  Briefcase,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import TeamSwitcher from "./TeamSwitcher";
@@ -66,16 +68,22 @@ export default function Navigation() {
   const primaryNavItems: NavItem[] = isAdmin
     ? [
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Calls", href: "/calls", icon: PhoneCall },
+        { label: "Conversations", href: "/conversations", icon: PhoneCall },
         { label: "Coach", href: "/coach", icon: GraduationCap },
         { label: "Reps", href: "/reps", icon: Users },
       ]
     : [
-        { label: "Calls", href: "/calls", icon: PhoneCall },
+        { label: "Conversations", href: "/conversations", icon: PhoneCall },
+        { label: "Library", href: "/library", icon: BookOpen },
         ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
       ];
 
   const adminMenuItems: NavItem[] = [
+    { label: "Deals", href: "/deals", icon: Briefcase },
+    { label: "Call scorecards", href: "/calls", icon: PhoneCall },
+    { label: "Coaching library", href: "/library", icon: BookOpen },
+    { label: "Integrations", href: "/admin/integrations", icon: Plug },
+    { label: "Data & privacy", href: "/admin/privacy", icon: ShieldCheck },
     { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
     { label: "Scripts", href: "/admin/scripts", icon: BookOpen },
     { label: "Settings", href: "/admin/settings", icon: Settings },

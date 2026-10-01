@@ -1,4 +1,9 @@
 name: Deploy
+permissions:
+  contents: read
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
 
 on:
   push:
@@ -8,6 +13,7 @@ on:
 
 jobs:
   check-secrets:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Confirm Cloudflare secrets exist
@@ -45,19 +51,29 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=moderate
+      - run: npm test
+      - run: npx tsc --noEmit
       - name: Resolve D1 database id
         run: node scripts/resolve-d1-id.cjs
-      - name: Sync billing secrets onto the worker
+      - name: Configure authentication policy
+        env:
+          REQUIRE_MFA: ${{ vars.REQUIRE_MFA }}
+        run: node scripts/configure-worker-security.cjs
+      - name: Sync application secrets onto the worker
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+          INTEGRATION_CRON_SECRET: ${{ secrets.INTEGRATION_CRON_SECRET }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
         run: node scripts/sync-worker-secrets.cjs
       - name: Deploy to Cloudflare
         env:
@@ -65,6 +81,9 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+          INTEGRATION_CRON_SECRET: ${{ secrets.INTEGRATION_CRON_SECRET }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
         run: |
           if [ -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
             echo "::error::NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must be set in GitHub Actions secrets"

@@ -13,14 +13,16 @@ assert.equal(callAudioApiPath("call_01"), "/api/calls/call_01/audio");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "call-audio-"));
 process.env.CALL_AUDIO_DIR = dir;
+process.env.INTEGRATION_KEY_FILE = path.join(dir, "integration.key");
 const bytes = Uint8Array.from([1, 2, 3, 4, 5]);
-const storedUrl = saveCallAudio("call_demo-1", bytes, "audio/mpeg", "demo.mp3");
+async function main() {
+const storedUrl = await saveCallAudio("call_demo-1", bytes, "audio/mpeg", "demo.mp3");
 assert.equal(storedUrl, "/api/calls/call_demo-1/audio");
-const loaded = readCallAudio("call_demo-1");
+const loaded = await readCallAudio("call_demo-1");
 assert.ok(loaded);
 assert.equal(loaded?.mimeType, "audio/mpeg");
 assert.deepEqual(Array.from(loaded?.bytes || []), [1, 2, 3, 4, 5]);
-assert.equal(readCallAudio("missing"), null);
+assert.equal(await readCallAudio("missing"), null);
 
 const turns = parseTranscript(
   `[0:00] David: Hi Dr. Thorne, my name is David Kim with LabSync. How are you today?
@@ -35,3 +37,5 @@ assert.match(turns[2].text, /I'll send that right over/);
 
 fs.rmSync(dir, { recursive: true, force: true });
 console.log("call audio store checks passed");
+}
+main().catch(err => { console.error(err); process.exitCode = 1; });

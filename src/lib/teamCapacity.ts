@@ -95,7 +95,7 @@ async function raiseTeamSeatLimits(clerk: SeatClerk, organizationId?: string): P
           await clerk.organizations.updateOrganization(org.id, { maxAllowedMemberships: limit });
         });
       } catch (err) {
-        console.warn(`Could not raise seat limit for ${org.id}:`, err);
+        console.warn(`Could not raise seat limit for ${org.id}:`);
       }
     }
     if (page.data.length < 100) break;

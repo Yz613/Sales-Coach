@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { isInviteRole } from "@/lib/inviteEmails";
@@ -6,7 +7,7 @@ import { createClerkInviteApi } from "@/lib/clerkInvites";
 import { sendOrganizationInvites } from "@/lib/inviteSend";
 import { loadInviteRoster, organizationName, requireInviteAdmin, resolveResendApiKey } from "@/lib/inviteAdmin";
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
@@ -53,3 +54,7 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ results, ...roster });
 }
+
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

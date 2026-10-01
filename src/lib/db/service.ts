@@ -1,4 +1,5 @@
 import { db } from "./index";
+import { isSecretSetting, sealSetting, openSetting } from "../setting-secrets";
 import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas } from "./schema";
 import { and, eq, desc, sql } from "drizzle-orm";
 import type {
@@ -49,23 +50,21 @@ function forTenant(column: { orgId?: unknown } | any) {
 
 async function readRawSetting(key: string): Promise<string | null> {
   const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
-  return row ? row.value : null;
+  if (!row) return null;
+  const value = openSetting(key, row.value);
+  // Upgrade legacy plaintext atomically, so a concurrent credential change is not overwritten.
+  if (isSecretSetting(key) && value && !row.value.startsWith("v1.")) {
+    await db.update(appSettings).set({ value: sealSetting(key, value), updatedAt: new Date().toISOString() })
+      .where(and(eq(appSettings.key, key), eq(appSettings.value, row.value))).run();
+  }
+  return value;
 }
 
 async function writeRawSetting(key: string, value: string): Promise<void> {
-  const existing = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
-  if (existing) {
-    await db.update(appSettings)
-      .set({ value, updatedAt: new Date().toISOString() })
-      .where(eq(appSettings.key, key))
-      .run();
-  } else {
-    await db.insert(appSettings).values({
-      key,
-      value,
-      updatedAt: new Date().toISOString(),
-    }).run();
-  }
+  const sealed = sealSetting(key, value);
+  const updatedAt = new Date().toISOString();
+  await db.insert(appSettings).values({ key, value: sealed, updatedAt })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: sealed, updatedAt } }).run();
 }
 
 const GLOBAL_SETTING_KEYS = new Set(["tenant_backfill_org_id"]);
@@ -124,11 +123,11 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     if (isGlobalSettingKey(r.key)) continue;
     const scopedKey = parseTenantSettingKey(r.key, org);
     if (scopedKey) {
-      res[scopedKey] = r.value;
+      res[scopedKey] = (await readRawSetting(r.key)) || "";
       continue;
     }
     if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
-      res[r.key] = r.value;
+      res[r.key] = (await readRawSetting(r.key)) || "";
     }
   }
   return res;
@@ -478,7 +477,7 @@ export async function getOrCreateRep(
     const byEmail = all.find((r: any) => (r.email || "").toLowerCase() === email);
     if (byEmail) return byEmail.id;
   }
-  if (name) {
+  if (name && !email) {
     const match = all.find(
       (r: any) => r.name.toLowerCase() === name.toLowerCase()
     );
@@ -491,7 +490,7 @@ export async function getOrCreateRep(
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_|_$/g, "")
       .slice(0, 24) || "rep";
-  const id = `rep_${slug}_${Date.now().toString(36)}`;
+  const id = `rep_${slug}_${crypto.randomUUID()}`;
 
   await db
     .insert(reps)
@@ -1171,14 +1170,14 @@ async function copyUnprefixedSettingsToTenant(org: string): Promise<void> {
     const targetKey = settingStorageKey(org, logicalKey);
     const exists = await readRawSetting(targetKey);
     if (exists == null) {
-      await writeRawSetting(targetKey, row.value);
+      await writeRawSetting(targetKey, openSetting(row.key, row.value));
     }
   }
 }
 
 /**
  * Existing unscoped rows (pre-isolation) are stamped `local`. Assign them once
- * to the oldest Clerk org — or LEGACY_TENANT_ORG_ID — so the original customer
+ * to the explicitly configured LEGACY_TENANT_ORG_ID so the original customer
  * keeps their data and new orgs start empty.
  */
 export async function backfillLegacyTenant(oldestOrgId?: string | null): Promise<string | null> {
@@ -1198,7 +1197,7 @@ export async function backfillLegacyTenant(oldestOrgId?: string | null): Promise
     await db.update(scripts).set({ orgId: target }).where(eq(scripts.orgId, LOCAL_TENANT_ID)).run();
     await db.update(repPersonas).set({ orgId: target }).where(eq(repPersonas.orgId, LOCAL_TENANT_ID)).run();
   } catch (err) {
-    console.warn("Legacy tenant backfill skipped:", err);
+    console.warn("Legacy tenant backfill skipped:");
     return null;
   }
 
@@ -1210,4 +1209,3 @@ export async function backfillLegacyTenant(oldestOrgId?: string | null): Promise
   await writeRawSetting(BACKFILL_KEY, target);
   return target;
 }
-

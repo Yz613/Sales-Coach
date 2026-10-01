@@ -10,6 +10,9 @@ const SECRET_NAMES = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "CLERK_SECRET_KEY",
+  "INTEGRATION_ENCRYPTION_KEY",
+  "INTEGRATION_CRON_SECRET",
+  "PUBLIC_APP_URL",
 ];
 
 function wrangler(args, input) {
@@ -32,13 +35,17 @@ function existingSecretNames() {
         .filter(Boolean)
     );
   } catch (err) {
-    console.warn("Could not list worker secrets:", err.stderr || err.message);
+    console.warn("Could not list worker secret names.");
     return new Set();
   }
 }
 
 function putSecret(name, value) {
-  wrangler(["secret", "put", name], value);
+  try { wrangler(["secret", "put", name], value); }
+  catch {
+    console.error(`Could not upload ${name}. Inspect deployment access without exposing secret values.`);
+    process.exit(1);
+  }
 }
 
 const present = existingSecretNames();
@@ -64,6 +71,11 @@ for (const name of SECRET_NAMES) {
 
 if (missing.includes("STRIPE_SECRET_KEY")) {
   console.error("Hosted checkout will return 503 until STRIPE_SECRET_KEY is set.");
+}
+
+if (missing.some(name => ["CLERK_SECRET_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].includes(name))) {
+  console.error("Required production security configuration is missing. Deployment stopped.");
+  process.exitCode = 1;
 }
 
 console.log(`Synced ${synced} secret(s).`);

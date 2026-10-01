@@ -1,3 +1,4 @@
+import { withPublicApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/auth";
 
@@ -10,20 +11,25 @@ function withClearedRoleCookie(response: NextResponse) {
   return response;
 }
 
-export async function GET() {
+async function GETHandler() {
   try {
     const auth = await getServerAuth();
     return withClearedRoleCookie(NextResponse.json(auth));
   } catch (err) {
-    console.warn("GET /api/auth/role failed:", err);
+    console.warn("GET /api/auth/role failed:");
     return withClearedRoleCookie(
       NextResponse.json({ error: "Auth is unavailable." }, { status: 200 })
     );
   }
 }
 
-export async function POST() {
+async function POSTHandler() {
   return withClearedRoleCookie(
     NextResponse.json({ error: "Roles cannot be switched in the app." }, { status: 403 })
   );
 }
+
+export const GET = withPublicApi(GETHandler, {});
+export const POST = withPublicApi(POSTHandler, {});
+
+export const dynamic = "force-dynamic";

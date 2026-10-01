@@ -14,13 +14,14 @@ interface AuthProviderProps {
   initialRole?: UserRole;
   // Passed from the server layout so SSR and the client hydrate with the same key.
   publishableKey?: string;
+  nonce?: string;
   initialUser?: AuthUserPreview;
   skipRoleFetch?: boolean;
 }
 
 function ClerkBridge({
   children,
-  initialRole = "admin",
+  initialRole = "member",
   initialUser = null,
   skipRoleFetch = false,
 }: {
@@ -56,8 +57,9 @@ function ClerkBridge({
 
 export default function AuthProvider({
   children,
-  initialRole = "admin",
+  initialRole = "member",
   publishableKey,
+  nonce,
   initialUser = null,
   skipRoleFetch = false,
 }: AuthProviderProps) {
@@ -67,6 +69,8 @@ export default function AuthProvider({
   if (isClerkReady) {
     return (
       <ClerkProvider
+        dynamic
+        nonce={nonce}
         publishableKey={resolvedKey}
         proxyUrl={process.env.NEXT_PUBLIC_CLERK_PROXY_URL || "/app/__auth"}
         appearance={clerkAppearance}

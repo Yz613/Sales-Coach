@@ -14,15 +14,16 @@ export interface ResolveUserRoleInput {
  *
  * Roles are not user-switchable. Priority:
  * 1. Active team role (`org:admin` → admin, `org:member` → member)
- * 2. User publicMetadata.role
- * 3. Signed-in user defaults to member; local/no-auth defaults to admin
+ * 2. All other Clerk sessions default to member
+ * 3. Local development defaults to admin (production is gated separately)
  *
  * A leftover `sc_role` cookie is ignored so members cannot elevate themselves.
  */
 export function resolveUserRole(input: ResolveUserRoleInput): UserRole {
   void input.cookieRole;
 
-  if (input.hasOrgAdmin || input.orgRole === "org:admin") {
+  if (!input.clerkConfigured) return "admin";
+  if (input.userId && (input.hasOrgAdmin || input.orgRole === "org:admin")) {
     return "admin";
   }
 
@@ -30,13 +31,6 @@ export function resolveUserRole(input: ResolveUserRoleInput): UserRole {
     return "member";
   }
 
-  if (input.metadataRole === "admin" || input.metadataRole === "member") {
-    return input.metadataRole;
-  }
-
-  if (input.clerkConfigured && input.userId) {
-    return "member";
-  }
-
-  return "admin";
+  // Personal profile metadata cannot grant privileges in an organization.
+  return "member";
 }

@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
@@ -55,7 +56,7 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     const auth = await requireWorkspace();
 
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const files = formData.getAll("files") as File[];
+      if (files.length > 10) return NextResponse.json({ error: "Upload at most 10 files per batch." }, { status: 413 });
       const defaultRepId = (formData.get("defaultRepId") as string) || "";
       const defaultRepName = (formData.get("defaultRepName") as string) || "";
       const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
         if (f.name.toLowerCase().endsWith(".csv")) {
           const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
           const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          if (lines.length > 11) return NextResponse.json({ error: "Import at most 10 calls per batch." }, { status: 413 });
           if (lines.length > 1) {
             const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
             const transcriptIdx = header.findIndex((h) => h.includes("transcript") || h.includes("text") || h.includes("dialogue") || h.includes("body"));
@@ -179,6 +182,7 @@ export async function POST(req: Request) {
     if (!itemsToProcess.length) {
       return NextResponse.json({ error: "No calls provided for batch processing" }, { status: 400 });
     }
+    if (itemsToProcess.length > 10) return NextResponse.json({ error: "Import at most 10 calls per batch." }, { status: 413 });
 
     for (const item of itemsToProcess) {
       requireUsableTranscript(item.transcriptText);
@@ -189,7 +193,7 @@ export async function POST(req: Request) {
       const callId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const now = new Date().toISOString();
       const audioUrl = item.audioBytes?.byteLength
-        ? saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
+        ? await saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
         : undefined;
 
       await insertCall({
@@ -232,9 +236,13 @@ export async function POST(req: Request) {
     }
     const gated = workspaceErrorResponse(err);
     if (gated.status !== 500) return gated;
-    console.error("Batch upload error:", err);
+    console.error("Batch upload error:");
     const message = err?.message || "Batch upload failed";
     const blocked = /transcript|Gemini, OpenAI, or Groq/i.test(message);
     return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }
+
+export const POST = withWorkspaceApi(POSTHandler, {});
+
+export const dynamic = "force-dynamic";

@@ -26,7 +26,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-  const path = (await headers()).get("x-salescoach-path") || "";
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") || undefined;
+  const path = requestHeaders.get("x-salescoach-path") || "";
   const publicAuth = isPublicAuthRoute(path);
   const marketing = isPublicMarketingPath(path);
   const gatedPage =
@@ -46,6 +48,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="ambient-field min-h-screen text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
         <AuthProvider
+          nonce={nonce}
           initialRole={auth.role}
           publishableKey={publishableKey}
           skipRoleFetch={publicAuth || marketing}

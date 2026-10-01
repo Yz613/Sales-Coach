@@ -8,6 +8,7 @@ import {
 } from "../ai/review";
 
 export function seed() {
+  if (process.env.NODE_ENV === "production") throw new Error("Demo seeding is disabled in production.");
   console.log("Seeding database with realistic sales reps, personas, playbooks, and calls...");
 
   // Clear existing
@@ -194,7 +195,7 @@ export function seed() {
       callStage: "Cold Call",
       coreOutcome: "Meeting booked",
       durationSeconds: 66,
-      audioUrl: "/recordings/call_01.mp3",
+      audioUrl: "/api/calls/call_01/audio",
       transcriptText: `[0:00] Marcus: Hey Greg, this is Marcus with CloudFlow. I know you weren't expecting my call, do you have 30 seconds to tell me if this is a bad time?
 [0:10] Greg: Look, I'm literally walking into a warehouse meeting right now. We already got a quote from FreightPulse last week and we're pretty set.
 [0:19] Marcus: Totally get that Greg, FreightPulse is solid. But usually when VP of Ops tell us they're set, they're still dealing with the 4-hour manual customs delay at the border. Is that something you guys have completely eliminated, or is it still a daily headache?
@@ -266,7 +267,7 @@ export function seed() {
       callStage: "Cold Call",
       coreOutcome: "Dropped",
       durationSeconds: 44,
-      audioUrl: "/recordings/call_02.mp3",
+      audioUrl: "/api/calls/call_02/audio",
       transcriptText: `[0:00] David: Hi Dr. Thorne, my name is David Kim with LabSync. How are you today?
 [0:06] Dr. Thorne: I'm busy. What is this regarding?
 [0:09] David: I was calling to introduce our state of the art lab automation software that helps biotech labs increase throughput by 40%.
@@ -345,7 +346,7 @@ export function seed() {
       callStage: "First Discovery",
       coreOutcome: "Unqualified",
       durationSeconds: 82,
-      audioUrl: "/recordings/call_03.mp3",
+      audioUrl: "/api/calls/call_03/audio",
       transcriptText: `[0:00] Chloe: Hi Rachel, thanks for joining today's discovery call. Excited to show you what we've built.
 [0:07] Rachel: Thanks Chloe. We are looking to streamline our supplier procurement tracking. Currently our ERP requires 14 manual approvals per purchase order.
 [0:18] Chloe: That sounds terrible! Let me pull up my slides and jump right into the demo to show you how our system eliminates approval bottlenecks...
@@ -427,7 +428,7 @@ export function seed() {
       callStage: "Follow-up",
       coreOutcome: "Meeting booked",
       durationSeconds: 87,
-      audioUrl: "/recordings/call_04.mp3",
+      audioUrl: "/api/calls/call_04/audio",
       transcriptText: `[0:00] Sarah: Karen, good to connect again. On our last call, you mentioned HIPAA audit logging was the primary risk keeping you awake ahead of your November HHS review. Today our goal is to align on security verification and map out the procurement timeline so you are protected by October 15. Fair agenda?
 [0:21] Karen: That's fair, Sarah. We reviewed your SOC2 Type II report and InfoSec has a couple questions on data encryption at rest.
 [0:31] Sarah: Understood. Let's resolve the encryption specifics right now.

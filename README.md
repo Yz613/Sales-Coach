@@ -87,6 +87,17 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 ---
 
+## Conversation Intelligence & Integrations
+
+The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
+
+HubSpot and Fathom are the first working connectors. Connect them under **Admin → Integrations**. HubSpot imports companies, contacts, deals and stages. Fathom imports meeting content, supports signed webhooks, and prepares recording downloads for in-app playback. Credentials are encrypted per workspace.
+
+For local background sync, run `npm run worker` in a second terminal. Docker Compose starts both services. Hosted installations need an explicit encryption key; Cloudflare cron also needs its job-runner secret and public origin.
+
+- [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
+- [28 integrations: API access, costs and implementation order](docs/INTEGRATIONS.md)
+
 ## Team Revenue Goals
 
 Admins can use the dashboard’s **Team goals** card to plan revenue by quarter, month, or week. Use **Manage teams & reps** to name teams and assign existing reps. Each rep belongs to one goal team; unassigned reps do not affect team rates. These goal teams are groups inside the current workspace and share its admin permissions.
@@ -158,7 +169,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 Webhook URL: `https://your-domain/app/api/webhooks/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`). Put the secrets with `wrangler secret put` — do not commit them. Hosted teams cannot read another team's data, and they cannot pick a plan in Settings to skip checkout.
 
-If you are migrating a production database that already has unscoped rows, set `LEGACY_TENANT_ORG_ID` to the original Clerk organization id (or let the app assign those rows once to the oldest organization). New organizations always start empty.
+If you are migrating a production database that already has unscoped rows, set `LEGACY_TENANT_ORG_ID` to the original Clerk organization id. Ownership is never inferred from organization age. New organizations always start empty.
 
 ### Email Invites (Optional)
 To send teammate invitations via transactional email, add a [Resend](https://resend.com) API key:
@@ -188,7 +199,8 @@ INVITE_PRODUCT_NAME="Refresh Queue"
 │       ├── ai/                   # Multi-provider LLM callers, JSON extractors, STT
 │       ├── db/                   # Drizzle ORM schemas, SQLite / D1 adapters & seeders
 │       └── auth.ts               # Local Standalone & Clerk multi-tenant RBAC logic
-├── public/                       # Static assets & sample audio recordings
+├── public/                       # Public static assets
+├── fixtures/                     # Private demo recordings
 ├── scripts/                      # Setup & audio synthesis utilities
 ├── schema.sql                    # Cloudflare D1 SQL schema
 ├── wrangler.jsonc                # Cloudflare Workers configuration
@@ -204,7 +216,9 @@ INVITE_PRODUCT_NAME="Refresh Queue"
 | `npm run setup` | One-command setup: environment file & database seeding |
 | `npm run dev` | Start the local development server |
 | `npm run build` | Compile Next.js production build |
-| `npm test` | Run the complete automated test suite (22 suites) |
+| `npm test` | Run the complete automated regression suite, including revenue integrations |
+| `npm run worker` | Process integration jobs, scheduled sync and retention |
+| `npm run worker:once` | Run one background maintenance/job batch |
 | `npx tsc --noEmit` | Check TypeScript types |
 | `npm run db:seed` | Seed SQLite database with sample reps, stages, and calls |
 | `npm run preview` | Build and preview on local Cloudflare Worker runtime |
@@ -235,20 +249,30 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
 4. **Set Production Secrets:**
    ```bash
    npx wrangler secret put CLERK_SECRET_KEY
+   npx wrangler secret put INTEGRATION_ENCRYPTION_KEY
+   npx wrangler secret put INTEGRATION_CRON_SECRET
+   npx wrangler secret put PUBLIC_APP_URL
    npx wrangler secret put STRIPE_SECRET_KEY
    npx wrangler secret put STRIPE_WEBHOOK_SECRET
    # Optional:
    npx wrangler secret put GEMINI_API_KEY
    npx wrangler secret put RESEND_API_KEY
    ```
-   Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed.
+   Use a stable, securely generated 32-byte base64 encryption key, a random scheduler secret of at least 32 characters, and your canonical HTTPS origin. Enable authenticator MFA and backup codes in Clerk before inviting users. See [production security setup](docs/SECURITY.md). Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed.
 
-5. **Deploy:**
+5. **Create private recording and cache buckets:**
+   ```bash
+   npx wrangler r2 bucket create sales-coach-recordings
+   npx wrangler r2 bucket create sales-coach-opennext-cache
+   ```
+   Keep public access disabled on both buckets. Recordings are served through authenticated workspace routes.
+
+6. **Deploy:**
    ```bash
    npm run deploy
    ```
 
-6. **Apex domain:** Point the zone apex (and `/pricing`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /` and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
+7. **Apex domain:** Point the zone apex (and `/pricing`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /` and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
 
 ---
 
@@ -265,3 +289,6 @@ We welcome contributions of all kinds! Please see:
 
 Copyright (c) 2026 Yz613. This project is licensed under the [MIT License](LICENSE). See the `LICENSE` file in the repository root for the full terms.
 
+## Security
+
+Production requires Clerk authentication, an active organization, a verified second factor, an HTTPS `PUBLIC_APP_URL`, and `INTEGRATION_ENCRYPTION_KEY`. Unauthenticated admin access is limited to local development. Read [production security setup](docs/SECURITY.md) and the [threat model](Sales%20Coach-threat-model.md) before deployment.

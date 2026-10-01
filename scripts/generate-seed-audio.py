@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "public" / "recordings"
+OUT_DIR = ROOT / "fixtures" / "recordings"
 
 VOICES = {
     "Marcus": "en-us+m3",
@@ -163,7 +163,7 @@ def generate_call(call: dict, tmp: Path) -> dict:
     duration = round(probe_duration(mp3))
     return {
         "id": call["id"],
-        "audioUrl": f"/recordings/{call['id']}.mp3",
+        "audioUrl": f"/api/calls/{call['id']}/audio",
         "durationSeconds": duration,
         "transcriptText": "\n".join(stamped_lines),
         "bytes": mp3.stat().st_size,

@@ -10,6 +10,21 @@ const clerkPublishableKey =
 
 const nextConfig: NextConfig = {
   basePath: "/app",
+  poweredByHeader: false,
+  async headers() {
+    const headers = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "Referrer-Policy", value: "no-referrer" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+      ...(process.env.NODE_ENV === "production" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000" }] : []),
+    ];
+    return [
+      { source: "/:path*", basePath: false, headers },
+      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }] },
+    ];
+  },
   env: {
     ...(clerkPublishableKey
       ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey }

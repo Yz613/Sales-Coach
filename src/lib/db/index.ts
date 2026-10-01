@@ -1,4 +1,5 @@
 import * as schema from "./schema";
+import { REVENUE_MIGRATIONS } from "./revenueMigrations";
 
 const TENANT_TABLES = [
   "reps",
@@ -68,7 +69,10 @@ function initLocalSqlite() {
   const path = require("path");
   const fs = require("fs");
   const dbPath = path.resolve(process.cwd(), "sales_coach.db");
-  const sqlite = new Database(dbPath);
+  const configuredPath = process.env.SALES_COACH_DB_PATH || dbPath;
+  fs.mkdirSync(path.dirname(configuredPath), { recursive: true });
+  const sqlite = new Database(configuredPath);
+  fs.chmodSync(configuredPath, 0o600);
   sqlite.pragma("journal_mode = WAL");
   addOrgIdColumnSqlite(sqlite);
   const schemaPath = path.resolve(process.cwd(), "schema.sql");
@@ -76,6 +80,7 @@ function initLocalSqlite() {
     sqlite.exec(fs.readFileSync(schemaPath, "utf8"));
   }
   addOrgIdColumnSqlite(sqlite);
+  for (const migration of REVENUE_MIGRATIONS) sqlite.exec(migration);
   try {
     const cols = sqlite.prepare("PRAGMA table_info(evaluations)").all();
     if (!cols.some((c: { name: string }) => c.name === "extended_review")) {
@@ -95,14 +100,14 @@ export function getDb() {
 
   const path = require("path");
   const fs = require("fs");
-  const dbPath = path.resolve(process.cwd(), "sales_coach.db");
+  const dbPath = process.env.SALES_COACH_DB_PATH || path.resolve(process.cwd(), "sales_coach.db");
   // `next dev` can inject an empty D1 binding. Prefer a seeded local file when it exists.
   if (fs.existsSync(dbPath)) {
     try {
       _db = initLocalSqlite();
       return _db;
     } catch (e) {
-      console.warn("Local SQLite init failed, trying D1:", e);
+      console.warn("Local SQLite init failed, trying D1:");
     }
   }
 
@@ -128,10 +133,27 @@ export function getDb() {
     _db = initLocalSqlite();
     return _db;
   } catch (e) {
-    console.warn("Could not initialize local SQLite, returning fallback query proxy:", e);
+    console.warn("Could not initialize local SQLite, returning fallback query proxy:");
   }
 
   return null;
+}
+
+let revenueReady: Promise<void> | null = null;
+/** New revenue endpoints wait for their schema; authentication never waits on these migrations. */
+export async function ensureRevenueSchema(): Promise<void> {
+  if (!revenueReady) {
+    revenueReady = (async () => {
+      getDb();
+      let d1: any;
+      try { d1 = require("@opennextjs/cloudflare").getCloudflareContext()?.env?.DB; } catch { /* local */ }
+      if (d1 && !process.env.SALES_COACH_DB_PATH) {
+        if (_d1MigratePromise) await _d1MigratePromise;
+        await d1.batch(REVENUE_MIGRATIONS.map((statement) => d1.prepare(statement)));
+      }
+    })().catch((err) => { revenueReady = null; throw err; });
+  }
+  await revenueReady;
 }
 
 // Proxy exported as db so syntax like db.select().from(...) works seamlessly

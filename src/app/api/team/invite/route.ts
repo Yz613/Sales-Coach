@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 import { parseInviteRole } from "@/lib/team-copy";
@@ -6,7 +7,7 @@ import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   let auth;
   try {
     auth = await requireWorkspace();
@@ -46,3 +47,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: publicTeamError(err) }, { status: 500 });
   }
 }
+
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });

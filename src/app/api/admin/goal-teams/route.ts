@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getAllReps, getCallSummaries, getSetting, setSetting } from "@/lib/db/service";
 import { GOAL_TEAMS_SETTING_KEY, buildGoalReps, readGoalTeams, validateGoalTeams } from "@/lib/goalTeams";
@@ -8,7 +9,7 @@ async function requireGoalAdmin() {
   if (!auth.isAdmin) throw Object.assign(new Error("Only admins can view and manage team goals."), { status: 403 });
 }
 
-export async function GET() {
+async function GETHandler() {
   try {
     await requireGoalAdmin();
     const [reps, calls, saved] = await Promise.all([getAllReps(), getCallSummaries(), getSetting(GOAL_TEAMS_SETTING_KEY)]);
@@ -18,7 +19,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: Request) {
+async function PUTHandler(req: Request) {
   try {
     await requireGoalAdmin();
     const reps = await getAllReps();
@@ -35,3 +36,8 @@ export async function PUT(req: Request) {
     return workspaceErrorResponse(err);
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const PUT = withWorkspaceApi(PUTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

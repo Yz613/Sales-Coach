@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
 import { resolveAiSettings } from "@/lib/ai/settings";
@@ -9,7 +10,7 @@ import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const maxDuration = 120;
 
-export async function POST(
+async function POSTHandler(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -60,3 +61,7 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: blocked ? 422 : 500 });
   }
 }
+
+export const POST = withWorkspaceApi(POSTHandler, {});
+
+export const dynamic = "force-dynamic";

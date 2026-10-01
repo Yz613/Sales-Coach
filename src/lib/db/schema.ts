@@ -87,3 +87,85 @@ export const repPersonas = sqliteTable("rep_personas", {
   targetQuota: text("target_quota"),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const integrationConnections = sqliteTable("integration_connections", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), provider: text("provider").notNull(),
+  name: text("name").notNull(), credentials: text("credentials").notNull(),
+  config: text("config").notNull().default("{}"), cursor: text("cursor").notNull().default("{}"),
+  status: text("status").notNull().default("connected"), lastSyncedAt: text("last_synced_at"),
+  lastError: text("last_error"), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const crmRecords = sqliteTable("crm_records", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
+  provider: text("provider").notNull(), externalId: text("external_id").notNull(), kind: text("kind").notNull(),
+  name: text("name").notNull(), email: text("email"), domain: text("domain"), stage: text("stage"),
+  pipeline: text("pipeline"), amount: text("amount"), currency: text("currency"), owner: text("owner"),
+  closeDate: text("close_date"), closed: integer("closed", { mode: "boolean" }).notNull().default(false),
+  associations: text("associations").notNull().default("[]"), properties: text("properties").notNull().default("{}"),
+  sourceUrl: text("source_url"), syncedAt: text("synced_at").notNull(),
+});
+
+export const callMetadata = sqliteTable("call_metadata", {
+  callId: text("call_id").primaryKey(), orgId: text("org_id").notNull(), title: text("title").notNull(),
+  source: text("source").notNull().default("upload"), externalId: text("external_id"), connectionId: text("connection_id"),
+  recordingPageUrl: text("recording_page_url"), participants: text("participants").notNull().default("[]"),
+  summary: text("summary").notNull().default(""), actionItems: text("action_items").notNull().default("[]"),
+  segments: text("segments").notNull().default("[]"), crmRecordIds: text("crm_record_ids").notNull().default("[]"),
+  crmMatches: text("crm_matches").notNull().default("[]"),
+  reviewedAt: text("reviewed_at"), reviewedBy: text("reviewed_by"), createdAt: text("created_at").notNull(),
+});
+
+export const conversationComments = sqliteTable("conversation_comments", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
+  authorId: text("author_id").notNull(), authorName: text("author_name").notNull(), body: text("body").notNull(),
+  timestampSeconds: integer("timestamp_seconds"), createdAt: text("created_at").notNull(),
+});
+
+export const conversationClips = sqliteTable("conversation_clips", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
+  title: text("title").notNull(), collection: text("collection").notNull().default("Examples"),
+  startSeconds: integer("start_seconds").notNull(), endSeconds: integer("end_seconds").notNull(),
+  createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull(),
+});
+
+export const scoreOverrides = sqliteTable("score_overrides", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
+  metricKey: text("metric_key").notNull(), score: integer("score").notNull(), reason: text("reason").notNull(),
+  authorName: text("author_name").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const conversationTrackers = sqliteTable("conversation_trackers", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), name: text("name").notNull(),
+  keywords: text("keywords").notNull(), speaker: text("speaker").notNull().default("any"), createdAt: text("created_at").notNull(),
+});
+
+export const savedSearches = sqliteTable("saved_searches", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), userId: text("user_id").notNull(),
+  name: text("name").notNull(), filters: text("filters").notNull(), createdAt: text("created_at").notNull(),
+});
+
+export const processingJobs = sqliteTable("processing_jobs", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), kind: text("kind").notNull(),
+  connectionId: text("connection_id"), callId: text("call_id"), payload: text("payload").notNull().default("{}"),
+  status: text("status").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
+  availableAt: text("available_at").notNull(), leaseToken: text("lease_token"), leaseUntil: text("lease_until"),
+  result: text("result"), lastError: text("last_error"), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const auditEvents = sqliteTable("audit_events", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), actor: text("actor").notNull(),
+  action: text("action").notNull(), entityId: text("entity_id").notNull(), createdAt: text("created_at").notNull(),
+});
+
+export const deletedImports = sqliteTable("deleted_imports", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), deletedAt: text("deleted_at").notNull(),
+});
+
+export const securityRateLimits = sqliteTable("security_rate_limits", {
+  id: text("id").primaryKey(), count: integer("count").notNull(), expiresAt: integer("expires_at").notNull(),
+});
+
+export const checkoutClaims = sqliteTable("checkout_claims", {
+  sessionId: text("session_id").primaryKey(), orgId: text("org_id").notNull(),
+});

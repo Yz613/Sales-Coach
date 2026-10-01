@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 export interface QuickRow {
@@ -14,14 +14,21 @@ export default function CallReviewSwitcher({
   methodName,
   pillars,
   highlights,
+  defaultFull = false,
   children,
 }: {
   methodName: string;
   pillars: QuickRow[];
   highlights: QuickRow[];
+  defaultFull?: boolean;
   children: ReactNode;
 }) {
-  const [mode, setMode] = useState<"quick" | "full">("quick");
+  const [mode, setMode] = useState<"quick" | "full">(defaultFull ? "full" : "quick");
+  useEffect(() => {
+    const jump = () => { if (/^#t-\d+/.test(window.location.hash)) setMode("full"); };
+    jump(); window.addEventListener("hashchange", jump);
+    return () => window.removeEventListener("hashchange", jump);
+  }, []);
   const rows = [...pillars, ...highlights.filter((row) => !pillars.some((pillar) => pillar.label === row.label))];
 
   return (

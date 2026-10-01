@@ -1,9 +1,10 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getCallStages } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 /** Member-accessible list of Call Stage Targets (defaults + custom script types). */
-export async function GET() {
+async function GETHandler() {
   try {
     await requireWorkspace();
     const stages = await getCallStages();
@@ -12,3 +13,7 @@ export async function GET() {
     return workspaceErrorResponse(err);
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, {});
+
+export const dynamic = "force-dynamic";

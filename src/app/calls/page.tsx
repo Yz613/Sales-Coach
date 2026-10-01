@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import Link from "next/link";
 import { rankCalls, getPrimaryIssue } from "@/lib/callInsights";
 import { ArrowUpRight, Trophy, AlertTriangle, CheckCircle2, Headphones } from "lucide-react";
@@ -15,7 +16,7 @@ import { methodById } from "@/lib/salesMethods";
 
 export const dynamic = "force-dynamic";
 
-export default async function CallBankPage() {
+async function CallBankPage() {
   const { auth, calls } = await getVisibleCalls();
   const methodology = methodById(await getSalesMethodId());
   const rankedCalls = rankCalls(calls, { weights: await getScoreWeights(methodology), method: methodology });
@@ -250,3 +251,5 @@ export default async function CallBankPage() {
     </div>
   );
 }
+
+export default withWorkspacePage(CallBankPage, {});

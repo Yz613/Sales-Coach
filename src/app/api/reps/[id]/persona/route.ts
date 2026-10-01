@@ -1,8 +1,9 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getRepPersona, saveRepPersona } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function GET(
+async function GETHandler(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -23,7 +24,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+async function POSTHandler(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -47,3 +48,8 @@ export async function POST(
     return workspaceErrorResponse(err);
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

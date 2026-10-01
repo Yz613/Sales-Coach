@@ -21,7 +21,7 @@ export default async function SubscribePage() {
   }
 
   if (auth.orgId) {
-    await claimPendingCheckout({ orgId: auth.orgId, email: auth.email, sessionId });
+    if (auth.isAdmin) await claimPendingCheckout({ orgId: auth.orgId, email: auth.email, sessionId });
   }
 
   const latest = await rereadServerAuth();

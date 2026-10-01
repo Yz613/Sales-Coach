@@ -1,10 +1,11 @@
+import { withPublicApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { applyStripeEvent } from "@/lib/stripeCheckout";
 import { stripeWebhookSecret, verifyStripeSignature, type StripeEvent } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const secret = stripeWebhookSecret();
   const payload = await req.text();
   const signature = req.headers.get("stripe-signature");
@@ -30,3 +31,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withPublicApi(POSTHandler, { webhook: true });

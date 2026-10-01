@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import { requireAdmin } from "@/lib/auth";
 import {
   coachUsesDefaultSandler,
@@ -10,7 +11,7 @@ import CoachClient from "./CoachClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function CoachPage() {
+async function CoachPage() {
   await requireAdmin();
   const methodology = await getSalesMethodId();
   const [instructions, lessons, isDefault, weights] = await Promise.all([
@@ -32,3 +33,5 @@ export default async function CoachPage() {
     />
   );
 }
+
+export default withWorkspacePage(CoachPage, { admin: true });

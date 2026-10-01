@@ -1,10 +1,11 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { pingProvider } from "@/lib/ai/llm";
 import { resolveAiSettings } from "@/lib/ai/settings";
 import { getProvider, isProviderId, type ProviderId } from "@/lib/ai/providers";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -35,7 +36,11 @@ export async function POST(req: Request) {
     if (gated.status !== 500) return gated;
     return NextResponse.json({
       success: false,
-      error: err.message || "Failed to verify API key",
+      error: "The provider rejected the request. Check the key, model, and provider permissions.",
     }, { status: 400 });
   }
 }
+
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

@@ -39,10 +39,10 @@ async function callGemini(
   let res: Response | undefined;
   for (let attempt = 0; attempt < 4; attempt++) {
     res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: geminiGenerationConfig(model, {
@@ -64,12 +64,12 @@ async function callGemini(
     const message: string = String(data?.error?.message || `Gemini request failed (${res.status})`);
     const downgrade: GeminiSchemaMode | undefined = responseSchema ? nextSchemaMode(mode, message) : undefined;
     if (!geminiSchemaRejected(res.status, message) || !downgrade || downgrade === mode) {
-      throw new Error(message);
+      throw new Error(`Gemini request failed (${res.status}). Check the provider configuration.`);
     }
     mode = downgrade;
   }
   if (!res || !data || data.error) {
-    throw new Error(data?.error?.message || `Gemini request failed (${res?.status || 0})`);
+    throw new Error(`Gemini request failed (${res?.status || 0}).`);
   }
   const text = geminiTextFromResponse(data);
   const finishReason = String(data?.candidates?.[0]?.finishReason || "");
@@ -97,7 +97,7 @@ async function callOpenAiCompatible(
   extraHeaders: Record<string, string> = {}
 ): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch(url, {
-    method: "POST",
+    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
@@ -115,7 +115,7 @@ async function callOpenAiCompatible(
   });
   const data = await res.json();
   if (!res.ok || data.error) {
-    throw new Error(data.error?.message || `Provider request failed (${res.status})`);
+    throw new Error(`Provider request failed (${res.status}). Check the provider configuration.`);
   }
   const text = data?.choices?.[0]?.message?.content || "";
   const usage = data?.usage
@@ -129,7 +129,7 @@ async function callOpenAiCompatible(
 
 async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
+    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
@@ -144,7 +144,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
   });
   const data = await res.json();
   if (!res.ok || data.error) {
-    throw new Error(data.error?.message || `Anthropic request failed (${res.status})`);
+    throw new Error(`Anthropic request failed (${res.status}). Check the provider configuration.`);
   }
   const text = (data?.content || [])
     .filter((part: any) => part.type === "text")
