@@ -78,6 +78,10 @@ export default function Navigation() {
         ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
       ];
 
+  if (isClerkConfigured) {
+    primaryNavItems.push({ label: "Main menu", href: "/workspaces", icon: LayoutDashboard });
+  }
+
   const adminMenuItems: NavItem[] = [
     { label: "Deals", href: "/deals", icon: Briefcase },
     { label: "Call scorecards", href: "/calls", icon: PhoneCall },

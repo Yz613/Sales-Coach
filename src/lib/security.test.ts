@@ -45,6 +45,14 @@ test("operator payment exemptions retain tenant isolation and never accrue overa
       assert.equal(account.scope, "org_comped");
       assert.equal(account.overageOptIn, false);
       assert.equal((await recordEvaluationUsage(auth, 10000)).overageAmountUsd, 0);
+      // A comped test account has the same verified admin guards as a paid team.
+      const endpoint = withWorkspaceApi(async (_request: Request) => Response.json({ tenant: currentTenantId() }), { admin: true });
+      const testAdmin = { ...admin, orgId: "org_comped", tenantId: "org_comped", mfaVerified: true, billingPaid: account.paid };
+      const allowed = await runWithAuth(testAdmin, () => endpoint(request("/api/integrations")));
+      assert.equal(allowed.status, 200);
+      assert.deepEqual(await allowed.json(), { tenant: "org_comped" });
+      const denied = await runWithAuth({ ...testAdmin, role: "member", isAdmin: false }, () => endpoint(request("/api/integrations")));
+      assert.equal(denied.status, 403);
     });
     await runWithTenant("org_unpaid", async () => {
       const account = await loadBillingAccount({ isClerkConfigured: true, orgId: "org_unpaid" });
