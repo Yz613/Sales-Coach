@@ -71,8 +71,8 @@ describe("hosted pricing", () => {
     assert.match(PRICING_PLANS[0]?.blurb || "", /own model keys/);
     assert.match(PRICING_PLANS[0]?.blurb || "", /No seat tax/);
     assert.match(PRICING_PLANS[0]?.features.join(" ") || "", /HubSpot import and Fathom meeting import/);
-    assert.match(PRICING_PLANS[1]?.features.join(" ") || "", /search, clips, deals, and meeting import/);
-    assert.match(PRICING_PLANS[2]?.features.join(" ") || "", /team goals/);
+    assert.match(PRICING_PLANS[1]?.features.join(" ") || "", /meeting import, and team goals/);
+    assert.match(PRICING_PLANS[2]?.features.join(" ") || "", /meeting import, and team goals/);
   });
 });
 

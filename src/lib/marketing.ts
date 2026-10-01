@@ -56,7 +56,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     features: [
       "Hosted on refreshqueue.com",
       `${HOSTED_PLANS.coach.monthlyEvals} call evaluations / month`,
-      "Coaching, search, clips, deals, and meeting import",
+      "Coaching, search, clips, deals, meeting import, and team goals",
       "Managed transcription and scoring",
       "Email support",
     ],
@@ -72,8 +72,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     features: [
       "Hosted on refreshqueue.com",
       "1,200 call evaluations / month",
-      "Coaching, search, clips, deals, and meeting import",
-      "Stage talk-tracks, rep personas, and team goals",
+      "Coaching, search, clips, deals, meeting import, and team goals",
+      "Stage talk-tracks and rep personas",
       "Priority support",
     ],
     overageLine: OVERAGE_LINE,
