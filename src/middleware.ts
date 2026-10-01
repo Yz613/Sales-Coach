@@ -13,7 +13,7 @@ import {
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
-import { assertSecureDeployment, assertMutationOrigin } from "@/lib/security-policy";
+import { assertSecureDeployment, assertMutationOrigin, privateResponse } from "@/lib/security-policy";
 
 const isAdminRoute = createRouteMatcher([
   "/",
@@ -191,7 +191,7 @@ function enforceMemberBoundaries(req: NextRequest): NextResponse | null {
   return null;
 }
 
-export default function middleware(request: NextRequest, event: NextFetchEvent) {
+export default async function middleware(request: NextRequest, event: NextFetchEvent) {
   const alias = redirectApexAliases(request);
   if (alias) return alias;
   const ticket = redirectInviteTickets(request);
@@ -199,12 +199,14 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
 
   const handler = getClerkHandler();
   if (handler) {
-    return handler(request, event);
+    const response = await handler(request, event);
+    // Clerk can reject before Next's route/header pipeline runs.
+    return response && isApiRoute(getPublicPath(request)) ? privateResponse(response) : response;
   }
 
   if (!isPublicMarketingPath(getPublicPath(request)) && !isPublicAuthRoute(getPublicPath(request)) && !isPublicApiRoute(getPublicPath(request), request.method)) {
     try { assertSecureDeployment(); assertMutationOrigin(request); }
-    catch { return NextResponse.json({ error: "Service security configuration is incomplete." }, { status: 503 }); }
+    catch { return privateResponse(NextResponse.json({ error: "Service security configuration is incomplete." }, { status: 503 })); }
   }
 
   return nextWithPath(request, getPublicPath(request));
