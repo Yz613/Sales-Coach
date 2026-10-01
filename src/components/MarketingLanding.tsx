@@ -3,20 +3,23 @@
 import { useState } from "react";
 import {
   ArrowRight,
-  AudioLines,
+  Building2,
   Check,
   CheckCircle2,
   ClipboardCheck,
-  Cloud,
+  Flag,
   Github,
-  GraduationCap,
+  HardDrive,
+  KeyRound,
+  Library,
   Menu,
+  MessageSquare,
   MinusCircle,
-  Shield,
+  Search,
   Sparkles,
   Target,
   Users,
-  Workflow,
+  Video,
   X,
   XCircle,
 } from "lucide-react";
@@ -29,31 +32,40 @@ import {
   PRICING_PLANS,
   type PricingPlan,
 } from "@/lib/marketing";
+import { toAppPath } from "@/lib/public-path";
+
+const COMPANY_MARK_SRC = toAppPath("/refresh-queue-mark.svg");
 
 const navLinks = [
   { label: "Features", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
   { label: "Pricing", href: "#pricing" },
   { label: "GitHub", href: GITHUB_REPO_URL, external: true },
 ];
 
-function BrandMark({ compact = false }: { compact?: boolean }) {
+function BrandMark() {
   return (
     <a href="/" className="flex items-center gap-2.5 group shrink-0">
-      <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#007AFF] text-white font-semibold text-[11px]">
-        SC
-      </div>
-      <span className={`font-semibold text-[#1d1d1f] tracking-tight ${compact ? "text-sm" : "text-sm sm:text-base"}`}>
-        Sales Coach
-      </span>
+      <img
+        src={COMPANY_MARK_SRC}
+        alt="Refresh Queue"
+        width={32}
+        height={32}
+        className="h-8 w-8 shrink-0"
+      />
+      <span className="text-sm font-semibold tracking-tight text-[#1d1d1f]">Sales Coach</span>
     </a>
   );
 }
 
-function ScorecardMock() {
-  const rows = [
+function WorkspaceMock() {
+  const conversations = [
+    { company: "Northwind Freight", meta: "Discovery · HubSpot · 2 clips", status: "Reviewed" as const },
+    { company: "Acme Ops", meta: "Demo · Fathom · Action item open", status: "Open" as const },
+  ];
+  const scores = [
     { label: "Pain", score: "9.2", status: "Pass" as const, note: "Uncovered 4-hour customs delay" },
     { label: "Budget", score: "4.0", status: "Incomplete" as const, note: "Never asked cost threshold" },
-    { label: "Decision", score: "6.5", status: "Incomplete" as const, note: "Mapped VP Ops, not economic buyer" },
     { label: "Talk-track", score: "3.1", status: "Fail" as const, note: "Folded on “we’re set” at 0:10" },
   ];
 
@@ -61,47 +73,91 @@ function ScorecardMock() {
     <div className="relative">
       <div className="absolute -inset-2 sm:-inset-4 rounded-[28px] sm:rounded-[36px] bg-[#007AFF]/[0.06] pointer-events-none" aria-hidden="true" />
       <div className="relative rounded-3xl glass-panel overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.08]">
-          <div>
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#6e6e73]">Call evaluation</p>
-            <p className="text-sm font-semibold text-[#1d1d1f] mt-0.5">Outbound · Discovery · 12:04</p>
+        <div className="px-5 py-4 border-b border-black/[0.08]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider font-semibold text-[#6e6e73]">Revenue workspace</p>
+              <p className="text-sm font-semibold text-[#1d1d1f] mt-0.5">Conversations · clips · deals</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 px-2.5 py-1 text-[11px] font-semibold">
+              <Search className="h-3 w-3" /> Saved search
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/20 px-2.5 py-1 text-[11px] font-semibold">
-            <Sparkles className="h-3 w-3" /> 3 missed opportunities
-          </span>
+          <div className="mt-3 flex items-center gap-2 rounded-xl bg-white border border-black/[0.08] px-3 py-2 text-sm text-[#1d1d1f]">
+            <Search className="h-3.5 w-3.5 text-[#86868b] shrink-0" />
+            <span>customs delay</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {["Discovery", "Reviewed", "This quarter"].map((chip) => (
+              <span key={chip} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[10px] font-semibold text-[#3a3a3c]">
+                {chip}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="p-4 sm:p-5 space-y-3">
-          {rows.map((row) => {
-            const tone =
-              row.status === "Pass"
-                ? { badge: "bg-emerald-500/10 text-[#248A3D] border-emerald-500/20", Icon: CheckCircle2 }
-                : row.status === "Incomplete"
-                  ? { badge: "bg-amber-500/10 text-[#C45500] border-amber-500/20", Icon: MinusCircle }
-                  : { badge: "bg-rose-500/10 text-[#FF3B30] border-rose-500/20", Icon: XCircle };
-            const Icon = tone.Icon;
-            return (
-              <div key={row.label} className="rounded-2xl glass-inset p-3.5 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3a3c]">{row.label}</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone.badge}`}>
-                      <Icon className="h-3 w-3" /> {row.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#6e6e73] mt-1.5 leading-relaxed">{row.note}</p>
-                </div>
-                <p className="font-mono text-lg font-bold text-[#1d1d1f] shrink-0">
-                  {row.score}
-                  <span className="text-[10px] text-[#86868b] font-normal"> / 10</span>
-                </p>
+        <div className="p-4 sm:p-5 space-y-2.5">
+          {conversations.map((row) => (
+            <div key={row.company} className="rounded-2xl glass-inset px-3.5 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[#1d1d1f]">{row.company}</p>
+                <p className="text-xs text-[#6e6e73] mt-0.5">{row.meta}</p>
               </div>
-            );
-          })}
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                  row.status === "Reviewed"
+                    ? "bg-emerald-500/10 text-[#248A3D] border-emerald-500/20"
+                    : "bg-amber-500/10 text-[#C45500] border-amber-500/20"
+                }`}
+              >
+                {row.status}
+              </span>
+            </div>
+          ))}
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#C45500]">Deal risk · rule</p>
+            <p className="text-xs text-[#3a3a3c] mt-1">Northwind close date passed. No open next step.</p>
+          </div>
         </div>
-        <div className="px-5 py-3.5 border-t border-black/[0.08] bg-black/[0.02]">
-          <p className="text-xs text-[#3a3a3c] leading-relaxed">
-            <span className="text-[#007AFF] font-semibold">Coach:</span> Pivot on “we’re set” with the customs-delay probe. Ask budget before offering Tuesday.
-          </p>
+        <div className="border-t border-black/[0.08]">
+          <div className="flex items-center justify-between gap-3 px-5 py-3">
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#6e6e73]">Call review · Discovery · 12:04</p>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/20 px-2.5 py-1 text-[11px] font-semibold">
+              <Sparkles className="h-3 w-3" /> 3 missed opportunities
+            </span>
+          </div>
+          <div className="px-4 sm:px-5 pb-4 space-y-2">
+            {scores.map((row) => {
+              const tone =
+                row.status === "Pass"
+                  ? { badge: "bg-emerald-500/10 text-[#248A3D] border-emerald-500/20", Icon: CheckCircle2 }
+                  : row.status === "Incomplete"
+                    ? { badge: "bg-amber-500/10 text-[#C45500] border-amber-500/20", Icon: MinusCircle }
+                    : { badge: "bg-rose-500/10 text-[#FF3B30] border-rose-500/20", Icon: XCircle };
+              const Icon = tone.Icon;
+              return (
+                <div key={row.label} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3a3c]">{row.label}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone.badge}`}>
+                        <Icon className="h-3 w-3" /> {row.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#6e6e73] mt-1 leading-relaxed">{row.note}</p>
+                  </div>
+                  <p className="font-mono text-base font-bold text-[#1d1d1f] shrink-0">
+                    {row.score}
+                    <span className="text-[10px] text-[#86868b] font-normal"> / 10</span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="px-5 py-3.5 border-t border-black/[0.08] bg-black/[0.02]">
+            <p className="text-xs text-[#3a3a3c] leading-relaxed">
+              <span className="text-[#007AFF] font-semibold">Coach:</span> Pivot on “we’re set” with the customs-delay probe. Ask budget before offering Tuesday.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -266,21 +322,21 @@ export default function MarketingLanding() {
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
             <div>
               <p className="text-[17px] font-medium text-[#007AFF]">
-                AI sales coaching
+                Open-source Gong alternative
               </p>
-              <h1 className="mt-3 text-[40px] sm:text-[56px] lg:text-[68px] font-semibold tracking-[-0.03em] text-[#1d1d1f] leading-[1.05]">
-                AI coaching that finds missed opportunities on every call.
+              <h1 className="mt-3 text-[40px] sm:text-[56px] lg:text-[64px] font-semibold tracking-[-0.03em] text-[#1d1d1f] leading-[1.05]">
+                Coaching and conversation intelligence you can run yourself.
               </h1>
               <p className="mt-5 text-[17px] sm:text-[19px] text-[#6e6e73] leading-snug max-w-xl">
-                Upload or transcribe sales calls, score them against stage-aware talk-tracks (Sandler and your own),
-                and give every rep a precise next move — hosted for your team, or self-hosted for free.
+                Search calls, save coaching clips, import HubSpot deals and Fathom meetings, and score every call
+                against your stage talk-tracks. Local install, your own model keys, MIT license. Early, and already useful.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <a
                   href="#pricing"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-[17px] font-medium px-6 py-3 transition"
                 >
-                  Start hosted trial
+                  See hosted plans
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
@@ -294,10 +350,10 @@ export default function MarketingLanding() {
                 </a>
               </div>
               <p className="mt-5 text-xs font-medium text-[#86868b] tracking-wide">
-                Open source · MIT · Self-host or hosted
+                Open source · MIT · Self-host with your own keys, or use a hosted plan
               </p>
             </div>
-            <ScorecardMock />
+            <WorkspaceMock />
           </div>
         </section>
 
@@ -310,14 +366,14 @@ export default function MarketingLanding() {
                 body: "Reps fold on soft objections, skip budget, and never find the real pain. The call looks “fine.” The deal is already dead.",
               },
               {
-                icon: GraduationCap,
+                icon: Users,
                 title: "Inconsistent coaching",
                 body: "Managers replay gut feel in 1:1s. One rep gets a clinic. The next gets “be more confident.” Nothing compounds.",
               },
               {
-                icon: ClipboardCheck,
-                title: "No stage-aware feedback",
-                body: "Discovery and close are scored the same. Without a talk-track per stage, evaluations are generic and easy to ignore.",
+                icon: Search,
+                title: "Calls and deals stay apart",
+                body: "Recordings pile up with no search, no clips, and no link to the deal. Coaching stays a memory instead of a library.",
               },
             ].map((card) => {
               const Icon = card.icon;
@@ -337,42 +393,58 @@ export default function MarketingLanding() {
         <section id="features" className="scroll-mt-24 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-2xl">
             <p className="text-[13px] font-medium text-[#007AFF]">Features</p>
-            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Everything a sales manager actually uses.</h2>
+            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Coaching, plus a revenue workspace.</h2>
             <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
-              Built for B2B call evaluation: transcription, rubrics, personas, and optional team workspaces.
+              Search conversations, review calls, save clips, and see HubSpot deals next to the meetings that created them.
+              Stage talk-tracks, Sandler rubrics, and rep coaching stay in the same app.
             </p>
           </div>
           <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               {
-                icon: AudioLines,
-                title: "Transcription + synced playback",
-                body: "Upload MP3, WAV, or M4A, or import a transcript. The player highlights the exact timestamp.",
+                icon: Search,
+                title: "Searchable conversations",
+                body: "Filter by rep, stage, source, date, review status, and keyword. Save a search and page through the results.",
               },
               {
-                icon: Workflow,
-                title: "Your model or built-in scoring",
-                body: "Score with your own model, or the built-in deterministic rubric. No keys required to start.",
+                icon: Library,
+                title: "Coaching clips and topics",
+                body: "Save a time range into a named collection. Track phrases, and see word share and questions from the transcript.",
+              },
+              {
+                icon: Building2,
+                title: "Deals from HubSpot",
+                body: "Import companies, contacts, deals, and stages. Risk flags are rules: no recent conversation, a passed close date, or no open next step.",
+              },
+              {
+                icon: Video,
+                title: "Fathom meeting import",
+                body: "Import meetings, summaries, and action items. Signed webhooks bring in new ones. Playback uses a short-lived recording link.",
+              },
+              {
+                icon: MessageSquare,
+                title: "Call review",
+                body: "Comment on a timestamp, track action items, mark a call reviewed, and correct a score with a reason. The original evaluation stays.",
+              },
+              {
+                icon: Flag,
+                title: "Team revenue goals",
+                body: "Plan by quarter, month, or week. Call targets use each rep's close rate from logged meetings.",
               },
               {
                 icon: ClipboardCheck,
                 title: "Stage talk-tracks",
-                body: "Define qualification criteria and talk-tracks per pipeline stage so discovery is not scored like a close.",
+                body: "Score discovery differently from a close. Sandler and your own rubrics, plus the missed opportunities on that call.",
               },
               {
-                icon: Users,
-                title: "Rep personas & 1:1s",
-                body: "Spot repeat struggles vs. strengths, then auto-generate the manager 1:1 talk-track for the next coaching session.",
+                icon: KeyRound,
+                title: "Your model keys",
+                body: "Score with your own model keys, or the built-in rubric when you have none. Optional team sign-in when you want Admin and Member access.",
               },
               {
-                icon: Shield,
-                title: "Optional team sign-in",
-                body: "Turn on optional auth when you need team switching, Admin vs. Member access, and hosted workspaces.",
-              },
-              {
-                icon: Cloud,
-                title: "Run it where you want",
-                body: "Run it locally, ship it in a container, or deploy on your own host. Same product, your choice.",
+                icon: HardDrive,
+                title: "Run it yourself",
+                body: "Local or in a container. Recordings stay on the machine or in your own storage, with retention, exports, and an audit log.",
               },
             ].map((feature) => {
               const Icon = feature.icon;
@@ -387,18 +459,34 @@ export default function MarketingLanding() {
               );
             })}
           </div>
+          <p className="mt-6 max-w-3xl text-sm text-[#6e6e73] leading-relaxed">
+            There is no meeting bot in this release. HubSpot is an import, and Sales Coach does not write notes or scores back.
+            Risk flags are rules, not a win forecast. Speaker stats are transcript word share, not measured talk-time.
+          </p>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
+        <section id="how-it-works" className="scroll-mt-24 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-2xl">
             <p className="text-[13px] font-medium text-[#007AFF]">How it works</p>
-            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Three steps from call to coaching.</h2>
+            <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">From calls and CRM to the next coaching session.</h2>
           </div>
           <div className="mt-10 grid md:grid-cols-3 gap-4">
             {[
-              { step: "01", title: "Upload or paste", body: "Drop a recording or paste a transcript. We transcribe audio and keep timestamps in sync." },
-              { step: "02", title: "Score against your rubric", body: "Evaluate blocking & tackling, qualification, and talk-track adherence for that stage." },
-              { step: "03", title: "Coach the rep", body: "Send a scorecard, missed-opportunity notes, and a manager 1:1 talk-track — not a vague pep talk." },
+              {
+                step: "01",
+                title: "Bring the calls in",
+                body: "Upload a recording, paste a transcript, or import Fathom meetings. Connect HubSpot to pull companies, contacts, deals, and stages.",
+              },
+              {
+                step: "02",
+                title: "Search, clip, and review",
+                body: "Filter the library, save a search, comment on a moment, and drop clips into a coaching collection. Open the deal next to the call.",
+              },
+              {
+                step: "03",
+                title: "Coach and set targets",
+                body: "Score the stage talk-track, note missed opportunities, correct a score when it is wrong, and turn close rates into team call targets.",
+              },
             ].map((item) => (
               <div key={item.step} className="rounded-3xl glass-card p-6">
                 <p className="font-mono text-xs font-semibold text-[#007AFF]">{item.step}</p>
@@ -414,7 +502,7 @@ export default function MarketingLanding() {
             <p className="text-[13px] font-medium text-[#007AFF]">Pricing</p>
             <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Free to run. Priced to host.</h2>
             <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
-              Open source is free forever. Cloud is for teams that want zero ops and managed AI.
+              Open source is the full product on your machine. Hosted plans are that same app, with managed uptime and a monthly evaluation quota.
             </p>
           </div>
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 xl:gap-4 items-stretch">
@@ -456,10 +544,10 @@ export default function MarketingLanding() {
           <div className="rounded-3xl glass-panel p-6 sm:p-10 grid md:grid-cols-2 gap-8 md:gap-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-[#6e6e73]">Open source</p>
-              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">You already own the product.</h3>
+              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">The full product, on your machine.</h3>
               <p className="mt-3 text-sm text-[#6e6e73] leading-relaxed">
-                Clone it, run it yourself, and point it at your own model keys. Unlimited local evaluations, MIT licensed,
-                no seat caps. You operate the box.
+                Clone it and run coaching, search, clips, HubSpot import, and Fathom meeting import locally.
+                Point it at your own model keys. MIT licensed. No seat tax. You operate it.
               </p>
               <a
                 href={GITHUB_REPO_URL}
@@ -472,14 +560,14 @@ export default function MarketingLanding() {
               </a>
             </div>
             <div>
-              <p className="text-[13px] font-medium text-[#007AFF]">Hosted cloud</p>
-              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">We run transcription, scoring, and uptime.</h3>
+              <p className="text-[13px] font-medium text-[#007AFF]">Hosted</p>
+              <h3 className="mt-2 text-xl font-semibold text-[#1d1d1f]">The same product, managed.</h3>
               <p className="mt-3 text-sm text-[#6e6e73] leading-relaxed">
-                Hosted Coach, Hosted Team, and Enterprise are for teams that do not want to self-host: managed models,
-                seats, and support on refreshqueue.com. Same Sales Coach engine — none of the ops.
+                Hosted Coach, Hosted Team, and Enterprise are for teams that want the app without operating it.
+                Transcription, scoring, and uptime run on refreshqueue.com. Evaluation quotas apply.
               </p>
               <a href="#pricing" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
-                Start a hosted workspace
+                Compare hosted plans
                 <ArrowRight className="h-4 w-4" />
               </a>
             </div>
@@ -489,7 +577,11 @@ export default function MarketingLanding() {
 
       <footer className="border-t border-black/[0.08]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-          <p className="text-xs text-[#86868b]">© 2026 Yz613. Sales Coach AI. MIT License.</p>
+          <p className="text-xs leading-relaxed text-[#86868b]">
+            <span className="text-[#6e6e73]">Sales Coach by Refresh Queue</span>
+            <span className="mx-1.5" aria-hidden="true">·</span>
+            © 2026 Refresh Queue. MIT License.
+          </p>
           <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
             <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               GitHub
