@@ -1,10 +1,14 @@
-import { SignIn } from "@clerk/nextjs";
-import ClerkAuthForm, { ClerkAuthFeedback } from "@/components/ClerkAuthForm";
-import { hasClerkPublishableKey } from "@/lib/clerk-env";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import ClerkAuthForm from "@/components/ClerkAuthForm";
+import SignInForm from "@/components/SignInForm";
+import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
+import { signInDestination } from "@/lib/signInRedirect";
+import { stripAppBasePath } from "@/lib/public-path";
 
 export const dynamic = "force-dynamic";
 
-export default function SignInPage() {
+export default async function SignInPage() {
   if (!hasClerkPublishableKey()) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center text-sm text-[#6e6e73]">
@@ -13,10 +17,21 @@ export default function SignInPage() {
     );
   }
 
+  // Read the verified middleware session only; do not wait on database/billing.
+  let destination: string | null = null;
+  if (hasClerkServerAuth()) {
+    try {
+      const session = await auth({ treatPendingAsSignedOut: false });
+      if (session.userId) destination = signInDestination({ sessionStatus: session.sessionStatus });
+    } catch {
+      // The client can still load the form and recover an unavailable session.
+    }
+  }
+  if (destination) redirect(stripAppBasePath(destination));
+
   return (
     <ClerkAuthForm>
-      {/* Hash routing avoids Clerk path-sub-route miscomputation under the /app basePath. */}
-      <SignIn routing="hash" fallback={<ClerkAuthFeedback />} />
+      <SignInForm />
     </ClerkAuthForm>
   );
 }

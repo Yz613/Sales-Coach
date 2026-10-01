@@ -17,6 +17,23 @@ import {
   forwardClerkProxyRequest,
 } from "./clerkProxy";
 const { loginAssetsHealthy, main: verifyLoginAssets } = require("../../scripts/verify-login-assets.cjs");
+import { signInDestination } from "./signInRedirect";
+
+describe("sign-in session redirects", () => {
+  it("opens the workspace for an active session rather than mounting an empty SignIn widget", () => {
+    assert.equal(signInDestination({ sessionStatus: "active" }), "/app");
+    assert.equal(signInDestination({ isLoaded: false, sessionStatus: "active" }), null);
+  });
+
+  it("continues pending team selection without skipping other authentication tasks", () => {
+    assert.equal(signInDestination({ sessionStatus: "pending", currentTaskKey: "choose-organization" }), "/app/select-organization");
+    assert.equal(signInDestination({ sessionStatus: "pending", currentTaskKey: "setup-mfa" }), null);
+    assert.equal(signInDestination({ sessionStatus: "pending", currentTaskKey: "reset-password" }), null);
+    assert.equal(signInDestination({ sessionStatus: "pending" }), null);
+    assert.equal(signInDestination({ sessionStatus: "ended" }), null);
+    assert.equal(signInDestination({ sessionStatus: null }), null);
+  });
+});
 
 describe("clerk proxy paths", () => {
   it("matches first-party auth prefixes and rewrites blocked script names", () => {
