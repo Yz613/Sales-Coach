@@ -21,9 +21,9 @@ describe("hosted pricing", () => {
       PRICING_PLANS.map((plan) => [plan.id, plan.name, plan.price, plan.cta.label]),
       [
         ["oss", "Open Source", "$0", "Clone on GitHub"],
-        ["coach", "Hosted Coach", "$249", "Start Hosted Coach"],
-        ["team", "Hosted Team", "$899", "Start Hosted Team"],
-        ["enterprise", "Enterprise", "$2,997", "Talk to us"],
+        ["coach", "Hosted Coach", "$399", "Start Hosted Coach"],
+        ["team", "Hosted Team", "$1,499", "Start Hosted Team"],
+        ["enterprise", "Enterprise", "$4,997", "Talk to us"],
       ]
     );
     const team = PRICING_PLANS.find((plan) => plan.id === "team");
@@ -44,9 +44,10 @@ describe("hosted pricing", () => {
     assert.match(PRICING_DURATION_NOTE, /60 minutes/);
     assert.match(PRICING_DURATION_NOTE, /30-minute block/);
     assert.equal(PRICING_FAQS[0]?.question, "What happens if we exceed our monthly evaluations?");
-    assert.match(PRICING_FAQS[0]?.answer || "", /\$0\.85\/call/);
+    assert.match(PRICING_FAQS[0]?.answer || "", /\$1\.25\/call/);
     assert.equal(PRICING_FAQS[1]?.question, "Enterprise fair use");
     assert.match(PRICING_FAQS[1]?.answer || "", /4,000 monthly calls/);
+    assert.match(PRICING_FAQS[1]?.answer || "", /~\$1\.25 effective cost\/call/);
     assert.equal(GITHUB_REPO_URL, "https://github.com/Yz613/Sales-Coach");
     assert.match(LICENSE_URL, /LICENSE$/);
     assert.equal(CONTACT_EMAIL, "hello@refreshqueue.com");

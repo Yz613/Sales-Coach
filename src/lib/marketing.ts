@@ -50,7 +50,7 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     id: "coach",
     name: HOSTED_PLANS.coach.name,
-    price: "$249",
+    price: "$399",
     period: "/mo",
     blurb: "The full product, hosted, for a working sales team.",
     features: [
@@ -66,7 +66,7 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     id: "team",
     name: HOSTED_PLANS.team.name,
-    price: "$899",
+    price: "$1,499",
     period: "/mo",
     blurb: "More evaluations and priority support. Same product.",
     features: [
@@ -84,7 +84,7 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     id: "enterprise",
     name: HOSTED_PLANS.enterprise.name,
-    price: "$2,997",
+    price: "$4,997",
     period: "/mo",
     blurb: "Dedicated rollout, SSO, and a fair-use eval quota.",
     features: [
