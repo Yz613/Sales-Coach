@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getServerAuth, rereadServerAuth } from "@/lib/auth";
 import { CONTACT_MAILTO, PRICING_PLANS } from "@/lib/marketing";
 import { hostedBillingRequired } from "@/lib/billingAccess";
-import { toAppPath } from "@/lib/public-path";
 import { claimPendingCheckout, hostedCheckoutPath, isPaidCheckoutSessionId, parseCheckoutPlan, readCheckoutCookie } from "@/lib/stripeCheckout";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +13,10 @@ export default async function SubscribePage() {
 
   if (auth.isClerkConfigured && !auth.userId) {
     const paid = await isPaidCheckoutSessionId(sessionId);
-    redirect(paid ? toAppPath("/sign-up") : "/marketing#pricing");
+    redirect(paid ? "/sign-up" : "/marketing#pricing");
   }
   if (auth.isClerkConfigured && !auth.orgId) {
-    redirect(toAppPath("/select-organization"));
+    redirect("/select-organization");
   }
 
   if (auth.orgId) {
@@ -26,7 +25,7 @@ export default async function SubscribePage() {
 
   const latest = await rereadServerAuth();
   if (latest.billingPaid || !hostedBillingRequired()) {
-    redirect(toAppPath("/"));
+    redirect("/");
   }
 
   const paidPlans = PRICING_PLANS.filter((plan) => plan.id === "coach" || plan.id === "team");

@@ -4,7 +4,7 @@ import { authRedirectPath, getServerAuth, runWithAuth, type AuthUser } from "@/l
 import { hostedBillingRequired } from "@/lib/billingAccess";
 import { PaymentRequiredError } from "@/lib/billingQuota";
 import { TenantRequiredError, runWithTenant, resolveTenantId } from "@/lib/tenant";
-import { toAppPath } from "@/lib/public-path";
+import { toAppPath, stripAppBasePath } from "@/lib/public-path";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
 import { assertSecureDeployment, assertMutationOrigin, assertLocalRequest, boundedRequest, privateResponse, localDevelopmentAllowed, mfaRequired, SecurityPolicyError } from "@/lib/security-policy";
 import { consumeLimit, consumeRequestLimit } from "@/lib/security-rate-limit";
@@ -74,7 +74,7 @@ export async function requireWorkspacePage(): Promise<AuthUser> {
   const auth = await getServerAuth();
   const dest = authRedirectPath(auth);
   if (dest) {
-    redirect(dest);
+    redirect(stripAppBasePath(dest));
   }
   return auth;
 }
@@ -112,7 +112,7 @@ export function withWorkspaceApi<H extends RouteHandler>(handler: H, options: { 
 export function withWorkspacePage<A extends any[], T>(page: (...args: A) => Promise<T>, options: { admin?: boolean } = {}) {
   return async (...args: A): Promise<T> => {
     const auth = await requireWorkspacePage();
-    if (options.admin && !auth.isAdmin) redirect(toAppPath("/calls"));
+    if (options.admin && !auth.isAdmin) redirect("/calls");
     return runWithAuth(auth, () => runWithTenant(resolveTenantId(auth), () => page(...args)));
   };
 }

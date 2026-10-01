@@ -5,10 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { assertSecureDeployment, assertMutationOrigin, boundedRequest, localDevelopmentAllowed, mfaRequired, sessionHasMfa } from "./security-policy";
+import { assertSecureDeployment, assertMutationOrigin, boundedRequest, localDevelopmentAllowed, mfaRequired, sessionHasMfa, verifiedSessionOriginAllowed } from "./security-policy";
 import { encryptRecording, decryptRecording } from "./revenue/security";
 import { currentTenantId, runWithTenant, TenantRequiredError } from "./tenant";
-import { publicGuestAuth, runWithAuth, type AuthUser } from "./auth";
+import { publicGuestAuth, authRedirectPath, runWithAuth, type AuthUser } from "./auth";
+import { isPublicAuthRoute, stripAppBasePath } from "./public-path";
 import { consumeLimit } from "./security-rate-limit";
 import { db } from "./db";
 import { appSettings, auditEvents, calls } from "./db/schema";
@@ -29,6 +30,25 @@ after(() => fs.rmSync(directory, { recursive: true, force: true }));
 const admin: AuthUser = { userId: "user_admin", role: "admin", isAdmin: true, isMember: false, isClerkConfigured: true, orgId: "org_secure", tenantId: "org_secure", orgRole: "org:admin", hasOrgAdmin: true, email: "admin@example.com", canViewAllCalls: true, clerkPlanId: null, billingPaid: true };
 const member: AuthUser = { ...admin, userId: "user_member", role: "member", isAdmin: false, isMember: true, orgRole: "org:member", hasOrgAdmin: false, email: "member@example.com", canViewAllCalls: false };
 const request = (path: string, init?: RequestInit) => new Request(`http://localhost/app${path}`, init);
+
+test("verified Clerk sessions tolerate omitted azp but reject foreign or malformed origins", () => {
+  assert.equal(verifiedSessionOriginAllowed({ sub: "user_verified", azp: "https://refreshqueue.com" }, "https://refreshqueue.com"), true);
+  assert.equal(verifiedSessionOriginAllowed({ sub: "user_verified" }, "https://refreshqueue.com"), true);
+  for (const azp of ["https://attacker.example", "https://refreshqueue.com.attacker.example", null, "", 42]) {
+    assert.equal(verifiedSessionOriginAllowed({ azp }, "https://refreshqueue.com"), false);
+  }
+  assert.equal(verifiedSessionOriginAllowed(undefined, "https://refreshqueue.com"), false);
+  assert.equal(verifiedSessionOriginAllowed({}, null), false);
+});
+
+test("authentication failures land on public session recovery instead of cycling through sign-in", () => {
+  for (const authenticationIssue of ["invalid-origin", "unavailable"] as const) {
+    const dest = authRedirectPath({ ...publicGuestAuth(), authenticationIssue });
+    assert.equal(dest, "/app/session-recovery");
+    assert.equal(isPublicAuthRoute(dest!), true);
+    assert.equal(stripAppBasePath(dest!), "/session-recovery");
+  }
+});
 
 test("production fails closed with incomplete security settings and unscoped work", async () => {
   const previous = process.env.NODE_ENV;

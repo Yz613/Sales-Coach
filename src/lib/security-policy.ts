@@ -22,6 +22,13 @@ export function sessionHasMfa(claims: unknown): boolean {
     Number.isFinite(ages[1]) && ages[1] >= 0 && ages[1] <= 480;
 }
 
+/** Apply only to a session already verified by Clerk. Clerk may omit azp for privacy-sensitive requests. */
+export function verifiedSessionOriginAllowed(claims: unknown, origin: string | null): boolean {
+  if (!origin || !claims || typeof claims !== "object") return false;
+  const party = (claims as { azp?: unknown }).azp;
+  return party === undefined || party === origin;
+}
+
 export function configuredAppOrigin(env: Record<string, string | undefined> = process.env): string | null {
   const value = env.PUBLIC_APP_URL?.trim();
   if (!value) return null;

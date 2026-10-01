@@ -1,13 +1,13 @@
 import { cache } from "react";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { assertSecureDeployment, localDevelopmentAllowed, configuredAppOrigin, mfaRequired, sessionHasMfa } from "@/lib/security-policy";
+import { assertSecureDeployment, localDevelopmentAllowed, configuredAppOrigin, mfaRequired, sessionHasMfa, verifiedSessionOriginAllowed } from "@/lib/security-policy";
 import { redirect } from "next/navigation";
 import { hasClerkPublishableKey, hasClerkServerAuth } from "@/lib/clerk-env";
 import { resolveUserRole, type UserRole } from "@/lib/roles";
 import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/billingAccess";
 import type { HostedPlanId } from "@/lib/billing";
 import { LOCAL_TENANT_ID, runWithTenant } from "@/lib/tenant";
-import { toAppPath } from "@/lib/public-path";
+import { toAppPath, stripAppBasePath } from "@/lib/public-path";
 
 export type { UserRole } from "@/lib/roles";
 
@@ -27,6 +27,7 @@ export interface AuthUser {
   clerkPlanId: HostedPlanId | null;
   billingPaid: boolean;
   mfaVerified?: boolean;
+  authenticationIssue?: "invalid-origin" | "unavailable";
 }
 
 export function isClerkConfigured(): boolean {
@@ -90,12 +91,13 @@ async function readServerAuth(): Promise<AuthUser> {
   } catch (err) {
     if (isNextControlFlowError(err)) throw err;
     console.warn("Verified authentication is unavailable.");
-    return publicGuestAuth();
+    return { ...publicGuestAuth(), authenticationIssue: "unavailable" };
   }
 }
 
 /** Where to send a browser session that is not allowed into the app yet. */
 export function authRedirectPath(auth: AuthUser): string | null {
+  if (auth.authenticationIssue) return toAppPath("/session-recovery");
   if ((hostedBillingRequired() || !localDevelopmentAllowed()) && !hasClerkServerAuth()) {
     return toAppPath("/sign-in");
   }
@@ -123,7 +125,9 @@ async function loadServerAuth(): Promise<AuthUser> {
   const session = await auth();
   const { userId, orgId, orgRole } = session;
   const origin = configuredAppOrigin();
-  if (process.env.NODE_ENV === "production" && session.userId && session.sessionClaims?.azp !== origin) return publicGuestAuth();
+  if (process.env.NODE_ENV === "production" && session.userId && !verifiedSessionOriginAllowed(session.sessionClaims, origin)) {
+    return { ...publicGuestAuth(), authenticationIssue: "invalid-origin" };
+  }
   const mfaVerified = sessionHasMfa(session.sessionClaims);
   const hasOrgAdmin = Boolean(userId && orgId && session.has({ role: "org:admin" }));
   const clerkHas: ClerkHas = session.has.bind(session);
@@ -132,7 +136,7 @@ async function loadServerAuth(): Promise<AuthUser> {
   let name: string | undefined;
   if (userId) {
     const user = await currentUser();
-    if (user?.id !== userId) return publicGuestAuth();
+    if (user?.id !== userId) return { ...publicGuestAuth(), authenticationIssue: "unavailable" };
     if (user.primaryEmailAddress?.verification?.status === "verified") {
       email = user.primaryEmailAddress.emailAddress;
     }
@@ -173,10 +177,10 @@ export async function requireAdmin(): Promise<AuthUser> {
   const auth = await getServerAuth();
   const dest = authRedirectPath(auth);
   if (dest) {
-    redirect(dest);
+    redirect(stripAppBasePath(dest));
   }
   if (!auth.isAdmin) {
-    redirect(toAppPath("/calls"));
+    redirect("/calls");
   }
   return auth;
 }

@@ -10,13 +10,25 @@ async function main() {
   if (run.status !== 200) throw new Error(`Authenticated job runner returned HTTP ${run.status}.`);
   const result = await run.json();
   if (!Array.isArray(result.jobs)) throw new Error("Job runner returned an unexpected response.");
-  for (const route of ["/app/api/conversations", "/app/api/integrations", "/app/api/admin/settings"]) {
-    const response = await fetch(`${origin}${route}`, { redirect: "error", signal: AbortSignal.timeout(30000) });
-    if (response.status !== 401 || !response.headers.get("cache-control")?.includes("no-store") || response.headers.get("x-content-type-options") !== "nosniff") {
-      throw new Error("Deployed API authorization or response protections failed verification.");
+  // Edge locations may briefly serve the preceding version during a rollout.
+  let verified = false;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let protectedRoutes = true;
+    for (const route of ["/app/api/conversations", "/app/api/integrations", "/app/api/admin/settings"]) {
+      const response = await fetch(`${origin}${route}`, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(30000) });
+      if (response.status !== 401 || !response.headers.get("cache-control")?.includes("no-store") || response.headers.get("x-content-type-options") !== "nosniff") protectedRoutes = false;
     }
+    const duplicate = await fetch(`${origin}/app/app/sign-in?deployment_check=1`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
+    const target = new URL(duplicate.headers.get("location") || "/", origin);
+    const recovery = await fetch(`${origin}/app/session-recovery`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
+    if (protectedRoutes && duplicate.status === 307 && target.pathname === "/app/sign-in" && target.searchParams.get("deployment_check") === "1" && recovery.status === 200) {
+      verified = true;
+      break;
+    }
+    if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 10000));
   }
-  console.log("Deployed job runner, database schema, and API authorization verified.");
+  if (!verified) throw new Error("Deployed authorization or sign-in redirect protections failed verification.");
+  console.log("Deployed job runner, database schema, API authorization, and sign-in redirect recovery verified.");
 }
 main().catch(error => {
   console.error(error instanceof Error ? error.message : "Deployment verification failed.");

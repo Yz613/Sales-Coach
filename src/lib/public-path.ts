@@ -33,6 +33,7 @@ const PUBLIC_AUTH_PREFIXES = [
   "/select-organization",
   "/create-organization",
   "/user",
+  "/session-recovery",
   "/organization",
   "/accept-invite",
   "/subscribe",
@@ -130,6 +131,12 @@ export function isApexClerkProxyPath(pathname: string): boolean {
 
 export function getApexAliasRedirect(requestUrl: string): ApexAliasRedirect | null {
   const url = new URL(requestUrl);
+  let normalized = url.pathname;
+  while (normalized === "/app/app" || normalized.startsWith("/app/app/")) normalized = normalized.slice(APP_BASE_PATH.length);
+  if (normalized !== url.pathname) {
+    url.pathname = normalized;
+    return { location: url.href, status: 307 };
+  }
   if (isApexClerkProxyPath(url.pathname)) {
     const dest = new URL(url);
     dest.pathname = url.pathname.startsWith("/__clerk")
