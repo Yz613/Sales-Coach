@@ -32,6 +32,9 @@ import {
   PRICING_PLANS,
   type PricingPlan,
 } from "@/lib/marketing";
+import { toAppPath } from "@/lib/public-path";
+
+const COMPANY_MARK_SRC = toAppPath("/refresh-queue-mark.svg");
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -40,14 +43,19 @@ const navLinks = [
   { label: "GitHub", href: GITHUB_REPO_URL, external: true },
 ];
 
-function BrandMark({ compact = false }: { compact?: boolean }) {
+function BrandMark() {
   return (
     <a href="/" className="flex items-center gap-2.5 group shrink-0">
-      <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#007AFF] text-white font-semibold text-[11px]">
-        SC
-      </div>
-      <span className={`font-semibold text-[#1d1d1f] tracking-tight ${compact ? "text-sm" : "text-sm sm:text-base"}`}>
-        Sales Coach
+      <img
+        src={COMPANY_MARK_SRC}
+        alt=""
+        width={32}
+        height={32}
+        className="h-8 w-8 shrink-0"
+      />
+      <span className="flex flex-col leading-none">
+        <span className="text-sm font-semibold tracking-tight text-[#1d1d1f]">Sales Coach</span>
+        <span className="mt-1 text-[11px] font-medium text-[#6e6e73]">by Refresh Queue</span>
       </span>
     </a>
   );
@@ -572,7 +580,7 @@ export default function MarketingLanding() {
 
       <footer className="border-t border-black/[0.08]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-          <p className="text-xs text-[#86868b]">© 2026 Yz613. Sales Coach AI. MIT License.</p>
+          <p className="text-xs text-[#86868b]">© 2026 Refresh Queue. MIT License.</p>
           <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
             <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               GitHub

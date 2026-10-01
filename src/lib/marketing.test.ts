@@ -94,6 +94,15 @@ describe("marketing landing copy", () => {
     assert.match(source, /does not write notes or scores back/);
     assert.match(source, /card payments/);
     assert.match(source, /paste a transcript/);
+    assert.match(source, /by Refresh Queue/);
+    assert.match(source, /© 2026 Refresh Queue/);
+    assert.match(source, /refresh-queue-mark\.svg/);
+    assert.doesNotMatch(source, /© 2026 Yz613/);
+    assert.doesNotMatch(source, />\s*SC\s*</);
+    const mark = readFileSync(new URL("../../public/refresh-queue-mark.svg", import.meta.url), "utf8");
+    assert.match(mark, /viewBox="0 0 32 32"/);
+    assert.doesNotMatch(mark, /<text/);
+    assert.doesNotMatch(mark, /Gong/i);
     assert.match(page, /Open-source Gong alternative/);
     assert.match(page, /HubSpot and Fathom/);
     assert.match(page, /your own model keys/);
