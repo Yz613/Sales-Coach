@@ -40,6 +40,7 @@ export default function AdminSettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
   const [canTranscribe, setCanTranscribe] = useState(true);
   const [billingPlan, setBillingPlan] = useState<HostedPlanId>("oss");
   const [overageOptIn, setOverageOptIn] = useState(false);
@@ -62,7 +63,11 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     fetch(apiPath("/api/admin/settings"))
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not load settings. Reload this page to try again.");
+        return data;
+      })
       .then((data) => {
         setHasStoredKey(data.hasKey);
         setMaskedKey(data.maskedKey || "");
@@ -92,14 +97,16 @@ export default function AdminSettingsPage() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error(err);
+        setSettingsError(err.message || "Could not load settings. Reload this page to try again.");
         setLoading(false);
       });
   }, []);
 
   const persistSelection = async (nextProvider: ProviderId, nextModel: string) => {
+    setSettingsError("");
+    setSaveSuccess(false);
     try {
-      await fetch(apiPath("/api/admin/settings"), {
+      const res = await fetch(apiPath("/api/admin/settings"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,8 +114,12 @@ export default function AdminSettingsPage() {
           activeModel: nextModel,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Could not save your selection. Try Save Configuration again.");
+      }
     } catch (err) {
-      console.error(err);
+      setSettingsError(err instanceof Error ? err.message : "Could not save your selection. Try again.");
     }
   };
 
@@ -139,6 +150,7 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
+    setSettingsError("");
 
     try {
       const res = await fetch(apiPath("/api/admin/settings"), {
@@ -153,6 +165,10 @@ export default function AdminSettingsPage() {
         }),
       });
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Settings could not be saved. Please try again.");
+      }
       if (res.ok) {
         setSaveSuccess(true);
         if (apiKey.trim()) {
@@ -168,7 +184,7 @@ export default function AdminSettingsPage() {
         setTimeout(() => setSaveSuccess(false), 4000);
       }
     } catch (err) {
-      console.error(err);
+      setSettingsError(err instanceof Error ? err.message : "Settings could not be saved. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -226,6 +242,12 @@ export default function AdminSettingsPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {settingsError && (
+          <div role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-4 text-xs text-[#D70015]">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{settingsError}</span>
+          </div>
+        )}
         {!canTranscribe && (
           <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-[#C45500]">
             <AlertCircle className="h-4 w-4 shrink-0" />

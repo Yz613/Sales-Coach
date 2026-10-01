@@ -102,7 +102,7 @@ async function callGeminiGenerate(
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
-      method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
+      method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(120000),
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts }],
@@ -159,7 +159,7 @@ async function uploadGeminiFile(
   const start = await fetch(
     `https://generativelanguage.googleapis.com/upload/v1beta/files`,
     {
-      method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
+      method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(120000),
       headers: {
         "x-goog-api-key": apiKey,
         "X-Goog-Upload-Protocol": "resumable",
@@ -185,7 +185,7 @@ async function uploadGeminiFile(
     throw new Error("Invalid transcription upload target.");
   }
   const uploaded = await fetch(uploadUrl, {
-    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
+    method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(120000),
     headers: {
       "Content-Length": String(bytes.byteLength),
       "X-Goog-Upload-Offset": "0",
@@ -204,9 +204,10 @@ async function uploadGeminiFile(
     await new Promise((resolve) => setTimeout(resolve, 500));
     const poll = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/${file.name}`,
-      { headers: { "x-goog-api-key": apiKey }, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(30000) }
+      { headers: { "x-goog-api-key": apiKey }, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(30000) }
     );
     const next = await poll.json().catch(() => ({}));
+    if (!poll.ok || next.error) throw new Error(geminiErrorMessage(next, poll.status));
     file = next.file || next;
   }
   if (!file?.uri) {
@@ -241,7 +242,7 @@ async function transcribeGeminiFile(
     if (uploaded.name) {
       await fetch(
         `https://generativelanguage.googleapis.com/v1beta/${uploaded.name}`,
-        { method: "DELETE", headers: { "x-goog-api-key": backend.apiKey }, redirect: "error", signal: AbortSignal.timeout(30000) }
+        { method: "DELETE", headers: { "x-goog-api-key": backend.apiKey }, redirect: "manual", signal: AbortSignal.timeout(30000) }
       ).catch(() => undefined);
     }
   }
@@ -270,7 +271,7 @@ async function transcribeWhisper(
   form.append("response_format", "verbose_json");
 
   const res = await fetch(endpoint, {
-    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
+    method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(120000),
     headers: { Authorization: `Bearer ${backend.apiKey}` },
     body: form,
   });
