@@ -20,6 +20,7 @@ import { claimPendingCheckout, originFromRequest } from "./stripeCheckout";
 import { resolveUploadRepId } from "./viewer-calls";
 import { withWorkspaceApi, workspaceErrorResponse } from "./workspace";
 import { eq } from "drizzle-orm";
+import { loadBillingAccount, recordEvaluationUsage } from "./billingQuota";
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sales-security-"));
 process.env.SALES_COACH_DB_PATH = path.join(directory, "test.db");
@@ -30,6 +31,32 @@ after(() => fs.rmSync(directory, { recursive: true, force: true }));
 const admin: AuthUser = { userId: "user_admin", role: "admin", isAdmin: true, isMember: false, isClerkConfigured: true, orgId: "org_secure", tenantId: "org_secure", orgRole: "org:admin", hasOrgAdmin: true, email: "admin@example.com", canViewAllCalls: true, clerkPlanId: null, billingPaid: true };
 const member: AuthUser = { ...admin, userId: "user_member", role: "member", isAdmin: false, isMember: true, orgRole: "org:member", hasOrgAdmin: false, email: "member@example.com", canViewAllCalls: false };
 const request = (path: string, init?: RequestInit) => new Request(`http://localhost/app${path}`, init);
+
+test("operator payment exemptions retain tenant isolation and never accrue overage charges", async () => {
+  const previous = { exempt: process.env.BILLING_EXEMPT_ORG_IDS, billing: process.env.BILLING_REQUIRED };
+  try {
+    process.env.BILLING_EXEMPT_ORG_IDS = "org_comped";
+    process.env.BILLING_REQUIRED = "true";
+    await runWithTenant("org_comped", async () => {
+      const auth = { isClerkConfigured: true, orgId: "org_comped" };
+      const account = await loadBillingAccount(auth);
+      assert.equal(account.paid, true);
+      assert.equal(account.unlimited, true);
+      assert.equal(account.scope, "org_comped");
+      assert.equal(account.overageOptIn, false);
+      assert.equal((await recordEvaluationUsage(auth, 10000)).overageAmountUsd, 0);
+    });
+    await runWithTenant("org_unpaid", async () => {
+      const account = await loadBillingAccount({ isClerkConfigured: true, orgId: "org_unpaid" });
+      assert.equal(account.paid, false);
+      assert.equal(account.scope, "org_unpaid");
+      assert.equal(account.usage.creditsUsed, 0);
+    });
+  } finally {
+    if (previous.exempt === undefined) delete process.env.BILLING_EXEMPT_ORG_IDS; else process.env.BILLING_EXEMPT_ORG_IDS = previous.exempt;
+    if (previous.billing === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previous.billing;
+  }
+});
 
 test("verified Clerk sessions tolerate omitted azp but reject foreign or malformed origins", () => {
   assert.equal(verifiedSessionOriginAllowed({ sub: "user_verified", azp: "https://refreshqueue.com" }, "https://refreshqueue.com"), true);

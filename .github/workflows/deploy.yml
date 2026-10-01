@@ -68,6 +68,8 @@ jobs:
         run: node scripts/configure-worker-security.cjs
       - name: Sync application secrets onto the worker
         env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          BILLING_EXEMPT_ORG_IDS: ${{ vars.BILLING_EXEMPT_ORG_IDS }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}

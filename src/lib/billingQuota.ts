@@ -8,6 +8,7 @@ import {
 } from "@/lib/billing";
 import {
   hostedBillingRequired,
+  billingExemptOrganization,
   isPaidHostedPlan,
   planFromClerkHas,
   type ClerkHas,
@@ -101,7 +102,8 @@ export async function loadBillingAccount(
   auth: BillingAuth,
   has?: ClerkHas
 ): Promise<BillingAccount> {
-  const unlimited = !auth.isClerkConfigured || !hostedBillingRequired();
+  const exempt = auth.isClerkConfigured && billingExemptOrganization(auth.orgId);
+  const unlimited = !auth.isClerkConfigured || !hostedBillingRequired() || exempt;
   const clerkPlan = auth.clerkPlanId || planFromClerkHas(has);
   const month = utcMonthKey();
   const [storedPlanRaw, overrideRaw, storedOverage, usageRaw] = await Promise.all([
@@ -147,11 +149,11 @@ export async function loadBillingAccount(
   const usage = parseUsage(usageRaw, month);
 
   return {
-    scope: unlimited ? LOCAL_TENANT_ID : billingScope(auth),
+    scope: auth.isClerkConfigured ? billingScope(auth) : LOCAL_TENANT_ID,
     planId,
     paid,
     monthlyLimit,
-    overageOptIn: plan.allowsOverage ? overageOptIn : false,
+    overageOptIn: !exempt && plan.allowsOverage ? overageOptIn : false,
     unlimited,
     usage,
   };

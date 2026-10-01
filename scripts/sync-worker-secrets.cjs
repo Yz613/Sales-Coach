@@ -10,9 +10,12 @@ const SECRET_NAMES = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "CLERK_SECRET_KEY",
+  // Server policy checks read process.env dynamically; build-time inlining alone is insufficient.
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "INTEGRATION_ENCRYPTION_KEY",
   "INTEGRATION_CRON_SECRET",
   "PUBLIC_APP_URL",
+  "BILLING_EXEMPT_ORG_IDS",
 ];
 
 function wrangler(args, input) {
@@ -73,7 +76,7 @@ if (missing.includes("STRIPE_SECRET_KEY")) {
   console.error("Hosted checkout will return 503 until STRIPE_SECRET_KEY is set.");
 }
 
-if (missing.some(name => ["CLERK_SECRET_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].includes(name))) {
+if (missing.some(name => ["CLERK_SECRET_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].includes(name))) {
   console.error("Required production security configuration is missing. Deployment stopped.");
   process.exitCode = 1;
 }
