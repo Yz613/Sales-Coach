@@ -20,6 +20,7 @@ const fathom = { recording_id: 321, title: "Live discovery", recording_start_tim
 let dealAmount = "1000"; let deletedDeal = false; let updatedSummary = false;
 const requests: { url: URL; init?: RequestInit }[] = [];
 async function vendorFetch(input: any, init?: RequestInit) {
+  assert.equal(init?.redirect, "manual", "Cloudflare rejects redirect:error; provider credentials must never follow a redirect");
   const url = new URL(String(input)); requests.push({ url, init });
   if (url.hostname === "api.fireflies.ai") {
     assert.equal((init?.headers as any).Authorization, "Bearer api-token");

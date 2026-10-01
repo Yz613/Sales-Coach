@@ -180,6 +180,39 @@ test("settings are encrypted at rest, isolated by authenticated context, and leg
   assert.equal(await runWithTenant("org_other", () => getSetting("ai_api_key")), null);
 });
 
+test("the settings API saves keys, reloads them, and preserves existing keys when fields are blank", async () => {
+  const route = await import("../app/api/admin/settings/route");
+  const org = "org_settings_save";
+  const settingsAdmin = { ...admin, orgId: org, tenantId: org };
+  const save = (body: Record<string, unknown>) => runWithAuth(settingsAdmin, () => route.POST(request("/api/admin/settings", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  })));
+  const first = await save({ provider: "gemini", apiKey: "sk-test-settings-fixture-1234", activeModel: "gpt-4.1-mini", resendApiKey: "re_mail-fixture-5678", overageOptIn: false });
+  assert.equal(first.status, 200);
+  assert.equal((await first.json()).success, true);
+  const reload = await runWithAuth(settingsAdmin, () => (route.GET as any)(request("/api/admin/settings")));
+  assert.equal(reload.status, 200);
+  const data = await reload.json();
+  assert.equal(data.hasKey, true);
+  assert.equal(data.provider, "openai");
+  assert.equal(data.activeModel, "gpt-4.1-mini");
+  assert.equal(data.hasResendKey, true);
+  assert.ok(!JSON.stringify(data).includes("settings-fixture"));
+  assert.ok(!JSON.stringify(data).includes("mail-fixture"));
+  assert.equal((await save({ provider: "openai", activeModel: "gpt-4.1-mini", apiKey: "", resendApiKey: "" })).status, 200);
+  await runWithTenant(org, async () => {
+    assert.equal(await getSetting("ai_api_key"), "sk-test-settings-fixture-1234");
+    assert.equal(await getSetting("resend_api_key"), "re_mail-fixture-5678");
+    const rows = await db.select().from(appSettings).all();
+    for (const key of ["ai_api_key", "resend_api_key"]) {
+      assert.ok(rows.find((row: any) => row.key === `t:${org}:${key}`).value.startsWith("v1."));
+    }
+  });
+  assert.equal(await runWithTenant("org_settings_other", () => getSetting("ai_api_key")), null);
+  const denied = await runWithAuth({ ...settingsAdmin, isAdmin: false, role: "member" }, () => route.POST(request("/api/admin/settings", { method: "POST", body: JSON.stringify({ apiKey: "unauthorized" }) })));
+  assert.equal(denied.status, 403);
+});
+
 test("uploading under another rep's display name cannot steal their identity", async () => {
   await runWithTenant("org_secure", async () => {
     const victim = await getOrCreateRep(undefined, "Victim", undefined, "victim@example.com");

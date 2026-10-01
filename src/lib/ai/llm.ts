@@ -2,6 +2,8 @@ import { geminiGenerationConfig, geminiTextFromResponse, type GeminiSchemaMode }
 import { extractJson } from "./json";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
 
+// Credentialed requests use manual redirects: supported by Workers, with no key forwarding.
+
 export interface LlmJsonResult {
   parsed: any;
   rawText: string;
@@ -41,7 +43,7 @@ async function callGemini(
     res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
-        method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
+        method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
@@ -97,7 +99,7 @@ async function callOpenAiCompatible(
   extraHeaders: Record<string, string> = {}
 ): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch(url, {
-    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
+    method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
@@ -129,7 +131,7 @@ async function callOpenAiCompatible(
 
 async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(90000),
+    method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,

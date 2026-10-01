@@ -5,7 +5,7 @@ export class ProviderError extends RevenueError {
     super(providerStatus === 401 || providerStatus === 403
       ? `${provider}: check the credential and required permissions.`
       : providerStatus === 429 ? `${provider}: rate limit reached. The job will retry.`
-      : `${provider}: request failed (${providerStatus}).`, 502);
+      : `${provider}: request failed (${providerStatus}).`, providerStatus === 401 || providerStatus === 403 ? 400 : providerStatus === 429 ? 429 : 502);
   }
 }
 
@@ -13,7 +13,8 @@ export class ProviderError extends RevenueError {
 export async function providerRequest<T>(provider: string, origin: string, pathname: string, headers: Record<string, string>, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${origin}${pathname}`, {
     ...init, headers: { Accept: "application/json", ...headers, ...init.headers },
-    redirect: "error", signal: AbortSignal.timeout(25000), cache: "no-store",
+    // Workers supports manual/follow only. A non-OK redirect is rejected below.
+    redirect: "manual", signal: AbortSignal.timeout(25000), cache: "no-store",
   });
   if (!response.ok) {
     const retry = response.headers.get("retry-after");
