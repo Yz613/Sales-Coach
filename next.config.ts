@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 import path from "path";
 import { APP_BASE_PATH } from "./src/lib/public-path";
+import { CLERK_JS_PROXY_SRC, CLERK_UI_PROXY_SRC } from "./src/lib/clerkProxy";
 
 // If the publishable key is available at build time, inline it. Do not inline an
 // empty string — that would override the Cloudflare runtime var/secret and disable Clerk.
@@ -39,9 +40,9 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL || "/app",
     NEXT_PUBLIC_CLERK_PROXY_URL: process.env.NEXT_PUBLIC_CLERK_PROXY_URL || "/app/__auth",
     NEXT_PUBLIC_CLERK_JS_URL:
-      process.env.NEXT_PUBLIC_CLERK_JS_URL || "/app/__auth/npm/@clerk/clerk-js@6/dist/sdk.js",
+      process.env.NEXT_PUBLIC_CLERK_JS_URL || CLERK_JS_PROXY_SRC,
     NEXT_PUBLIC_CLERK_UI_URL:
-      process.env.NEXT_PUBLIC_CLERK_UI_URL || "/app/__auth/npm/@clerk/ui@1/dist/ui.js",
+      process.env.NEXT_PUBLIC_CLERK_UI_URL || CLERK_UI_PROXY_SRC,
     NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED: "true",
   },
   serverExternalPackages: ["better-sqlite3"],
