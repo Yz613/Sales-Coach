@@ -21,7 +21,8 @@ import {
   parseCheckoutRecord,
   recordFromStripeSession,
 } from "./stripeCheckout";
-import { configureStoredStripeSecret, StripeRequestError } from "./stripe";
+import { configureStoredStripeSecret, stripeRequest, StripeRequestError } from "./stripe";
+import { checkoutFailureMessage } from "./checkoutFailure";
 import { resolveStripeSecret, stripeSecret, stripeSecretLooksValid } from "./stripeSession";
 
 describe("parseCheckoutPlan", () => {
@@ -107,6 +108,68 @@ describe("Stripe signatures", () => {
       signatures: [signature],
     });
     assert.equal(encodeStripeForm({ "metadata[plan]": "coach" }), "metadata%5Bplan%5D=coach");
+  });
+});
+
+describe("payment provider failures", () => {
+  it("uses Workers-compatible manual redirects and rejects an upstream redirect without following it", async () => {
+    const originalFetch = globalThis.fetch;
+    let requests = 0;
+    try {
+      globalThis.fetch = async (_url, options) => {
+        requests += 1;
+        assert.equal(options?.redirect, "manual", "Workers rejects redirect:error before contacting Stripe");
+        return new Response(null, { status: 302, headers: { location: "https://attacker.example" } });
+      };
+      await assert.rejects(
+        () => stripeRequest("POST", "/checkout/sessions", {}, {}, "sk_test_private_value"),
+        (err: unknown) => err instanceof StripeRequestError && err.providerStatus === 302
+      );
+      assert.equal(requests, 1, "Stripe authorization must never be forwarded to a redirect destination");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it("reports connection failures without exposing request credentials", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => { throw new Error("Bearer sk_test_private_value"); };
+      await assert.rejects(
+        () => stripeRequest("POST", "/checkout/sessions", {}, {}, "sk_test_private_value"),
+        (err: unknown) => err instanceof StripeRequestError && err.status === 502 &&
+          err.code === "STRIPE_UNAVAILABLE" && !err.message.includes("private_value")
+      );
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it("retains safe provider diagnostics while discarding messages and buyer details", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => Response.json({ error: {
+        message: "Invalid API key: sk_test_private_value for buyer@example.com",
+        code: "resource_missing", param: "line_items[0][price]",
+      } }, { status: 400 });
+      await assert.rejects(
+        () => stripeRequest("POST", "/checkout/sessions", {}, {}, "sk_test_private_value"),
+        (err: unknown) => err instanceof StripeRequestError && err.providerStatus === 400 &&
+          err.providerCode === "resource_missing" && err.providerParam === "line_items[0][price]" &&
+          !JSON.stringify(err).includes("private_value") && !err.message.includes("buyer@example.com")
+      );
+      globalThis.fetch = async () => Response.json({ error: { code: "sk_live_PRIVATE", param: "buyer@example.com" } }, { status: 401 });
+      await assert.rejects(
+        () => stripeRequest("GET", "/account", undefined, {}, "sk_test_private_value"),
+        (err: unknown) => err instanceof StripeRequestError && err.providerStatus === 401 &&
+          err.providerCode === undefined && err.providerParam === undefined
+      );
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it("shows only approved checkout messages from URL parameters", () => {
+    assert.match(checkoutFailureMessage("configuration") || "", /Payments are temporarily unavailable/);
+    assert.match(checkoutFailureMessage("unavailable") || "", /try again shortly/);
+    assert.match(checkoutFailureMessage("failed") || "", /open checkout/);
+    for (const code of [null, "", "__proto__", "constructor", "<script>", "sk_test_private_value"]) {
+      assert.equal(checkoutFailureMessage(code), null);
+    }
   });
 });
 

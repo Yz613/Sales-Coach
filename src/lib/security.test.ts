@@ -200,6 +200,53 @@ test("checkout claims require the payer's verified email and cannot race between
   assert.equal(claims.filter(Boolean).length, 1);
 });
 
+test("payment links open Stripe or return a safe pricing notice without leaking provider errors", async () => {
+  const checkout = await import("../app/api/billing/checkout/route");
+  const previous = process.env.STRIPE_SECRET_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const diagnostics: string[] = [];
+  console.warn = (...args) => { diagnostics.push(args.join(" ")); };
+  try {
+    delete process.env.STRIPE_SECRET_KEY;
+    const missing = await runWithAuth(publicGuestAuth(), () => checkout.GET(request("/api/billing/checkout?plan=coach")));
+    assert.equal(missing.status, 303);
+    const target = new URL(missing.headers.get("location")!);
+    assert.equal(target.hash, "#pricing");
+    assert.equal(target.searchParams.get("checkout_error"), "configuration");
+
+    process.env.STRIPE_SECRET_KEY = "sk_test_private_payment_key";
+    globalThis.fetch = async (input, options) => {
+      assert.equal(String(input), "https://api.stripe.com/v1/checkout/sessions");
+      assert.equal(options?.method, "POST");
+      assert.equal(options?.redirect, "manual");
+      assert.equal(new URLSearchParams(String(options?.body)).get("metadata[plan]"), "team");
+      return Response.json({ id: "cs_fixture", url: "https://checkout.stripe.com/c/pay/cs_fixture" });
+    };
+    const success = await runWithAuth(publicGuestAuth(), () => checkout.GET(request("/api/billing/checkout?plan=team")));
+    assert.equal(success.status, 303);
+    assert.equal(success.headers.get("location"), "https://checkout.stripe.com/c/pay/cs_fixture");
+
+    for (const method of ["GET", "POST"] as const) {
+      globalThis.fetch = async () => Response.json({ error: { message: "sk_test_private_payment_key buyer@example.com", code: "api_key_expired" } }, { status: 401 });
+      const rejected = await runWithAuth(publicGuestAuth(), () => checkout[method](request("/api/billing/checkout?plan=coach", { method })));
+      assert.equal(rejected.status, 303);
+      assert.equal(new URL(rejected.headers.get("location")!).searchParams.get("checkout_error"), "configuration");
+      assert.equal(rejected.headers.get("cache-control"), "private, no-store, max-age=0");
+    }
+    globalThis.fetch = async () => Response.json({ id: "cs_no_url" });
+    const malformed = await runWithAuth(publicGuestAuth(), () => checkout.GET(request("/api/billing/checkout?plan=coach")));
+    assert.equal(new URL(malformed.headers.get("location")!).searchParams.get("checkout_error"), "failed");
+    assert.ok(diagnostics.some(line => line.includes("api_key_expired")));
+    assert.ok(!diagnostics.join(" ").includes("private_payment_key"));
+    assert.ok(!diagnostics.join(" ").includes("buyer@example.com"));
+  } finally {
+    if (previous === undefined) delete process.env.STRIPE_SECRET_KEY; else process.env.STRIPE_SECRET_KEY = previous;
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+  }
+});
+
 
 test("successful writes retain a tenant-scoped audit trail without secret bodies", async () => {
   const endpoint = withWorkspaceApi(async (_req: Request) => Response.json({ ok: true }));

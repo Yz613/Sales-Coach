@@ -1,7 +1,7 @@
 import { withPublicApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/auth";
-import { hostedBillingRequired } from "@/lib/billingAccess";
+import type { CheckoutFailureCode } from "@/lib/checkoutFailure";
 import {
   createStripeCheckoutSession,
   originFromRequest,
@@ -42,16 +42,24 @@ async function startCheckout(req: Request) {
       email,
     });
     if (!session.url) {
-      return NextResponse.json({ error: "Stripe did not return a checkout URL." }, { status: 502 });
+      throw new StripeRequestError("Stripe did not return a checkout URL.", 502, "STRIPE_INVALID_RESPONSE");
     }
     return NextResponse.redirect(session.url, 303);
   } catch (err) {
-    const status = err instanceof StripeRequestError ? err.status : 500;
-    const message = err instanceof Error ? err.message : "Unable to start Stripe checkout.";
-    if (!hostedBillingRequired() && status === 503) {
-      return NextResponse.redirect(pricingUrl(req), 303);
-    }
-    return NextResponse.json({ error: message, checkout: "/#pricing" }, { status: status >= 400 ? status : 500 });
+    const stripeError = err instanceof StripeRequestError ? err : null;
+    const code: CheckoutFailureCode = stripeError?.code === "STRIPE_NOT_CONFIGURED" ||
+      stripeError?.providerStatus === 401 || stripeError?.providerStatus === 403 ? "configuration"
+      : stripeError?.code === "STRIPE_UNAVAILABLE" ? "unavailable" : "failed";
+    console.warn(JSON.stringify({
+      event: "billing.checkout_failed", planId, code,
+      errorType: err instanceof Error ? err.name : "UnknownError",
+      providerStatus: stripeError?.providerStatus,
+      providerCode: stripeError?.providerCode,
+      providerParam: stripeError?.providerParam,
+    }));
+    const destination = pricingUrl(req);
+    destination.searchParams.set("checkout_error", code);
+    return NextResponse.redirect(destination, 303);
   }
 }
 

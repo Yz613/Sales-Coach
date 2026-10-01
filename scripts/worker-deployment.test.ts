@@ -6,14 +6,17 @@ import vm from "node:vm";
 const { main: verify } = require("./verify-worker.cjs");
 const env = { PUBLIC_APP_URL: "https://example.com", INTEGRATION_CRON_SECRET: "x".repeat(32) };
 
-function deploymentFetch(failure?: "auth" | "configuration") {
+function deploymentFetch(failure?: "auth" | "configuration" | "checkout") {
   return async (input: string) => {
     const url = new URL(input);
     if (url.pathname.endsWith("/jobs/run")) return Response.json({ jobs: [] });
     if (url.pathname.endsWith("/auth/role")) return Response.json({ userId: null, isClerkConfigured: true, ...(failure === "auth" ? { authenticationIssue: "unavailable" } : {}) });
-    if (url.pathname.endsWith("/billing/checkout")) return failure === "configuration"
-      ? Response.json({ code: "SECURITY_CONFIGURATION" }, { status: 503 })
-      : new Response(null, { status: 303, headers: { location: "https://example.com/#pricing" } });
+    if (url.pathname.endsWith("/billing/checkout")) {
+      if (failure === "configuration") return Response.json({ code: "SECURITY_CONFIGURATION" }, { status: 503 });
+      const validPlan = ["coach", "team"].includes(url.searchParams.get("plan") || "");
+      return new Response(null, { status: 303, headers: { location: validPlan && failure !== "checkout"
+        ? "https://checkout.stripe.com/c/pay/cs_fixture" : "https://example.com/?checkout_error=configuration#pricing" } });
+    }
     if (url.pathname.includes("/app/app/")) return new Response(null, { status: 307, headers: { location: `/app/sign-in${url.search}` } });
     if (url.pathname.endsWith("/session-recovery")) return new Response("Reconnect your session");
     return Response.json({ error: "Unauthorized" }, { status: 401, headers: { "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
@@ -27,6 +30,21 @@ test("deployment verification rejects failed server authentication even when mid
 test("deployment verification rejects missing runtime security configuration", async () => {
   await assert.rejects(verify({ env, fetch: deploymentFetch("configuration"), delay: async () => {} }), /runtime configuration/);
   await verify({ env, fetch: deploymentFetch(), delay: async () => {} });
+});
+
+test("deployment verification rejects broken payment links even when an invalid plan redirects correctly", async () => {
+  await assert.rejects(verify({ env, fetch: deploymentFetch("checkout"), delay: async () => {} }), /Hosted coach checkout failed/);
+  const checkoutPlans: string[] = [];
+  const fixture = deploymentFetch();
+  await verify({ env, fetch: async (input: string, options: RequestInit) => {
+    const plan = new URL(input).searchParams.get("plan");
+    if (plan === "coach" || plan === "team") {
+      checkoutPlans.push(plan);
+      assert.equal(options.redirect, "manual", "verification must not proceed to payment");
+    }
+    return fixture(input);
+  }, delay: async () => {} });
+  assert.deepEqual(checkoutPlans, ["coach", "team"]);
 });
 
 function syncFixture(publicKey?: string) {

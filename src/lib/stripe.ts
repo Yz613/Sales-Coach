@@ -25,11 +25,16 @@ export {
 
 export class StripeRequestError extends Error {
   status: number;
+  code: string;
+  providerStatus?: number;
+  providerCode?: string;
+  providerParam?: string;
 
-  constructor(message: string, status = 502) {
+  constructor(message: string, status = 502, code = "STRIPE_REQUEST_FAILED") {
     super(message);
     this.name = "StripeRequestError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -54,7 +59,7 @@ export async function stripeRequest<T>(
 ): Promise<T> {
   const key = (secretOverride || "").trim() || (await resolveStripeSecret(env));
   if (!key) {
-    throw new StripeRequestError("STRIPE_SECRET_KEY is not configured", 503);
+    throw new StripeRequestError("STRIPE_SECRET_KEY is not configured", 503, "STRIPE_NOT_CONFIGURED");
   }
   const url = new URL(`${STRIPE_API_BASE}${path.startsWith("/") ? path : `/${path}`}`);
   const headers: Record<string, string> = {
@@ -71,12 +76,23 @@ export async function stripeRequest<T>(
     headers["Content-Type"] = "application/x-www-form-urlencoded";
     body = encodeStripeForm(params || {});
   }
-  const res = await fetch(url, { method, headers, body, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(25000) });
+  let res: Response;
+  try {
+    // Workers supports follow/manual only. Manual also keeps credentials off redirect destinations.
+    res = await fetch(url, { method, headers, body, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(25000) });
+  } catch {
+    throw new StripeRequestError("The payment provider is unavailable. Please try again shortly.", 502, "STRIPE_UNAVAILABLE");
+  }
   const json = (await res.json().catch(() => ({}))) as {
-    error?: { message?: string };
+    error?: { code?: string; param?: string };
   } & T;
   if (!res.ok) {
-    throw new StripeRequestError(`Payment provider request failed (${res.status}).`, 502);
+    const error = new StripeRequestError(`Payment provider request failed (${res.status}).`, 502, "STRIPE_REJECTED");
+    error.providerStatus = res.status;
+    // Provider messages may contain credentials or buyer details. Retain only bounded diagnostic codes.
+    if (typeof json.error?.code === "string" && /^[a-z_]{1,80}$/.test(json.error.code)) error.providerCode = json.error.code;
+    if (typeof json.error?.param === "string" && /^[a-z0-9_\[\]]{1,100}$/.test(json.error.param)) error.providerParam = json.error.param;
+    throw error;
   }
   return json;
 }
