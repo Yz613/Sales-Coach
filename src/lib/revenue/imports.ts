@@ -5,13 +5,14 @@ import { getOrCreateRep } from "../db/service";
 import { currentTenantId } from "../tenant";
 import { stableId } from "./security";
 import { classifyCoreOutcomeFromTranscript } from "../coreOutcome";
-import type { ImportedMeeting } from "./types";
+import { matchesCrmRecord } from "./matching";
+import { parseJson, type ActionItem, type ImportedMeeting } from "./types";
 
 export function importedCallId(orgId: string, connectionId: string, externalId: string): string {
   return `import_${stableId(orgId, connectionId, externalId)}`;
 }
 
-export async function importMeeting(connection: { id: string; config: { defaultStage: string } }, meeting: ImportedMeeting) {
+export async function importMeeting(connection: { id: string; provider?: string; config: { defaultStage: string } }, meeting: ImportedMeeting) {
   const orgId = currentTenantId(); const callId = importedCallId(orgId, connection.id, meeting.externalId);
   const deleted = await db.select().from(deletedImports).where(and(eq(deletedImports.id, callId), eq(deletedImports.orgId, orgId))).get();
   if (deleted) return { callId, inserted: false, deleted: true };
@@ -19,12 +20,17 @@ export async function importMeeting(connection: { id: string; config: { defaultS
   const inserted = await db.insert(calls).values({ id: callId, orgId, repId, prospectCompany: meeting.prospectCompany, prospectName: meeting.prospectName,
     callStage: connection.config.defaultStage, coreOutcome: classifyCoreOutcomeFromTranscript(meeting.transcriptText), durationSeconds: meeting.durationSeconds, transcriptText: meeting.transcriptText,
     status: "completed", createdAt: meeting.createdAt }).onConflictDoNothing().returning({ id: calls.id }).all();
-  const records = await db.select({ id: crmRecords.id, externalId: crmRecords.externalId, kind: crmRecords.kind, email: crmRecords.email }).from(crmRecords).where(eq(crmRecords.orgId, orgId)).all();
-  const crmIds = records.filter((record: any) => meeting.crmMatches.some((match) => record.kind === match.kind && ((match.externalId && record.externalId === match.externalId) || (match.email && record.email?.toLowerCase() === match.email.toLowerCase())))).map((record: any) => record.id);
-  // Retried deliveries can repair a partially completed import without replacing manager feedback.
-  await db.insert(callMetadata).values({ callId, orgId, title: meeting.title, source: "fathom", externalId: meeting.externalId, connectionId: connection.id,
+  const records = await db.select({ id: crmRecords.id, provider: crmRecords.provider, externalId: crmRecords.externalId, kind: crmRecords.kind, email: crmRecords.email }).from(crmRecords).where(eq(crmRecords.orgId, orgId)).all();
+  const crmIds = records.filter((record: any) => meeting.crmMatches.some(match => matchesCrmRecord(record, match))).map((record: any) => record.id);
+  // Later summary-ready events enrich existing calls while keeping reviews and completed action items.
+  const previous = await db.select().from(callMetadata).where(and(eq(callMetadata.callId, callId), eq(callMetadata.orgId, orgId))).get();
+  const previousActions = parseJson<ActionItem[]>(previous?.actionItems, []);
+  const actionItems = meeting.actionItems.map(item => ({ ...item, completed: previousActions.find(old => old.id === item.id)?.completed ?? item.completed }));
+  const metadata = { title: meeting.title, source: connection.provider || "fathom", externalId: meeting.externalId, connectionId: connection.id,
     recordingPageUrl: meeting.recordingPageUrl, participants: JSON.stringify(meeting.participants), summary: meeting.summary,
-    actionItems: JSON.stringify(meeting.actionItems), segments: JSON.stringify(meeting.segments), crmRecordIds: JSON.stringify(crmIds), crmMatches: JSON.stringify(meeting.crmMatches), createdAt: meeting.createdAt })
-    .onConflictDoNothing().run();
+    actionItems: JSON.stringify(actionItems.length ? actionItems : previousActions), segments: JSON.stringify(meeting.segments), crmRecordIds: JSON.stringify([...new Set([...parseJson<string[]>(previous?.crmRecordIds, []), ...crmIds])]), crmMatches: JSON.stringify(meeting.crmMatches) };
+  if (!metadata.summary && previous?.summary) metadata.summary = previous.summary;
+  await db.insert(callMetadata).values({ callId, orgId, ...metadata, createdAt: meeting.createdAt })
+    .onConflictDoUpdate({ target: callMetadata.callId, set: metadata }).run();
   return { callId, inserted: inserted.length > 0, deleted: false };
 }

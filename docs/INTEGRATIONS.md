@@ -1,6 +1,25 @@
 # Integration API and cost roadmap
 
-Research checked October 1, 2026. HubSpot and Fathom are implemented; every other connector below is scoped work, not a working integration.
+Research checked October 1, 2026. The current library contains ten working connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+
+## Current library
+
+| Tool | Implemented scope | Delivery |
+| --- | --- | --- |
+| Fathom | Meetings, transcripts, summaries, action items, recording player | Signed live feed registered on connect; five-minute fallback |
+| Fireflies | Transcripts, speaker timestamps, summaries, action items | Signed Webhooks V2 events; hourly fallback |
+| tl;dv | Meetings and timestamped transcripts | 15-minute sync |
+| Gong | Extensive call metadata, participants, transcripts | 15-minute sync |
+| Close | Completed call and voicemail transcripts | 15-minute sync |
+| HubSpot | Companies, contacts, deals, stages, associations | Signed live events with app client secret; five-minute fallback |
+| Pipedrive | v2 organizations, people, deals, stages | 15-minute sync |
+| Attio | Standard companies, people, deals, relationships | 15-minute sync |
+| Zapier | Incoming completed call transcripts | Authenticated POST feed |
+| Make | Incoming completed call transcripts | Authenticated POST feed |
+
+Each card opens a dedicated setup page. Credentials are encrypted, jobs are durable and retryable, calls are deduplicated, and source filters include all call connectors. [Setup instructions](REVENUE_WORKSPACE.md).
+
+The table below describes broader roadmap scope and commercial access, including features not present in the current narrow adapters (for example Close CRM objects and Attio notes/tasks).
 
 Costs are USD where a price is quoted. API request charges, vendor subscriptions, usage credits, our AI processing and our hosting are separate expenses. “No separate tariff found” means the reviewed official documentation does not publish a request price; it is not a guarantee that every plan enables every endpoint. Confirm the customer's plan and region before purchase.
 
@@ -41,7 +60,7 @@ Effort estimates are engineering estimates for one experienced developer using t
 
 ## HubSpot details
 
-Use a service key for a self-hosted customer's own CRM. It is an account-scoped credential that survives the creating user's departure and uses Bearer authentication. Service keys do not support webhook subscriptions, so this implementation polls. Use a project-based OAuth app for a public integration. [HubSpot service-key guidance](https://developers.hubspot.com/blog/hubspot-service-keys-the-right-api-credential-for-data-integrations).
+Use a service key for a self-hosted customer's own CRM. It is an account-scoped credential that survives the creating user's departure and uses Bearer authentication. Service keys do not support webhook subscriptions, so service-key connections poll every five minutes. Webhook-capable app access tokens can use the signed feed with their client secret; the setup page verifies the account ID and accepts only matching portal events. Use a project-based OAuth app for a public integration. [HubSpot service-key guidance](https://developers.hubspot.com/blog/hubspot-service-keys-the-right-api-credential-for-data-integrations).
 
 Legacy private-app creation is being sunset: accounts created on/after September 28, 2026 cannot create them; the broader cutoff is October 26, 2026. Existing tokens continue to work. [Official sunset notice](https://developers.hubspot.com/changelog/legacy-private-app-creation-sunset?hs_amp=true).
 
@@ -56,9 +75,9 @@ Each object page requests 100 records with the required properties and associati
 
 The published Free/Starter allowance is 250,000 calls/day and 100 requests/10 seconds; Professional 650,000/day and 190/10 seconds; Enterprise 1,000,000/day and 190/10 seconds. Poll at five-minute intervals or slower. The optional $500/month pack adds 1,000,000 daily calls and increases the burst limit to 250/10 seconds, with at most two packs. Check credential-specific limits and response headers as well. [Catalog limits](https://legal.hubspot.com/hubspot-product-and-services-catalog?tp=1).
 
-Our current full CRM scan every 15 minutes is simple and reconciles deleted/archived objects only after successful completion. Before serving very large CRMs, add updated-since queries, association pagination for unusually dense records, custom-field mapping, owner-name lookup and monitoring of the customer's remaining budget.
+Our current fallback full CRM scan every five minutes is simple and reconciles deleted/archived objects only after successful completion. Before serving very large CRMs, add updated-since queries, association pagination for unusually dense records, custom-field mapping, owner-name lookup and monitoring of the customer's remaining budget.
 
-Engineering estimate: 10,000 contacts + 1,000 companies + 1,000 deals require approximately 121 provider requests per full scan at 100/page, including pipelines. At 96 scans/day that is approximately 11,616 requests/day, excluding connection checks and retries. This is an implementation estimate, not a vendor price quote.
+Engineering estimate: 10,000 contacts + 1,000 companies + 1,000 deals require approximately 121 provider requests per full scan at 100/page, including pipelines. At 288 scans/day that is approximately 34,848 requests/day, excluding connection checks and retries. This is an implementation estimate, not a vendor price quote.
 
 ## Fathom details
 
@@ -80,7 +99,7 @@ Estimated incremental provider cost for the first HubSpot/Fathom deployment is $
 
 ## Implementation sequence after the first two
 
-1. Add Slack opt-in notifications, then Fireflies ingestion and Pipedrive/Close CRM adapters.
+1. Add Slack opt-in notifications and extend Close with CRM objects. Fireflies call ingestion and Pipedrive CRM reads are implemented.
 2. Add calendar context and Zoom cloud recording ingestion.
 3. Add Aircall/Dialpad/RingCentral based on the first customers' existing phone systems.
 4. Add Apollo and Avoma/Otter only where entitlement and credit budgets make sense.
@@ -101,4 +120,4 @@ Each connector needs real-account acceptance for:
 - Disconnect behavior, tombstone behavior, provider polling rules and a documented customer quota.
 - Billing: included allowance, billable usage, subscription gate and any external approval requirement.
 
-For public OAuth installs add state/PKCE as required by the vendor, encrypted refresh tokens, scope validation, automatic refresh with a lease, reconnect UX, revocation handling and marketplace verification. This release provides credential-based HubSpot and Fathom connections; OAuth installs and CRM writes are future work.
+For public OAuth installs add state/PKCE as required by the vendor, encrypted refresh tokens, scope validation, automatic refresh with a lease, reconnect UX, revocation handling and marketplace verification. This release provides credential-based native connections and authenticated automation feeds; OAuth installs and CRM writes are future work.

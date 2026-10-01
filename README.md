@@ -91,12 +91,12 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
 
-HubSpot and Fathom are the first working connectors. Connect them under **Admin → Integrations**. HubSpot imports companies, contacts, deals and stages. Fathom imports meeting content, supports signed webhooks, and prepares recording downloads for in-app playback. Credentials are encrypted per workspace.
+The **Admin → Integrations** library has ten clickable tool cards: Fathom, Fireflies, tl;dv, Gong, Close, HubSpot, Pipedrive, Attio, Zapier, and Make. Each opens its own connection guide. Fathom automatically registers a signed content-ready feed on public HTTPS deployments. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Fireflies supports signed transcript/summary events, and Zapier/Make can push completed call transcripts. Call and deal lists refresh automatically. Credentials are encrypted per workspace.
 
 For local background sync, run `npm run worker` in a second terminal. Docker Compose starts both services. Hosted installations need an explicit encryption key; Cloudflare cron also needs its job-runner secret and public origin.
 
 - [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
-- [28 integrations: API access, costs and implementation order](docs/INTEGRATIONS.md)
+- [Integration library, API access, costs and roadmap](docs/INTEGRATIONS.md)
 
 ## Team Revenue Goals
 

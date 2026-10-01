@@ -12,6 +12,13 @@ const OBJECTS = [
   { type: "contacts", kind: "contact", properties: ["firstname", "lastname", "email", "hubspot_owner_id"] },
   { type: "deals", kind: "deal", properties: ["dealname", "dealstage", "pipeline", "amount", "deal_currency_code", "closedate", "hs_is_closed", "hs_is_closed_won", "hubspot_owner_id"] },
 ];
+export async function hubspotChangedRecord(token: string, index: number, externalId: string, orgId: string, connectionId: string, stages: SyncCursor["stages"]) {
+  const object = OBJECTS[index];
+  if (!object || !/^\d+$/.test(externalId)) throw new Error("Invalid HubSpot event object");
+  const query = new URLSearchParams({ properties: object.properties.join(","), associations: OBJECTS.filter(other => other.type !== object.type).map(other => other.type).join(",") });
+  const record = await hubspotRequest<any>(token, `/crm/v3/objects/${object.type}/${externalId}?${query}`);
+  return normalizeHubspotRecord(record, index, orgId, connectionId, stages);
+}
 export function crmRecordId(orgId: string, connectionId: string, kind: string, externalId: string): string {
   return stableId("crm", orgId, connectionId, kind, externalId);
 }

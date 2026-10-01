@@ -49,9 +49,14 @@ export function normalizeFathomMeeting(input: any): ImportedMeeting {
   const participants = invitees.map((person: any) => ({ name: String(person.name || person.email || "Participant"), email: person.email, external: Boolean(person.is_external) }));
   const prospect = invitees.find((person: any) => person.is_external);
   const matches = input.crm_matches || {};
+  const hubspotId = (value: unknown) => {
+    const url = safeExternalUrl(value);
+    if (!url || !new URL(url).hostname.endsWith(".hubspot.com")) return undefined;
+    return new URL(url).pathname.match(/\/(\d+)(?:\/|$)/g)?.at(-1)?.replace(/\D/g, "");
+  };
   const crmMatches = ["contacts", "companies", "deals"].flatMap((kind) => (Array.isArray(matches[kind]) ? matches[kind] : []).map((record: any) => ({
     kind: kind === "companies" ? "company" : kind === "contacts" ? "contact" : "deal", name: record.name, email: record.email,
-    externalId: typeof record.record_url === "string" ? record.record_url.match(/\/(\d+)(?:[/?#]|$)/g)?.at(-1)?.replace(/\D/g, "") : undefined,
+    externalId: hubspotId(record.record_url), provider: hubspotId(record.record_url) ? "hubspot" : undefined,
   })));
   const createdAt = Date.parse(input.created_at);
   return {
