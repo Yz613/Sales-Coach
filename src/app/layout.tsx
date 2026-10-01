@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   description: "Executive AI Sales Manager for evaluating call blocking & tackling, Sandler qualification, and rep pipeline progression.",
   icons: {
     icon: [{ url: toAppPath("/icon.svg"), type: "image/svg+xml" }],
+    apple: [{ url: toAppPath("/apple-touch-icon.png"), sizes: "180x180", type: "image/png" }],
   },
 };
 

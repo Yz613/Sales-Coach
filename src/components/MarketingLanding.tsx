@@ -48,15 +48,12 @@ function BrandMark() {
     <a href="/" className="flex items-center gap-2.5 group shrink-0">
       <img
         src={COMPANY_MARK_SRC}
-        alt=""
+        alt="Refresh Queue"
         width={32}
         height={32}
         className="h-8 w-8 shrink-0"
       />
-      <span className="flex flex-col leading-none">
-        <span className="text-sm font-semibold tracking-tight text-[#1d1d1f]">Sales Coach</span>
-        <span className="mt-1 text-[11px] font-medium text-[#6e6e73]">by Refresh Queue</span>
-      </span>
+      <span className="text-sm font-semibold tracking-tight text-[#1d1d1f]">Sales Coach</span>
     </a>
   );
 }
@@ -580,7 +577,11 @@ export default function MarketingLanding() {
 
       <footer className="border-t border-black/[0.08]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-          <p className="text-xs text-[#86868b]">© 2026 Refresh Queue. MIT License.</p>
+          <p className="text-xs leading-relaxed text-[#86868b]">
+            <span className="text-[#6e6e73]">Sales Coach by Refresh Queue</span>
+            <span className="mx-1.5" aria-hidden="true">·</span>
+            © 2026 Refresh Queue. MIT License.
+          </p>
           <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
             <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               GitHub
