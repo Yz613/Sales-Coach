@@ -90,7 +90,13 @@ async function readServerAuth(): Promise<AuthUser> {
     return await loadServerAuth();
   } catch (err) {
     if (isNextControlFlowError(err)) throw err;
-    console.warn("Verified authentication is unavailable.");
+    const message = err instanceof Error ? err.message : "";
+    const reason = message.includes("SECURITY_CONFIGURATION") || message.includes("Service security configuration") ? "configuration"
+      : message.includes("detect usage of clerkMiddleware") ? "middleware"
+      : message.includes("auth_signature_invalid") ? "signature"
+      : message.includes("encryption_key") ? "clerk-encryption"
+      : "runtime";
+    console.warn("Verified authentication is unavailable.", reason);
     return { ...publicGuestAuth(), authenticationIssue: "unavailable" };
   }
 }

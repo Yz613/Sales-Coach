@@ -9,6 +9,12 @@ export const CLERK_ORG_PLAN_SLUGS: Record<Exclude<HostedPlanId, "oss">, string[]
 
 export type ClerkHas = ((resource: { plan: string } | { feature: string }) => boolean) | undefined;
 
+/** Operator-managed organization IDs; caller must supply the verified active Clerk organization. */
+export function billingExemptOrganization(orgId: string | null | undefined, env: Record<string, string | undefined> = process.env): boolean {
+  if (!orgId || !/^org_[A-Za-z0-9]+$/.test(orgId)) return false;
+  return (env.BILLING_EXEMPT_ORG_IDS || "").split(",").map(id => id.trim()).includes(orgId);
+}
+
 /** Hosted Clerk deployments must charge unless an operator explicitly opts out. */
 export function hostedBillingRequired(env: Record<string, string | undefined> = process.env): boolean {
   const raw = (env.BILLING_REQUIRED || "").trim().toLowerCase();

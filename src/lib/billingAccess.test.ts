@@ -2,10 +2,22 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   hostedBillingRequired,
+  billingExemptOrganization,
   isPaidHostedPlan,
   planFromClerkHas,
   planFromMetadata,
 } from "./billingAccess";
+
+describe("operator billing exemptions", () => {
+  it("matches only the exact verified organization in the operator allowlist", () => {
+    const env = { BILLING_EXEMPT_ORG_IDS: " org_pano,org_internal " };
+    assert.equal(billingExemptOrganization("org_pano", env), true);
+    for (const org of [null, undefined, "", "local", "pano", "org_pano_other", "org_other"]) {
+      assert.equal(billingExemptOrganization(org, env), false);
+    }
+    assert.equal(billingExemptOrganization("org_pano", {}), false);
+  });
+});
 
 describe("hostedBillingRequired", () => {
   it("honors BILLING_REQUIRED and otherwise follows Clerk auth", () => {

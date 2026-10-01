@@ -1,7 +1,10 @@
 /** Check the deployed bindings and authorization without logging credentials or private response bodies. */
-async function main() {
-  const origin = new URL(process.env.PUBLIC_APP_URL || "").origin;
-  const secret = process.env.INTEGRATION_CRON_SECRET || "";
+async function main(options = {}) {
+  const env = options.env || process.env;
+  const fetch = options.fetch || globalThis.fetch;
+  const delay = options.delay || (ms => new Promise(resolve => setTimeout(resolve, ms)));
+  const origin = new URL(env.PUBLIC_APP_URL || "").origin;
+  const secret = env.INTEGRATION_CRON_SECRET || "";
   if (!origin.startsWith("https://") || secret.length < 32) throw new Error("Deployment verification configuration is missing.");
   const run = await fetch(`${origin}/app/api/jobs/run`, {
     method: "POST", headers: { Authorization: `Bearer ${secret}` },
@@ -21,16 +24,24 @@ async function main() {
     const duplicate = await fetch(`${origin}/app/app/sign-in?deployment_check=1`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
     const target = new URL(duplicate.headers.get("location") || "/", origin);
     const recovery = await fetch(`${origin}/app/session-recovery`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
-    if (protectedRoutes && duplicate.status === 307 && target.pathname === "/app/sign-in" && target.searchParams.get("deployment_check") === "1" && recovery.status === 200) {
+    // Exercise server auth, rather than only middleware's anonymous rejection path.
+    const role = await fetch(`${origin}/app/api/auth/role`, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(30000) });
+    const auth = await role.json().catch(() => null);
+    const serverAuthHealthy = role.status === 200 && auth?.userId === null && auth?.isClerkConfigured === true && !auth?.authenticationIssue && !auth?.error;
+    // An invalid plan never creates a checkout. Its redirect proves security configuration passed.
+    const configuration = await fetch(`${origin}/app/api/billing/checkout?plan=deployment_invalid`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
+    const configurationHealthy = configuration.status === 303 && new URL(configuration.headers.get("location") || "/", origin).hash === "#pricing";
+    if (protectedRoutes && serverAuthHealthy && configurationHealthy && duplicate.status === 307 && target.pathname === "/app/sign-in" && target.searchParams.get("deployment_check") === "1" && recovery.status === 200) {
       verified = true;
       break;
     }
-    if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 10000));
+    if (attempt < 4) await delay(10000);
   }
-  if (!verified) throw new Error("Deployed authorization or sign-in redirect protections failed verification.");
-  console.log("Deployed job runner, database schema, API authorization, and sign-in redirect recovery verified.");
+  if (!verified) throw new Error("Deployed server authentication, runtime configuration, or route protections failed verification.");
+  console.log("Deployed job runner, database schema, server authentication, runtime configuration, API authorization, and sign-in redirects verified.");
 }
-main().catch(error => {
+module.exports = { main };
+if (require.main === module) main().catch(error => {
   console.error(error instanceof Error ? error.message : "Deployment verification failed.");
   process.exitCode = 1;
 });

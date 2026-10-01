@@ -27,6 +27,10 @@ Enable MFA in Clerk and enroll users before enforcing it. With MFA required, wor
 
 The Refresh Queue hosted deployment currently has the owner's explicit exception to keep MFA optional on the existing Clerk plan. GitHub's repository variable `REQUIRE_MFA=false` applies that choice during deployment; the source template still requires MFA by default. Verified Clerk sign-in and organization authorization remain required. To enforce MFA later, enable second-factor enrollment in Clerk, enroll users, change this repository variable to `true`, and deploy.
 
+Operators can grant a workspace payment exemption with the comma-separated `BILLING_EXEMPT_ORG_IDS` repository variable. Only an exact verified active Clerk organization ID matches; names, email domains, and user metadata cannot grant access. Exempt workspaces keep their organization data scope, have no evaluation quota or overage charges, and still require sign-in and workspace permissions. The owner authorized this exemption for Panoptyc.
+
+Clerk's publishable key must be supplied both during the build and as a worker runtime binding. Deployment synchronizes it with the other configuration bindings. Verification exercises server authentication and security configuration in addition to middleware rejection paths.
+
 Configure the Clerk frontend proxy through the Clerk dashboard for your domain. The existing proxy target defaults to `clerk.refreshqueue.com`; adapt `src/lib/clerkProxy.ts` for another Clerk instance. Public endpoints for modifying the global authentication proxy, revoking an old incident's sessions, and setting a Stripe secret now return 410. Use provider dashboards and deployment secrets instead. Configure payment keys through `STRIPE_SECRET_KEY`, not a public browser form.
 
 For Cloudflare, set repository secrets for the Clerk keys, encryption key, scheduler secret, and optional Stripe keys. Set the repository variable `PUBLIC_APP_URL`. The deployment workflow synchronizes runtime secrets, runs tests, checks types and dependency advisories, and builds before deploying.
