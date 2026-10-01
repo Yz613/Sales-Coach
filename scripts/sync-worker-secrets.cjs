@@ -10,8 +10,6 @@ const SECRET_NAMES = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "CLERK_SECRET_KEY",
-  // Server policy checks read process.env dynamically; build-time inlining alone is insufficient.
-  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "INTEGRATION_ENCRYPTION_KEY",
   "INTEGRATION_CRON_SECRET",
   "PUBLIC_APP_URL",
@@ -53,7 +51,8 @@ function putSecret(name, value) {
 
 const present = existingSecretNames();
 let synced = 0;
-let missing = [];
+// configure-worker-security.cjs binds the public key through Wrangler vars.
+let missing = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ? [] : ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
 
 for (const name of SECRET_NAMES) {
   const value = (process.env[name] || "").trim();
