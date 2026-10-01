@@ -33,6 +33,7 @@ import {
   type PricingPlan,
 } from "@/lib/marketing";
 import { toAppPath } from "@/lib/public-path";
+import CheckoutNotice from "@/components/CheckoutNotice";
 
 const COMPANY_MARK_SRC = toAppPath("/refresh-queue-mark.svg");
 
@@ -505,6 +506,7 @@ export default function MarketingLanding() {
               Open source is the full product on your machine. Hosted plans are that same app, with managed uptime and a monthly evaluation quota.
             </p>
           </div>
+          <CheckoutNotice />
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 xl:gap-4 items-stretch">
             {PRICING_PLANS.map((plan) => (
               <PlanCard key={plan.id} plan={plan} />

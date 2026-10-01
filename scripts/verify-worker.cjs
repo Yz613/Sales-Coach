@@ -38,7 +38,16 @@ async function main(options = {}) {
     if (attempt < 4) await delay(10000);
   }
   if (!verified) throw new Error("Deployed server authentication, runtime configuration, or route protections failed verification.");
-  console.log("Deployed job runner, database schema, server authentication, runtime configuration, API authorization, and sign-in redirects verified.");
+  // Creating an unpaid session verifies the actual payment links without charging a card.
+  for (const plan of ["coach", "team"]) {
+    const checkout = await fetch(`${origin}/app/api/billing/checkout?plan=${plan}`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30000) });
+    let destination;
+    try { destination = new URL(checkout.headers.get("location") || ""); } catch { /* checked below */ }
+    if (checkout.status !== 303 || destination?.protocol !== "https:" || destination.hostname !== "checkout.stripe.com") {
+      throw new Error(`Hosted ${plan} checkout failed verification (HTTP ${checkout.status}). Check Stripe credentials and billing.checkout_failed worker logs.`);
+    }
+  }
+  console.log("Deployed job runner, database schema, server authentication, runtime configuration, API authorization, sign-in redirects, and both hosted checkouts verified.");
 }
 module.exports = { main };
 if (require.main === module) main().catch(error => {
