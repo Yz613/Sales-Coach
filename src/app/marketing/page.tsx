@@ -3,9 +3,9 @@ import MarketingLanding from "@/components/MarketingLanding";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://refreshqueue.com"),
-  title: "Sales Coach AI — Find missed opportunities on every call",
+  title: "Sales Coach — Open-source Gong alternative",
   description:
-    "Open-source AI sales coaching and call evaluation. Transcribe calls, score them against stage-aware talk-tracks, and coach reps — self-host free or run hosted on refreshqueue.com.",
+    "Open-source sales coaching and conversation intelligence. Search calls, save clips, import HubSpot and Fathom, and score stage talk-tracks. Run locally with your own model keys, or use a hosted plan.",
   alternates: { canonical: "/" },
 };
 

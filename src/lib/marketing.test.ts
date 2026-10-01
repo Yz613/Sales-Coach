@@ -12,7 +12,7 @@ import {
 } from "./marketing";
 import { ENTERPRISE_SEATS_BULLET, HOSTED_COACH_EVALS, OVERAGE_LINE } from "./billing";
 
-const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Fathom|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite)\b/i;
+const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite)\b/i;
 
 describe("hosted pricing", () => {
   it("publishes Hosted Coach / Hosted Team / Enterprise with Team highlighted", () => {
@@ -68,16 +68,34 @@ describe("hosted pricing", () => {
       ]),
     ].join("\n");
     assert.equal(visible.match(VENDOR_NAME), null);
-    assert.match(PRICING_PLANS[0]?.features[0] || "", /Self-host on your own machine or server/);
+    assert.match(PRICING_PLANS[0]?.blurb || "", /own model keys/);
+    assert.match(PRICING_PLANS[0]?.blurb || "", /No seat tax/);
+    assert.match(PRICING_PLANS[0]?.features.join(" ") || "", /HubSpot import and Fathom meeting import/);
+    assert.match(PRICING_PLANS[1]?.features.join(" ") || "", /search, clips, deals, and meeting import/);
+    assert.match(PRICING_PLANS[2]?.features.join(" ") || "", /team goals/);
   });
 });
 
 describe("marketing landing copy", () => {
-  it("does not name third-party tools in the public landing", () => {
+  it("sells coaching plus the revenue workspace without infra vendor names", () => {
     const source = readFileSync(new URL("../components/MarketingLanding.tsx", import.meta.url), "utf8");
+    const page = readFileSync(new URL("../app/marketing/page.tsx", import.meta.url), "utf8");
     assert.equal(source.match(VENDOR_NAME), null);
+    assert.equal(page.match(VENDOR_NAME), null);
+    assert.match(source, /Open-source Gong alternative/);
+    assert.match(source, /Searchable conversations/);
+    assert.match(source, /Coaching clips and topics/);
+    assert.match(source, /Deals from HubSpot/);
+    assert.match(source, /Fathom meeting import/);
+    assert.match(source, /Team revenue goals/);
+    assert.match(source, /your own model keys/);
     assert.match(source, /Optional team sign-in/);
+    assert.match(source, /no meeting bot/i);
+    assert.match(source, /does not write notes or scores back/);
     assert.match(source, /card payments/);
-    assert.match(source, /import a transcript/);
+    assert.match(source, /paste a transcript/);
+    assert.match(page, /Open-source Gong alternative/);
+    assert.match(page, /HubSpot and Fathom/);
+    assert.match(page, /your own model keys/);
   });
 });
