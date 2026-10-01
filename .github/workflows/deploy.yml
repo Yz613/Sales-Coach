@@ -94,3 +94,8 @@ jobs:
         env:
           INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
         run: npx tsx scripts/encrypt-d1-settings.ts
+      - name: Verify deployed worker
+        env:
+          INTEGRATION_CRON_SECRET: ${{ secrets.INTEGRATION_CRON_SECRET }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+        run: node scripts/verify-worker.cjs
