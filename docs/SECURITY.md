@@ -29,7 +29,7 @@ The Refresh Queue hosted deployment currently has the owner's explicit exception
 
 Operators can grant a workspace payment exemption with the comma-separated `BILLING_EXEMPT_ORG_IDS` repository variable. Only an exact verified active Clerk organization ID matches; names, email domains, and user metadata cannot grant access. Exempt workspaces keep their organization data scope, have no evaluation quota or overage charges, and still require sign-in and workspace permissions. The owner authorized this exemption for Panoptyc.
 
-Clerk's publishable key must be supplied both during the build and as a worker runtime binding. Deployment synchronizes it with the other configuration bindings. Verification exercises server authentication and security configuration in addition to middleware rejection paths.
+Clerk's publishable key must be supplied both during the build and as a worker runtime binding. Deployment configures this public key as a Wrangler runtime variable and synchronizes private secrets separately, avoiding a conflict with an existing public variable of the same name. Verification exercises server authentication and security configuration in addition to middleware rejection paths.
 
 Configure the Clerk frontend proxy through the Clerk dashboard for your domain. The existing proxy target defaults to `clerk.refreshqueue.com`; adapt `src/lib/clerkProxy.ts` for another Clerk instance. Public endpoints for modifying the global authentication proxy, revoking an old incident's sessions, and setting a Stripe secret now return 410. Use provider dashboards and deployment secrets instead. Configure payment keys through `STRIPE_SECRET_KEY`, not a public browser form.
 

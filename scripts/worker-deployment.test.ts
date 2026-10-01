@@ -44,7 +44,32 @@ function syncFixture(publicKey?: string) {
   return { uploaded, exitCode: processFixture.exitCode };
 }
 
-test("deployment uploads the build-time public key as a required runtime binding", () => {
-  assert.ok(syncFixture("pk_live_fixture").uploaded.includes("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"));
+test("deployment requires the public key without uploading a conflicting secret", () => {
+  assert.equal(syncFixture("pk_live_fixture").uploaded.includes("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"), false);
+  assert.equal(syncFixture("pk_live_fixture").exitCode, 0);
   assert.equal(syncFixture().exitCode, 1);
+});
+
+function configurationFixture(initial: string) {
+  let source = initial;
+  vm.runInNewContext(fs.readFileSync(require.resolve("./configure-worker-security.cjs"), "utf8"), {
+    __dirname: "/fixture/scripts",
+    process: { env: { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_fixture", REQUIRE_MFA: "false" }, exit: () => { throw new Error("Unexpected process exit"); } },
+    console: { log() {}, error() {} },
+    require: (name: string) => name === "node:fs"
+      ? { readFileSync: () => source, writeFileSync: (_file: string, contents: string) => { source = contents; } }
+      : { resolve: () => "/fixture/wrangler.jsonc" },
+  });
+  return JSON.parse(source);
+}
+
+test("deployment supplies Clerk at runtime and updates an existing public variable without duplicates", () => {
+  for (const vars of [{ REQUIRE_MFA: "true", BILLING_REQUIRED: "true" }, { REQUIRE_MFA: "true", BILLING_REQUIRED: "true", NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_previous" }]) {
+    const configuration = configurationFixture(JSON.stringify({ vars }));
+    assert.equal(configuration.vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, "pk_live_fixture");
+    assert.equal(configuration.vars.REQUIRE_MFA, "false");
+    assert.equal(configuration.vars.BILLING_REQUIRED, "true");
+  }
+  const workflow = fs.readFileSync(require.resolve("../.github/workflows/deploy.yml"), "utf8");
+  assert.match(workflow, /name: Configure authentication policy\s+env:\s+REQUIRE_MFA:[^\n]+\s+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:/);
 });
