@@ -1,3 +1,4 @@
+import { withPublicApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/auth";
 import { toAppPath } from "@/lib/public-path";
@@ -11,7 +12,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+async function GETHandler(req: Request) {
   const url = new URL(req.url);
   const origin = originFromRequest(req);
   const sessionId = (url.searchParams.get("session_id") || "").trim();
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
     const record = await finalizeCheckoutSession(sessionId);
     paid = record?.status === "paid";
   } catch (err) {
-    console.warn("Stripe checkout finalize failed:", err);
+    console.warn("Stripe checkout finalize failed:");
   }
 
   if (!paid) {
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
   let nextPath = toAppPath("/sign-up");
   try {
     const auth = await getServerAuth();
-    if (auth.userId && auth.orgId) {
+    if (auth.userId && auth.orgId && auth.isAdmin) {
       await claimPendingCheckout({ orgId: auth.orgId, email: auth.email, sessionId });
       nextPath = toAppPath("/");
     } else if (auth.userId) {
@@ -48,3 +49,5 @@ export async function GET(req: Request) {
   response.cookies.set(CHECKOUT_COOKIE, sessionId, checkoutCookieOptions());
   return response;
 }
+
+export const GET = withPublicApi(GETHandler, {});

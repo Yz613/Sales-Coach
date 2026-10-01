@@ -3,6 +3,10 @@ import { activateHostedPlan, revokeHostedPlan } from "@/lib/billingQuota";
 import { getGlobalSetting, setGlobalSetting } from "@/lib/db/service";
 import { toAppPath } from "@/lib/public-path";
 import { runWithTenant } from "@/lib/tenant";
+import { configuredAppOrigin, SecurityPolicyError } from "./security-policy";
+import { db, ensureRevenueSchema } from "./db";
+import { checkoutClaims } from "./db/schema";
+import { eq } from "drizzle-orm";
 import {
   isActiveStripeSubscription,
   isPaidCheckoutSession,
@@ -56,11 +60,10 @@ export function checkoutCookieOptions() {
 }
 
 export function originFromRequest(req: Request): string {
-  const url = new URL(req.url);
-  const forwardedHost = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").split(",")[0]?.trim();
-  const forwardedProto = (req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "")).split(",")[0]?.trim();
-  if (forwardedHost) return `${forwardedProto || "https"}://${forwardedHost}`;
-  return url.origin;
+  const configured = configuredAppOrigin();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") throw new SecurityPolicyError("Configure the application origin.", 503);
+  return new URL(req.url).origin;
 }
 
 export function checkoutRedirectUrls(origin: string): { successUrl: string; cancelUrl: string } {
@@ -275,8 +278,13 @@ export async function claimPendingCheckout(input: {
   if (!sessionId) return null;
   const record = (await finalizeCheckoutSession(sessionId).catch(() => loadCheckoutRecord(sessionId))) || null;
   if (!record || record.status !== "paid") return null;
-  if (record.claimedOrgId === orgId) return record.planId;
   if (record.claimedOrgId && record.claimedOrgId !== orgId) return null;
+  // A browser cookie or leaked checkout ID alone cannot claim someone else's purchase.
+  if (!record.claimedOrgId && (!input.email || !record.email || input.email.trim().toLowerCase() !== record.email.trim().toLowerCase())) return null;
+  await ensureRevenueSchema();
+  await db.insert(checkoutClaims).values({ sessionId, orgId }).onConflictDoNothing().run();
+  const claim = await db.select().from(checkoutClaims).where(eq(checkoutClaims.sessionId, sessionId)).get();
+  if (claim?.orgId !== orgId) return null;
   await runWithTenant(orgId, () => activateHostedPlan(record.planId));
   record.claimedOrgId = orgId;
   record.updatedAt = new Date().toISOString();

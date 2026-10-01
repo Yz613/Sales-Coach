@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getActiveScriptForStage, getSalesMethodId, getScoreWeights } from "@/lib/db/service";
@@ -26,6 +27,11 @@ import { methodById, scoreMethodDebrief } from "@/lib/salesMethods";
 import SandlerDebrief from "@/components/SandlerDebrief";
 import CallReviewSwitcher from "@/components/CallReviewSwitcher";
 import { getVisibleCallById, getVisibleCalls } from "@/lib/viewer-calls";
+import { ensureRevenueSchema } from "@/lib/db";
+import { conversationDetail } from "@/lib/revenue/conversations";
+import { crmOverview } from "@/lib/revenue/crm";
+import ConversationWorkspace from "@/components/revenue/ConversationWorkspace";
+import FathomRecording from "@/components/revenue/FathomRecording";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +43,7 @@ function clockToSeconds(stamp?: string): number {
   return 0;
 }
 
-export default async function CallReviewPage({
+async function CallReviewPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -82,7 +88,13 @@ export default async function CallReviewPage({
         (skill) => !baseScorecard.some((metric) => metric.key === skill.key)
       )
     : [];
-  const scorecard = [...baseScorecard, ...skillScores];
+  await ensureRevenueSchema();
+  const conversation = await conversationDetail(call);
+  const scorecard = [...baseScorecard, ...skillScores].map(metric => {
+    const correction = conversation.overrides.find((o: any) => o.metricKey === metric.key);
+    return correction ? { ...metric, score: correction.score, status: (correction.score >= 7 ? "Pass" : correction.score >= 4 ? "Incomplete" : "Fail") as "Pass" | "Incomplete" | "Fail", evidence: `Human correction by ${correction.authorName}: ${correction.reason}` } : metric;
+  });
+  const deals = auth.isAdmin ? (await crmOverview()).deals.map((d: any) => ({ id: d.id, name: d.name, stage: d.stage })) : [];
   const coachingBrief = ev
     ? ev.coachingBrief || deriveCoachingBrief({
         wins: scorecard.filter((metric) => metric.status === "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
@@ -213,12 +225,12 @@ export default async function CallReviewPage({
         </div>
       </div>
 
-      <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights}>
-      <CallRecording
+      <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights} defaultFull={!ev}>
+      {conversation.source === "fathom" ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} /> : <CallRecording
         audioUrl={call.audioUrl}
         transcriptText={call.transcriptText}
         durationSeconds={call.durationSeconds}
-      />
+      />}
 
       {ev ? (
         <>
@@ -528,10 +540,10 @@ export default async function CallReviewPage({
         </>
       ) : (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-7 text-center space-y-3.5">
-          <Clock className="h-8 w-8 text-[#C45500] mx-auto animate-pulse" />
-          <h3 className="text-base font-bold text-[#1d1d1f]">Call Evaluation In Progress</h3>
+          <Clock className="h-8 w-8 text-[#C45500] mx-auto" />
+          <h3 className="text-base font-bold text-[#1d1d1f]">Ready for coaching</h3>
           <p className="text-xs text-[#C45500] max-w-md mx-auto leading-relaxed">
-            The AI Sales Manager is currently scanning this call against the 5 coaching dimensions. Refresh in a few seconds, or reanalyze now.
+            This conversation has not been evaluated yet. Run an evaluation to add a coaching scorecard.
           </p>
           <div className="flex justify-center">
             <ReanalyzeButton callId={call.id} hasApiKey={ai.hasKey} usedLlm={false} />
@@ -542,6 +554,9 @@ export default async function CallReviewPage({
       {/* Teach the Coach from this call */}
       <TeachCoach callId={call.id} />
       </CallReviewSwitcher>
+      <ConversationWorkspace callId={call.id} duration={call.durationSeconds} initial={conversation} admin={auth.isAdmin} viewerId={auth.userId || "local-admin"} metrics={scorecard.map(m => ({ key: m.key, label: m.label, score: m.score }))} deals={deals} />
     </div>
   );
 }
+
+export default withWorkspacePage(CallReviewPage, {});

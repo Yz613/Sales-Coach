@@ -9,6 +9,12 @@ import openNext, {
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge };
 
 export default {
+  async scheduled(_event, env, ctx) {
+    if (!env.INTEGRATION_CRON_SECRET || !env.PUBLIC_APP_URL) return;
+    ctx.waitUntil(openNext.fetch(new Request(new URL("/app/api/jobs/run", env.PUBLIC_APP_URL), {
+      method: "POST", headers: { authorization: `Bearer ${env.INTEGRATION_CRON_SECRET}` },
+    }), env, ctx).then(response => { if (!response.ok) throw new Error(`Integration cron failed: ${response.status}`); }));
+  },
   async fetch(request, env, ctx) {
     const alias = getApexAliasRedirect(request.url);
     if (alias) {

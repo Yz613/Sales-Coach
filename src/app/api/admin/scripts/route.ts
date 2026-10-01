@@ -1,8 +1,9 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getAllScripts, saveScript } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function GET() {
+async function GETHandler() {
   try {
     await requireWorkspace();
     const scripts = await getAllScripts();
@@ -12,7 +13,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -32,3 +33,8 @@ export async function POST(req: Request) {
     return workspaceErrorResponse(err);
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

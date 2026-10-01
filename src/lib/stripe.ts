@@ -71,12 +71,12 @@ export async function stripeRequest<T>(
     headers["Content-Type"] = "application/x-www-form-urlencoded";
     body = encodeStripeForm(params || {});
   }
-  const res = await fetch(url, { method, headers, body });
+  const res = await fetch(url, { method, headers, body, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(25000) });
   const json = (await res.json().catch(() => ({}))) as {
     error?: { message?: string };
   } & T;
   if (!res.ok) {
-    throw new StripeRequestError(json.error?.message || `Stripe ${method} ${path} failed`, res.status);
+    throw new StripeRequestError(`Payment provider request failed (${res.status}).`, 502);
   }
   return json;
 }

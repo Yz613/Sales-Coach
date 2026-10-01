@@ -5,16 +5,47 @@ services:
       dockerfile: Dockerfile
     container_name: sales-coach
     restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    env_file:
+      - path: .env.local
+        required: false
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
+      - SALES_COACH_DB_PATH=/app/data/sales_coach.db
+      - INTEGRATION_KEY_FILE=/app/data/integration.key
       # Add your API keys here or pass them in a .env.local file
       # - GEMINI_API_KEY=
       # - OPENAI_API_KEY=
       # - GROQ_API_KEY=
     volumes:
       # Persist SQLite database across container restarts
+      - sales_coach_data:/app/data
+
+  worker:
+    build: .
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    env_file:
+      - path: .env.local
+        required: false
+    command: ["npm", "run", "worker"]
+    environment:
+      - NODE_ENV=production
+      - SALES_COACH_DB_PATH=/app/data/sales_coach.db
+      - INTEGRATION_KEY_FILE=/app/data/integration.key
+    volumes:
       - sales_coach_data:/app/data
 
 volumes:

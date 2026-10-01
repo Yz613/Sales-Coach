@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db/service";
 import { modelForProvider, resolveAiSettings } from "@/lib/ai/settings";
@@ -12,7 +13,7 @@ import { maskSecret } from "@/lib/inviteMail";
 import { loadBillingAccount, saveBillingSettings, summarizeBilling } from "@/lib/billingQuota";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const auth = await requireWorkspace();
     const ai = await resolveAiSettings();
@@ -42,7 +43,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     const auth = await requireWorkspace();
     const body = await req.json();
@@ -90,3 +91,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

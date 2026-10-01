@@ -1,10 +1,11 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureActiveTeam, listPendingInvites, publicTeamError, revokeTeamInvite } from "@/lib/team";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(
+async function DELETEHandler(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -33,3 +34,5 @@ export async function DELETE(
     return NextResponse.json({ error: publicTeamError(err) }, { status: 500 });
   }
 }
+
+export const DELETE = withWorkspaceApi(DELETEHandler, { admin: true });

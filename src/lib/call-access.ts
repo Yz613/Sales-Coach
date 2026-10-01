@@ -14,24 +14,12 @@ export function normalizeIdentity(value?: string | null): string {
   return (value || "").trim().toLowerCase();
 }
 
-function emailLocalPart(email: string): string {
-  return email.split("@")[0].replace(/[._-]+/g, " ").trim();
-}
-
 /** True when this rep record belongs to the signed-in member. */
 export function isOwnRep(rep: RepIdentity, viewer: CallViewer): boolean {
   const viewerEmail = normalizeIdentity(viewer.email);
-  const viewerName = normalizeIdentity(viewer.name);
   const repEmail = normalizeIdentity(rep.email);
-  const repName = normalizeIdentity(rep.name);
-
-  if (viewerEmail && repEmail && viewerEmail === repEmail) return true;
-  if (viewerName && repName && viewerName === repName) return true;
-  if (viewerEmail) {
-    const local = emailLocalPart(viewerEmail);
-    if (local && repName && local === repName) return true;
-  }
-  return false;
+  // viewer.email comes from the identity provider's verified primary address.
+  return Boolean(viewerEmail && repEmail && viewerEmail === repEmail);
 }
 
 export function ownRepIds(reps: RepIdentity[], viewer: CallViewer): Set<string> {
@@ -47,9 +35,7 @@ export function filterCallsForViewer<T extends { repId: string; repName?: string
 ): T[] {
   if (viewer.canViewAllCalls) return calls;
   const ids = ownRepIds(reps, viewer);
-  return calls.filter(
-    (call) => ids.has(call.repId) || isOwnRep({ name: call.repName }, viewer)
-  );
+  return calls.filter((call) => ids.has(call.repId));
 }
 
 export function canViewCall(
@@ -58,7 +44,7 @@ export function canViewCall(
   viewer: CallViewer
 ): boolean {
   if (viewer.canViewAllCalls) return true;
-  return ownRepIds(reps, viewer).has(call.repId) || isOwnRep({ name: call.repName }, viewer);
+  return ownRepIds(reps, viewer).has(call.repId);
 }
 
 /** Org members never see other people's calls. */

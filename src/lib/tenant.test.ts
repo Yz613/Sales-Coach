@@ -29,6 +29,19 @@ describe("resolveTenantId", () => {
 });
 
 describe("runWithTenant", () => {
+  it("propagates a callback failure without executing it twice", () => {
+    let attempts = 0;
+    assert.throws(() => runWithTenant("org_a", () => { attempts++; throw new Error("failure"); }), /failure/);
+    assert.equal(attempts, 1);
+  });
+
+  it("keeps concurrent asynchronous workers in their own tenant", async () => {
+    await Promise.all(["org_a", "org_b"].map(org => runWithTenant(org, async () => {
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(currentTenantId(), org);
+    })));
+  });
+
   it("scopes currentTenantId to the active org", () => {
     runWithTenant("org_a", () => {
       assert.equal(currentTenantId(), "org_a");

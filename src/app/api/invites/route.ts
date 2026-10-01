@@ -1,3 +1,4 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { isInviteRole, parseInviteEmails } from "@/lib/inviteEmails";
@@ -12,13 +13,13 @@ import {
 } from "@/lib/inviteAdmin";
 import { memberRoleChangeError } from "@/lib/teamRoster";
 
-export async function GET(req: NextRequest) {
+async function GETHandler(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
   return NextResponse.json(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url)));
 }
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
   });
 }
 
-export async function PATCH(req: NextRequest) {
+async function PATCHHandler(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
@@ -134,7 +135,7 @@ export async function PATCH(req: NextRequest) {
   });
 }
 
-export async function DELETE(req: NextRequest) {
+async function DELETEHandler(req: NextRequest) {
   const gate = await requireInviteAdmin();
   if (!gate.ok) return gate.response;
 
@@ -157,3 +158,10 @@ export async function DELETE(req: NextRequest) {
   });
   return NextResponse.json({ ok: true, ...(await loadInviteRoster(gate.orgId, buildInviteRedirectUrl(req.url))) });
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+export const PATCH = withWorkspaceApi(PATCHHandler, { admin: true });
+export const DELETE = withWorkspaceApi(DELETEHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

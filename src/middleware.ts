@@ -13,7 +13,7 @@ import {
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
-import { planFromClerkHas, type ClerkHas } from "@/lib/billingAccess";
+import { assertSecureDeployment, assertMutationOrigin } from "@/lib/security-policy";
 
 const isAdminRoute = createRouteMatcher([
   "/",
@@ -24,6 +24,8 @@ const isAdminRoute = createRouteMatcher([
   "/app/reps(.*)",
   "/coach(.*)",
   "/app/coach(.*)",
+  "/deals(.*)",
+  "/app/deals(.*)",
   "/invite(.*)",
   "/app/invite(.*)",
 ]);
@@ -105,10 +107,18 @@ function clerkHandlerImpl() {
         if (denied) return denied;
       }
 
-      return nextWithPath(req, publicPath, authData);
+      return nextWithPath(req, publicPath);
     }, {
       // Do not advertise /__auth (Next's stripped path). Handshake must stay on /app/__auth.
       frontendApiProxy: { enabled: false },
+      contentSecurityPolicy: {
+        strict: true,
+        directives: {
+          "object-src": ["'none'"], "base-uri": ["'self'"], "frame-ancestors": ["'none'"],
+          "media-src": ["'self'", "https:", "blob:"],
+          "img-src": ["'self'", "https://img.clerk.com", "data:"],
+        },
+      },
     });
 }
 
@@ -144,58 +154,27 @@ const AUTH_HEADERS = [
   "x-sc-plan",
 ] as const;
 
-function claimString(claims: Record<string, unknown> | null | undefined, key: string): string {
-  const value = claims?.[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function nextWithPath(
-  req: NextRequest,
-  publicPath: string,
-  authData?: {
-    userId: string | null;
-    orgId?: string | null;
-    orgRole?: string | null;
-    sessionStatus?: string | null;
-    sessionClaims?: unknown;
-    has?: (params: { role: string } | { plan: string } | { feature: string }) => boolean;
-  }
-): NextResponse {
+function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
   const requestHeaders = new Headers(req.headers);
   for (const key of AUTH_HEADERS) requestHeaders.delete(key);
   requestHeaders.set("x-salescoach-path", publicPath);
-
-  const claims = (authData?.sessionClaims || null) as Record<string, unknown> | null;
-  const active = Boolean(authData?.userId) && authData?.sessionStatus !== "pending";
-  if (active && authData) {
-    const hasOrgAdmin =
-      (typeof authData.has === "function" && authData.has({ role: "org:admin" })) ||
-      authData.orgRole === "org:admin";
-    const metadata = claims?.metadata as { role?: string } | undefined;
-    const first = claimString(claims, "first_name") || claimString(claims, "firstName");
-    const last = claimString(claims, "last_name") || claimString(claims, "lastName");
-    const name =
-      claimString(claims, "name") ||
-      claimString(claims, "full_name") ||
-      claimString(claims, "fullName") ||
-      [first, last].filter(Boolean).join(" ");
-    requestHeaders.set("x-sc-auth", "1");
-    requestHeaders.set("x-sc-user-id", authData.userId || "");
-    if (authData.orgId) requestHeaders.set("x-sc-org-id", authData.orgId);
-    if (authData.orgRole) requestHeaders.set("x-sc-org-role", authData.orgRole);
-    if (hasOrgAdmin) requestHeaders.set("x-sc-org-admin", "1");
-    const email =
-      claimString(claims, "email") ||
-      claimString(claims, "email_address") ||
-      claimString(claims, "primary_email_address");
-    if (email) requestHeaders.set("x-sc-email", email);
-    if (name) requestHeaders.set("x-sc-name", name);
-    if (metadata?.role) requestHeaders.set("x-sc-metadata-role", metadata.role);
-    const planId = planFromClerkHas(typeof authData.has === "function" ? (authData.has as ClerkHas) : undefined);
-    if (planId) requestHeaders.set("x-sc-plan", planId);
+  let policy: string | undefined;
+  if (!hasClerkServerAuth()) {
+    const nonce = btoa(crypto.randomUUID());
+    policy = [
+      "default-src 'self'", `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""}`,
+      "style-src 'self' 'unsafe-inline'", "img-src 'self' data: https://img.clerk.com", "font-src 'self' data:",
+      `connect-src 'self'${process.env.NODE_ENV !== "production" ? " ws:" : ""}`,
+      "media-src 'self' https: blob:", "worker-src 'self' blob:", "object-src 'none'", "base-uri 'self'",
+      "form-action 'self'", "frame-ancestors 'none'", "frame-src 'none'",
+    ].join("; ");
+    requestHeaders.set("x-nonce", nonce);
+    requestHeaders.set("content-security-policy", policy);
   }
-
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  if (policy) response.headers.set("content-security-policy", policy);
+  if (isApiRoute(publicPath)) response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return response;
 }
 
 function memberCallsRedirect(req: NextRequest): NextResponse {
@@ -223,13 +202,9 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     return handler(request, event);
   }
 
-  const role = resolveUserRole({
-    clerkConfigured: false,
-    userId: null,
-  });
-  if (role === "member") {
-    const denied = enforceMemberBoundaries(request);
-    if (denied) return denied;
+  if (!isPublicMarketingPath(getPublicPath(request)) && !isPublicAuthRoute(getPublicPath(request)) && !isPublicApiRoute(getPublicPath(request), request.method)) {
+    try { assertSecureDeployment(); assertMutationOrigin(request); }
+    catch { return NextResponse.json({ error: "Service security configuration is incomplete." }, { status: 503 }); }
   }
 
   return nextWithPath(request, getPublicPath(request));

@@ -18,9 +18,9 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  role: "admin",
-  isAdmin: true,
-  isMember: false,
+  role: "member",
+  isAdmin: false,
+  isMember: true,
   isClerkConfigured: false,
   user: null,
   isLoading: true,
@@ -32,7 +32,7 @@ export function useAppAuth() {
 
 export function AuthContextProvider({
   children,
-  initialRole = "admin",
+  initialRole = "member",
   isClerkConfigured = false,
   clerkUser = null,
   skipRoleFetch = false,

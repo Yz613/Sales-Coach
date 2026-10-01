@@ -1,10 +1,11 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { ensureActiveTeam, listPendingInvites, publicTeamError } from "@/lib/team";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const auth = await requireWorkspace();
     if (!auth.userId) {
@@ -19,3 +20,5 @@ export async function GET() {
     return NextResponse.json({ error: publicTeamError(err) }, { status: 500 });
   }
 }
+
+export const GET = withWorkspaceApi(GETHandler, { admin: true });

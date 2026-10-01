@@ -126,7 +126,10 @@ export function hydrateEvaluation(
     walkthrough: extended?.walkthrough,
     coachingBrief: extended?.coachingBrief,
     debrief: extended?.debrief,
-    evaluatedWith: extended?.evaluatedWith,
+    evaluatedWith: extended?.evaluatedWith ? {
+      ...extended.evaluatedWith,
+      ...(extended.evaluatedWith.error ? { error: "The AI provider could not complete this review. Check the provider configuration." } : {}),
+    } : undefined,
     rawMarkdown: ev.rawMarkdown || undefined,
     createdAt: ev.createdAt,
   };

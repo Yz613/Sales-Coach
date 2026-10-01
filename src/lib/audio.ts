@@ -16,7 +16,7 @@ export const AUDIO_EXTENSIONS = [
   ".mpga",
 ] as const;
 
-export const MAX_AUDIO_UPLOAD_BYTES = 40 * 1024 * 1024;
+export const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const INLINE_AUDIO_BYTES = 12 * 1024 * 1024;
 export const WHISPER_MAX_BYTES = 24 * 1024 * 1024;
 export const AUDIO_CHUNK_TARGET_BYTES = 2 * 1024 * 1024;

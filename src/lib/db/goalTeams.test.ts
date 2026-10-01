@@ -9,9 +9,11 @@ import { createGoalTeam, GOAL_TEAMS_SETTING_KEY, readGoalTeams } from "../goalTe
 
 async function run() {
   const original = process.cwd();
+  const originalDatabase = process.env.SALES_COACH_DB_PATH;
   const temporary = mkdtempSync(join(tmpdir(), "sales-coach-goals-"));
   copyFileSync(join(original, "schema.sql"), join(temporary, "schema.sql"));
   process.chdir(temporary);
+  process.env.SALES_COACH_DB_PATH = join(temporary, "test.db");
   try {
     const teams = [{ ...createGoalTeam("core", "Core team", ["rep-a"]), revenue: 10_000, repCount: 4 }, createGoalTeam("growth", "Growth team", ["rep-b"])];
     await runWithTenant("org_a", async () => {
@@ -28,6 +30,8 @@ async function run() {
   } finally {
     getDb().$client.close();
     process.chdir(original);
+    if (originalDatabase === undefined) delete process.env.SALES_COACH_DB_PATH;
+    else process.env.SALES_COACH_DB_PATH = originalDatabase;
     rmSync(temporary, { recursive: true, force: true });
   }
 }

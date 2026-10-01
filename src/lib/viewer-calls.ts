@@ -1,5 +1,6 @@
 import type { AuthUser } from "@/lib/auth";
 import { requireWorkspacePage } from "@/lib/workspace";
+import { SecurityPolicyError } from "@/lib/security-policy";
 import {
   canViewCall,
   filterCallsForViewer,
@@ -52,6 +53,8 @@ export async function resolveUploadRepId(
   if (auth.canViewAllCalls) {
     return getOrCreateRep(requested.repId, requested.repName, requested.repRole);
   }
+
+  if (!auth.email) throw new SecurityPolicyError("Verify your primary email before uploading calls.");
 
   const reps = await listRepIdentities();
   const own = reps.find((rep) => isOwnRep(rep, toCallViewer(auth)));

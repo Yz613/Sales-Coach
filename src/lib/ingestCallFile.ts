@@ -91,6 +91,7 @@ export interface PeekedCallFile {
 
 /** Read the file and estimate duration without starting transcription. */
 export async function peekCallFile(file: File): Promise<PeekedCallFile> {
+  if (file.size > 25 * 1024 * 1024) throw new Error("Each upload must be 25 MB or smaller.");
   const bytes = new Uint8Array(await file.arrayBuffer());
   const fileName = file.name;
   const mimeType = mimeTypeForAudio(file);

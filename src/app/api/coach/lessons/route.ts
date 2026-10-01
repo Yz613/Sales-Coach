@@ -1,8 +1,9 @@
+import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { addCoachLesson, deleteCoachLesson, getCoachLessons } from "@/lib/db/service";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+async function DELETEHandler(req: Request) {
   try {
     await requireWorkspace();
     const body = await req.json();
@@ -31,3 +32,8 @@ export async function DELETE(req: Request) {
     return workspaceErrorResponse(err);
   }
 }
+
+export const POST = withWorkspaceApi(POSTHandler, { admin: true });
+export const DELETE = withWorkspaceApi(DELETEHandler, { admin: true });
+
+export const dynamic = "force-dynamic";

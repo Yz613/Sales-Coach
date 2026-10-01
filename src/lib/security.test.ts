@@ -1,0 +1,185 @@
+import assert from "node:assert/strict";
+import { test, after } from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { assertSecureDeployment, assertMutationOrigin, boundedRequest, localDevelopmentAllowed, mfaRequired, sessionHasMfa } from "./security-policy";
+import { encryptRecording, decryptRecording } from "./revenue/security";
+import { currentTenantId, runWithTenant, TenantRequiredError } from "./tenant";
+import { publicGuestAuth, runWithAuth, type AuthUser } from "./auth";
+import { consumeLimit } from "./security-rate-limit";
+import { db } from "./db";
+import { appSettings, auditEvents, calls } from "./db/schema";
+import { readCallAudio } from "./callAudioStore";
+import { getAllSettings, getOrCreateRep, getSetting, setSetting, setGlobalSetting } from "./db/service";
+import { openSetting } from "./setting-secrets";
+import { claimPendingCheckout, originFromRequest } from "./stripeCheckout";
+import { resolveUploadRepId } from "./viewer-calls";
+import { withWorkspaceApi, workspaceErrorResponse } from "./workspace";
+import { eq } from "drizzle-orm";
+
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sales-security-"));
+process.env.SALES_COACH_DB_PATH = path.join(directory, "test.db");
+process.env.CALL_AUDIO_DIR = path.join(directory, "audio");
+process.env.INTEGRATION_ENCRYPTION_KEY = randomBytes(32).toString("base64");
+after(() => fs.rmSync(directory, { recursive: true, force: true }));
+
+const admin: AuthUser = { userId: "user_admin", role: "admin", isAdmin: true, isMember: false, isClerkConfigured: true, orgId: "org_secure", tenantId: "org_secure", orgRole: "org:admin", hasOrgAdmin: true, email: "admin@example.com", canViewAllCalls: true, clerkPlanId: null, billingPaid: true };
+const member: AuthUser = { ...admin, userId: "user_member", role: "member", isAdmin: false, isMember: true, orgRole: "org:member", hasOrgAdmin: false, email: "member@example.com", canViewAllCalls: false };
+const request = (path: string, init?: RequestInit) => new Request(`http://localhost/app${path}`, init);
+
+test("production fails closed with incomplete security settings and unscoped work", async () => {
+  const previous = process.env.NODE_ENV;
+  try {
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+    assert.equal(localDevelopmentAllowed({ NODE_ENV: "production" }), false);
+    assert.throws(() => assertSecureDeployment({ NODE_ENV: "production" }), /configuration/);
+    assert.throws(() => currentTenantId(), TenantRequiredError);
+    assert.equal(publicGuestAuth().isAdmin, false);
+    let called = false;
+    const guarded = withWorkspaceApi(async (_request: Request) => { called = true; return Response.json({ ok: true }); });
+    const response = await guarded(request("/api/admin/settings", { headers: { "x-sc-auth": "1", "x-sc-org-id": "org_victim", "x-sc-org-admin": "1", "x-sc-user-id": "user_admin", "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } }));
+    assert.equal(response.status, 503);
+    assert.equal(called, false);
+    assertSecureDeployment({ NODE_ENV: "production", NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test", CLERK_SECRET_KEY: "sk_test", PUBLIC_APP_URL: "https://example.com", INTEGRATION_ENCRYPTION_KEY: randomBytes(32).toString("base64") });
+  } finally { if (previous === undefined) delete (process.env as Record<string, string | undefined>).NODE_ENV; else (process.env as Record<string, string | undefined>).NODE_ENV = previous; }
+});
+
+test("production MFA policy rejects absent, unverified, and stale second factors", async () => {
+  assert.equal(mfaRequired({ NODE_ENV: "production" }), true);
+  assert.equal(sessionHasMfa({ fva: [0, 0] }), true);
+  for (const fva of [undefined, [0, -1], [0, 481], [0, "0"], [0, Infinity]]) assert.equal(sessionHasMfa({ fva }), false);
+  const previous = process.env.REQUIRE_MFA;
+  try {
+    process.env.REQUIRE_MFA = "true";
+    const endpoint = withWorkspaceApi(async (_req: Request) => Response.json({ ok: true }));
+    assert.equal((await runWithAuth(member, () => endpoint(request("/api/probe")))).status, 403);
+    assert.equal((await runWithAuth({ ...member, mfaVerified: true }, () => endpoint(request("/api/probe")))).status, 200);
+  } finally { if (previous === undefined) delete process.env.REQUIRE_MFA; else process.env.REQUIRE_MFA = previous; }
+});
+
+test("encrypted recordings reject tampering and swapping across workspaces or calls", () => {
+  const audio = Buffer.from("private call recording");
+  const encrypted = encryptRecording(audio, "org_a:call_1");
+  assert.ok(!encrypted.includes(audio));
+  assert.deepEqual(decryptRecording(encrypted, "org_a:call_1"), audio);
+  assert.throws(() => decryptRecording(encrypted, "org_b:call_1"));
+  assert.throws(() => decryptRecording(encrypted, "org_a:call_2"));
+  const corrupted = Buffer.from(encrypted); corrupted[corrupted.length - 1] ^= 1;
+  assert.throws(() => decryptRecording(corrupted, "org_a:call_1"));
+});
+
+test("server admin guards protect actual settings, rep, coach, and job routes without middleware", async () => {
+  const routes = [await import("../app/api/admin/settings/route"), await import("../app/api/reps/route"), await import("../app/api/coach/route"), await import("../app/api/jobs/route")];
+  for (const route of routes) {
+    const response = await runWithAuth(member, () => (route.GET as any)(request("/api/probe")));
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+  }
+  const endpoint = withWorkspaceApi(async (_request: Request) => Response.json({ tenant: currentTenantId() }));
+  await Promise.all(["org_one", "org_two"].map(org => runWithAuth({ ...admin, tenantId: org, orgId: org }, async () => {
+    const response = await endpoint(request("/api/probe"));
+    assert.equal((await response.json()).tenant, org);
+  })));
+});
+
+test("cross-origin writes and chunked oversized bodies are rejected before business logic", async () => {
+  assert.throws(() => assertMutationOrigin(request("/api/probe", { method: "POST", headers: { origin: "https://attacker.example" } }), { NODE_ENV: "development" }), /Cross-origin/);
+  assert.throws(() => assertMutationOrigin(request("/api/probe", { method: "DELETE", headers: { "sec-fetch-site": "cross-site" } })), /Cross-origin/);
+  const stream = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(12)); controller.enqueue(new Uint8Array(12)); controller.close(); } });
+  await assert.rejects(() => boundedRequest(request("/api/probe", { method: "POST", body: stream, duplex: "half" } as RequestInit), 20), /too large/);
+  const bounded = await boundedRequest(request("/api/probe", { method: "POST", body: '{"ok":true}' }), 20);
+  assert.deepEqual(await bounded.json(), { ok: true });
+  let called = false;
+  const endpoint = withWorkspaceApi(async (_request: Request) => { called = true; return Response.json({ ok: true }); });
+  assert.equal((await runWithAuth(admin, () => endpoint(request("/api/probe", { method: "POST", headers: { origin: "https://attacker.example" } })))).status, 403);
+  assert.equal(called, false);
+});
+
+test("distributed counters atomically enforce a shared budget and reset next window", async () => {
+  const now = Date.now();
+  const results = await Promise.allSettled(Array.from({ length: 12 }, () => consumeLimit("security-concurrency", 4, 60_000, now)));
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 4);
+  assert.equal(results.filter(r => r.status === "rejected" && (r.reason as any).status === 429).length, 8);
+  await consumeLimit("security-concurrency", 4, 60_000, now + 60_000);
+});
+
+test("settings are encrypted at rest, isolated by authenticated context, and legacy plaintext is upgraded", async () => {
+  process.env.INTEGRATION_ENCRYPTION_KEY = randomBytes(32).toString("base64");
+  await runWithTenant("org_secure", async () => {
+    await setSetting("ai_api_key", "secret-provider-credential");
+    const key = "t:org_secure:ai_api_key";
+    const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
+    assert.ok(row.value.startsWith("v1."));
+    assert.ok(!row.value.includes("secret-provider-credential"));
+    assert.throws(() => openSetting("t:org_other:ai_api_key", row.value));
+    assert.equal(await getSetting("ai_api_key"), "secret-provider-credential");
+    assert.equal((await getAllSettings()).ai_api_key, "secret-provider-credential");
+    await db.insert(appSettings).values({ key: "t:org_secure:resend_api_key", value: "legacy-secret", updatedAt: new Date().toISOString() }).run();
+    assert.equal(await getSetting("resend_api_key"), "legacy-secret");
+    const upgraded = await db.select().from(appSettings).where(eq(appSettings.key, "t:org_secure:resend_api_key")).get();
+    assert.ok(upgraded.value.startsWith("v1."));
+  });
+  assert.equal(await runWithTenant("org_other", () => getSetting("ai_api_key")), null);
+});
+
+test("uploading under another rep's display name cannot steal their identity", async () => {
+  await runWithTenant("org_secure", async () => {
+    const victim = await getOrCreateRep(undefined, "Victim", undefined, "victim@example.com");
+    const attacker = await resolveUploadRepId({ ...member, name: "Victim" }, { repId: victim, repName: "Victim" });
+    assert.notEqual(attacker, victim);
+    await assert.rejects(() => resolveUploadRepId({ ...member, email: undefined, name: "Victim" }, { repId: victim }), /Verify/);
+  });
+});
+
+test("retired global configuration endpoints have no side effects and errors hide secrets", async () => {
+  for (const route of [await import("../app/api/auth/revoke-leaked-session/route"), await import("../app/api/auth/clerk-proxy/route"), await import("../app/api/billing/stripe-config/route")]) {
+    assert.equal((await (route.POST as any)(request("/api/probe", { method: "POST", body: "{}" }))).status, 410);
+  }
+  const error = await workspaceErrorResponse(new Error("SQL failure /private/data sk_live_SECRET")).json();
+  assert.ok(!JSON.stringify(error).includes("SECRET"));
+  const req = request("/checkout/success", { headers: { "x-forwarded-host": "attacker.example", "x-forwarded-proto": "http" } });
+  assert.equal(originFromRequest(req), "http://localhost");
+});
+
+test("checkout claims require the payer's verified email and cannot race between organizations", async () => {
+  const sessionId = `cs_secure_${Date.now()}`;
+  const record = { sessionId, planId: "coach", status: "paid", email: "payer@example.com", updatedAt: new Date().toISOString() };
+  await setGlobalSetting(`stripe:session:${sessionId}`, JSON.stringify(record));
+  assert.equal(await claimPendingCheckout({ sessionId, orgId: "org_thief", email: "thief@example.com" }), null);
+  const claims = await Promise.all(["org_a", "org_b"].map(orgId => claimPendingCheckout({ sessionId, orgId, email: "payer@example.com" })));
+  assert.equal(claims.filter(Boolean).length, 1);
+});
+
+
+test("successful writes retain a tenant-scoped audit trail without secret bodies", async () => {
+  const endpoint = withWorkspaceApi(async (_req: Request) => Response.json({ ok: true }));
+  const response = await runWithAuth(admin, () => endpoint(request("/api/admin/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: "never-log-this-secret" }) })));
+  assert.equal(response.status, 200);
+  const rows = await db.select().from(auditEvents).where(eq(auditEvents.orgId, "org_secure")).all();
+  assert.ok(rows.some((row: any) => row.actor === admin.userId && row.action === "api.post"));
+  assert.ok(!JSON.stringify(rows).includes("never-log-this-secret"));
+});
+
+test("the operator migration encrypts legacy media/settings and removes the old plaintext recording", async () => {
+  await runWithTenant("local", async () => {
+    const repId = await getOrCreateRep(undefined, "Migration Rep", undefined, "migration@example.com");
+    await db.insert(calls).values({ id: "call_migration", orgId: "local", repId, prospectCompany: "", prospectName: "Prospect", callStage: "Cold Call", coreOutcome: "Dropped", durationSeconds: 60, transcriptText: "Rep: Hello. Prospect: Goodbye.", audioUrl: "/api/calls/call_migration/audio", status: "completed", createdAt: new Date().toISOString() }).run();
+    await db.insert(appSettings).values({ key: "t:local:gemini_api_key", value: "legacy-provider-secret", updatedAt: new Date().toISOString() }).run();
+    const audioDir = process.env.CALL_AUDIO_DIR!;
+    fs.mkdirSync(audioDir, { recursive: true });
+    const audio = Buffer.from("legacy recording payload");
+    fs.writeFileSync(path.join(audioDir, "call_migration.mp3"), audio);
+    fs.writeFileSync(path.join(audioDir, "call_migration.meta.json"), JSON.stringify({ mimeType: "audio/mpeg", fileName: "legacy.mp3", ext: ".mp3" }));
+    const migration = spawnSync(process.execPath, ["--import", "tsx", "scripts/encrypt-stored-data.ts"], { cwd: process.cwd(), env: { ...process.env }, encoding: "utf8" });
+    assert.equal(migration.status, 0, migration.stderr);
+    assert.ok(!migration.stdout.includes("legacy-provider-secret"));
+    assert.equal(fs.existsSync(path.join(audioDir, "call_migration.mp3")), false);
+    assert.deepEqual((await readCallAudio("call_migration"))?.bytes, audio);
+    const row = await db.select().from(appSettings).where(eq(appSettings.key, "t:local:gemini_api_key")).get();
+    assert.ok(row.value.startsWith("v1."));
+    assert.equal(await getSetting("gemini_api_key"), "legacy-provider-secret");
+  });
+});

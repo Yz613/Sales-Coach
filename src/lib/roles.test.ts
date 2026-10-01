@@ -77,8 +77,8 @@ assert.equal(
     userId: "user_1",
     metadataRole: "admin",
   }),
-  "admin",
-  "metadata admin is used when no organization is active"
+  "member",
+  "personal metadata cannot grant organization privileges"
 );
 
 console.log("resolveUserRole checks passed");

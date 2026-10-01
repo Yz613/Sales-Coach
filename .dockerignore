@@ -11,3 +11,6 @@ yarn-error.log*
 scratch/
 bin/
 sales_coach.db*
+data/
+.env
+.env*.local

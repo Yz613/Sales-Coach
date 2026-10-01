@@ -90,7 +90,7 @@ export function cleanModelTranscript(raw: string): string {
 }
 
 function geminiErrorMessage(data: any, status: number, model?: string): string {
-  const detail = data?.error?.message || `Gemini transcription failed (${status})`;
+  const detail = `Gemini transcription failed (${status}). Check the provider configuration.`;
   return model ? `${detail} (model: ${model})` : detail;
 }
 
@@ -100,10 +100,10 @@ async function callGeminiGenerate(
   parts: unknown[]
 ): Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts }],
         generationConfig: geminiGenerationConfig(model, {
@@ -157,10 +157,11 @@ async function uploadGeminiFile(
   displayName: string
 ): Promise<{ uri: string; mimeType: string; name: string }> {
   const start = await fetch(
-    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/upload/v1beta/files`,
     {
-      method: "POST",
+      method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
       headers: {
+        "x-goog-api-key": apiKey,
         "X-Goog-Upload-Protocol": "resumable",
         "X-Goog-Upload-Command": "start",
         "X-Goog-Upload-Header-Content-Length": String(bytes.byteLength),
@@ -179,8 +180,12 @@ async function uploadGeminiFile(
     throw new Error("Gemini file upload did not return an upload URL");
   }
 
+  const target = new URL(uploadUrl);
+  if (target.protocol !== "https:" || target.hostname !== "generativelanguage.googleapis.com" || target.username || target.password) {
+    throw new Error("Invalid transcription upload target.");
+  }
   const uploaded = await fetch(uploadUrl, {
-    method: "POST",
+    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
     headers: {
       "Content-Length": String(bytes.byteLength),
       "X-Goog-Upload-Offset": "0",
@@ -194,10 +199,12 @@ async function uploadGeminiFile(
   }
 
   let file = payload.file || payload;
+  if (!/^files\/[A-Za-z0-9_-]+$/.test(String(file?.name || ""))) throw new Error("Invalid transcription file identifier.");
   for (let attempt = 0; attempt < 12 && file?.state && file.state !== "ACTIVE"; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 500));
     const poll = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${file.name}?key=${encodeURIComponent(apiKey)}`
+      `https://generativelanguage.googleapis.com/v1beta/${file.name}`,
+      { headers: { "x-goog-api-key": apiKey }, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(30000) }
     );
     const next = await poll.json().catch(() => ({}));
     file = next.file || next;
@@ -233,8 +240,8 @@ async function transcribeGeminiFile(
   } finally {
     if (uploaded.name) {
       await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${uploaded.name}?key=${encodeURIComponent(backend.apiKey)}`,
-        { method: "DELETE" }
+        `https://generativelanguage.googleapis.com/v1beta/${uploaded.name}`,
+        { method: "DELETE", headers: { "x-goog-api-key": backend.apiKey }, redirect: "error", signal: AbortSignal.timeout(30000) }
       ).catch(() => undefined);
     }
   }
@@ -263,13 +270,13 @@ async function transcribeWhisper(
   form.append("response_format", "verbose_json");
 
   const res = await fetch(endpoint, {
-    method: "POST",
+    method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(120000),
     headers: { Authorization: `Bearer ${backend.apiKey}` },
     body: form,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.error) {
-    throw new Error(data.error?.message || `${backend.kind} transcription failed (${res.status})`);
+    throw new Error(`${backend.kind} transcription failed (${res.status}). Check the provider configuration.`);
   }
   if (Array.isArray(data.segments) && data.segments.length) {
     return whisperSegmentsToTranscript(data.segments);

@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { getRepById } from "@/lib/db/service";
@@ -5,7 +6,7 @@ import RepDetailClient from "./RepDetailClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function RepDetailPage({
+async function RepDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -27,3 +28,5 @@ export default async function RepDetailPage({
     />
   );
 }
+
+export default withWorkspacePage(RepDetailPage, { admin: true });

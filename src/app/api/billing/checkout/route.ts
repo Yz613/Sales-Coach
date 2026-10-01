@@ -1,3 +1,4 @@
+import { withPublicApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/auth";
 import { hostedBillingRequired } from "@/lib/billingAccess";
@@ -54,10 +55,13 @@ async function startCheckout(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+async function GETHandler(req: Request) {
   return startCheckout(req);
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   return startCheckout(req);
 }
+
+export const GET = withPublicApi(GETHandler, {});
+export const POST = withPublicApi(POSTHandler, {});

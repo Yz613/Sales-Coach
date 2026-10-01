@@ -126,6 +126,9 @@ export async function forwardClerkProxyRequest(
   request: Request,
   env: { CLERK_SECRET_KEY?: string }
 ): Promise<Response> {
+  if (!["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"].includes(request.method)) {
+    return Response.json({ error: "Method not allowed." }, { status: 405 });
+  }
   const url = new URL(request.url);
   const prefix = matchClerkProxyPath(url.pathname);
   if (!prefix) {
@@ -167,6 +170,8 @@ export async function forwardClerkProxyRequest(
     init.body = request.body;
   }
 
+  init.signal = AbortSignal.timeout(30000);
+  init.cache = "no-store";
   const upstream = await fetch(target, init);
   const out = new Headers();
   const setCookies =

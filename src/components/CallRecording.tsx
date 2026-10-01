@@ -10,21 +10,26 @@ export default function CallRecording({
   audioUrl,
   transcriptText,
   durationSeconds,
+  mediaKind = "audio",
 }: {
   audioUrl?: string;
   transcriptText: string;
   durationSeconds: number;
+  mediaKind?: "audio" | "video";
 }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLMediaElement>(null);
+  const Media = mediaKind === "video" ? "video" : "audio";
   const progressRef = useRef<HTMLSpanElement>(null);
   const clockRef = useRef<HTMLSpanElement>(null);
   const activeIndexRef = useRef(-1);
   const clockLabelRef = useRef("");
   const progressWidthRef = useRef("0%");
+  const clipEndRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(durationSeconds || 0);
-  const src = audioUrl ? mediaPath(audioUrl) : "";
+  const protectedUrl = audioUrl?.replace(/^\/recordings\/(call_0[1-4])\.mp3$/, "/api/calls/$1/audio");
+  const src = protectedUrl ? mediaPath(protectedUrl) : "";
 
   const turns = useMemo(
     () => parseTranscript(transcriptText, duration || durationSeconds),
@@ -61,23 +66,27 @@ export default function CallRecording({
     paintTime(next, el?.duration && Number.isFinite(el.duration) ? el.duration : duration);
   };
 
-  const onTimeUpdate = (event: SyntheticEvent<HTMLAudioElement>) => {
+  const onTimeUpdate = (event: SyntheticEvent<HTMLMediaElement>) => {
     const el = event.currentTarget;
+    if (clipEndRef.current !== null && el.currentTime >= clipEndRef.current) { el.pause(); clipEndRef.current = null; }
     const dur = el.duration && Number.isFinite(el.duration) ? el.duration : duration;
     paintTime(el.currentTime, dur);
   };
 
   useEffect(() => {
     const jumpFromHash = () => {
-      const match = window.location.hash.match(/^#t-(\d+)/);
+      const match = window.location.hash.match(/^#t-(\d+)(?:-(\d+))?/);
       if (!match) return;
+      clipEndRef.current = match[2] ? Number(match[2]) : null;
       seek(Number(match[1]));
+      const turn = turns[activeTurnIndex(turns, Number(match[1]))];
+      if (turn) requestAnimationFrame(() => document.getElementById(`t-${turn.timestampSeconds}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
       audioRef.current?.play().catch(() => undefined);
     };
     jumpFromHash();
     window.addEventListener("hashchange", jumpFromHash);
     return () => window.removeEventListener("hashchange", jumpFromHash);
-  }, [src]);
+  }, [src, turns]);
 
   const toggle = () => {
     const el = audioRef.current;
@@ -112,8 +121,10 @@ export default function CallRecording({
 
       {src ? (
         <div className="px-6 py-4 border-b border-black/[0.08] bg-[#F5F5F7] space-y-3">
-          <audio
-            ref={audioRef}
+          <Media
+            ref={el => { audioRef.current = el; }}
+            className={mediaKind === "video" ? "w-full rounded-lg bg-black max-h-[480px]" : undefined}
+            controls={mediaKind === "video"}
             src={src}
             preload="metadata"
             onPlay={() => setPlaying(true)}
@@ -123,6 +134,8 @@ export default function CallRecording({
               if (event.currentTarget.duration && Number.isFinite(event.currentTarget.duration)) {
                 setDuration(event.currentTarget.duration);
               }
+              const stamp = window.location.hash.match(/^#t-(\d+)(?:-(\d+))?/);
+              if (stamp) { event.currentTarget.currentTime = Number(stamp[1]); clipEndRef.current = stamp[2] ? Number(stamp[2]) : null; }
             }}
             onEnded={() => setPlaying(false)}
           />
@@ -160,7 +173,7 @@ export default function CallRecording({
         <TimestampedTranscript
           transcriptText={transcriptText}
           durationSeconds={duration || durationSeconds}
-          activeIndex={src ? activeIndex : -1}
+          activeIndex={activeIndex}
           onSeek={src ? (seconds) => {
             seek(seconds);
             audioRef.current?.play().catch(() => undefined);

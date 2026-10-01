@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import { getDashboardSnapshot, getCoachInstructions, getSalesMethodId, getSetting } from "@/lib/db/service";
 import { requireAdmin } from "@/lib/auth";
 import DashboardBoard from "@/components/DashboardBoard";
@@ -6,7 +7,7 @@ import { GOAL_TEAMS_SETTING_KEY, buildGoalReps, readGoalTeams } from "@/lib/goal
 
 export const dynamic = "force-dynamic";
 
-export default async function SuperAdminDashboard() {
+async function SuperAdminDashboard() {
   const auth = await requireAdmin();
   const [{ report, calls: allCalls, reps }, coachInstructions, salesMethodId, savedTeams] = await Promise.all([
     getDashboardSnapshot(),
@@ -32,3 +33,5 @@ export default async function SuperAdminDashboard() {
     />
   );
 }
+
+export default withWorkspacePage(SuperAdminDashboard, { admin: true });

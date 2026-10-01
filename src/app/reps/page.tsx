@@ -1,3 +1,4 @@
+import { withWorkspacePage } from "@/lib/workspace";
 import Link from "next/link";
 import { getAllReps } from "@/lib/db/service";
 import { CheckCircle2, Clock, XCircle, ArrowUpRight, TrendingUp, ShieldCheck } from "lucide-react";
@@ -5,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function RepsPage() {
+async function RepsPage() {
   await requireAdmin();
   const reps = await getAllReps();
 
@@ -106,3 +107,5 @@ export default async function RepsPage() {
     </div>
   );
 }
+
+export default withWorkspacePage(RepsPage, { admin: true });

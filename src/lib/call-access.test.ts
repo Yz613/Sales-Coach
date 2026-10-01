@@ -15,11 +15,11 @@ const calls = [
 
 assert.equal(isOwnRep(alex, { canViewAllCalls: false, email: "alex@team.com" }), true);
 assert.equal(isOwnRep(sam, { canViewAllCalls: false, email: "alex@team.com" }), false);
-assert.equal(isOwnRep(alex, { canViewAllCalls: false, name: "Alex Rivera" }), true);
+assert.equal(isOwnRep(alex, { canViewAllCalls: false, name: "Alex Rivera" }), false);
 assert.equal(
   isOwnRep({ name: "Alex Rivera" }, { canViewAllCalls: false, email: "alex.rivera@team.com" }),
-  true,
-  "email local-part matches rep name"
+  false,
+  "email local-part cannot establish ownership"
 );
 
 assert.deepEqual(
@@ -82,3 +82,5 @@ assert.equal(
 );
 
 console.log("call-access checks passed");
+
+assert.equal(canViewCall(calls[1], [alex, sam], { canViewAllCalls: false, email: "alex@team.com", name: "Sam Chen" }), false, "renaming a profile cannot expose someone else's call");
