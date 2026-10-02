@@ -114,5 +114,16 @@ describe("marketing landing copy", () => {
     assert.match(page, /Open-source Gong alternative/);
     assert.match(page, /HubSpot and Fathom/);
     assert.match(page, /your own model keys/);
+    assert.match(source, /#compare-gong/);
+    assert.match(source, /Compare to Gong/);
+    assert.match(source, /Compare cost vs Gong/);
+    const calculator = readFileSync(new URL("../components/GongCostCalculator.tsx", import.meta.url), "utf8");
+    const compare = readFileSync(new URL("./gongCompare.ts", import.meta.url), "utf8");
+    assert.equal(calculator.match(VENDOR_NAME), null);
+    assert.equal(compare.match(VENDOR_NAME), null);
+    assert.match(compare, /Gong quotes custom/);
+    assert.match(calculator, /GONG_COMPARE_DISCLAIMER/);
+    assert.match(calculator, /Self-hosted/);
+    assert.match(calculator, /Hosted/);
   });
 });
