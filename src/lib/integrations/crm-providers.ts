@@ -1,4 +1,4 @@
-import { providerRequest } from "./http";
+import { providerRequest, providerList } from "./http";
 import { crmRecordId } from "./hubspot";
 import { safeExternalUrl } from "../revenue/security";
 import type { CrmRecord, SyncCursor } from "../revenue/types";
@@ -51,15 +51,15 @@ export async function crmProviderPage(provider: CrmProvider, token: string, stat
     let stages = state.stages;
     if (!stages) {
       const response = await pipedriveRequest<{ data: any[] }>(token, "/api/v2/stages?limit=500");
-      stages = Object.fromEntries((response.data || []).map(stage => [String(stage.id), { label: stage.name, closed: false }]));
+      stages = Object.fromEntries(providerList(response.data, provider).map(stage => [String(stage.id), { label: stage.name, closed: false }]));
     }
     const query = new URLSearchParams({ limit: "100" }); if (state.after) query.set("cursor", state.after);
     const response = await pipedriveRequest<{ data: any[]; additional_data?: { next_cursor?: string } }>(token, `/api/v2/${object.pipedrive}?${query}`);
     const after = response.additional_data?.next_cursor || undefined;
-    return { records: (response.data || []).map(raw => normalizePipedriveRecord(raw, index, orgId, connectionId, stages)), next: { ...state, stages, after, kind: after ? index : index + 1, complete: !after && index === 2 } };
+    return { records: providerList(response.data, provider).map(raw => normalizePipedriveRecord(raw, index, orgId, connectionId, stages)), next: { ...state, stages, after, kind: after ? index : index + 1, complete: !after && index === 2 } };
   }
   const offset = Number(state.after || 0);
   const response = await attioRequest<{ data: any[] }>(token, object.attio, { limit: 100, offset });
-  const more = (response.data || []).length === 100;
-  return { records: (response.data || []).map(raw => normalizeAttioRecord(raw, index, orgId, connectionId)), next: { ...state, after: more ? String(offset + 100) : undefined, kind: more ? index : index + 1, complete: !more && index === 2 } };
+  const more = providerList(response.data, provider).length === 100;
+  return { records: providerList(response.data, provider).map(raw => normalizeAttioRecord(raw, index, orgId, connectionId)), next: { ...state, after: more ? String(offset + 100) : undefined, kind: more ? index : index + 1, complete: !more && index === 2 } };
 }

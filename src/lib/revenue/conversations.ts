@@ -12,6 +12,8 @@ import type { Call } from "../../types";
 import { RevenueError, stableId, textInput } from "./security";
 import { audit } from "./connections";
 import { parseJson, type ActionItem, type Segment, type ConversationFilters, type Participant } from "./types";
+import { meetingContextForCall } from "./meetings";
+import { queueSlackAlerts } from "../integrations/slack";
 
 const scoped = (table: { orgId: any }) => eq(table.orgId, currentTenantId());
 export const actorId = (auth: AuthUser) => auth.userId || "local-admin";
@@ -88,7 +90,8 @@ export async function conversationDetail(call: Call) {
     db.select().from(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id))).all(), listTrackers(),
     db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, parseJson<string[]>(meta.crmRecordIds, []).length ? parseJson<string[]>(meta.crmRecordIds, []) : ["__none__"]))).all(),
   ]);
-  return { ...meta, participants: parseJson<Participant[]>(meta.participants, []), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), stats: conversationStats(segments), linked };
+  const participants = parseJson<Participant[]>(meta.participants, []);
+  return { ...meta, participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), stats: conversationStats(segments), linked };
 }
 
 function seconds(value: unknown, max: number, required = true): number | null {
@@ -98,6 +101,7 @@ function seconds(value: unknown, max: number, required = true): number | null {
 
 export async function updateConversation(auth: AuthUser, call: Call, body: any) {
   const orgId = currentTenantId(); const actor = actorId(auth); const now = new Date().toISOString(); const meta = await ensureMetadata(call);
+  let createdClipId: string | undefined;
   switch (body.action) {
     case "comment":
       await db.insert(conversationComments).values({ id: randomUUID(), orgId, callId: call.id, authorId: actor, authorName: actorName(auth), body: textInput(body.body, "Comment", 4000), timestampSeconds: seconds(body.timestamp, call.durationSeconds, false), createdAt: now }).run(); break;
@@ -106,7 +110,8 @@ export async function updateConversation(auth: AuthUser, call: Call, body: any) 
     case "clip": {
       const start = seconds(body.start, call.durationSeconds)!; const end = seconds(body.end, call.durationSeconds)!;
       if (end <= start) throw new RevenueError("Clip end must be later than its start.");
-      await db.insert(conversationClips).values({ id: randomUUID(), orgId, callId: call.id, title: textInput(body.title, "Clip title"), collection: textInput(body.collection || "Examples", "Collection", 100), startSeconds: start, endSeconds: end, createdBy: actor, createdAt: now }).run(); break;
+      createdClipId = randomUUID();
+      await db.insert(conversationClips).values({ id: createdClipId, orgId, callId: call.id, title: textInput(body.title, "Clip title"), collection: textInput(body.collection || "Examples", "Collection", 100), startSeconds: start, endSeconds: end, createdBy: actor, createdAt: now }).run(); break;
     }
     case "deleteClip":
       await db.delete(conversationClips).where(and(scoped(conversationClips), eq(conversationClips.callId, call.id), eq(conversationClips.id, String(body.id)), auth.isAdmin ? undefined : eq(conversationClips.createdBy, actor))).run(); break;
@@ -142,6 +147,8 @@ export async function updateConversation(auth: AuthUser, call: Call, body: any) 
     default: throw new RevenueError("Unknown conversation action.");
   }
   await audit(actor, `conversation.${body.action}`, call.id);
+  if (body.action === "review" && body.reviewed && !meta.reviewedAt) await queueSlackAlerts("reviewed", call.id, now);
+  if (createdClipId) await queueSlackAlerts("clip", call.id, createdClipId, createdClipId);
   return conversationDetail(call);
 }
 

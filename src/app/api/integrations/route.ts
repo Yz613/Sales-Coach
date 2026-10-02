@@ -9,8 +9,9 @@ import { actorId } from "@/lib/revenue/conversations";
 import { integrationTool } from "@/lib/integrations/catalog";
 import { enableLiveFeed } from "@/lib/integrations/live";
 import { RevenueError } from "@/lib/revenue/security";
+import { oauthAvailability } from "@/lib/integrations/oauth";
 export const dynamic = "force-dynamic";
-async function GETHandler() { try { await requireRevenueAdmin(); return NextResponse.json({ connections: await listConnections(), jobs: await listJobs() }); } catch (e) { return revenueError(e); } }
+async function GETHandler() { try { await requireRevenueAdmin(); return NextResponse.json({ connections: await listConnections(), jobs: await listJobs(), oauth: oauthAvailability() }); } catch (e) { return revenueError(e); } }
 async function POSTHandler(req: Request) {
   try {
     const auth = await requireRevenueAdmin(); const body = await readJson(req); const actor = actorId(auth);

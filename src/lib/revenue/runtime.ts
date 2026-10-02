@@ -5,6 +5,8 @@ export interface RecordingBucket {
 }
 
 export function revenueRuntime(): { env: Record<string, unknown>; cloudflare: boolean } {
+  // An explicit SQLite preview/test uses local secrets even when Next initializes Miniflare.
+  if (process.env.SALES_COACH_DB_PATH) return { env: process.env, cloudflare: false };
   try {
     const context = require("@opennextjs/cloudflare").getCloudflareContext();
     if (context?.env?.DB) return { env: context.env, cloudflare: true };

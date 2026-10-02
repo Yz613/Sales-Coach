@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { providerRequest } from "./http";
+import { providerRequest, providerList } from "./http";
 import { RevenueError, safeExternalUrl, secureEqual } from "../revenue/security";
 import type { ImportedMeeting, Segment, SyncCursor } from "../revenue/types";
 import { formatClock } from "../audio";
@@ -83,7 +83,7 @@ export async function fathomPage(token: string, cursor: SyncCursor) {
   const meetings: ImportedMeeting[] = [];
   const deferred: any[] = [];
   let skipped = 0;
-  for (const item of page.items || []) {
+  for (const item of providerList(page.items, "Fathom")) {
     const transcript = Array.isArray(item.transcript) ? item.transcript : item.transcript?.transcript;
     if ((!Array.isArray(transcript) || !transcript.length) && /^\d+$/.test(String(item.recording_id || ""))) {
       // Missing transcripts get individual jobs so a page cannot exceed the request budget.

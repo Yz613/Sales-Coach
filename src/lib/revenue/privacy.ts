@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents } from "../db/schema";
+import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents, taskExports, externalTasks } from "../db/schema";
 import { currentTenantId, runWithTenant } from "../tenant";
 import { getSetting, setSetting, getCoachLessons, deleteCoachLesson } from "../db/service";
 import { deleteCallAudio } from "../callAudioStore";
@@ -20,6 +20,8 @@ export async function deleteConversation(id: string, actor: string) {
   // Storage deletion happens first: a storage outage leaves a retryable call instead of orphaned media.
   if (row.audioUrl) await deleteCallAudio(id);
   for (const table of [conversationClips, conversationComments, scoreOverrides, callMetadata, evaluations]) await db.delete(table).where(and(eq(table.orgId, orgId), eq(table.callId, id))).run();
+  await db.delete(taskExports).where(and(eq(taskExports.orgId, orgId), eq(taskExports.callId, id))).run();
+  await db.update(externalTasks).set({ callId: null }).where(and(eq(externalTasks.orgId, orgId), eq(externalTasks.callId, id))).run();
   for (const lesson of await getCoachLessons()) if (lesson.sourceCallId === id) await deleteCoachLesson(lesson.id);
   await db.delete(repSnapshots).where(and(eq(repSnapshots.orgId, orgId), eq(repSnapshots.repId, row.repId))).run();
   await db.delete(calls).where(and(eq(calls.orgId, orgId), eq(calls.id, id))).run();

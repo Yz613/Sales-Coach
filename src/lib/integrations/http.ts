@@ -9,6 +9,13 @@ export class ProviderError extends RevenueError {
   }
 }
 
+/** A malformed success response must never be treated as an empty completed snapshot. */
+export function providerList(value: unknown, provider: string, optional = false): any[] {
+  if (optional && value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 10000) throw new RevenueError(`${provider}: invalid or oversized list response. Retry sync.`, 502);
+  return value;
+}
+
 /** Fixed vendor origins; redirects cannot forward credentials to another host. */
 export async function providerRequest<T>(provider: string, origin: string, pathname: string, headers: Record<string, string>, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${origin}${pathname}`, {

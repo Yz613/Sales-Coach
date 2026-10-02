@@ -1,9 +1,10 @@
-import { providerRequest, ProviderError } from "./http";
+import { providerRequest, ProviderError, providerList } from "./http";
 import { normalizedMeeting, externalParticipants } from "./meeting";
 import { RevenueError } from "../revenue/security";
 import type { ImportedMeeting, SyncCursor } from "../revenue/types";
+import { aircallPage, aircallRequest, fetchAircallCall } from "./aircall";
 
-export type CallProvider = "fireflies" | "tldv" | "gong" | "close";
+export type CallProvider = "fireflies" | "tldv" | "gong" | "close" | "aircall";
 type Secrets = Record<string, string>;
 const FIREFLIES_FIELDS = `id title date duration host_email organizer_email participants transcript_url sentences { speaker_name text start_time end_time } summary { overview action_items }`;
 export async function firefliesQuery<T>(token: string, query: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -22,6 +23,7 @@ function closeRequest<T>(secrets: Secrets, path: string) { return providerReques
 const CLOSE_FIELDS = "id,date_created,date_updated,user_id,lead_id,contact_id,duration,recording_transcript,voicemail_transcript";
 
 export async function verifyCallProvider(provider: CallProvider, secrets: Secrets) {
+  if (provider === "aircall") await aircallRequest(secrets, "/calls?per_page=1&fetch_contact=true");
   if (provider === "fireflies") await firefliesQuery(secrets.token, "query { transcripts(limit: 1) { id } }");
   if (provider === "tldv") await tldvRequest(secrets, "/meetings?limit=1&page=1");
   if (provider === "gong") await gongRequest(secrets, "/v2/calls/extensive", { filter: { fromDateTime: new Date(Date.now() - 86400000).toISOString(), toDateTime: new Date().toISOString() }, contentSelector: { exposedFields: { parties: true } } });
@@ -30,12 +32,13 @@ export async function verifyCallProvider(provider: CallProvider, secrets: Secret
 
 /** Page only metadata; each transcript has its own durable, retryable job. */
 export async function callProviderPage(provider: CallProvider, secrets: Secrets, state: SyncCursor): Promise<{ deferred: any[]; next: SyncCursor }> {
+  if (provider === "aircall") return aircallPage(secrets, state);
   if (provider === "fireflies") {
     const skip = Number(state.after || 0);
     const response = await firefliesQuery<{ transcripts: any[] }>(secrets.token,
       "query($skip: Int, $from: DateTime, $to: DateTime) { transcripts(limit: 25, skip: $skip, fromDate: $from, toDate: $to) { id } }",
       { skip, from: state.createdAfter || null, to: state.syncStartedAt || null });
-    return { deferred: response.transcripts || [], next: { ...state, after: String(skip + 25), complete: (response.transcripts || []).length < 25 } };
+    return { deferred: providerList(response.transcripts, provider), next: { ...state, after: String(skip + 25), complete: (providerList(response.transcripts, provider)).length < 25 } };
   }
   if (provider === "tldv") {
     const page = Number(state.after || 1); const query = new URLSearchParams({ page: String(page), limit: "25" });
@@ -44,19 +47,19 @@ export async function callProviderPage(provider: CallProvider, secrets: Secrets,
     const response = await tldvRequest<{ results: any[]; pages: number }>(secrets, `/meetings?${query}`);
     // The API caps searches at 10,000 records; show the limit rather than silently losing history.
     if (page >= 400 && page < response.pages) throw new RevenueError("tl;dv history exceeds its 10,000-meeting export limit. Use a narrower date range.");
-    return { deferred: response.results || [], next: { ...state, after: String(page + 1), complete: page >= response.pages || !(response.results || []).length } };
+    return { deferred: providerList(response.results, provider), next: { ...state, after: String(page + 1), complete: page >= response.pages || !(providerList(response.results, provider)).length } };
   }
   if (provider === "gong") {
-    const response = await gongRequest<{ calls: any[]; records?: { cursor?: string } }>(secrets, "/v2/calls/extensive", {
+    const response = await gongRequest<{ calls: any[]; records?: { cursor?: string; totalRecords?: number } }>(secrets, "/v2/calls/extensive", {
       ...(state.after ? { cursor: state.after } : {}), filter: { ...(state.createdAfter ? { fromDateTime: state.createdAfter } : {}), toDateTime: state.syncStartedAt || new Date().toISOString() }, contentSelector: { exposedFields: { parties: true } },
     });
-    return { deferred: (response.calls || []).map(call => ({ ...call, id: call.metaData?.id })), next: { ...state, after: response.records?.cursor, complete: !response.records?.cursor } };
+    return { deferred: providerList(response.calls, provider, response.records?.totalRecords === 0).map(call => ({ ...call, id: call.metaData?.id })), next: { ...state, after: response.records?.cursor, complete: !response.records?.cursor } };
   }
   const skip = Number(state.after || 0); const query = new URLSearchParams({ _limit: "50", _skip: String(skip), _fields: CLOSE_FIELDS });
   if (state.createdAfter) query.set("date_created__gte", state.createdAfter);
   const response = await closeRequest<{ data: any[]; has_more: boolean }>(secrets, `/activity/call/?${query}`);
   // Close's call list includes calls without transcription; keep these available for a later sync.
-  const deferred = (response.data || []).filter(call => call.recording_transcript?.utterances?.length || call.voicemail_transcript?.utterances?.length);
+  const deferred = providerList(response.data, provider).filter(call => call.recording_transcript?.utterances?.length || call.voicemail_transcript?.utterances?.length);
   return { deferred, next: { ...state, after: String(skip + 50), complete: !response.has_more } };
 }
 
@@ -69,7 +72,8 @@ export function normalizeFirefliesCall(raw: any): ImportedMeeting {
     actionItems: String(raw.summary?.action_items || "").split("\n").filter(text => text.trim()).map((description, i) => ({ id: `fireflies_${raw.id}_${i}`, description, completed: false })) });
 }
 
-export async function fetchProviderCall(provider: CallProvider, secrets: Secrets, raw: any): Promise<ImportedMeeting> {
+export async function fetchProviderCall(provider: CallProvider, secrets: Secrets, raw: any): Promise<ImportedMeeting | null> {
+  if (provider === "aircall") return fetchAircallCall(secrets, raw);
   const id = String(raw.id || "");
   if (!id || id.length > 200) throw new RevenueError("Provider call ID is missing.");
   if (provider === "fireflies") {

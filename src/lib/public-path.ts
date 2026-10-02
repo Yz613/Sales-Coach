@@ -57,7 +57,7 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   if (normalized === "/api/auth/revoke-leaked-session" && (verb === "GET" || verb === "POST")) return true;
   if (normalized === "/api/billing/checkout" && (verb === "GET" || verb === "POST")) return true;
   if (normalized === "/api/billing/stripe-config" && (verb === "GET" || verb === "POST")) return true;
-  if (["fathom", "stripe", "hubspot", "fireflies", "zapier", "make"].some(provider => normalized === `/api/webhooks/${provider}`) && verb === "POST") return true;
+  if (["fathom", "stripe", "hubspot", "fireflies", "zapier", "make", "aircall"].some(provider => normalized === `/api/webhooks/${provider}`) && verb === "POST") return true;
   if (normalized === "/api/jobs/run" && verb === "POST") return true;
   return false;
 }

@@ -1,4 +1,4 @@
-import { providerRequest } from "./http";
+import { providerRequest, providerList } from "./http";
 import { stableId } from "../revenue/security";
 import type { CrmRecord, SyncCursor } from "../revenue/types";
 
@@ -45,13 +45,13 @@ export async function hubspotPage(token: string, state: SyncCursor, orgId: strin
   let stages = state.stages;
   if (!stages) {
     const pipelines = await hubspotRequest<{ results: any[] }>(token, "/crm/v3/pipelines/deals");
-    stages = Object.fromEntries((pipelines.results || []).flatMap((pipeline: any) => (pipeline.stages || []).map((stage: any) => [stage.id, { label: stage.label, closed: stage.metadata?.isClosed === "true" }])));
+    stages = Object.fromEntries(providerList(pipelines.results, "HubSpot").flatMap((pipeline: any) => (pipeline.stages || []).map((stage: any) => [stage.id, { label: stage.label, closed: stage.metadata?.isClosed === "true" }])));
   }
   const object = OBJECTS[index];
   const query = new URLSearchParams({ limit: "100", properties: object.properties.join(","), associations: OBJECTS.filter((other) => other.type !== object.type).map((other) => other.type).join(","), archived: "false" });
   if (state.after) query.set("after", state.after);
   const page = await hubspotRequest<{ results: any[]; paging?: { next?: { after?: string } } }>(token, `/crm/v3/objects/${object.type}?${query}`);
-  const records = (page.results || []).map((record) => normalizeHubspotRecord(record, index, orgId, connectionId, stages));
+  const records = providerList(page.results, "HubSpot").map((record) => normalizeHubspotRecord(record, index, orgId, connectionId, stages));
   const after = page.paging?.next?.after;
   const complete = !after && index === OBJECTS.length - 1;
   return { records, next: { ...state, stages, kind: after ? index : index + 1, after: after ? String(after) : undefined, complete } as SyncCursor };
