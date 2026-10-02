@@ -14,11 +14,19 @@ export interface ImportedMeeting {
   durationSeconds: number; transcriptText: string; createdAt: string; recordingPageUrl: string | null;
   participants: Participant[]; segments: Segment[]; summary: string; actionItems: ActionItem[];
   crmMatches: { kind: string; externalId?: string; email?: string; name?: string; provider?: string }[];
+  providerInsights?: ProviderInsights;
+}
+export interface ProviderInsights {
+  highlights: { title: string; items: { text: string; times: number[] }[] }[];
+  keyPoints: string[]; outline: { title: string; start: number; items: string[] }[];
+  topics: { name: string; duration: number }[]; trackers: { name: string; occurrences: { start: number; phrase: string }[] }[];
+  metrics: { name: string; value: number }[]; speakers: { name: string; seconds: number }[]; outcome: string;
 }
 export interface SyncCursor { kind?: number; after?: string; pageCount?: number; createdAfter?: string; syncStartedAt?: string; windowStart?: string; windowEnd?: string; stages?: Record<string, { label: string; closed: boolean }>; complete?: boolean; full?: boolean }
 export interface ConnectionConfig { autoSync: boolean; autoEvaluate: boolean; defaultStage: string; webhookId?: string; webhookUrl?: string; webhookError?: string; lastWebhookAt?: string; portalId?: string;
   calendarId?: string; userUri?: string; accountEmail?: string; notifyReviewed?: boolean; notifyClips?: boolean; notifyLowScore?: boolean; lowScoreThreshold?: number; lastNotifiedAt?: string;
   targetLabel?: string; titleProperty?: string;
+  exportReviewed?: boolean; outboundConfigured?: boolean; outboundOnImported?: boolean; outboundOnReviewed?: boolean;
 }
 export interface CrmRecord {
   id: string; connectionId: string; provider: string; externalId: string; kind: string; name: string;

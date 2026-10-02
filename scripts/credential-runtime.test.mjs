@@ -8,16 +8,25 @@ import { Miniflare, Response as WorkerResponse, convertV4MiniflareOptions } from
 const workerSource = `
 import { boundedRequest } from './src/lib/security-policy';
 import { providerRequest } from './src/lib/integrations/http';
+import { createCrmNote, sendAutomationEvent } from './src/lib/integrations/outbound';
 import { encryptCredentials, decryptCredentials } from './src/lib/revenue/security';
 import { pingProvider } from './src/lib/ai/llm';
 import { transcribeAudio } from './src/lib/ai/transcribe';
 import { REVENUE_MIGRATIONS } from './src/lib/db/revenueMigrations';
-import { externalTasks, taskExports } from './src/lib/db/schema';
+import { externalTasks, taskExports, integrationExports, callProviderInsights } from './src/lib/db/schema';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
 export default { async fetch(request, env) {
   const url = new URL(request.url);
   try {
+    if (url.pathname === '/crm-export') {
+      const id = await createCrmNote(url.searchParams.get('provider'), 'fixture-key', { kind:'deal', externalId:'123' }, { title:'Discovery', text:'Follow up <script>unsafe</script>', createdAt:new Date().toISOString(), callUrl:'https://coach.example.com/app/calls/123' });
+      return Response.json({ exported:!!id });
+    }
+    if (url.pathname === '/automation-export') {
+      const id = await sendAutomationEvent('zapier', 'https://hooks.zapier.com/hooks/catch/123/fixture/', 'event-fixture', { eventId:'event-fixture', event:'call.shared' });
+      return Response.json({ eventId:id });
+    }
     if (url.pathname === '/integration-schema') {
       await env.DB.prepare('CREATE TABLE IF NOT EXISTS calls (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, created_at TEXT NOT NULL)').run();
       await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
@@ -28,10 +37,14 @@ export default { async fetch(request, env) {
       await database.insert(externalTasks).values({ ...task, title:'Updated follow-up' }).onConflictDoUpdate({ target:externalTasks.id, set:{ title:'Updated follow-up' } }).run();
       await database.insert(taskExports).values({ id:'export-d1', orgId:'org_a', connectionId:'conn', callId:'call', actionId:'action', title:'Follow up', createdAt:now, updatedAt:now }).onConflictDoNothing().run();
       const claims = await Promise.all(Array.from({ length:24 }, () => database.update(taskExports).set({ status:'sending' }).where(and(eq(taskExports.id,'export-d1'),eq(taskExports.orgId,'org_a'),eq(taskExports.status,'queued'))).returning({ id:taskExports.id }).all()));
+      await database.insert(integrationExports).values({ id:'call-export-d1', orgId:'org_a', connectionId:'conn', callId:'call', event:'call.shared', createdAt:now, updatedAt:now }).onConflictDoNothing().run();
+      const exportClaims = await Promise.all(Array.from({ length:24 }, () => database.update(integrationExports).set({ status:'sending' }).where(and(eq(integrationExports.id,'call-export-d1'),eq(integrationExports.orgId,'org_a'),eq(integrationExports.status,'queued'))).returning({ id:integrationExports.id }).all()));
+      await database.insert(callProviderInsights).values({ callId:'call', orgId:'org_a', data:JSON.stringify({ outcome:'Meeting booked' }) }).run();
       await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
+      const insight = await database.select().from(callProviderInsights).where(eq(callProviderInsights.orgId,'org_a')).get();
       const tasks = await database.select().from(externalTasks).where(eq(externalTasks.orgId,'org_a')).all();
       const other = await database.select().from(externalTasks).where(eq(externalTasks.orgId,'org_b')).all();
-      return Response.json({ count:tasks.length, title:tasks[0].title, claims:claims.flat().length, other:other.length });
+      return Response.json({ count:tasks.length, title:tasks[0].title, claims:claims.flat().length, exportClaims:exportClaims.flat().length, outcome:JSON.parse(insight.data).outcome, other:other.length });
     }
     if (url.pathname === '/body') return Response.json(await (await boundedRequest(request, 1024)).json());
     if (url.pathname === '/credentials') {
@@ -75,6 +88,14 @@ before(async () => {
     outboundService: async request => {
       const url = new URL(request.url);
       requests.push(url.href);
+      if (['api.hubapi.com','api.pipedrive.com','api.attio.com'].includes(url.hostname)) {
+        const body = await request.json();
+        assert.ok(JSON.stringify(body).includes('Open Sales Coach call'));
+        if (url.hostname === 'api.hubapi.com') { assert.equal(request.headers.get('authorization'),'Bearer fixture-key'); assert.equal(body.associations[0].types[0].associationTypeId,214); return WorkerResponse.json({ id:'note' }); }
+        if (url.hostname === 'api.pipedrive.com') { assert.equal(request.headers.get('x-api-token'),'fixture-key'); assert.equal(body.deal_id,123); return WorkerResponse.json({ success:true, data:{ id:123 } }); }
+        assert.equal(body.data.parent_object,'deals'); return WorkerResponse.json({ data:{ id:{ note_id:'note' } } });
+      }
+      if (url.hostname === 'hooks.zapier.com') { assert.equal(request.headers.get('x-sales-coach-event-id'),'event-fixture'); return new WorkerResponse('accepted'); }
       if (url.hostname === "vendor.invalid") {
         if (url.pathname === "/redirect") return new WorkerResponse(null, { status: 302, headers: { location: "https://untrusted.invalid/credential" } });
         if (url.pathname === "/invalid-key") return WorkerResponse.json({ error: "fixture-key must not appear in the response" }, { status: 401 });
@@ -129,8 +150,17 @@ test("all AI key checks and supported transcription providers run in Workers", a
   }
 });
 
-test("D1 integration migrations preserve task data and allow exactly one of 24 concurrent delivery claims", async () => {
+test("D1 integration migrations preserve task/call data and allow exactly one of 24 concurrent claims per delivery", async () => {
   const response = await runtime.dispatchFetch("http://localhost/integration-schema");
   assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(await response.json(), { count: 1, title: "Updated follow-up", claims: 1, other: 0 });
+  assert.deepEqual(await response.json(), { count: 1, title: "Updated follow-up", claims: 1, exportClaims: 1, outcome: "Meeting booked", other: 0 });
+});
+
+test("CRM notes and outbound automation events work with native Workers fetch", async () => {
+  for (const provider of ['hubspot','pipedrive','attio']) {
+    const response = await runtime.dispatchFetch(`http://localhost/crm-export?provider=${provider}`);
+    assert.equal(response.status,200,await response.clone().text()); assert.deepEqual(await response.json(),{ exported:true });
+  }
+  const response = await runtime.dispatchFetch('http://localhost/automation-export');
+  assert.equal(response.status,200,await response.clone().text()); assert.deepEqual(await response.json(),{ eventId:'event-fixture' });
 });

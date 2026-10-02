@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull, isNotNull, gte, lte, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, reps, callMetadata, conversationComments, conversationClips, conversationTrackers, scoreOverrides, savedSearches, crmRecords } from "../db/schema";
+import { calls, reps, callMetadata, conversationComments, conversationClips, conversationTrackers, scoreOverrides, savedSearches, crmRecords, callProviderInsights } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { listRepIdentities } from "../db/service";
 import { isOwnRep } from "../call-access";
@@ -91,7 +91,8 @@ export async function conversationDetail(call: Call) {
     db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, parseJson<string[]>(meta.crmRecordIds, []).length ? parseJson<string[]>(meta.crmRecordIds, []) : ["__none__"]))).all(),
   ]);
   const participants = parseJson<Participant[]>(meta.participants, []);
-  return { ...meta, participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), stats: conversationStats(segments), linked };
+  const insights = await db.select().from(callProviderInsights).where(and(scoped(callProviderInsights), eq(callProviderInsights.callId, call.id))).get();
+  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), stats: conversationStats(segments), linked };
 }
 
 function seconds(value: unknown, max: number, required = true): number | null {
@@ -148,6 +149,10 @@ export async function updateConversation(auth: AuthUser, call: Call, body: any) 
   }
   await audit(actor, `conversation.${body.action}`, call.id);
   if (body.action === "review" && body.reviewed && !meta.reviewedAt) await queueSlackAlerts("reviewed", call.id, now);
+  if (body.action === "review" && body.reviewed && !meta.reviewedAt) {
+    const { queueIntegrationEvents } = await import("./exports");
+    await queueIntegrationEvents("call.reviewed", call.id, now);
+  }
   if (createdClipId) await queueSlackAlerts("clip", call.id, createdClipId, createdClipId);
   return conversationDetail(call);
 }

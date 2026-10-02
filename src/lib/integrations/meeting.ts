@@ -15,7 +15,7 @@ export function normalizedMeeting(input: Partial<ImportedMeeting> & { externalId
   return { externalId, title: input.title || "Imported call", repName: input.repName || "Sales Rep", repEmail: input.repEmail || "",
     prospectName: input.prospectName || "Prospect", prospectCompany: input.prospectCompany || "", durationSeconds, transcriptText, createdAt,
     recordingPageUrl: safeExternalUrl(input.recordingPageUrl), participants: input.participants || [], segments, summary: input.summary || "",
-    actionItems: input.actionItems || [], crmMatches: input.crmMatches || (input.participants || []).filter(p => p.external && p.email).map(p => ({ kind: "contact", email: p.email })) };
+    actionItems: input.actionItems || [], ...(input.providerInsights ? { providerInsights: input.providerInsights } : {}), crmMatches: input.crmMatches || (input.participants || []).filter(p => p.external && p.email).map(p => ({ kind: "contact", email: p.email })) };
 }
 
 export function externalParticipants(people: any[], ownerEmail: string): Participant[] {

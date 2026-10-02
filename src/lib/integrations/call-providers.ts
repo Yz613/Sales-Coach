@@ -2,6 +2,7 @@ import { providerRequest, ProviderError, providerList } from "./http";
 import { normalizedMeeting, externalParticipants } from "./meeting";
 import { RevenueError } from "../revenue/security";
 import type { ImportedMeeting, SyncCursor } from "../revenue/types";
+import { GONG_CONTENT_SELECTOR, normalizeGongCall } from "./gong";
 import { aircallPage, aircallRequest, fetchAircallCall } from "./aircall";
 
 export type CallProvider = "fireflies" | "tldv" | "gong" | "close" | "aircall";
@@ -26,7 +27,7 @@ export async function verifyCallProvider(provider: CallProvider, secrets: Secret
   if (provider === "aircall") await aircallRequest(secrets, "/calls?per_page=1&fetch_contact=true");
   if (provider === "fireflies") await firefliesQuery(secrets.token, "query { transcripts(limit: 1) { id } }");
   if (provider === "tldv") await tldvRequest(secrets, "/meetings?limit=1&page=1");
-  if (provider === "gong") await gongRequest(secrets, "/v2/calls/extensive", { filter: { fromDateTime: new Date(Date.now() - 86400000).toISOString(), toDateTime: new Date().toISOString() }, contentSelector: { exposedFields: { parties: true } } });
+  if (provider === "gong") await gongRequest(secrets, "/v2/calls/extensive", { filter: { fromDateTime: new Date(Date.now() - 86400000).toISOString(), toDateTime: new Date().toISOString() }, contentSelector: GONG_CONTENT_SELECTOR });
   if (provider === "close") await closeRequest(secrets, `/activity/call/?_limit=1&_fields=${CLOSE_FIELDS}`);
 }
 
@@ -51,9 +52,9 @@ export async function callProviderPage(provider: CallProvider, secrets: Secrets,
   }
   if (provider === "gong") {
     const response = await gongRequest<{ calls: any[]; records?: { cursor?: string; totalRecords?: number } }>(secrets, "/v2/calls/extensive", {
-      ...(state.after ? { cursor: state.after } : {}), filter: { ...(state.createdAfter ? { fromDateTime: state.createdAfter } : {}), toDateTime: state.syncStartedAt || new Date().toISOString() }, contentSelector: { exposedFields: { parties: true } },
+      ...(state.after ? { cursor: state.after } : {}), filter: { ...(state.createdAfter ? { fromDateTime: state.createdAfter } : {}), toDateTime: state.syncStartedAt || new Date().toISOString() }, contentSelector: GONG_CONTENT_SELECTOR,
     });
-    return { deferred: providerList(response.calls, provider, response.records?.totalRecords === 0).map(call => ({ ...call, id: call.metaData?.id })), next: { ...state, after: response.records?.cursor, complete: !response.records?.cursor } };
+    return { deferred: providerList(response.calls, provider, response.records?.totalRecords === 0).filter(call => call.metaData?.isPrivate !== true).map(call => ({ ...call, id: call.metaData?.id })), next: { ...state, after: response.records?.cursor, complete: !response.records?.cursor } };
   }
   const skip = Number(state.after || 0); const query = new URLSearchParams({ _limit: "50", _skip: String(skip), _fields: CLOSE_FIELDS });
   if (state.createdAfter) query.set("date_created__gte", state.createdAfter);
@@ -91,16 +92,11 @@ export async function fetchProviderCall(provider: CallProvider, secrets: Secrets
   }
   if (provider === "gong") {
     const response = await gongRequest<{ callTranscripts: any[] }>(secrets, "/v2/calls/transcript", { filter: { callIds: [id] } });
-    const call = response.callTranscripts?.find(call => String(call.callId) === id);
-    const parties = raw.parties || []; const rep = parties.find((party: any) => party.affiliation === "Internal") || {};
-    const participants = parties.map((party: any) => ({ name: party.name || party.emailAddress || "Participant", email: party.emailAddress, external: party.affiliation === "External" }));
-    const segments = (call?.transcript || []).flatMap((turn: any) => {
-      const speaker = parties.find((party: any) => String(party.speakerId) === String(turn.speakerId));
-      return (turn.sentences || []).map((sentence: any) => ({ speaker: speaker?.name || speaker?.emailAddress || `Speaker ${turn.speakerId}`, text: sentence.text, start: Number(sentence.start) / 1000, end: Number(sentence.end) / 1000, timing: "provider" as const }));
-    });
-    return normalizedMeeting({ externalId: id, title: raw.metaData?.title, repName: rep.name, repEmail: rep.emailAddress, participants,
-      prospectName: participants.find((p: any) => p.external)?.name, createdAt: raw.metaData?.started, durationSeconds: raw.metaData?.duration, recordingPageUrl: raw.metaData?.url, segments });
+    if (raw.metaData?.isPrivate === true) return null;
+    const call = providerList(response.callTranscripts, "Gong").find(call => String(call.callId) === id);
+    return normalizeGongCall(raw, call?.transcript || []);
   }
+
   const transcript = raw.recording_transcript || raw.voicemail_transcript;
   const optionalRecord = async (kind: string, ref: string | undefined): Promise<any> => {
     if (!ref) return {};

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Radio, Search, ShieldCheck } from "lucide-react";
 import { INTEGRATION_TOOLS, integrationTool, isCallTool, isNotificationTool } from "@/lib/integrations/catalog";
 import type { ProviderId, ConnectionConfig } from "@/lib/revenue/types";
+import { integrationCapabilities } from "@/lib/integrations/capabilities";
+import IntegrationDeliveries from "./IntegrationDeliveries";
 import IntegrationLogo from "./IntegrationLogo";
 import IntegrationMeetings from "./IntegrationMeetings";
 import IntegrationTasks from "./IntegrationTasks";
@@ -14,7 +16,7 @@ type Job = { id: string; kind: string; connectionId: string | null; status: stri
 export type IntegrationData = { connections: Connection[]; jobs: Job[]; oauth?: Record<string, boolean> };
 type Feed = { url: string; token?: string };
 const SAMPLE_CALL = JSON.stringify({ externalId: "your-source-call-id", title: "Discovery with Acme", repName: "Alex", repEmail: "alex@example.com", prospectName: "Pat", prospectCompany: "Acme", createdAt: "2026-10-01T14:00:00Z", durationSeconds: 60, transcriptText: "Alex: What is your biggest challenge?\nPat: We need better reporting." }, null, 2);
-const JOB_NAMES: Record<string, string> = { sync: "Sync history", import: "Import call", transcript: "Fetch transcript", "fetch-call": "Fetch call", "crm-event": "Live CRM update", evaluate: "Coach call", "calendar-event": "Import meeting invitees", "notify-slack": "Send coaching alert", "export-task": "Send coaching task" };
+const JOB_NAMES: Record<string, string> = { sync: "Sync history", import: "Import call", transcript: "Fetch transcript", "fetch-call": "Fetch call", "crm-event": "Live CRM update", evaluate: "Coach call", "calendar-event": "Import meeting invitees", "notify-slack": "Send coaching alert", "export-task": "Send coaching task", "export-call": "Export call" };
 function liveStatus(c: Connection) {
   if (isNotificationTool(c.provider)) return c.config.notifyReviewed || c.config.notifyClips || c.config.notifyLowScore ? "Alerts enabled" : "Alerts off";
   if (c.config.lastWebhookAt) return "Receiving live events";
@@ -25,7 +27,7 @@ function liveStatus(c: Connection) {
 }
 function activityResult(value: string | null) {
   if (!value) return "";
-  try { const data = JSON.parse(value); return data.exported ? "Coaching task created" : data.sent ? "Channel message sent" : data.updated !== undefined ? `${data.updated} records updated` : data.imported !== undefined ? `${data.imported} ${data.complete ? "items processed" : "items queued"}` : data.deleted ? "Previously deleted call skipped" : data.inserted ? "Call imported" : data.evaluated ? "Coaching complete" : data.callId ? "Call already imported" : data.skipped || "Complete"; } catch { return "Complete"; }
+  try { const data = JSON.parse(value); return data.exportedCall ? "Call export delivered" : data.exported ? "Coaching task created" : data.sent ? "Channel message sent" : data.updated !== undefined ? `${data.updated} records updated` : data.imported !== undefined ? `${data.imported} ${data.complete ? "items processed" : "items queued"}` : data.deleted ? "Previously deleted call skipped" : data.inserted ? "Call imported" : data.evaluated ? "Coaching complete" : data.callId ? "Call already imported" : data.skipped || "Complete"; } catch { return "Complete"; }
 }
 
 export default function IntegrationHub({ initial, providerId }: { initial: IntegrationData; providerId?: ProviderId }) {
@@ -54,6 +56,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
   }, "Opening account sign-in…");
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setMessage("Copied."); } catch { setError("Copy is unavailable in this browser. Select and copy the text instead."); } };
   const tool = providerId ? integrationTool(providerId) : undefined;
+  const capabilities = tool ? integrationCapabilities(tool.id) : undefined;
   const connections = data.connections.filter(c => !providerId || c.provider === providerId);
   const jobs = data.jobs.filter(j => !providerId || connections.some(c => c.id === j.connectionId));
   const filtered = INTEGRATION_TOOLS.filter(t => (category === "All tools" || t.category === category) && `${t.name} ${t.description}`.toLowerCase().includes(query.toLowerCase()));
@@ -87,6 +90,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
         {tool.troubleshooting && <details className="rounded-xl border border-black/[.08] p-4 text-sm"><summary className="cursor-pointer font-medium">Help with common connection problems</summary><dl className="mt-4 space-y-4">{tool.troubleshooting.map(item => <div key={item.issue}><dt className="font-medium">{item.issue}</dt><dd className="mt-1 leading-6 text-[#6e6e73]">{item.fix}</dd></div>)}</dl></details>}
         <div className="flex flex-wrap gap-4 text-xs"><a href={tool.settings} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#007AFF]">Open {tool.name} <ExternalLink size={12} /></a><a href={tool.docs} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#007AFF]">Connection guide <ExternalLink size={12} /></a></div>
       </Card>
+      {capabilities && <Card title="What you can do"><ul className="space-y-2">{capabilities.features.map(feature => <li key={feature} className="flex gap-2 text-sm text-[#6e6e73]"><Check size={16} className="mt-0.5 shrink-0 text-emerald-600" />{feature}</li>)}</ul><p className="text-xs leading-5 text-[#86868b]">{capabilities.scope}</p></Card>}
       <Card title={connections.length ? "Add another connection" : "Set up your connection"}>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={e => {
           e.preventDefault(); const form = e.currentTarget; const f = new FormData(form);
@@ -126,6 +130,12 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
             <p className="text-xs text-[#6e6e73]">These messages share coaching summaries with the selected channel. The background worker delivers alerts and retries failures.</p>
             <div className="flex flex-wrap gap-2"><button disabled={busy} className={buttonClass}>Save alerts</button><button type="button" disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "test" }), "Test message queued. Check recent activity for delivery.")}>Send test message</button></div>
           </form>}
+          {tool?.category === "CRM" && <div className="space-y-3 rounded-xl bg-[#F5F5F7] p-4"><h4 className="text-sm font-medium">Export reviewed calls</h4><p className="text-xs leading-5 text-[#6e6e73]">Add a note with the call summary, coaching score, next steps, and link to its matched deal timeline (or matched contacts/companies when no deal is linked). Give your connection note creation permission before enabling this.</p><label className="flex gap-2 text-sm"><input type="checkbox" disabled={busy} checked={c.config.exportReviewed === true} onChange={e => run(() => request(`/api/integrations/${c.id}`, { action: "configure", ...c.config, exportReviewed: e.target.checked }), "CRM export preference saved.")} />Export when a manager marks a call reviewed</label></div>}
+          {tool?.category === "Automation" && <form className="space-y-3 rounded-xl bg-[#F5F5F7] p-4" onSubmit={e => {
+            e.preventDefault(); const form = e.currentTarget; const f = new FormData(form);
+            run(async () => { await request(`/api/integrations/${c.id}`, { action: "destination", outboundWebhookUrl: f.get("outboundWebhookUrl"), outboundOnImported: f.get("outboundOnImported") === "on", outboundOnReviewed: f.get("outboundOnReviewed") === "on" }); form.reset(); }, "Outbound destination saved.");
+          }}><h4 className="text-sm font-medium">Send calls to {t.name}</h4><p className="text-xs leading-5 text-[#6e6e73]">{c.config.outboundConfigured ? "A destination is saved securely. Paste a new URL to replace it." : c.provider === "zapier" ? "Create a Zap using Webhooks by Zapier → Catch Hook, then paste its URL." : "Create a scenario using Webhooks → Custom webhook, then paste its URL."} The event contains the call summary, next steps, coaching score, and call link. Use eventId to deduplicate before creating records.</p><label className="block text-xs space-y-1">Outbound catch webhook URL<input name="outboundWebhookUrl" required type="password" autoComplete="off" className={fieldClass} maxLength={4096} /></label><label className="flex gap-2 text-sm"><input name="outboundOnImported" type="checkbox" defaultChecked={c.config.outboundOnImported} />Send newly imported calls</label><label className="flex gap-2 text-sm"><input name="outboundOnReviewed" type="checkbox" defaultChecked={c.config.outboundOnReviewed} />Send calls when reviewed</label><button disabled={busy} className={secondaryClass}>Save outbound destination</button>{c.config.outboundConfigured && <div className="flex flex-wrap gap-3 text-xs"><label className="flex gap-2"><input type="checkbox" checked={c.config.outboundOnImported === true} disabled={busy} onChange={e => run(() => request(`/api/integrations/${c.id}`, { action: "configure", ...c.config, outboundOnImported: e.target.checked }), "Imported-call trigger saved.")} />Imported-call trigger</label><label className="flex gap-2"><input type="checkbox" checked={c.config.outboundOnReviewed === true} disabled={busy} onChange={e => run(() => request(`/api/integrations/${c.id}`, { action: "configure", ...c.config, outboundOnReviewed: e.target.checked }), "Reviewed-call trigger saved.")} />Reviewed-call trigger</label></div>}</form>}
+          {(tool?.category === "CRM" || tool?.category === "Automation") && <IntegrationDeliveries connectionId={c.id} />}
           {tool?.category === "Meetings" && <IntegrationMeetings connectionId={c.id} />}
           {tool?.category === "Tasks" && <IntegrationTasks connectionId={c.id} providerName={t.name} targetLabel={c.config.targetLabel} />}
           {c.config.lastWebhookAt && <p className="text-xs text-emerald-700">Last live event {new Date(c.config.lastWebhookAt).toLocaleString()}</p>}
@@ -142,7 +152,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
       })}
     </Card>
     {data.connections.length > 0 && <Card title="Recent activity"><div className="flex flex-wrap justify-between gap-3"><p className="max-w-lg text-xs leading-5 text-[#86868b]">Live events are processed on arrival. History imports and automatic sync continue in the background. Activity refreshes every 10 seconds.</p><div className="flex gap-2"><button className={secondaryClass} disabled={busy} onClick={() => run(() => request("/api/jobs", {}), "Pending jobs processed.")}>Process pending</button><button className={secondaryClass} disabled={busy} onClick={() => run(refresh, "Activity refreshed.")}>Refresh</button></div></div>
-      <div className="space-y-2">{jobs.length ? jobs.map(j => <div key={j.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#F5F5F7] p-3 text-xs"><div><strong>{JOB_NAMES[j.kind] || j.kind}</strong><span className="text-[#86868b]"> · {data.connections.find(c => c.id === j.connectionId)?.name || "Connection"} · {j.status}</span>{j.result && <p className="mt-1 text-[#6e6e73]">{activityResult(j.result)}</p>}{j.lastError && <p className="mt-1 text-red-600">{j.lastError}</p>}</div>{j.status === "failed" && j.kind !== "export-task" && <button disabled={busy} className={secondaryClass} onClick={() => run(() => request("/api/jobs", { id: j.id }), "Retry queued.")}>Retry</button>}</div>) : <p className="text-sm text-[#86868b]">No activity yet.</p>}</div>
+      <div className="space-y-2">{jobs.length ? jobs.map(j => <div key={j.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#F5F5F7] p-3 text-xs"><div><strong>{JOB_NAMES[j.kind] || j.kind}</strong><span className="text-[#86868b]"> · {data.connections.find(c => c.id === j.connectionId)?.name || "Connection"} · {j.status}</span>{j.result && <p className="mt-1 text-[#6e6e73]">{activityResult(j.result)}</p>}{j.lastError && <p className="mt-1 text-red-600">{j.lastError}</p>}</div>{j.status === "failed" && j.kind !== "export-task" && j.kind !== "export-call" && <button disabled={busy} className={secondaryClass} onClick={() => run(() => request("/api/jobs", { id: j.id }), "Retry queued.")}>Retry</button>}</div>) : <p className="text-sm text-[#86868b]">No activity yet.</p>}</div>
     </Card>}
   </div>;
 }
