@@ -17,7 +17,7 @@ const tldv = { id: "tl-1", name: "Discovery", happenedAt: "2026-10-01T14:00:00Z"
 const gong = { metaData: { id: "123", title: "Discovery", started: "2026-10-01T14:00:00Z", duration: 60, url: "https://app.gong.io/call?id=123" }, parties: [{ speakerId: "1", name: "Alex", emailAddress: "alex@example.com", affiliation: "Internal" }, { speakerId: "2", name: "Pat", emailAddress: "pat@acme.com", affiliation: "External" }] };
 const close = { id: "activity-1", user_id: "user-1", contact_id: "contact-1", user_name: "Alex", date_created: "2026-10-01T14:00:00Z", lead_id: "lead-1", duration: 60, recording_transcript: { utterances: [{ speaker_label: "Alex", speaker_side: "close-user", start: 1, end: 10, text: "What is your budget?" }], summary_text: "Close summary" } };
 const fathom = { recording_id: 321, title: "Live discovery", recording_start_time: "2026-10-01T14:00:00Z", recording_end_time: "2026-10-01T14:01:00Z", recorded_by: { name: "Alex", email: "alex@example.com" }, transcript: [{ speaker: { display_name: "Alex" }, text: "What is your budget?", timestamp: "00:00:00" }] };
-let dealAmount = "1000"; let deletedDeal = false; let updatedSummary = false;
+let dealAmount = "1000"; let deletedDeal = false; let updatedSummary = false; let stressHistory = false;
 const requests: { url: URL; init?: RequestInit }[] = [];
 async function vendorFetch(input: any, init?: RequestInit) {
   assert.equal(init?.redirect, "manual", "Cloudflare rejects redirect:error; provider credentials must never follow a redirect");
@@ -53,19 +53,20 @@ async function vendorFetch(input: any, init?: RequestInit) {
     if (url.pathname === "/integrations/v1/me") return Response.json({ hubId: 999 });
     if (url.pathname.includes("pipelines")) return Response.json({ results: [{ stages: [{ id: "qualified", label: "Qualified", metadata: { isClosed: "false" } }] }] });
     if (url.pathname.endsWith("/44")) return deletedDeal ? new Response("gone", { status: 404 }) : Response.json({ id: 44, properties: { dealname: "Live deal", dealstage: "qualified", amount: dealAmount, deal_currency_code: "USD" } });
+    if (stressHistory) return Response.json({ results: [{ id: "44", properties: { name: "Acme", firstname: "Pat", email: "pat@acme.com", domain: "acme.com", dealname: "Discovery deal", dealstage: "qualified" } }] });
     return Response.json({ results: [] });
   }
   if (url.hostname === "api.fathom.ai") {
     if (url.pathname.endsWith("/webhooks")) return Response.json({ id: "hook-1", secret: "whsec_" + Buffer.from("12345678901234567890123456789012").toString("base64") });
     if (url.pathname.endsWith("/transcript")) return Response.json({ transcript: fathom.transcript });
-    return Response.json({ items: [] });
+    return Response.json({ items: stressHistory ? [fathom] : [] });
   }
   throw new Error("Unexpected provider host");
 }
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; } }
 
 test("incoming call payloads reject missing transcripts, invalid IDs, and invalid timestamps", () => {
-  assert.equal(INTEGRATION_TOOLS.length, 10);
+  assert.equal(INTEGRATION_TOOLS.length, 26);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "call-1" }), /Transcript/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "", transcriptText: "hello" }), /Source call ID/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "1", segments: [{ speaker: "Alex", text: "hello", start: -1 }] }), /timestamps/);
@@ -225,4 +226,109 @@ test("CRM matching keeps numeric source IDs scoped to their provider", async () 
   assert.ok(!matchesCrmRecord(pipe, { kind: "contact", externalId: "1" }));
   assert.ok(matchesCrmRecord(pipe, { kind: "contact", externalId: "1", provider: "pipedrive" }));
   assert.ok(matchesCrmRecord({ ...pipe, email: "PAT@ACME.COM" }, { kind: "contact", email: "pat@acme.com" }));
+});
+
+async function drainStress(orgId: string) {
+  const { processJobs } = await import("../revenue/jobs");
+  for (let round = 0; round < 150; round++) {
+    const outcomes = await Promise.all(Array.from({ length: 4 }, () => processJobs(orgId, 10)));
+    if (!outcomes.flat().length) return;
+  }
+  assert.fail("Legacy integration jobs exceeded the bounded stress run");
+}
+
+test("eight native call/CRM providers survive 400 simultaneous full-sync requests without duplicate records", async () => withVendors(async () => {
+  const { runWithTenant } = await import("../tenant");
+  const { connectIntegration } = await import("../revenue/connections");
+  const { enqueueJob } = await import("../revenue/jobs");
+  const { db } = await import("../db");
+  const { callMetadata, crmRecords, processingJobs } = await import("../db/schema");
+  const { eq, and, inArray } = await import("drizzle-orm");
+  stressHistory = true;
+  try {
+    await runWithTenant("org-legacy-stress", async () => {
+      const connections: { id: string; provider: string }[] = [];
+      for (const provider of ["fathom", "fireflies", "tldv", "gong", "close", "hubspot", "pipedrive", "attio"]) {
+        const id = await connectIntegration({ provider, token: "api-token", apiSecret: "gong-secret" }, "admin");
+        connections.push({ id, provider });
+        await Promise.all(Array.from({ length: 50 }, (_, index) => enqueueJob({ kind: "sync", connectionId: id, payload: { full: true, syncStartedAt: new Date().toISOString() }, key: `${id}:stress:${index}` })));
+      }
+      await drainStress("org-legacy-stress");
+      for (const { id, provider } of connections) {
+        const rows = await db.select().from(["hubspot", "pipedrive", "attio"].includes(provider) ? crmRecords : callMetadata).where(eq((["hubspot", "pipedrive", "attio"].includes(provider) ? crmRecords : callMetadata).connectionId, id)).all();
+        assert.equal(rows.length, ["hubspot", "pipedrive", "attio"].includes(provider) ? 3 : 1, provider);
+      }
+      const jobs = await db.select().from(processingJobs).where(eq(processingJobs.orgId, "org-legacy-stress")).all();
+      assert.equal(jobs.length, 900);
+      assert.ok(jobs.every((job: any) => job.status === "completed"));
+      await runWithTenant("org-stress-outsider", async () => {
+        assert.equal((await db.select().from(callMetadata).where(eq(callMetadata.orgId, "org-stress-outsider")).all()).length, 0);
+        assert.equal((await db.select().from(crmRecords).where(eq(crmRecords.orgId, "org-stress-outsider")).all()).length, 0);
+      });
+      assert.equal((await db.select().from(processingJobs).where(and(eq(processingJobs.orgId, "org-legacy-stress"), inArray(processingJobs.status, ["queued", "running", "failed"]))).all()).length, 0);
+    });
+  } finally { stressHistory = false; }
+}));
+
+test("Zapier and Make accept 400 authenticated deliveries, deduplicate bursts and import 200 distinct calls", async () => withVendors(async () => {
+  const { runWithTenant } = await import("../tenant");
+  const { connectIntegration } = await import("../revenue/connections");
+  const { enableLiveFeed, acceptLiveWebhook } = await import("./live");
+  const { db } = await import("../db"); const { callMetadata } = await import("../db/schema"); const { eq } = await import("drizzle-orm");
+  await runWithTenant("org-automation-stress", async () => {
+    for (const provider of ["zapier", "make"] as const) {
+      const id = await connectIntegration({ provider }, "admin"); const feed = await enableLiveFeed(id, "admin");
+      const deliveries = await Promise.all(Array.from({ length: 200 }, (_, index) => acceptLiveWebhook(provider, id, new Headers({ authorization: `Bearer ${feed.token}` }), JSON.stringify({ externalId: `call-${index % 100}`, transcriptText: "Rep: What is your next step?" }), feed.url)));
+      assert.equal(new Set(deliveries.map(item => item.jobId)).size, 100);
+      await drainStress("org-automation-stress");
+      assert.equal((await db.select().from(callMetadata).where(eq(callMetadata.connectionId, id)).all()).length, 100);
+    }
+  });
+}));
+
+test("all eight legacy native adapters reject malformed success lists and sanitize 429/503 errors", async () => {
+  const { callProviderPage } = await import("./call-providers"); const { crmProviderPage } = await import("./crm-providers");
+  const { hubspotPage } = await import("./hubspot"); const { fathomPage } = await import("./fathom");
+  const original = global.fetch;
+  const adapters = [() => fathomPage("private-token", {}), ...["fireflies", "tldv", "gong", "close"].map(provider => () => callProviderPage(provider as any, { token: "private-token", apiSecret: "secret" }, {})), () => hubspotPage("private-token", { stages: {} }, "org", "conn"), ...["pipedrive", "attio"].map(provider => () => crmProviderPage(provider as any, "private-token", { stages: {} }, "org", "conn"))];
+  try {
+    global.fetch = async () => Response.json({ data: { transcripts: {} }, items: {}, results: {}, calls: {} });
+    for (const adapter of adapters) await assert.rejects(adapter, /invalid|oversized/);
+    for (const status of [429, 503]) {
+      global.fetch = async () => new Response("private-token echoed by vendor", { status, headers: { "Retry-After": "120" } });
+      for (const adapter of adapters) await assert.rejects(adapter, (error: any) => { assert.equal(error.providerStatus, status); assert.equal(error.retryAfterSeconds, 120); assert.ok(!error.message.includes("private-token")); return true; });
+    }
+  } finally { global.fetch = original; }
+});
+
+test("repeating legacy cursors cannot enqueue another page or delete a valid CRM snapshot", async () => withVendors(async () => {
+  const { runWithTenant } = await import("../tenant"); const { connectIntegration } = await import("../revenue/connections");
+  const { enqueueJob, processJobs } = await import("../revenue/jobs"); const { db } = await import("../db");
+  const { crmRecords, processingJobs } = await import("../db/schema"); const { eq } = await import("drizzle-orm");
+  await runWithTenant("org-pagination-stress", async () => {
+    const id = await connectIntegration({ provider: "hubspot", token: "api-token" }, "admin");
+    await db.insert(crmRecords).values({ id: "saved-crm", orgId: "org-pagination-stress", connectionId: id, provider: "hubspot", externalId: "1", kind: "company", name: "Keep this company", syncedAt: "2000-01-01T00:00:00Z" }).run();
+    const job = await enqueueJob({ kind: "sync", connectionId: id, payload: { after: "repeat", kind: 0, stages: {}, syncStartedAt: new Date().toISOString() }, key: "loop" });
+    const original = global.fetch; global.fetch = async () => Response.json({ results: [], paging: { next: { after: "repeat" } } });
+    try { assert.equal((await processJobs("org-pagination-stress", 1, [job]))[0].status, "queued"); }
+    finally { global.fetch = original; }
+    assert.equal((await db.select().from(processingJobs).where(eq(processingJobs.orgId, "org-pagination-stress")).all()).length, 1);
+    assert.ok((await db.select().from(processingJobs).where(eq(processingJobs.id, job)).get()).lastError.includes("repeated"));
+    assert.equal((await db.select().from(crmRecords).where(eq(crmRecords.connectionId, id)).all()).length, 1);
+  });
+}));
+
+test("empty Google and Gong pages need provider metadata before they can complete a snapshot", async () => {
+  const { callProviderPage } = await import("./call-providers"); const { calendarProviderPage } = await import("./calendars");
+  const original = global.fetch;
+  const gongPage = () => callProviderPage("gong", { token: "test", apiSecret: "test" }, {});
+  const googlePage = () => calendarProviderPage("google-calendar", "test", {} as any, {});
+  try {
+    global.fetch = async () => Response.json({});
+    await assert.rejects(gongPage, /invalid/); await assert.rejects(googlePage, /invalid/);
+    global.fetch = async () => Response.json({ records: { totalRecords: 0 } });
+    assert.deepEqual((await gongPage()).deferred, []);
+    global.fetch = async () => Response.json({ kind: "calendar#events" });
+    assert.deepEqual((await googlePage()).meetings, []);
+  } finally { global.fetch = original; }
 });

@@ -176,6 +176,9 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
 
   await updateRepProgressionSnapshot(input.repId, repName, evaluationResult);
 
+  const { queueSlackAlerts } = await import("../integrations/slack");
+  await queueSlackAlerts("low-score", input.callId, evaluationId);
+
   return {
     id: evaluationId,
     callId: input.callId,

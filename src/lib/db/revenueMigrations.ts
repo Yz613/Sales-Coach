@@ -1,5 +1,34 @@
 /** Additive migrations shared by SQLite and D1. Existing call data stays intact. */
 export const REVENUE_MIGRATIONS = [
+  `CREATE TABLE IF NOT EXISTS external_tasks (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, provider TEXT NOT NULL,
+    external_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
+    assignee TEXT NOT NULL DEFAULT '', due_at TEXT, source_url TEXT, call_id TEXT, synced_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_external_tasks_org_connection ON external_tasks(org_id, connection_id, status)`,
+  `CREATE TABLE IF NOT EXISTS task_exports (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, call_id TEXT NOT NULL, action_id TEXT NOT NULL,
+    title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued', external_id TEXT, source_url TEXT,
+    attempt INTEGER NOT NULL DEFAULT 0, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_task_exports_org_connection ON task_exports(org_id, connection_id)`,
+  `CREATE TABLE IF NOT EXISTS scheduled_meetings (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, provider TEXT NOT NULL,
+    external_id TEXT NOT NULL, title TEXT NOT NULL, start_at TEXT NOT NULL, end_at TEXT NOT NULL,
+    status TEXT NOT NULL, organizer_email TEXT NOT NULL DEFAULT '', participants TEXT NOT NULL DEFAULT '[]',
+    location TEXT NOT NULL DEFAULT '', source_url TEXT, synced_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_org_date ON scheduled_meetings(org_id, start_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_connection ON scheduled_meetings(org_id, connection_id)`,
+  `CREATE TABLE IF NOT EXISTS integration_oauth_states (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, actor TEXT NOT NULL, provider TEXT NOT NULL,
+    credentials TEXT NOT NULL, expires_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_integration_oauth_expiry ON integration_oauth_states(expires_at)`,
+  `CREATE TABLE IF NOT EXISTS integration_oauth_refresh_leases (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL,
+    token TEXT NOT NULL, expires_at INTEGER NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS security_rate_limits (id TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_security_rate_expiry ON security_rate_limits(expires_at)`,
   `CREATE TABLE IF NOT EXISTS checkout_claims (session_id TEXT PRIMARY KEY, org_id TEXT NOT NULL)`,

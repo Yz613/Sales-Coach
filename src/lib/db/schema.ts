@@ -169,3 +169,32 @@ export const securityRateLimits = sqliteTable("security_rate_limits", {
 export const checkoutClaims = sqliteTable("checkout_claims", {
   sessionId: text("session_id").primaryKey(), orgId: text("org_id").notNull(),
 });
+
+export const scheduledMeetings = sqliteTable("scheduled_meetings", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
+  provider: text("provider").notNull(), externalId: text("external_id").notNull(), title: text("title").notNull(),
+  startAt: text("start_at").notNull(), endAt: text("end_at").notNull(), status: text("status").notNull(),
+  organizerEmail: text("organizer_email").notNull().default(""), participants: text("participants").notNull().default("[]"),
+  location: text("location").notNull().default(""), sourceUrl: text("source_url"), syncedAt: text("synced_at").notNull(),
+});
+
+export const integrationOAuthStates = sqliteTable("integration_oauth_states", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), actor: text("actor").notNull(),
+  provider: text("provider").notNull(), credentials: text("credentials").notNull(), expiresAt: integer("expires_at").notNull(),
+});
+
+export const integrationOAuthRefreshLeases = sqliteTable("integration_oauth_refresh_leases", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
+  token: text("token").notNull(), expiresAt: integer("expires_at").notNull(),
+});
+
+export const externalTasks = sqliteTable("external_tasks", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(), provider: text("provider").notNull(),
+  externalId: text("external_id").notNull(), title: text("title").notNull(), description: text("description").notNull().default(""), status: text("status").notNull(),
+  assignee: text("assignee").notNull().default(""), dueAt: text("due_at"), sourceUrl: text("source_url"), callId: text("call_id"), syncedAt: text("synced_at").notNull(),
+});
+export const taskExports = sqliteTable("task_exports", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(), callId: text("call_id").notNull(),
+  actionId: text("action_id").notNull(), title: text("title").notNull(), status: text("status").notNull().default("queued"), externalId: text("external_id"), sourceUrl: text("source_url"),
+  attempt: integer("attempt").notNull().default(0), lastError: text("last_error"), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});

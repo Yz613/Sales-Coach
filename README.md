@@ -91,10 +91,13 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
 
-The **Admin → Integrations** library has ten clickable tool cards: Fathom, Fireflies, tl;dv, Gong, Close, HubSpot, Pipedrive, Attio, Zapier, and Make. Each opens its own connection guide. Fathom automatically registers a signed content-ready feed on public HTTPS deployments. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Fireflies supports signed transcript/summary events, and Zapier/Make can push completed call transcripts. Call and deal lists refresh automatically. Credentials are encrypted per workspace.
+The **Admin → Integrations** library has twenty-six tool cards: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, HubSpot, Pipedrive, Attio, Calendly, Google Calendar, Outlook Calendar, Slack, Discord, Zapier, Make, Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, and GitLab. Each opens its own connection guide. Fathom automatically registers a signed content-ready feed on public HTTPS deployments. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Fireflies supports signed transcript/summary events, and Zapier/Make can push completed call transcripts. Aircall registers authenticated transcript/summary events and imports completed transcripts. Calendly, Google Calendar and Outlook Calendar add meeting schedules, invitees and cancellations; Google/Microsoft use OAuth with automatic token refresh. Slack and Discord send opt-in reviewed-call, clip and low-score alerts. Task tools sync a selected destination and create individual coaching follow-ups on request, with a delivery record to prevent automatic duplicate sends after ambiguous outcomes. Call, deal, task and meeting lists refresh automatically. Credentials are encrypted per workspace.
 
 For local background sync, run `npm run worker` in a second terminal. Docker Compose starts both services. Hosted installations need an explicit encryption key; Cloudflare cron also needs its job-runner secret and public origin.
 
+- [Step-by-step Slack, calendar and Aircall setup with verification and troubleshooting](docs/INTEGRATION_SETUP.md)
+- [Step-by-step setup for Asana and the ten other new connectors](docs/TASK_INTEGRATIONS.md)
+- [Stress tests, regression checks and live-account acceptance](docs/INTEGRATION_TESTING.md)
 - [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
 - [Integration library, API access, costs and roadmap](docs/INTEGRATIONS.md)
 

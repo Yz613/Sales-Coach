@@ -11,9 +11,28 @@ import { providerRequest } from './src/lib/integrations/http';
 import { encryptCredentials, decryptCredentials } from './src/lib/revenue/security';
 import { pingProvider } from './src/lib/ai/llm';
 import { transcribeAudio } from './src/lib/ai/transcribe';
-export default { async fetch(request) {
+import { REVENUE_MIGRATIONS } from './src/lib/db/revenueMigrations';
+import { externalTasks, taskExports } from './src/lib/db/schema';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, and } from 'drizzle-orm';
+export default { async fetch(request, env) {
   const url = new URL(request.url);
   try {
+    if (url.pathname === '/integration-schema') {
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS calls (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, created_at TEXT NOT NULL)').run();
+      await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
+      const database = drizzle(env.DB);
+      const now = new Date().toISOString();
+      const task = { id:'task-d1', orgId:'org_a', connectionId:'conn', provider:'asana', externalId:'1', title:'Follow up', status:'open', syncedAt:now };
+      await database.insert(externalTasks).values(task).onConflictDoNothing().run();
+      await database.insert(externalTasks).values({ ...task, title:'Updated follow-up' }).onConflictDoUpdate({ target:externalTasks.id, set:{ title:'Updated follow-up' } }).run();
+      await database.insert(taskExports).values({ id:'export-d1', orgId:'org_a', connectionId:'conn', callId:'call', actionId:'action', title:'Follow up', createdAt:now, updatedAt:now }).onConflictDoNothing().run();
+      const claims = await Promise.all(Array.from({ length:24 }, () => database.update(taskExports).set({ status:'sending' }).where(and(eq(taskExports.id,'export-d1'),eq(taskExports.orgId,'org_a'),eq(taskExports.status,'queued'))).returning({ id:taskExports.id }).all()));
+      await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
+      const tasks = await database.select().from(externalTasks).where(eq(externalTasks.orgId,'org_a')).all();
+      const other = await database.select().from(externalTasks).where(eq(externalTasks.orgId,'org_b')).all();
+      return Response.json({ count:tasks.length, title:tasks[0].title, claims:claims.flat().length, other:other.length });
+    }
     if (url.pathname === '/body') return Response.json(await (await boundedRequest(request, 1024)).json());
     if (url.pathname === '/credentials') {
       const sealed = encryptCredentials({ value: 'fixture-key' }, 'setting:t:org_a:ai_api_key');
@@ -51,6 +70,7 @@ before(async () => {
   });
   runtime = new Miniflare(convertV4MiniflareOptions({
     modules: true, script: bundle.outputFiles[0].text, compatibilityDate, compatibilityFlags,
+    d1Databases: ['DB'],
     bindings: { NODE_ENV: "production", INTEGRATION_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64") },
     outboundService: async request => {
       const url = new URL(request.url);
@@ -107,4 +127,10 @@ test("all AI key checks and supported transcription providers run in Workers", a
     assert.equal(response.status, 200, provider);
     assert.deepEqual(await response.json(), { transcribed: true });
   }
+});
+
+test("D1 integration migrations preserve task data and allow exactly one of 24 concurrent delivery claims", async () => {
+  const response = await runtime.dispatchFetch("http://localhost/integration-schema");
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(await response.json(), { count: 1, title: "Updated follow-up", claims: 1, other: 0 });
 });

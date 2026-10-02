@@ -101,8 +101,8 @@ export function getDb() {
   const path = require("path");
   const fs = require("fs");
   const dbPath = process.env.SALES_COACH_DB_PATH || path.resolve(process.cwd(), "sales_coach.db");
-  // `next dev` can inject an empty D1 binding. Prefer a seeded local file when it exists.
-  if (fs.existsSync(dbPath)) {
+  // An explicit local path must win even before the file exists; next dev can inject an empty D1 binding.
+  if (process.env.SALES_COACH_DB_PATH || fs.existsSync(dbPath)) {
     try {
       _db = initLocalSqlite();
       return _db;

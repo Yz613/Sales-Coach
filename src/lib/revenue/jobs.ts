@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, callMetadata, crmRecords, integrationConnections, processingJobs } from "../db/schema";
+import { calls, callMetadata, crmRecords, integrationConnections, processingJobs, scheduledMeetings, externalTasks } from "../db/schema";
 import { currentTenantId, runWithTenant } from "../tenant";
 import { getCallById } from "../db/service";
 import { evaluateCall } from "../ai/coach";
@@ -12,14 +12,21 @@ import { fathomPage, fathomRequest, normalizeFathomMeeting } from "../integratio
 import { hubspotPage, hubspotRequest, hubspotChangedRecord, crmRecordId } from "../integrations/hubspot";
 import { callProviderPage, fetchProviderCall, type CallProvider } from "../integrations/call-providers";
 import { crmProviderPage } from "../integrations/crm-providers";
-import { integrationTool, isCallTool } from "../integrations/catalog";
+import { integrationTool, isCallTool, isCalendarTool, isTaskTool } from "../integrations/catalog";
+import { taskProviderPage } from "../integrations/tasks";
+import { storeExternalTask, executeTaskExport, TaskDeliveryError } from "./tasks";
+import type { TaskProvider } from "./types";
+import { calendarProviderPage, fetchCalendlyMeeting, normalizeCalendlyEvent } from "../integrations/calendars";
+import { authorizedSecrets, OAuthReconnectError } from "../integrations/oauth";
+import { sendSlackJob } from "../integrations/slack";
+import { storeScheduledMeeting } from "./meetings";
 import { getConnection } from "./connections";
 import { importMeeting, importedCallId } from "./imports";
 import { relinkConversations } from "./crm";
 import { stableId, RevenueError } from "./security";
-import { parseJson, type ImportedMeeting, type SyncCursor } from "./types";
+import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider } from "./types";
 
-type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate";
+type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task";
 export async function enqueueJob(input: { kind: JobKind; connectionId?: string; callId?: string; payload?: unknown; key: string }) {
   await ensureRevenueSchema();
   const orgId = currentTenantId(); const id = stableId("job", orgId, input.kind, input.key); const now = new Date().toISOString();
@@ -64,6 +71,14 @@ async function executeJob(job: any) {
     return { evaluated: call.id };
   }
   const connection = await getConnection(job.connectionId);
+  if (job.kind === "notify-slack") return sendSlackJob(connection, job);
+  if (job.kind === "export-task") return executeTaskExport(connection, parseJson<{ exportId: string }>(job.payload, {} as any).exportId);
+  if (isCalendarTool(connection.provider)) connection.secrets = await authorizedSecrets(connection);
+  if (job.kind === "calendar-event") {
+    if (connection.provider !== "calendly") throw new RevenueError("Invitee import needs a Calendly connection.");
+    const meeting = await fetchCalendlyMeeting(connection.secrets.token, parseJson<any>(job.payload, {}));
+    await getConnection(connection.id); await storeScheduledMeeting(connection, meeting); return { updated: 1 };
+  }
   if (job.kind === "crm-event") {
     if (connection.provider !== "hubspot") throw new RevenueError("CRM event needs a HubSpot connection.");
     const { objects } = parseJson<{ objects: { index: number; objectId: string }[] }>(job.payload, { objects: [] });
@@ -86,7 +101,7 @@ async function executeJob(job: any) {
     await relinkConversations(); return { updated: objects.length };
   }
   if (job.kind === "import" || job.kind === "transcript" || job.kind === "fetch-call") {
-    let meeting: ImportedMeeting;
+    let meeting: ImportedMeeting | null;
     if (job.kind === "transcript") {
       if (connection.provider !== "fathom") throw new RevenueError("Transcript job needs a Fathom connection.");
       const raw = parseJson<any>(job.payload, {});
@@ -95,6 +110,7 @@ async function executeJob(job: any) {
       meeting = normalizeFathomMeeting({ ...raw, transcript: response.transcript });
     } else if (job.kind === "fetch-call") meeting = await fetchProviderCall(connection.provider as CallProvider, connection.secrets, parseJson<any>(job.payload, {}));
     else meeting = parseJson<ImportedMeeting>(job.payload, {} as ImportedMeeting);
+    if (!meeting) return { skipped: "Transcript is not available yet. A live event or later sync can import it." };
     // A disconnect during the provider request revokes the pending import too.
     await getConnection(connection.id);
     const result = await importMeeting(connection, meeting);
@@ -104,7 +120,26 @@ async function executeJob(job: any) {
   const state = parseJson<SyncCursor>(job.payload, {});
   await db.update(integrationConnections).set({ status: "syncing", lastError: null }).where(and(eq(integrationConnections.id, connection.id), eq(integrationConnections.orgId, job.orgId), ne(integrationConnections.status, "disconnected"))).run();
   let next: SyncCursor; let count = 0; let skipped = 0;
-  if (["hubspot", "pipedrive", "attio"].includes(connection.provider)) {
+  if (isTaskTool(connection.provider)) {
+    const page = await taskProviderPage(connection.provider as TaskProvider, connection.secrets, state);
+    await getConnection(connection.id);
+    for (const task of page.tasks) await storeExternalTask(connection, task);
+    count = page.tasks.length; next = page.next;
+    if (next.complete && state.syncStartedAt) await db.update(externalTasks).set({ status: "archived" }).where(and(eq(externalTasks.orgId, job.orgId), eq(externalTasks.connectionId, connection.id), lt(externalTasks.syncedAt, state.syncStartedAt))).run();
+  } else if (isCalendarTool(connection.provider)) {
+    const page = await calendarProviderPage(connection.provider as CalendarProvider, connection.secrets.token, connection.config, state);
+    await getConnection(connection.id);
+    for (const meeting of page.meetings) await storeScheduledMeeting(connection, meeting);
+    for (const raw of page.deferred) {
+      await storeScheduledMeeting(connection, normalizeCalendlyEvent(raw), true);
+      await enqueueJob({ kind: "calendar-event", connectionId: connection.id, payload: raw, key: `${job.id}:${raw.uri}` });
+    }
+    count = page.meetings.length + page.deferred.length; next = page.next;
+    if (next.complete && state.syncStartedAt) {
+      await db.update(scheduledMeetings).set({ status: "cancelled" }).where(and(eq(scheduledMeetings.orgId, job.orgId), eq(scheduledMeetings.connectionId, connection.id),
+        sql`${scheduledMeetings.startAt} >= ${next.windowStart}`, sql`${scheduledMeetings.startAt} <= ${next.windowEnd}`, lt(scheduledMeetings.syncedAt, state.syncStartedAt))).run();
+    }
+  } else if (["hubspot", "pipedrive", "attio"].includes(connection.provider)) {
     const page = connection.provider === "hubspot" ? await hubspotPage(connection.secrets.token, state, job.orgId, connection.id)
       : await crmProviderPage(connection.provider as "pipedrive" | "attio", connection.secrets.token, state, job.orgId, connection.id);
     await getConnection(connection.id);
@@ -137,13 +172,19 @@ async function executeJob(job: any) {
     const ids = page.deferred.map(raw => importedCallId(job.orgId, connection.id, String(raw.id)));
     const existing = ids.length && !state.full ? await db.select({ callId: callMetadata.callId, summary: callMetadata.summary }).from(callMetadata)
       .where(and(eq(callMetadata.orgId, job.orgId), inArray(callMetadata.callId, ids))).all() : [];
-    const complete = new Set(existing.filter((meta: { summary: string }) => connection.provider !== "fireflies" || meta.summary).map((meta: { callId: string }) => meta.callId));
+    const complete = new Set(existing.filter((meta: { summary: string }) => !["fireflies", "aircall"].includes(connection.provider) || meta.summary).map((meta: { callId: string }) => meta.callId));
     // Do not repeatedly spend API requests fetching transcripts already imported in the overlap window.
     for (const raw of page.deferred) {
       if (complete.has(importedCallId(job.orgId, connection.id, String(raw.id)))) { skipped++; continue; }
       await enqueueJob({ kind: "fetch-call", connectionId: connection.id, payload: raw, key: `${job.id}:${raw.id}` }); count++;
     }
     next = page.next;
+  }
+  // Bound every adapter, including legacy APIs, before scheduling another page.
+  next.pageCount = (state.pageCount || 0) + 1;
+  const kindAdvanced = Number.isInteger(next.kind) && next.kind !== (state.kind || 0);
+  if (!next.complete && (next.pageCount >= 1000 || (!kindAdvanced && typeof next.after !== "string") || (next.after?.length || 0) > 8192 || (!kindAdvanced && next.after === state.after))) {
+    throw new RevenueError("Sync pagination repeated a cursor or exceeded 1,000 pages. Narrow the source and retry.");
   }
   await db.update(integrationConnections).set({ cursor: JSON.stringify(next), status: next.complete ? "connected" : "syncing",
     ...(next.complete ? { lastSyncedAt: state.syncStartedAt || new Date().toISOString() } : {}), updatedAt: new Date().toISOString() }).where(and(eq(integrationConnections.id, connection.id), eq(integrationConnections.orgId, job.orgId), ne(integrationConnections.status, "disconnected"))).run();
@@ -172,7 +213,7 @@ export async function processJobs(orgId?: string, limit = 2, jobIds?: string[]) 
       await db.update(processingJobs).set({ status: "completed", result: JSON.stringify(result), payload: "{}", leaseToken: null, leaseUntil: null, lastError: null, updatedAt: new Date().toISOString() }).where(and(eq(processingJobs.id, job.id), eq(processingJobs.leaseToken, token))).run();
       outcomes.push({ id: job.id, status: "completed" });
     } catch (err) {
-      const permanent = (err instanceof ProviderError && [401, 403, 404].includes(err.providerStatus) && !(job.kind === "fetch-call" && err.providerStatus === 404)) || (err as any)?.status === 402;
+      const permanent = err instanceof OAuthReconnectError || err instanceof TaskDeliveryError || (err instanceof ProviderError && [400, 401, 403, 404, 422].includes(err.providerStatus) && !(job.kind === "fetch-call" && err.providerStatus === 404)) || (err as any)?.status === 402;
       const failed = permanent || job.attempts >= 5;
       const message = err instanceof RevenueError || (err as any)?.code === "QUOTA_EXCEEDED" || (err as any)?.code === "PAYMENT_REQUIRED" ? (err as Error).message : "Processing failed. Retry the job or check server diagnostics.";
       const delay = err instanceof ProviderError ? Math.max(err.retryAfterSeconds, 30 * 2 ** job.attempts) : 30 * 2 ** job.attempts;

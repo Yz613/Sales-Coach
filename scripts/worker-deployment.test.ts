@@ -47,9 +47,9 @@ test("deployment verification rejects broken payment links even when an invalid 
   assert.deepEqual(checkoutPlans, ["coach", "team"]);
 });
 
-function syncFixture(publicKey?: string) {
+function syncFixture(publicKey?: string, optionalSecrets: Record<string, string> = {}) {
   const uploaded: string[] = [];
-  const processFixture = { cwd: () => "/fixture", env: publicKey ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publicKey } : {}, exitCode: 0, exit: () => { throw new Error("Unexpected process exit"); } };
+  const processFixture = { cwd: () => "/fixture", env: { ...optionalSecrets, ...(publicKey ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publicKey } : {}) }, exitCode: 0, exit: () => { throw new Error("Unexpected process exit"); } };
   vm.runInNewContext(fs.readFileSync(require.resolve("./sync-worker-secrets.cjs"), "utf8"), {
     process: processFixture,
     console: { log() {}, warn() {}, error() {} },
@@ -66,6 +66,17 @@ test("deployment requires the public key without uploading a conflicting secret"
   assert.equal(syncFixture("pk_live_fixture").uploaded.includes("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"), false);
   assert.equal(syncFixture("pk_live_fixture").exitCode, 0);
   assert.equal(syncFixture().exitCode, 1);
+});
+
+test("deployment forwards configured calendar credentials and keeps unused calendars optional", () => {
+  const credentials = Object.fromEntries(["GOOGLE_CALENDAR", "MICROSOFT_CALENDAR", "CALENDLY"].flatMap(prefix =>
+    ["CLIENT_ID", "CLIENT_SECRET"].map(suffix => [`${prefix}_${suffix}`, "fixture-value"])));
+  const result = syncFixture("pk_live_fixture", credentials);
+  assert.equal(result.exitCode, 0);
+  assert.deepEqual(result.uploaded.sort(), Object.keys(credentials).sort());
+  assert.equal(syncFixture("pk_live_fixture").exitCode, 0);
+  const workflow = fs.readFileSync(require.resolve("../.github/workflows/deploy.yml"), "utf8");
+  for (const name of Object.keys(credentials)) assert.ok(workflow.includes(name + ": ${{ secrets." + name + " }}"));
 });
 
 function configurationFixture(initial: string) {

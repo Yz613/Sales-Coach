@@ -15,6 +15,11 @@ const SECRET_NAMES = [
   "PUBLIC_APP_URL",
   "BILLING_EXEMPT_ORG_IDS",
 ];
+const OPTIONAL_SECRET_NAMES = [
+  "GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET",
+  "MICROSOFT_CALENDAR_CLIENT_ID", "MICROSOFT_CALENDAR_CLIENT_SECRET",
+  "CALENDLY_CLIENT_ID", "CALENDLY_CLIENT_SECRET",
+];
 
 function wrangler(args, input) {
   return execFileSync("npx", ["wrangler", ...args], {
@@ -54,7 +59,7 @@ let synced = 0;
 // configure-worker-security.cjs binds the public key through Wrangler vars.
 let missing = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ? [] : ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
 
-for (const name of SECRET_NAMES) {
+for (const name of [...SECRET_NAMES, ...OPTIONAL_SECRET_NAMES]) {
   const value = (process.env[name] || "").trim();
   if (value) {
     putSecret(name, value);
@@ -67,8 +72,10 @@ for (const name of SECRET_NAMES) {
     console.log(`${name} already present on the worker`);
     continue;
   }
-  missing.push(name);
-  console.log(`${name} is not in GitHub Actions secrets and not on the worker`);
+  if (SECRET_NAMES.includes(name)) {
+    missing.push(name);
+    console.log(`${name} is not in GitHub Actions secrets and not on the worker`);
+  }
 }
 
 if (missing.includes("STRIPE_SECRET_KEY")) {

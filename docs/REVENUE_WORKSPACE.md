@@ -8,7 +8,7 @@
 - Coaching library: saved call ranges organized into named collections, with the same access rules as their source calls.
 - Topics: configurable keyword/phrase trackers, speaker filters and timestamped matches. Speaker activity reports transcript word share and questions.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
-- Integrations: ten logo cards with individual connection guides; five native call connectors (Fathom, Fireflies, tl;dv, Gong, Close), three CRM connectors (HubSpot, Pipedrive, Attio), and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
+- Integrations: twenty-six tool cards with individual connection guides; six native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
 - Data management: workspace retention settings, manual purge, permanent local deletion, import tombstones, JSON/VTT/SRT exports and an audit log.
 - Storage: tenant-scoped local recordings or Cloudflare R2. Existing uploads and evaluations remain available.
@@ -27,7 +27,7 @@ Open http://localhost:3000/app. Start a second terminal for scheduled imports an
 
     npm run worker
 
-The app processes a few jobs after a connect, sync or webhook request. The worker is needed to finish larger imports and keep syncing while nobody is using the app. It checks for eligible syncs every minute, polls jobs every three seconds, and schedules automatic sync every five minutes for Fathom/HubSpot, hourly for Fireflies, and every 15 minutes for tl;dv/Gong/Close/Pipedrive/Attio. Zapier and Make receive incoming calls and do not poll. One run is available with npm run worker:once.
+The app processes a few jobs after a connect, sync or webhook request. The worker is needed to finish larger imports and keep syncing while nobody is using the app. It checks for eligible syncs every minute, polls jobs every three seconds, and schedules automatic sync every five minutes for Fathom/HubSpot, hourly for Fireflies, and every 15 minutes for tl;dv/Gong/Close/Aircall/Pipedrive/Attio/Calendly/Google Calendar/Outlook Calendar. Slack has outgoing alert jobs and does not poll. Zapier and Make receive incoming calls and do not poll. One run is available with npm run worker:once.
 
 SQLite creates the new tables automatically. The default database is sales_coach.db; SALES_COACH_DB_PATH overrides it. Tests use isolated temporary databases.
 
@@ -74,6 +74,20 @@ Existing legacy private-app tokens also work. Service keys are the preferred new
 A Fathom key inherits its user's visibility; an administrator key does not automatically expose every unshared recording. Downloads may have narrower recording permissions and return 403 even when transcript data is accessible. Refresh a recording when its signed URL expires. The app does not copy Fathom recording files into local storage.
 
 Native call periodic sync uses a 24-hour overlap around the last successful sync. Full sync is available for historical backfill or delayed older meetings. The webhook and polling paths deduplicate on connection plus recording ID. Separate connections can import the same recording twice; use one connection per intended meeting set.
+
+### Scheduling and coaching alerts
+
+- **Slack:** connect a customer-provided incoming webhook URL for a fixed channel. No message is sent on connect. Enable reviewed-call summaries, coaching clips, or low script adherence scores in the connection settings; the threshold defaults to below 5/10. Send test message is an explicit action. Alerts use durable jobs, respect disabled preferences and disconnection, and retry failures. Messages contain summaries and links rather than transcripts; shared Slack channels can see the summaries. Delivery is at least once: a crash after Slack accepts a message may cause a retry. Set PUBLIC_APP_URL to include links to calls.
+- **Calendly:** personal access token for a customer's own account, or OAuth for public distribution. Imports scheduled events, active invitees, and event cancellations from the authenticated user's schedule. User and scheduled-event read scopes are required. Polls every 15 minutes; Calendly webhook registration is not part of this release.
+- **Google Calendar:** sign in with Google and allow calendar read access. Imports the authenticated account's primary calendar, including recurring instances. The operator must first configure a Google OAuth application and enable the Calendar API.
+- **Outlook Calendar:** sign in with Microsoft and allow delegated User.Read, Calendars.Read and offline_access permissions. Imports the default calendar, including recurring instances, using calendarView in UTC. Tenant administrator consent may apply. The registered Microsoft application must support the intended account types.
+- **Aircall:** API ID and token using Basic authentication. Imports completed transcripts, speaker timestamps, summaries and available recording links. Aircall AI Assist/AI Assist Pro is required for transcript access. Public HTTPS installations automatically register transcription.created and summary.created events; incoming events authenticate with Aircall's webhook token. Polling picks up newly completed calls with a 24-hour overlap. Calls without a transcript are skipped until a ready event, another overlap sync, or a manual history import. Aircall exposes only six months of call history and a 10,000-record pagination cap; larger archives require vendor export.
+
+Calendar data is stored separately from calls. It never produces an evaluation without a transcript. Each connection shows upcoming and past meetings, including cancellations and CRM contacts matched by email. Conversation details show meetings within two hours of the call start that share an external attendee email. Internal rep email alone does not create a match. Matching remains workspace scoped. Scheduling sync uses complete, paginated snapshots over the last 180 days and next 90 days; Import history extends the past window to 730 days. After a successful snapshot, missing events inside its date window are marked cancelled. Failed snapshots do not reconcile deletions. These connectors use polling rather than push subscriptions or incremental tokens.
+
+OAuth state is encrypted, expires after ten minutes, and is consumed once. It is bound to the initiating admin, workspace and browser cookie. All three OAuth providers use PKCE. Access/refresh tokens are encrypted per connection and refreshed automatically; database leases coordinate refresh across workers, and preference changes preserve rotated tokens. Reconnect after consent revocation. Disconnect deletes local credentials and stops access. To remove consent at the vendor as well, revoke the application in the provider's account settings. Imported scheduling context remains in the workspace after disconnect. Google/Outlook import timed meetings and exclude all-day entries.
+
+[Step-by-step setup, live verification and troubleshooting for Slack, Calendly, Google Calendar, Outlook Calendar and Aircall](INTEGRATION_SETUP.md).
 
 ### Other tools
 
@@ -123,10 +137,18 @@ Remaining major Gong capabilities include independent meeting recording bots, un
 
 ## Verification
 
-The automated suite covers provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention and deletion. Existing regression tests and production/type builds should be run before release:
+The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention and deletion. Existing regression tests and production/type builds should be run before release:
 
     npm test
     npx tsc --noEmit
     npm run build
 
 The main test command uses a fresh temporary SQLite database and removes it afterward. Provider responses are mocked in automated tests. Real account authentication, entitlements, recording permissions and webhook delivery must be checked with the user's own vendor credentials. No external vendor account was connected during implementation.
+
+## Task follow-ups and Discord
+
+Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub and GitLab import tasks from one selected destination. Administrators can select an open coaching action item in the connection screen and explicitly send it as a new task. Delivery records and source-call links remain visible there. Status refreshes from the source; it does not complete the local coaching action. Failed snapshots preserve existing data. Uncertain create outcomes require checking the destination before retrying.
+
+Discord uses a channel webhook for opt-in reviewed-call, clip and low-score alerts, with mentions disabled. Its test button sends a real message.
+
+[Full setup and verification](TASK_INTEGRATIONS.md). [Stress test coverage](INTEGRATION_TESTING.md).

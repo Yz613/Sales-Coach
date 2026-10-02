@@ -11,6 +11,8 @@ import { importedCallId } from "../revenue/imports";
 import { fathomRequest, normalizeFathomMeeting, verifyFathomWebhook } from "./fathom";
 import { hubspotRequest } from "./hubspot";
 import { normalizeAutomationMeeting } from "./meeting";
+import { aircallRequest } from "./aircall";
+import { ProviderError } from "./http";
 
 export function feedUrl(provider: string, id: string, requestOrigin?: string): string {
   const origin = safeExternalUrl(runtimeSecret("PUBLIC_APP_URL") || requestOrigin);
@@ -20,7 +22,7 @@ export function feedUrl(provider: string, id: string, requestOrigin?: string): s
 
 export async function enableLiveFeed(id: string, actor: string, origin?: string, secret?: unknown) {
   const connection = await getConnection(id); const provider = connection.provider;
-  if (!["fathom", "hubspot", "fireflies", "zapier", "make"].includes(provider)) throw new RevenueError("This tool uses automatic sync.");
+  if (!["fathom", "hubspot", "fireflies", "zapier", "make", "aircall"].includes(provider)) throw new RevenueError("This tool uses automatic sync.");
   const url = feedUrl(provider, id, origin);
   let secrets = connection.secrets; let config = { ...connection.config, webhookUrl: url, webhookError: undefined };
   if (provider === "fathom") {
@@ -29,6 +31,18 @@ export async function enableLiveFeed(id: string, actor: string, origin?: string,
       if (!hook.id || !hook.secret?.startsWith("whsec_")) throw new RevenueError("Fathom returned an invalid live feed configuration.", 502);
       secrets = { ...secrets, webhookSecret: hook.secret }; config.webhookId = String(hook.id);
     }
+  } else if (provider === "aircall") {
+    const events = ["transcription.created", "summary.created"]; let hook: any;
+    if (config.webhookId) {
+      try { hook = (await aircallRequest<any>(secrets, `/webhooks/${encodeURIComponent(config.webhookId)}`)).webhook; }
+      catch (error) { if (!(error instanceof ProviderError) || error.providerStatus !== 404) throw error; }
+      if (hook && (!hook.active || hook.url !== url || events.some(event => !hook.events?.includes(event)))) {
+        hook = (await aircallRequest<any>(secrets, `/webhooks/${encodeURIComponent(config.webhookId)}`, { method: "PUT", body: JSON.stringify({ url, events, active: true }) })).webhook;
+      }
+    }
+    if (!hook) hook = (await aircallRequest<any>(secrets, "/webhooks", { method: "POST", body: JSON.stringify({ custom_name: "Sales Coach", url, events }) })).webhook;
+    if (!hook?.webhook_id || !hook.token) throw new RevenueError("Aircall returned an invalid live feed configuration.", 502);
+    secrets = { ...secrets, webhookSecret: String(hook.token) }; config.webhookId = String(hook.webhook_id);
   } else if (provider === "hubspot") {
     const webhookSecret = secret ? textInput(secret, "HubSpot app client secret", 4096) : secrets.webhookSecret;
     if (!webhookSecret) throw new RevenueError("Enter your HubSpot app’s client secret to enable signed live events. Service keys support automatic sync only.");
@@ -83,9 +97,12 @@ export async function acceptLiveWebhook(provider: string, id: string, headers: H
   if (!row || row.status === "disconnected" || row.provider !== provider) throw new RevenueError("Live feed not found.", 404);
   return runWithTenant(row.orgId, async () => {
     const connection = await getConnection(id); const secret = connection.secrets.webhookSecret || "";
+    let aircallData: any;
+    if (provider === "aircall") { try { aircallData = JSON.parse(raw); } catch { throw new RevenueError("Invalid live feed JSON."); } }
     const valid = provider === "fathom" ? verifyFathomWebhook(secret, headers, raw)
       : provider === "hubspot" ? verifyHubspotWebhook(secret, headers, raw, connection.config.webhookUrl || requestUrl)
       : provider === "fireflies" ? verifyFirefliesWebhook(secret, headers, raw)
+      : provider === "aircall" ? Boolean(secret) && secureEqual(secret, String(aircallData?.token || ""))
       : ["zapier", "make"].includes(provider) && secureEqual(`Bearer ${secret}`, headers.get("authorization") || "") && Boolean(secret);
     if (!valid) throw new RevenueError("Invalid live feed signature or access token.", 401);
     let data; try { data = JSON.parse(raw); } catch { throw new RevenueError("Invalid live feed JSON."); }
@@ -95,6 +112,13 @@ export async function acceptLiveWebhook(provider: string, id: string, headers: H
       // Give every changed record its own lease and retry budget; a 100-event batch stays bounded.
       for (const object of objects) jobIds.push(await enqueueJob({ kind: "crm-event", connectionId: id, payload: { objects: [object] }, key: `${key}:${object.index}:${object.objectId}` }));
       jobId = jobIds[0];
+    } else if (provider === "aircall") {
+      if (["transcription.created", "summary.created"].includes(data.event)) {
+        const externalId = String(data.data?.call_id || "");
+        if (!/^\d+$/.test(externalId)) throw new RevenueError("Aircall call ID is missing.");
+        // Never persist the webhook authentication token in a processing job.
+        jobId = await enqueueJob({ kind: "fetch-call", connectionId: id, payload: { id: externalId }, key });
+      }
     } else if (provider === "fireflies") {
       if (["meeting.transcribed", "meeting.summarized"].includes(data.event)) {
         const externalId = textInput(data.meeting_id, "Fireflies meeting ID", 200);
