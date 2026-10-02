@@ -34,12 +34,14 @@ import {
 } from "@/lib/marketing";
 import { toAppPath } from "@/lib/public-path";
 import CheckoutNotice from "@/components/CheckoutNotice";
+import GongCostCalculator from "@/components/GongCostCalculator";
 
 const COMPANY_MARK_SRC = toAppPath("/refresh-queue-mark.svg");
 
 const navLinks = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
+  { label: "vs Gong", href: "#compare-gong" },
   { label: "Pricing", href: "#pricing" },
   { label: "GitHub", href: GITHUB_REPO_URL, external: true },
 ];
@@ -350,6 +352,9 @@ export default function MarketingLanding() {
                   Self-host free
                 </a>
               </div>
+              <a href="#compare-gong" className="mt-4 inline-flex text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
+                Compare cost vs Gong
+              </a>
               <p className="mt-5 text-xs font-medium text-[#86868b] tracking-wide">
                 Open source · MIT · Self-host with your own keys, or use a hosted plan
               </p>
@@ -503,7 +508,10 @@ export default function MarketingLanding() {
             <p className="text-[13px] font-medium text-[#007AFF]">Pricing</p>
             <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">Free to run. Priced to host.</h2>
             <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
-              Open source is the full product on your machine. Hosted plans are that same app, with managed uptime and a monthly evaluation quota.
+              Open source is the full product on your machine. Hosted plans are that same app, with managed uptime and a monthly evaluation quota.{" "}
+              <a href="#compare-gong" className="font-semibold text-[#0071E3] hover:text-[#0077ED]">
+                Compare either one to a Gong quote.
+              </a>
             </p>
           </div>
           <CheckoutNotice />
@@ -518,6 +526,23 @@ export default function MarketingLanding() {
           <p className="mt-3 text-center text-xs text-[#86868b]">
             Hosted Coach and Hosted Team start with card payments. Create your account after payment. Enterprise is custom.
           </p>
+
+          <section id="compare-gong" className="scroll-mt-24 mt-16 text-left">
+            <div className="max-w-2xl">
+              <p className="text-[13px] font-medium text-[#007AFF]">Compare to Gong</p>
+              <h2 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-[-0.025em] leading-[1.1] text-[#1d1d1f]">
+                Price a Gong quote against Sales Coach.
+              </h2>
+              <p className="mt-3 text-[#6e6e73] text-sm sm:text-base leading-relaxed">
+                Gong is usually a seat license plus a platform fee. Hosted Sales Coach is a monthly plan plus overage.
+                Self-host is $0 for the product, and you pay model usage. A 10-rep team at about 20 calls a month
+                starts far below the default Gong estimate on both hosted and self-host. Set the controls to your quote.
+              </p>
+            </div>
+            <div className="mt-8">
+              <GongCostCalculator />
+            </div>
+          </section>
 
           <div className="mt-10 max-w-2xl mx-auto space-y-2">
             {PRICING_FAQS.map((item, index) => {
