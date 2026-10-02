@@ -125,6 +125,27 @@ describe("integration request delivery", () => {
     if ("error" in failed.body) assert.doesNotMatch(failed.body.error, /Resend/);
   });
 
+  it("returns a clear error when rate-limit storage fails", async () => {
+    let sent = 0;
+    const result = await submitIntegrationRequest(valid, {
+      ip: "203.0.113.13",
+      env,
+      consumeLimit: async () => {
+        throw new Error("D1_ERROR: no such table: main.calls");
+      },
+      send: async () => {
+        sent += 1;
+        return { ok: true, id: "email_3" };
+      },
+    });
+    assert.equal(result.status, 422);
+    if ("error" in result.body) {
+      assert.match(result.body.error, /waitlist@refreshqueue.com/);
+      assert.doesNotMatch(result.body.error, /D1_ERROR|calls/);
+    }
+    assert.equal(sent, 0);
+  });
+
   it("rate limits before sending", async () => {
     let sent = 0;
     const result = await submitIntegrationRequest(valid, {

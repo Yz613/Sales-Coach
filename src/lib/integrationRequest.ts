@@ -135,7 +135,8 @@ export async function submitIntegrationRequest(
     if (err instanceof SecurityPolicyError && err.status === 429) {
       return { status: 429, body: { error: "Too many requests. Try again in a little while." } };
     }
-    throw err;
+    console.warn("integration request could not be rate limited");
+    return { status: 422, body: { error: DELIVERY_ERROR } };
   }
 
   if (parsed.honeypot) return { status: 200, body: { ok: true } };
