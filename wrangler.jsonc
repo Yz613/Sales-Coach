@@ -11,11 +11,13 @@
 	"workers_dev": true,
 	"triggers": { "crons": ["*/5 * * * *"] },
 	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers).
-	// Apex `/` and `/pricing` must reach this worker so the marketing landing is not a 404.
+	// Apex `/`, `/pricing`, and `/integrations` must reach this worker so marketing pages are not a 404.
 	"routes": [
 		{ "pattern": "refreshqueue.com", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/pricing", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/integrations", "zone_name": "refreshqueue.com" },
+		{ "pattern": "refreshqueue.com/integrations/", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" },
 		{ "pattern": "refreshqueue.com/calls", "zone_name": "refreshqueue.com" },

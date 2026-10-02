@@ -312,7 +312,7 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
    npm run deploy
    ```
 
-7. **Apex domain:** Point the zone apex (and `/pricing`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /` and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
+7. **Apex domain:** Point the zone apex (and `/pricing` and `/integrations`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /`, the integrations catalog at `GET /integrations`, and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
 
 The signed-in main menu at `/app/workspaces` lists only the current user's verified team memberships and shows which teams have access. Checkout includes **Back to main menu**, so selecting an unpaid team does not trap someone who already belongs to a paid team. Each selected team still passes the normal server and API access checks.
 
