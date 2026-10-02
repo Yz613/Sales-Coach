@@ -126,6 +126,12 @@ For local background sync, run `npm run worker` in a second terminal. Docker Com
 
 Integration checks cover provider contracts, all 26 logo assets, permissions and workspace isolation, retries, and duplicate delivery. The CRM stress test queues 3,000 duplicate requests for 300 exports across four workers and verifies exactly 300 notes. Native Workers/D1 tests check migrations, concurrent delivery claims, and outbound requests. Provider tests use simulated responses; live vendor acceptance requires account credentials and the controlled checks in the setup guides.
 
+## Gong Cost Comparison
+
+The public landing page's **vs Gong** calculator (`/#compare-gong`) compares a Gong quote with hosted Sales Coach plans or self-hosted model usage. Adjust reps, call volume, call duration, Gong seats, annual seat price, platform fee, and optional Forecast/Engage add-ons. Hosted mode includes plan allowances and overage, with automatic plan selection and Enterprise fair-use checks; self-hosted mode uses a selectable or custom cost per evaluation. Results show estimated monthly and annual costs and the difference between them.
+
+Gong defaults are editable estimates. Replace them with your actual quote, and set self-hosted usage rates to your provider costs; the calculator estimates product/model costs, not your complete infrastructure and operating budget.
+
 ## Team Revenue Goals
 
 Admins can use the dashboard’s **Team goals** card to plan revenue by quarter, month, or week. Use **Manage teams & reps** to name teams and assign existing reps. Each rep belongs to one goal team; unassigned reps do not affect team rates. These goal teams are groups inside the current workspace and share its admin permissions.
