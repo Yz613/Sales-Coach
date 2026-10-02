@@ -59,6 +59,7 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   if (normalized === "/api/billing/stripe-config" && (verb === "GET" || verb === "POST")) return true;
   if (["fathom", "stripe", "hubspot", "fireflies", "zapier", "make", "aircall"].some(provider => normalized === `/api/webhooks/${provider}`) && verb === "POST") return true;
   if (normalized === "/api/jobs/run" && verb === "POST") return true;
+  if (normalized === INTEGRATION_REQUEST_API_PATH && verb === "POST") return true;
   return false;
 }
 
@@ -76,6 +77,12 @@ export function isApexFaviconPath(pathname: string): boolean {
 
 /** Next route (after basePath) that renders the public marketing landing. */
 export const MARKETING_PAGE_PATH = "/marketing";
+
+/** Public integrations catalog. Apex `/integrations` rewrites here on the hosted site. */
+export const INTEGRATIONS_PAGE_PATH = "/integrations";
+
+/** Unauthenticated POST target for the public integration request form. */
+export const INTEGRATION_REQUEST_API_PATH = "/api/marketing/integration-request";
 
 export function isApexPricingPath(pathname: string): boolean {
   return pathname === "/pricing" || pathname === "/pricing/";
@@ -95,16 +102,21 @@ export function isCheckoutPath(pathname: string): boolean {
   return normalized === "/checkout" || normalized.startsWith("/checkout/");
 }
 
+export function isApexIntegrationsPath(pathname: string): boolean {
+  return pathname === INTEGRATIONS_PAGE_PATH || pathname === `${INTEGRATIONS_PAGE_PATH}/`;
+}
+
 export function isMarketingAppPath(pathname: string): boolean {
   const normalized = stripAppBasePath(pathname);
   return (
     normalized === MARKETING_PAGE_PATH ||
-    normalized.startsWith(`${MARKETING_PAGE_PATH}/`)
+    normalized.startsWith(`${MARKETING_PAGE_PATH}/`) ||
+    isApexIntegrationsPath(normalized)
   );
 }
 
 /**
- * True apex `/` (marketing) or the `/app/marketing` preview route.
+ * True apex `/` (marketing), `/integrations`, or the `/app/marketing` preview route.
  * Pass the full public URL pathname (`getPublicPath`), not `usePathname()`.
  * `/app` (the admin dashboard) must stay authenticated.
  */
@@ -167,6 +179,18 @@ export function getApexMarketingRewrite(requestUrl: string): string | null {
   const url = new URL(requestUrl);
   if (url.pathname !== "/" && url.pathname !== "") return null;
   const dest = new URL(toAppPath(MARKETING_PAGE_PATH), url.origin);
+  dest.search = url.search;
+  return dest.href;
+}
+
+/**
+ * Internal rewrite so apex `/integrations` serves the catalog without
+ * changing the browser URL to `/app/integrations`.
+ */
+export function getApexIntegrationsRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (!isApexIntegrationsPath(url.pathname)) return null;
+  const dest = new URL(toAppPath(INTEGRATIONS_PAGE_PATH), url.origin);
   dest.search = url.search;
   return dest.href;
 }

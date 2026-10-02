@@ -68,6 +68,18 @@ const nextConfig: NextConfig = {
         basePath: false,
       },
       {
+        source: "/integrations",
+        destination: `${APP_BASE_PATH}/integrations`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/integrations/",
+        destination: `${APP_BASE_PATH}/integrations`,
+        permanent: false,
+        basePath: false,
+      },
+      {
         source: "/__auth",
         destination: `${APP_BASE_PATH}/__auth`,
         permanent: false,

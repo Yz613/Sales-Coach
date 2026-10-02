@@ -11,6 +11,7 @@ export const GITHUB_REPO_URL = "https://github.com/Yz613/Sales-Coach";
 export const LICENSE_URL = "https://github.com/Yz613/Sales-Coach/blob/main/LICENSE";
 export const CONTACT_EMAIL = "hello@refreshqueue.com";
 export const CONTACT_MAILTO = `mailto:${CONTACT_EMAIL}`;
+export const INTEGRATION_REQUEST_EMAIL = "waitlist@refreshqueue.com";
 
 export type PricingCta = {
   label: string;

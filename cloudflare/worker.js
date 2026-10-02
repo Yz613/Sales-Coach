@@ -1,4 +1,4 @@
-import { getApexAliasRedirect, getApexMarketingRewrite } from "../src/lib/public-path";
+import { getApexAliasRedirect, getApexIntegrationsRewrite, getApexMarketingRewrite } from "../src/lib/public-path";
 import { isClerkProxyPath, forwardClerkProxyRequest } from "../src/lib/clerkProxy";
 import openNext, {
   DOQueueHandler,
@@ -27,6 +27,10 @@ export default {
     const marketing = getApexMarketingRewrite(request.url);
     if (marketing) {
       return openNext.fetch(new Request(marketing, request), env, ctx);
+    }
+    const integrations = getApexIntegrationsRewrite(request.url);
+    if (integrations) {
+      return openNext.fetch(new Request(integrations, request), env, ctx);
     }
     return openNext.fetch(request, env, ctx);
   },

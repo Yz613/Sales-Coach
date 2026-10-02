@@ -79,10 +79,20 @@ describe("hosted pricing", () => {
 
 describe("marketing landing copy", () => {
   it("sells coaching plus the revenue workspace without infra vendor names", () => {
-    const source = readFileSync(new URL("../components/MarketingLanding.tsx", import.meta.url), "utf8");
+    const source = [
+      readFileSync(new URL("../components/MarketingLanding.tsx", import.meta.url), "utf8"),
+      readFileSync(new URL("../components/MarketingShell.tsx", import.meta.url), "utf8"),
+      readFileSync(new URL("../components/IntegrationsMarketing.tsx", import.meta.url), "utf8"),
+      readFileSync(new URL("../components/IntegrationRequestForm.tsx", import.meta.url), "utf8"),
+      readFileSync(new URL("./publicIntegrations.ts", import.meta.url), "utf8"),
+    ].join("\n");
     const page = readFileSync(new URL("../app/marketing/page.tsx", import.meta.url), "utf8");
+    const integrationsPage = readFileSync(new URL("../app/integrations/page.tsx", import.meta.url), "utf8");
     assert.equal(source.match(VENDOR_NAME), null);
     assert.equal(page.match(VENDOR_NAME), null);
+    assert.equal(integrationsPage.match(VENDOR_NAME), null);
+    assert.match(source, /See all integrations/);
+    assert.match(source, /href="\/integrations"/);
     assert.match(source, /Open-source Gong alternative/);
     assert.match(source, /Searchable conversations/);
     assert.match(source, /Coaching clips and topics/);
