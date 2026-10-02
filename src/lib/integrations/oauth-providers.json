@@ -170,7 +170,7 @@
   },
   "github": {
     "label": "GitHub",
-    "prefix": "GITHUB",
+    "prefix": "GH_OAUTH",
     "authorize": "https://github.com/login/oauth/authorize",
     "tokenOrigin": "https://github.com",
     "tokenPath": "/login/oauth/access_token",
