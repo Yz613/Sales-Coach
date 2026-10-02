@@ -116,6 +116,17 @@ export const callMetadata = sqliteTable("call_metadata", {
   reviewedAt: text("reviewed_at"), reviewedBy: text("reviewed_by"), createdAt: text("created_at").notNull(),
 });
 
+export const callProviderInsights = sqliteTable("call_provider_insights", {
+  callId: text("call_id").primaryKey(), orgId: text("org_id").notNull(), data: text("data").notNull(),
+});
+
+export const integrationExports = sqliteTable("integration_exports", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(), callId: text("call_id").notNull(),
+  event: text("event").notNull(), targetId: text("target_id"), status: text("status").notNull().default("queued"),
+  externalId: text("external_id"), attempt: integer("attempt").notNull().default(0), lastError: text("last_error"),
+  createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
 export const conversationComments = sqliteTable("conversation_comments", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
   authorId: text("author_id").notNull(), authorName: text("author_name").notNull(), body: text("body").notNull(),

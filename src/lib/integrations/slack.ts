@@ -8,7 +8,7 @@ import { runtimeSecret } from "../revenue/runtime";
 import { parseJson, type ConnectionConfig } from "../revenue/types";
 import { ProviderError } from "./http";
 
-export type SlackEvent = "reviewed" | "clip" | "low-score" | "test";
+export type SlackEvent = "reviewed" | "clip" | "low-score" | "test" | "share";
 export function slackWebhook(value: string): URL {
   let url: URL; try { url = new URL(value); } catch { throw new RevenueError("Enter a valid Slack incoming webhook URL."); }
   if (url.protocol !== "https:" || !["hooks.slack.com", "hooks.slack-gov.com"].includes(url.hostname) || url.port || url.username || url.password || url.search || url.hash || !/^\/services\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+$/.test(url.pathname)) throw new RevenueError("Use an incoming webhook URL from Slack's app settings.");
@@ -25,9 +25,9 @@ export function slackPreferences(body: any, previous: Partial<ConnectionConfig> 
   return { notifyReviewed: body.notifyReviewed === true, notifyClips: body.notifyClips === true, notifyLowScore: body.notifyLowScore === true, lowScoreThreshold };
 }
 function enabled(config: ConnectionConfig, event: SlackEvent) {
-  return event === "test" || (event === "reviewed" ? config.notifyReviewed : event === "clip" ? config.notifyClips : config.notifyLowScore);
+  return event === "test" || event === "share" || (event === "reviewed" ? config.notifyReviewed : event === "clip" ? config.notifyClips : config.notifyLowScore);
 }
-export async function queueSlackAlerts(event: Exclude<SlackEvent, "test">, callId: string, eventId: string, clipId?: string) {
+export async function queueSlackAlerts(event: Exclude<SlackEvent, "test" | "share">, callId: string, eventId: string, clipId?: string) {
   await ensureRevenueSchema(); const orgId = currentTenantId();
   const connections = await db.select().from(integrationConnections).where(and(eq(integrationConnections.orgId, orgId), inArray(integrationConnections.provider, ["slack", "discord"]), inArray(integrationConnections.status, ["connected", "error"]))).all();
   if (!connections.length) return;
@@ -42,7 +42,7 @@ export async function queueSlackAlerts(event: Exclude<SlackEvent, "test">, callI
 export async function sendSlackJob(connection: { id: string; provider: string; config: ConnectionConfig; secrets: Record<string, string> }, job: { callId?: string; payload: string }) {
   if (!["slack", "discord"].includes(connection.provider)) throw new RevenueError("This alert needs a channel notification connection.");
   const { event, clipId } = parseJson<{ event: SlackEvent; clipId?: string }>(job.payload, {} as any);
-  if (!["reviewed", "clip", "low-score", "test"].includes(event)) throw new RevenueError("Unknown coaching alert.");
+  if (!["reviewed", "clip", "low-score", "test", "share"].includes(event)) throw new RevenueError("Unknown coaching alert.");
   if (!enabled(connection.config, event)) return { skipped: "This alert is disabled." };
   let title = "Sales Coach is connected"; let text = "Your coaching alerts can now arrive in this channel."; let href = "";
   if (event !== "test") {
@@ -51,11 +51,12 @@ export async function sendSlackJob(connection: { id: string; provider: string; c
     const meta = await db.select().from(callMetadata).where(and(eq(callMetadata.orgId, currentTenantId()), eq(callMetadata.callId, call.id))).get();
     if (event === "reviewed" && !meta?.reviewedAt) return { skipped: "Call is no longer reviewed." };
     if (event === "low-score" && (!call.evaluation || call.evaluation.sandlerBreakdown.scriptAdherence.score >= (connection.config.lowScoreThreshold || 5))) return { skipped: "The score no longer needs an alert." };
-    title = event === "reviewed" ? "Call reviewed" : event === "clip" ? "New coaching clip" : "Call needs coaching";
+    title = event === "share" ? clipId ? "Shared coaching clip" : "Shared call" : event === "reviewed" ? "Call reviewed" : event === "clip" ? "New coaching clip" : "Call needs coaching";
     text = `${meta?.title || call.prospectCompany || "Sales call"}\n${call.repName || "Sales Rep"}${call.evaluation ? ` · Script score ${call.evaluation.sandlerBreakdown.scriptAdherence.score}/10\n${call.evaluation.bottomLine.slice(0, 800)}` : ""}`;
+    if (event === "share" && meta?.summary) text += `\n${meta.summary.slice(0, 800)}`;
     const origin = runtimeSecret("PUBLIC_APP_URL");
     if (origin) href = new URL(`/app/calls/${encodeURIComponent(call.id)}`, origin).toString();
-    if (event === "clip") {
+    if (event === "clip" || event === "share" && clipId) {
       const clip = await db.select().from(conversationClips).where(and(eq(conversationClips.orgId, currentTenantId()), eq(conversationClips.id, clipId || ""), eq(conversationClips.callId, call.id))).get();
       if (!clip) return { skipped: "Clip was deleted." };
       text += `\n${clip.title} · ${clip.startSeconds}–${clip.endSeconds}s`;

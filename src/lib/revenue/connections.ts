@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
-import { auditEvents, integrationConnections, processingJobs } from "../db/schema";
+import { auditEvents, integrationConnections, processingJobs, integrationExports } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { decryptCredentials, encryptCredentials, RevenueError, textInput } from "./security";
 import { parseJson, type ConnectionConfig, type ProviderId, type SyncCursor } from "./types";
@@ -95,5 +95,6 @@ export async function disconnectIntegration(id: string, actor: string) {
   const orgId = currentTenantId(); const now = new Date().toISOString();
   await db.update(integrationConnections).set({ status: "disconnected", credentials: "", config: "{}", cursor: "{}", lastError: null, updatedAt: now }).where(and(eq(integrationConnections.id, id), eq(integrationConnections.orgId, orgId))).run();
   await db.update(processingJobs).set({ status: "cancelled", payload: "{}", leaseToken: null, leaseUntil: null, updatedAt: now }).where(and(eq(processingJobs.orgId, orgId), eq(processingJobs.connectionId, id), inArray(processingJobs.status, ["queued", "running", "failed"]))).run();
+  await db.update(integrationExports).set({ status: "cancelled", updatedAt: now }).where(and(eq(integrationExports.orgId, orgId), eq(integrationExports.connectionId, id), inArray(integrationExports.status, ["queued", "sending"]))).run();
   await audit(actor, "integration.disconnected", id);
 }

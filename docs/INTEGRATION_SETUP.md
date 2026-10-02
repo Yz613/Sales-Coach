@@ -1,5 +1,7 @@
 # Set up Slack, Calendly, Google Calendar, Outlook Calendar and Aircall
 
+For CRM call exports, outgoing Zapier/Make events, manual channel sharing, and Gong insights, see [call export setup](CALL_EXPORT_SETUP.md).
+
 For Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab and Discord, see [task and Discord setup](TASK_INTEGRATIONS.md).
 
 These five integrations are available under **Admin → Integrations** at `/app/admin/integrations`. Connect as a workspace administrator. Use one connection per intended account or feed to avoid duplicate imports across separate connections.

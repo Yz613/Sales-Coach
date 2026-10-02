@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { calls, callMetadata, crmRecords, deletedImports } from "../db/schema";
+import { calls, callMetadata, crmRecords, deletedImports, callProviderInsights } from "../db/schema";
 import { getOrCreateRep } from "../db/service";
 import { currentTenantId } from "../tenant";
 import { stableId } from "./security";
@@ -32,5 +32,11 @@ export async function importMeeting(connection: { id: string; provider?: string;
   if (!metadata.summary && previous?.summary) metadata.summary = previous.summary;
   await db.insert(callMetadata).values({ callId, orgId, ...metadata, createdAt: meeting.createdAt })
     .onConflictDoUpdate({ target: callMetadata.callId, set: metadata }).run();
+  if (meeting.providerInsights) await db.insert(callProviderInsights).values({ callId, orgId, data: JSON.stringify(meeting.providerInsights) })
+    .onConflictDoUpdate({ target: callProviderInsights.callId, set: { data: JSON.stringify(meeting.providerInsights) } }).run();
+  if (inserted.length) {
+    const { queueIntegrationEvents } = await import("./exports");
+    await queueIntegrationEvents("call.imported", callId, callId);
+  }
   return { callId, inserted: inserted.length > 0, deleted: false };
 }

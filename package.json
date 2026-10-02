@@ -9,7 +9,7 @@
     "start": "next start",
     "worker": "tsx scripts/integration-worker.ts",
     "worker:once": "tsx scripts/integration-worker.ts --once",
-    "test:revenue": "tsx --test src/lib/revenue/revenue.test.ts src/lib/integrations/integrations.test.ts src/lib/integrations/next-integrations.test.ts src/lib/integrations/task-integrations.test.ts",
+    "test:revenue": "tsx --test src/lib/revenue/revenue.test.ts src/lib/integrations/integrations.test.ts src/lib/integrations/next-integrations.test.ts src/lib/integrations/task-integrations.test.ts src/lib/integrations/gong-workflows.test.ts",
     "lint": "next lint",
     "test": "node scripts/test.cjs",
     "db:seed": "tsx src/lib/db/seed.ts",

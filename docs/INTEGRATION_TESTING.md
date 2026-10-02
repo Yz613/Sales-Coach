@@ -41,7 +41,7 @@ The revenue suite contains 34 scenarios, including the stress cases below. It bo
 
 ## Browser verification
 
-Checked the 26-card library, Tasks category filtering, all eleven new setup screens and required fields, and the connected Asana task workspace using an isolated seeded database. Confirmed open/completed task filters, action selection, disabled already-delivered actions, source-call links and uncertain-delivery guidance. No real provider creation or notification was triggered during browser checks.
+Checked all 26 loaded brand marks, Gong insight display, manual call/clip and linked-CRM destination controls, outgoing automation setup, CRM export opt-in, the 26-card library, Tasks category filtering, all eleven new setup screens and required fields, and the connected Asana task workspace using an isolated seeded database. Confirmed open/completed task filters, action selection, disabled already-delivered actions, source-call links and uncertain-delivery guidance. No real provider creation or notification was triggered during browser checks.
 
 ## Live-account acceptance
 
@@ -57,3 +57,18 @@ Use [task/Discord setup](TASK_INTEGRATIONS.md), [Slack/calendar/Aircall setup](I
 | Zapier/Make | Run an automation with a real completed transcript using the generated authenticated feed. Replay its source ID and confirm one call. |
 
 Only mark an account ready after its relevant acceptance checks succeed. Marketplace OAuth installations for the new token-based task connectors, enterprise/custom provider hosts, real account entitlements and live provider rate-limit endurance are outside this automated verification.
+
+
+## Gong benchmark workflows (October 2, 2026)
+
+- All 26 providers have a validated local brand asset; unsafe SVG scripting/external references are rejected by the asset completeness check.
+- Gong current content-selector contract, primary rep selection, millisecond transcript timing, stable Next Steps IDs, CRM references, private-call exclusion, and late insight refresh without extra transcript requests or loss of completed actions/reviews.
+- Nine CRM target associations (three record kinds across HubSpot/Pipedrive/Attio), markup escaping, and linked call URLs.
+- 300 CRM exports under 3,000 duplicate requests and four concurrent workers produce exactly 300 remote note creations.
+- Malformed acknowledgments and 503 responses stay uncertain until an admin confirms retry; 429 respects retry backoff, 403 fails without resending. Deletion, unlinking, disabled review export, and disconnection stop pending writes.
+- Reviewed-call exports prefer linked deals. Admin API guards reject members and other workspace records.
+- Zapier/Make opt-in and 100 duplicate event bursts; temporary retries retain the event ID and include summary, actions, CRM context, and protected call links without credentials/transcript bodies. Vendor-only HTTPS catch hooks reject private hosts, credentials, query strings, and foreign providers; redirects remain blocked.
+- Manual Slack/Discord shares work with automatic alerts off, include clip playback ranges, and retain plain Slack text / suppressed Discord mentions.
+- Native Workers/D1 smoke replays all migrations and confirms one of 24 concurrent claims for both task and call deliveries; Gong insight data survives migration replay.
+
+See [call export acceptance instructions](CALL_EXPORT_SETUP.md) and the [scope comparison with Gong](GONG_INTEGRATION_BENCHMARK.md). Real account acceptance remains a separate check requiring provider credentials.

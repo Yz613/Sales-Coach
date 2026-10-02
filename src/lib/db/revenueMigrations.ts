@@ -1,5 +1,12 @@
 /** Additive migrations shared by SQLite and D1. Existing call data stays intact. */
 export const REVENUE_MIGRATIONS = [
+  `CREATE TABLE IF NOT EXISTS call_provider_insights (call_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, data TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS integration_exports (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, call_id TEXT NOT NULL, event TEXT NOT NULL,
+    target_id TEXT, status TEXT NOT NULL DEFAULT 'queued', external_id TEXT, attempt INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_integration_exports_connection ON integration_exports(org_id, connection_id)`,
   `CREATE TABLE IF NOT EXISTS external_tasks (
     id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, provider TEXT NOT NULL,
     external_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
