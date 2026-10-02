@@ -44,6 +44,7 @@ graph TD
   - *Or use the built-in deterministic rubric engine for pasted transcripts with zero API keys.*
 - **📋 Deal Stages & Talk-Tracks:** Define customized rubrics, qualification criteria, and talking tracks per pipeline stage.
 - **👥 Rep Coaching Personas:** Track individual rep performance, identify repeat struggles vs. strengths, and auto-generate 1:1 manager talk tracks.
+- **🔗 26 Integrations:** Import completed calls, sync CRM and calendar context, create coaching follow-ups, share calls and clips, and send summaries to CRM records or Zapier/Make workflows. Every integration has a local brand logo and its own setup guide.
 - **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces. Each organization gets an isolated database partition (calls, transcripts, scripts, API keys). Hosted sign-up requires a paid plan before any workspace data is shown.
 - **🐳 Docker Ready:** Includes production-ready `Dockerfile` and `docker-compose.yml`.
 - **☁️ Cloudflare Workers Ready:** Preconfigured for edge deployment via OpenNext and Cloudflare D1.
@@ -91,15 +92,39 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
 
-The **Admin → Integrations** library has twenty-six tool cards: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, HubSpot, Pipedrive, Attio, Calendly, Google Calendar, Outlook Calendar, Slack, Discord, Zapier, Make, Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, and GitLab. Each opens its own connection guide. Fathom automatically registers a signed content-ready feed on public HTTPS deployments. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Fireflies supports signed transcript/summary events, and Zapier/Make can push completed call transcripts. Aircall registers authenticated transcript/summary events and imports completed transcripts. Calendly, Google Calendar and Outlook Calendar add meeting schedules, invitees and cancellations; Google/Microsoft use OAuth with automatic token refresh. Slack and Discord send opt-in reviewed-call, clip and low-score alerts. Task tools sync a selected destination and create individual coaching follow-ups on request, with a delivery record to prevent automatic duplicate sends after ambiguous outcomes. Call, deal, task and meeting lists refresh automatically. Credentials are encrypted per workspace.
+The **Admin → Integrations** library includes 26 tools. Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
+
+| Category | Tools |
+| --- | --- |
+| Call recording | Fathom, Fireflies, tl;dv, Gong, Close, Aircall |
+| CRM | HubSpot, Pipedrive, Attio |
+| Calendar | Calendly, Google Calendar, Outlook Calendar |
+| Team messaging | Slack, Discord |
+| Automation | Zapier, Make |
+| Tasks and coaching follow-ups | Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab |
+
+- **Call import:** Import completed transcripts, timestamps, participants, recording links, and available summaries/actions. Fathom registers a signed content-ready feed on public HTTPS deployments; Fireflies supports signed transcript/summary events; Aircall registers authenticated transcript/summary events. Zapier/Make can also push completed call transcripts.
+- **Gong insights:** Import briefs, key points, highlights, Next Steps, outlines, topics, tracker occurrences, outcomes, speaking time, interaction statistics, and question counts through Gong's current extensive API. Next Steps become timestamped action items. Late insights refresh without refetching transcripts or resetting completed actions and reviews; private calls are excluded.
+- **CRM context and exports:** Sync companies, contacts, deals, and associations. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Admins can export a call summary, available coaching score, next steps, and protected call link as a note on a linked HubSpot/Pipedrive/Attio record. Automatic export on manager review is opt-in.
+- **Call and clip sharing:** Admins can manually share full calls or saved clips through Slack/Discord channel webhooks. Reviewed-call, clip, and low-score alerts are separate opt-in settings. Call links follow workspace access permissions.
+- **Outgoing automation:** Send `call.imported`, `call.reviewed`, or manual `call.shared` events to a Zapier Catch Hook or Make Custom webhook. Catch URLs are encrypted. Payloads include summaries, action items, participants, CRM context, and available coaching results; transcript bodies and credentials are excluded. Receiving workflows must deduplicate by `eventId` before creating downstream records.
+- **Meeting context and follow-ups:** Calendars add schedules, invitees, cancellations, and conversation matching; Google/Microsoft use OAuth with automatic token refresh. Task tools sync a selected destination and create individual coaching follow-ups on request. Call, deal, task, and meeting lists refresh automatically.
+
+To send a call, open **Overview → Send to your tools** as an admin and choose a connected destination. CRM and automation delivery status appears under the integration's **Call exports**. CRM exports create one note per connection, call, and linked target. Rate limits retry automatically; uncertain outcomes require checking the destination and confirming absence before resending. Task exports also keep delivery records to prevent automatic duplicate sends after ambiguous outcomes. Credentials are encrypted per workspace.
+
+These connectors provide the workflows above. Automatic meeting recording, mailbox capture, arbitrary CRM field mapping, and Slack comment synchronization are not supported. See the [Gong capability comparison](docs/GONG_INTEGRATION_BENCHMARK.md) for the full scope and remaining differences.
 
 For local background sync, run `npm run worker` in a second terminal. Docker Compose starts both services. Hosted installations need an explicit encryption key; Cloudflare cron also needs its job-runner secret and public origin.
 
 - [Step-by-step Slack, calendar and Aircall setup with verification and troubleshooting](docs/INTEGRATION_SETUP.md)
-- [Step-by-step setup for Asana and the ten other new connectors](docs/TASK_INTEGRATIONS.md)
+- [Task integration and Discord setup, including Asana](docs/TASK_INTEGRATIONS.md)
+- [CRM exports, call/clip sharing, outgoing Zapier/Make events, and Gong insights setup](docs/CALL_EXPORT_SETUP.md)
+- [Gong capability comparison and delivery guarantees](docs/GONG_INTEGRATION_BENCHMARK.md)
 - [Stress tests, regression checks and live-account acceptance](docs/INTEGRATION_TESTING.md)
 - [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
 - [Integration library, API access, costs and roadmap](docs/INTEGRATIONS.md)
+
+Integration checks cover provider contracts, all 26 logo assets, permissions and workspace isolation, retries, and duplicate delivery. The CRM stress test queues 3,000 duplicate requests for 300 exports across four workers and verifies exactly 300 notes. Native Workers/D1 tests check migrations, concurrent delivery claims, and outbound requests. Provider tests use simulated responses; live vendor acceptance requires account credentials and the controlled checks in the setup guides.
 
 ## Team Revenue Goals
 
@@ -204,8 +229,10 @@ INVITE_PRODUCT_NAME="Refresh Queue"
 │   └── lib/
 │       ├── ai/                   # Multi-provider LLM callers, JSON extractors, STT
 │       ├── db/                   # Drizzle ORM schemas, SQLite / D1 adapters & seeders
+│       ├── integrations/         # Provider adapters, brand mapping & capability catalog
+│       ├── revenue/              # Conversations, sync jobs, tasks, exports & privacy controls
 │       └── auth.ts               # Local Standalone & Clerk multi-tenant RBAC logic
-├── public/                       # Public static assets
+├── public/                       # Public static assets, including all 26 integration logos
 ├── fixtures/                     # Private demo recordings
 ├── scripts/                      # Setup & audio synthesis utilities
 ├── schema.sql                    # Cloudflare D1 SQL schema
@@ -223,6 +250,7 @@ INVITE_PRODUCT_NAME="Refresh Queue"
 | `npm run dev` | Start the local development server |
 | `npm run build` | Compile Next.js production build |
 | `npm test` | Run the complete automated regression suite, including revenue integrations |
+| `npm run test:revenue` | Run conversation, integration, export, and duplicate-delivery checks |
 | `npm run worker` | Process integration jobs, scheduled sync and retention |
 | `npm run worker:once` | Run one background maintenance/job batch |
 | `npx tsc --noEmit` | Check TypeScript types |
