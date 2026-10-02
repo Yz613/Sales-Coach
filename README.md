@@ -92,6 +92,8 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
 
+**Deal execution and forecasting:** Open **Deals** to filter by CRM owner, forecast category, stage, or activity flags. Each deal has a manager review with a next step, due date, estimated win probability, and a MEDDICC qualification checklist. Attach exact transcript moments as supporting evidence and review buyer engagement, open call actions, and the conversation timeline. **Forecast** groups deals by calendar month or quarter, with separate currency totals for won, open, committed, upside, and weighted revenue. Submit a forecast with an optional single-currency target and notes; historical snapshots retain their original deal amounts and categories for comparison. These are manager-led forecasts, with no trained prediction or CRM field writeback. See [deal review and forecasting details](docs/DEAL_FORECASTING.md).
+
 The **Admin → Integrations** library includes 26 tools. Seventeen support a direct account sign-in button when their deployment credentials are configured. Task tools let you select a destination after sign-in; Slack and Discord select the channel during consent. See [One-click sign-in and deployment credentials](docs/ONE_CLICK_INTEGRATIONS.md). Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
 
 | Category | Tools |

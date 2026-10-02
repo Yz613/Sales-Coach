@@ -84,6 +84,7 @@ export default function Navigation() {
 
   const adminMenuItems: NavItem[] = [
     { label: "Deals", href: "/deals", icon: Briefcase },
+    { label: "Forecast", href: "/forecast", icon: BarChart3 },
     { label: "Call scorecards", href: "/calls", icon: PhoneCall },
     { label: "Coaching library", href: "/library", icon: BookOpen },
     { label: "Integrations", href: "/admin/integrations", icon: Plug },
