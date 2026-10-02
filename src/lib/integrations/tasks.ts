@@ -7,12 +7,12 @@ type Secrets = Record<string, string>;
 const enc = encodeURIComponent;
 function headers(provider: TaskProvider, secrets: Secrets) {
   const result: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${secrets.token}` };
-  if (["clickup", "monday", "linear"].includes(provider)) result.Authorization = secrets.token;
+  if (["clickup", "monday", "linear"].includes(provider) && secrets.authType !== "oauth") result.Authorization = secrets.token;
   if (provider === "notion") result["Notion-Version"] = "2025-09-03";
   if (provider === "monday") result["API-Version"] = "2026-04";
   if (provider === "trello") result.Authorization = `OAuth oauth_consumer_key="${enc(secrets.apiKey)}", oauth_token="${enc(secrets.token)}"`;
   if (provider === "github") { result["X-GitHub-Api-Version"] = "2026-03-10"; result["User-Agent"] = "Sales-Coach"; }
-  if (provider === "gitlab") { delete result.Authorization; result["PRIVATE-TOKEN"] = secrets.token; }
+  if (provider === "gitlab" && secrets.authType !== "oauth") { delete result.Authorization; result["PRIVATE-TOKEN"] = secrets.token; }
   return result;
 }
 function request(provider: TaskProvider, secrets: Secrets, path: string, body?: unknown) {
@@ -151,4 +151,64 @@ export async function createProviderTask(provider: TaskProvider, secrets: Secret
   else if (provider === "airtable") raw = await request(provider, secrets, `/${enc(secrets.baseId)}/${target}`, { fields: { [secrets.titleField || "Name"]: title, ...(secrets.notesField ? { [secrets.notesField]: description } : {}) } });
   else raw = await request(provider, secrets, `${provider === "github" ? `/repos/${target}` : `/projects/${target}`}/issues`, { title, [provider === "github" ? "body" : "description"]: description });
   return normalizeTask(provider, raw, secrets);
+}
+
+export interface TaskDestination { id: string; label: string; group?: string; fields?: Record<string, string> }
+/** Browse only fixed provider endpoints. Each page is bounded; IDs never become URLs. */
+export async function taskDestinations(provider: TaskProvider, secrets: Secrets, group = "", groupId = "", cursor = "") {
+  if (groupId.length > 200 || cursor.length > 1024) throw new RevenueError("Invalid destination page.");
+  const encId = enc(groupId); const encCursor = enc(cursor);
+  const result = (items: TaskDestination[], nextCursor?: string): { items: TaskDestination[]; nextCursor?: string } => ({ items, ...(nextCursor ? { nextCursor } : {}) });
+  const choices = (rows: any[], id: string, label: string, kind?: string) => list(rows, provider).map(row => ({ id: String(row[id]), label: String(row[label] || row[id]).slice(0, 500), ...(kind ? { group: kind } : {}) }));
+  if (provider === "asana") {
+    const path = group === "workspace" ? `/workspaces/${encId}/projects` : "/workspaces";
+    if (group && (group !== "workspace" || !/^\d+$/.test(groupId))) throw new RevenueError("Choose an Asana workspace.");
+    const page = await request(provider, secrets, `${path}?limit=100${cursor ? `&offset=${encCursor}` : ""}`);
+    return result(choices(page.data, "gid", "name", group ? undefined : "workspace"), page.next_page?.offset);
+  }
+  if (provider === "notion") {
+    const page = await request(provider, secrets, "/search", { filter: { property: "object", value: "data_source" }, page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) });
+    return result(list(page.results, provider).map(row => ({ id: row.id, label: rich(row.title) || "Untitled database" })), page.has_more ? page.next_cursor : undefined);
+  }
+  if (provider === "monday") {
+    const page = cursor ? Number(cursor) : 1;
+    if (!Number.isInteger(page) || page < 1 || page > 1000) throw new RevenueError("Invalid board page.");
+    const rows = (await graph(provider, secrets, "query Destinations($page: Int!) { boards(limit: 100, page: $page) { id name } }", { page })).boards;
+    return result(choices(rows, "id", "name"), rows.length === 100 ? String(page + 1) : undefined);
+  }
+  if (provider === "linear") {
+    const page = (await graph(provider, secrets, "query Destinations($after: String) { teams(first: 100, after: $after) { nodes { id name } pageInfo { hasNextPage endCursor } } }", { after: cursor || null })).teams;
+    return result(choices(page.nodes, "id", "name"), page.pageInfo?.hasNextPage ? page.pageInfo.endCursor : undefined);
+  }
+  if (provider === "todoist") {
+    const page = await request(provider, secrets, `/projects?limit=100${cursor ? `&cursor=${encCursor}` : ""}`);
+    return result(choices(page.results, "id", "name"), page.next_cursor);
+  }
+  if (provider === "airtable") {
+    if (group && (group !== "base" || !/^app[A-Za-z0-9]+$/.test(groupId))) throw new RevenueError("Choose an Airtable base.");
+    if (!group) {
+      const page = await request(provider, secrets, `/meta/bases${cursor ? `?offset=${encCursor}` : ""}`);
+      return result(choices(page.bases, "id", "name", "base"), page.offset);
+    }
+    const page = await request(provider, secrets, `/meta/bases/${encId}/tables`);
+    return result(list(page.tables, provider).map(row => ({ id: row.id, label: row.name, fields: { baseId: groupId, titleField: row.fields?.find((field: any) => field.id === row.primaryFieldId)?.name || "Name" } })));
+  }
+  if (provider === "clickup") {
+    if (group && (!/^\d+$/.test(groupId) || !["team", "space", "folder"].includes(group))) throw new RevenueError("Choose a ClickUp workspace, space or folder.");
+    if (!group) return result(choices((await request(provider, secrets, "/team")).teams, "id", "name", "team"));
+    if (group === "team") return result(choices((await request(provider, secrets, `/team/${encId}/space?archived=false`)).spaces, "id", "name", "space"));
+    if (group === "folder") return result(choices((await request(provider, secrets, `/folder/${encId}/list?archived=false`)).lists, "id", "name"));
+    const folders = await request(provider, secrets, `/space/${encId}/folder?archived=false`);
+    const lists = await request(provider, secrets, `/space/${encId}/list?archived=false`);
+    return result([...choices(folders.folders, "id", "name", "folder"), ...choices(lists.lists, "id", "name")]);
+  }
+  if (provider === "github" || provider === "gitlab") {
+    const page = cursor ? Number(cursor) : 1;
+    if (!Number.isInteger(page) || page < 1 || page > 1000) throw new RevenueError("Invalid repository page.");
+    const rows = await request(provider, secrets, provider === "github" ? `/user/repos?per_page=100&page=${page}&sort=full_name` : `/projects?membership=true&per_page=100&page=${page}&order_by=name&sort=asc`);
+    const all = list(rows, provider);
+    const available = all.filter(row => provider === "github" ? row.has_issues !== false && !row.archived : row.issues_enabled !== false && !row.archived);
+    return result(choices(available, provider === "github" ? "full_name" : "id", provider === "github" ? "full_name" : "path_with_namespace"), all.length === 100 ? String(page + 1) : undefined);
+  }
+  throw new RevenueError("This tool uses manual destination setup.");
 }

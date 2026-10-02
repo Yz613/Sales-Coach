@@ -53,7 +53,7 @@ function syncFixture(publicKey?: string, optionalSecrets: Record<string, string>
   vm.runInNewContext(fs.readFileSync(require.resolve("./sync-worker-secrets.cjs"), "utf8"), {
     process: processFixture,
     console: { log() {}, warn() {}, error() {} },
-    require: () => ({ execFileSync: (_command: string, args: string[]) => {
+    require: (name: string) => name.endsWith("oauth-providers.json") ? require("../src/lib/integrations/oauth-providers.json") : ({ execFileSync: (_command: string, args: string[]) => {
       if (args[2] === "list") return JSON.stringify(["CLERK_SECRET_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].map(name => ({ name })));
       uploaded.push(args[3]);
       return "";
@@ -68,9 +68,9 @@ test("deployment requires the public key without uploading a conflicting secret"
   assert.equal(syncFixture().exitCode, 1);
 });
 
-test("deployment forwards configured calendar credentials and keeps unused calendars optional", () => {
-  const credentials = Object.fromEntries(["GOOGLE_CALENDAR", "MICROSOFT_CALENDAR", "CALENDLY"].flatMap(prefix =>
-    ["CLIENT_ID", "CLIENT_SECRET"].map(suffix => [`${prefix}_${suffix}`, "fixture-value"])));
+test("deployment forwards configured OAuth credentials and keeps unused providers optional", () => {
+  const credentials = Object.fromEntries(Object.values(require("../src/lib/integrations/oauth-providers.json")).flatMap((app: any) =>
+    ["CLIENT_ID", "CLIENT_SECRET"].map(suffix => [`${app.prefix}_${suffix}`, "fixture-value"])));
   const result = syncFixture("pk_live_fixture", credentials);
   assert.equal(result.exitCode, 0);
   assert.deepEqual(result.uploaded.sort(), Object.keys(credentials).sort());

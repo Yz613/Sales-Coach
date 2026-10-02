@@ -25,7 +25,7 @@ export interface ProviderInsights {
 export interface SyncCursor { kind?: number; after?: string; pageCount?: number; createdAfter?: string; syncStartedAt?: string; windowStart?: string; windowEnd?: string; stages?: Record<string, { label: string; closed: boolean }>; complete?: boolean; full?: boolean }
 export interface ConnectionConfig { autoSync: boolean; autoEvaluate: boolean; defaultStage: string; webhookId?: string; webhookUrl?: string; webhookError?: string; lastWebhookAt?: string; portalId?: string;
   calendarId?: string; userUri?: string; accountEmail?: string; notifyReviewed?: boolean; notifyClips?: boolean; notifyLowScore?: boolean; lowScoreThreshold?: number; lastNotifiedAt?: string;
-  targetLabel?: string; titleProperty?: string;
+  targetLabel?: string; titleProperty?: string; pendingSetup?: boolean; pendingAutoSync?: boolean; authMethod?: "oauth";
   exportReviewed?: boolean; outboundConfigured?: boolean; outboundOnImported?: boolean; outboundOnReviewed?: boolean;
 }
 export interface CrmRecord {

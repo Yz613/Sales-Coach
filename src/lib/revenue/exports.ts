@@ -89,7 +89,7 @@ export async function executeCallExport(connection: Awaited<ReturnType<typeof ge
   try {
     const externalId = automation ? await sendAutomationEvent(connection.provider, connection.secrets.outboundWebhookUrl, id, { version: 1, eventId: id, event: row.event, occurredAt: row.createdAt,
       call: { id: call.id, externalId: meta?.externalId, source: meta?.source || "upload", title, repName: call.repName, prospectName: call.prospectName, company: call.prospectCompany, stage: call.callStage, createdAt: call.createdAt, durationSeconds: call.durationSeconds, summary, actionItems, crmRecords: linked, participants: parseJson(meta?.participants, []), callUrl, reviewedAt: meta?.reviewedAt, coaching: call.evaluation ? { bottomLine: call.evaluation.bottomLine, scriptScore: call.evaluation.sandlerBreakdown.scriptAdherence.score } : null } })
-      : await createCrmNote(connection.provider, connection.secrets.token, target!, { title, text, createdAt: call.createdAt, callUrl });
+      : await createCrmNote(connection.provider, connection.secrets.token, target!, { title, text, createdAt: call.createdAt, callUrl }, connection.secrets.authType === "oauth", connection.secrets.apiDomain);
     await db.update(integrationExports).set({ status: "completed", externalId, lastError: null, updatedAt: new Date().toISOString() }).where(and(scope, eq(integrationExports.status, "sending"))).run();
     return { exportedCall: externalId };
   } catch (error) {

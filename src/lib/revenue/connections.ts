@@ -51,7 +51,8 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   await ensureRevenueSchema();
   const secrets: Record<string, string> = { ...authorized };
   if ((provider === "google-calendar" || provider === "outlook-calendar") && !authorized) throw new RevenueError("Use the calendar sign-in button to connect this account.");
-  for (const field of tool.fields) if (!authorized || field.name !== "token") secrets[field.name] = textInput(body[field.name] || "", field.label, 4096, field.required);
+  const pendingSetup = Boolean(authorized && isTaskTool(provider) && !body.targetId);
+  for (const field of tool.fields) if (!authorized || !["token", "webhookUrl"].includes(field.name)) secrets[field.name] = textInput(body[field.name] || "", field.label, 4096, field.required && !pendingSetup);
   const token = secrets.token;
   if (provider === "hubspot" && body.webhookSecret) secrets.webhookSecret = textInput(body.webhookSecret, "HubSpot client secret", 4096);
   if (provider === "fireflies" || tool.category === "Automation") secrets.webhookSecret = randomBytes(32).toString("hex");
@@ -60,16 +61,18 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   let calendarConfig: Partial<ConnectionConfig> = {};
   if (provider === "slack") slackWebhook(secrets.webhookUrl);
   else if (provider === "discord") discordWebhook(secrets.webhookUrl);
-  else if (isTaskTool(provider)) calendarConfig = await verifyTaskProvider(provider as TaskProvider, secrets);
+  else if (isTaskTool(provider) && !pendingSetup) calendarConfig = await verifyTaskProvider(provider as TaskProvider, secrets);
   else if (isCalendarTool(provider)) calendarConfig = await verifyCalendarProvider(provider as CalendarProvider, token);
   else if (provider === "hubspot") {
     for (const type of ["companies", "contacts", "deals"]) await hubspotRequest(token, `/crm/v3/objects/${type}?limit=1`);
     await hubspotRequest(token, "/crm/v3/pipelines/deals");
   } else if (provider === "fathom") await fathomRequest(token, "/meetings");
-  else if (provider === "pipedrive" || provider === "attio") await verifyCrmProvider(provider, token);
+  else if (provider === "pipedrive" || provider === "attio") await verifyCrmProvider(provider, token, secrets.authType === "oauth", secrets.apiDomain);
   else if (tool.category === "Calls") await verifyCallProvider(provider as CallProvider, secrets);
   const id = randomUUID(); const orgId = currentTenantId(); const now = new Date().toISOString();
   const config: ConnectionConfig = { autoSync: tool.syncMinutes > 0 && body.autoSync !== false, autoEvaluate: isCallTool(provider) && body.autoEvaluate === true, defaultStage: textInput(body.defaultStage || "First Discovery", "Default call stage", 100), ...calendarConfig,
+    ...(authorized ? { authMethod: "oauth" as const } : {}),
+    ...(pendingSetup ? { pendingSetup: true, pendingAutoSync: body.autoSync !== false, autoSync: false } : {}),
     ...(isNotificationTool(provider) ? slackPreferences(body) : {}) };
   await db.insert(integrationConnections).values({ id, orgId, provider, name, credentials: encryptCredentials(secrets, `${orgId}:${id}`), config: JSON.stringify(config), cursor: "{}", status: "connected", createdAt: now, updatedAt: now }).run();
   await audit(actor, "integration.connected", id);
