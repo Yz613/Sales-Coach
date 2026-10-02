@@ -1,3 +1,4 @@
+import { pipedriveOrigin } from "./pipedrive";
 import { providerRequest } from "./http";
 import { RevenueError, safeExternalUrl } from "../revenue/security";
 
@@ -20,7 +21,7 @@ export async function sendAutomationEvent(provider: string, url: string, eventId
 }
 
 export const htmlText = (text: string) => text.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!)).replace(/\n/g, "<br>");
-export async function createCrmNote(provider: string, token: string, target: { kind: string; externalId: string }, note: { title: string; text: string; createdAt: string; callUrl?: string | null }) {
+export async function createCrmNote(provider: string, token: string, target: { kind: string; externalId: string }, note: { title: string; text: string; createdAt: string; callUrl?: string | null }, oauth = false, apiDomain?: string) {
   const object = ({ company: "companies", contact: "people", deal: "deals" } as Record<string, string>)[target.kind];
   if (!object || !target.externalId) throw new RevenueError("Choose a supported CRM record.");
   const json = (value: unknown) => ({ method: "POST", body: JSON.stringify(value) });
@@ -34,7 +35,7 @@ export async function createCrmNote(provider: string, token: string, target: { k
   } else if (provider === "pipedrive") {
     if (!/^\d+$/.test(target.externalId)) throw new RevenueError("Pipedrive record ID must be numeric.");
     const key = ({ company: "org_id", contact: "person_id", deal: "deal_id" } as Record<string, string>)[target.kind];
-    const result = await providerRequest<any>("Pipedrive", "https://api.pipedrive.com", "/api/v1/notes", { "x-api-token": token, "Content-Type": "application/json" }, json({ content: contentHtml, [key]: Number(target.externalId) }));
+    const result = await providerRequest<any>("Pipedrive", oauth ? pipedriveOrigin(apiDomain) : "https://api.pipedrive.com", "/api/v1/notes", { ...(oauth ? { Authorization: `Bearer ${token}` } : { "x-api-token": token }), "Content-Type": "application/json" }, json({ content: contentHtml, [key]: Number(target.externalId) }));
     if (result.success !== true) throw new RevenueError("Pipedrive did not confirm note creation.", 502);
     id = result.data?.id;
   } else if (provider === "attio") {

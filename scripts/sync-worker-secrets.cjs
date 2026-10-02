@@ -15,11 +15,9 @@ const SECRET_NAMES = [
   "PUBLIC_APP_URL",
   "BILLING_EXEMPT_ORG_IDS",
 ];
-const OPTIONAL_SECRET_NAMES = [
-  "GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET",
-  "MICROSOFT_CALENDAR_CLIENT_ID", "MICROSOFT_CALENDAR_CLIENT_SECRET",
-  "CALENDLY_CLIENT_ID", "CALENDLY_CLIENT_SECRET",
-];
+const OAUTH_APPS = require("../src/lib/integrations/oauth-providers.json");
+const OPTIONAL_SECRET_NAMES = Object.values(OAUTH_APPS).flatMap(app =>
+  [`${app.prefix}_CLIENT_ID`, `${app.prefix}_CLIENT_SECRET`]);
 
 function wrangler(args, input) {
   return execFileSync("npx", ["wrangler", ...args], {

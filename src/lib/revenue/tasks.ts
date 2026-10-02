@@ -35,6 +35,7 @@ async function sourceAction(callId: string, actionId: string) {
 }
 export async function queueTaskExport(connectionId: string, callId: string, actionId: string, actor: string) {
   const connection = await getConnection(connectionId); if (!isTaskTool(connection.provider)) throw new RevenueError("Choose a task integration.");
+  if (connection.config.pendingSetup) throw new RevenueError("Choose a task destination before sending a follow-up.", 409);
   const { item } = await sourceAction(callId, actionId); const orgId = currentTenantId(); const id = stableId("task-export", orgId, connectionId, callId, actionId); const now = new Date().toISOString();
   await db.insert(taskExports).values({ id, orgId, connectionId, callId, actionId, title: textInput(item.description, "Action item", 2000), createdAt: now, updatedAt: now }).onConflictDoNothing().run();
   const saved = await db.select().from(taskExports).where(and(eq(taskExports.id, id), eq(taskExports.orgId, orgId))).get();

@@ -19,7 +19,7 @@ async function POSTHandler(req: Request, ctx: Context) {
     const auth = await requireRevenueAdmin(); const { id } = await ctx.params; const body = await readJson(req); const connection = await getConnection(id); const orgId = currentTenantId();
     if (body.action === "sync") { const jobId = await enqueueSync(id, Boolean(body.full)); after(() => processJobs(orgId, 4)); return NextResponse.json({ jobId }); }
     if (body.action === "configure") {
-      const config = { ...connection.config, autoSync: Boolean(integrationTool(connection.provider)?.syncMinutes) && body.autoSync === true, autoEvaluate: isCallTool(connection.provider) && body.autoEvaluate === true, defaultStage: textInput(body.defaultStage || connection.config.defaultStage, "Default call stage", 100),
+      const config = { ...connection.config, autoSync: !connection.config.pendingSetup && Boolean(integrationTool(connection.provider)?.syncMinutes) && body.autoSync === true, autoEvaluate: isCallTool(connection.provider) && body.autoEvaluate === true, defaultStage: textInput(body.defaultStage || connection.config.defaultStage, "Default call stage", 100),
         exportReviewed: integrationTool(connection.provider)?.category === "CRM" && body.exportReviewed === true,
         outboundOnImported: connection.config.outboundConfigured === true && body.outboundOnImported === true,
         outboundOnReviewed: connection.config.outboundConfigured === true && body.outboundOnReviewed === true,

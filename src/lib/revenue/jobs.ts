@@ -39,6 +39,7 @@ export async function enqueueJob(input: { kind: JobKind; connectionId?: string; 
 
 export async function enqueueSync(connectionId: string, full = false) {
   const connection = await getConnection(connectionId);
+  if (connection.config.pendingSetup) throw new RevenueError("Choose a task destination before starting sync.", 409);
   const existing = await db.select({ id: processingJobs.id }).from(processingJobs).where(and(eq(processingJobs.orgId, currentTenantId()), eq(processingJobs.connectionId, connectionId), eq(processingJobs.kind, "sync"), inArray(processingJobs.status, ["queued", "running"]))).get();
   if (existing) return existing.id;
   if (!integrationTool(connection.provider)?.syncMinutes) throw new RevenueError("This connection receives calls through its live feed. It has no history to sync.");
@@ -73,10 +74,11 @@ async function executeJob(job: any) {
     return { evaluated: call.id };
   }
   const connection = await getConnection(job.connectionId);
+  if (connection.config.pendingSetup) throw new RevenueError("Choose a task destination before using this integration.", 409);
+  connection.secrets = await authorizedSecrets(connection);
   if (job.kind === "notify-slack") return sendSlackJob(connection, job);
   if (job.kind === "export-task") return executeTaskExport(connection, parseJson<{ exportId: string }>(job.payload, {} as any).exportId);
   if (job.kind === "export-call") return executeCallExport(connection, parseJson<{ exportId: string }>(job.payload, {} as any).exportId);
-  if (isCalendarTool(connection.provider)) connection.secrets = await authorizedSecrets(connection);
   if (job.kind === "calendar-event") {
     if (connection.provider !== "calendly") throw new RevenueError("Invitee import needs a Calendly connection.");
     const meeting = await fetchCalendlyMeeting(connection.secrets.token, parseJson<any>(job.payload, {}));
@@ -144,7 +146,7 @@ async function executeJob(job: any) {
     }
   } else if (["hubspot", "pipedrive", "attio"].includes(connection.provider)) {
     const page = connection.provider === "hubspot" ? await hubspotPage(connection.secrets.token, state, job.orgId, connection.id)
-      : await crmProviderPage(connection.provider as "pipedrive" | "attio", connection.secrets.token, state, job.orgId, connection.id);
+      : await crmProviderPage(connection.provider as "pipedrive" | "attio", connection.secrets.token, state, job.orgId, connection.id, connection.secrets.authType === "oauth", connection.secrets.apiDomain);
     await getConnection(connection.id);
     for (const record of page.records) {
       const values = { ...record, orgId: job.orgId, associations: JSON.stringify(record.associations), properties: JSON.stringify(record.properties) };
