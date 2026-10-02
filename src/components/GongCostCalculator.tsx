@@ -51,42 +51,40 @@ function SliderField({
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-medium text-[#1d1d1f]">
-          {label}
-        </label>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="number"
-            inputMode="decimal"
-            autoComplete="off"
-            aria-label={`${label} value`}
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={(event) => {
-              if (event.target.value === "") {
-                onChange(min);
-                return;
-              }
-              onChange(clamp(Number(event.target.value), min, max));
-            }}
-            className="h-11 w-[6.5rem] rounded-xl border border-black/[0.12] bg-white px-2 text-right text-sm font-semibold tabular-nums text-[#1d1d1f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007AFF]"
-          />
-          {suffix ? <span className="w-10 text-xs text-[#6e6e73]">{suffix}</span> : null}
-        </div>
+      <label htmlFor={id} className="text-sm font-medium text-[#1d1d1f]">
+        {label}
+      </label>
+      <div className="mt-2 flex items-center gap-3">
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={rangeStep ?? step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="h-8 min-w-0 flex-1 cursor-pointer accent-[#007AFF]"
+        />
+        <input
+          type="number"
+          inputMode="decimal"
+          autoComplete="off"
+          aria-label={`${label} value`}
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => {
+            if (event.target.value === "") {
+              onChange(min);
+              return;
+            }
+            onChange(clamp(Number(event.target.value), min, max));
+          }}
+          className="relative z-10 h-11 w-[5.75rem] shrink-0 rounded-xl border border-black/[0.12] bg-white px-2 text-right text-sm font-semibold tabular-nums text-[#1d1d1f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007AFF]"
+        />
+        {suffix ? <span className="w-8 shrink-0 text-xs text-[#6e6e73]">{suffix}</span> : null}
       </div>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        step={rangeStep ?? step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-1 h-8 w-full cursor-pointer accent-[#007AFF]"
-      />
     </div>
   );
 }
