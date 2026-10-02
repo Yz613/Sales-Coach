@@ -92,7 +92,7 @@ Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http:/
 
 The revenue workspace adds searchable conversations, topic trackers, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
 
-The **Admin → Integrations** library includes 26 tools. Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
+The **Admin → Integrations** library includes 26 tools. Seventeen support a direct account sign-in button when their deployment credentials are configured. Task tools let you select a destination after sign-in; Slack and Discord select the channel during consent. See [One-click sign-in and deployment credentials](docs/ONE_CLICK_INTEGRATIONS.md). Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
 
 | Category | Tools |
 | --- | --- |

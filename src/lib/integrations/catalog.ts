@@ -1,9 +1,10 @@
 import type { ProviderId } from "../revenue/types";
+import { supportedOAuthProvider, type OAuthProvider } from "./oauth-config";
 import { TASK_TOOLS } from "./task-catalog";
 
 export interface IntegrationTool {
   id: ProviderId; name: string; category: "Calls" | "CRM" | "Automation" | "Meetings" | "Notifications" | "Tasks"; description: string;
-  oauth?: "google-calendar" | "outlook-calendar" | "calendly";
+  oauth?: OAuthProvider;
   color: string; docs: string; settings: string; syncMinutes: number; live: "automatic" | "manual" | "none";
   fields: { name: string; label: string; placeholder?: string; required: boolean; type?: "text" | "password" }[];
   steps: string[]; note: string;
@@ -96,6 +97,8 @@ export const INTEGRATION_TOOLS: IntegrationTool[] = [
     steps: ["Create a connection below to get a private feed URL and access token.", "In Make, trigger on a completed transcript and add HTTP → Make a request, with method POST.", "Use the feed URL, add an Authorization: Bearer token header and Content-Type: application/json, then map the sample JSON below."],
     note: "Works with any tool that can provide a call transcript. Your scenario controls when completed calls are sent." },
 ];
+for (const tool of INTEGRATION_TOOLS) tool.oauth = supportedOAuthProvider(tool.id);
+
 export function integrationTool(id: unknown): IntegrationTool | undefined { return INTEGRATION_TOOLS.find(tool => tool.id === id); }
 export function isCallTool(id: string): boolean { const tool = integrationTool(id); return Boolean(tool && (tool.category === "Calls" || tool.category === "Automation")); }
 export function isCalendarTool(id: string): boolean { return integrationTool(id)?.category === "Meetings"; }

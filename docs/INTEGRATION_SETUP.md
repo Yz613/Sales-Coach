@@ -1,5 +1,7 @@
 # Set up Slack, Calendly, Google Calendar, Outlook Calendar and Aircall
 
+[One-click sign-in and deployment credentials](ONE_CLICK_INTEGRATIONS.md) covers the account sign-in buttons and destination picker. Use the manual setup below when your installation has not enabled provider sign-in.
+
 For CRM call exports, outgoing Zapier/Make events, manual channel sharing, and Gong insights, see [call export setup](CALL_EXPORT_SETUP.md).
 
 For Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab and Discord, see [task and Discord setup](TASK_INTEGRATIONS.md).

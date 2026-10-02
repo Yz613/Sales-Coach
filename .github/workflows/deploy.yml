@@ -83,6 +83,34 @@ jobs:
           MICROSOFT_CALENDAR_CLIENT_SECRET: ${{ secrets.MICROSOFT_CALENDAR_CLIENT_SECRET }}
           CALENDLY_CLIENT_ID: ${{ secrets.CALENDLY_CLIENT_ID }}
           CALENDLY_CLIENT_SECRET: ${{ secrets.CALENDLY_CLIENT_SECRET }}
+          HUBSPOT_CLIENT_ID: ${{ secrets.HUBSPOT_CLIENT_ID }}
+          HUBSPOT_CLIENT_SECRET: ${{ secrets.HUBSPOT_CLIENT_SECRET }}
+          PIPEDRIVE_CLIENT_ID: ${{ secrets.PIPEDRIVE_CLIENT_ID }}
+          PIPEDRIVE_CLIENT_SECRET: ${{ secrets.PIPEDRIVE_CLIENT_SECRET }}
+          ATTIO_CLIENT_ID: ${{ secrets.ATTIO_CLIENT_ID }}
+          ATTIO_CLIENT_SECRET: ${{ secrets.ATTIO_CLIENT_SECRET }}
+          ASANA_CLIENT_ID: ${{ secrets.ASANA_CLIENT_ID }}
+          ASANA_CLIENT_SECRET: ${{ secrets.ASANA_CLIENT_SECRET }}
+          NOTION_CLIENT_ID: ${{ secrets.NOTION_CLIENT_ID }}
+          NOTION_CLIENT_SECRET: ${{ secrets.NOTION_CLIENT_SECRET }}
+          CLICKUP_CLIENT_ID: ${{ secrets.CLICKUP_CLIENT_ID }}
+          CLICKUP_CLIENT_SECRET: ${{ secrets.CLICKUP_CLIENT_SECRET }}
+          MONDAY_CLIENT_ID: ${{ secrets.MONDAY_CLIENT_ID }}
+          MONDAY_CLIENT_SECRET: ${{ secrets.MONDAY_CLIENT_SECRET }}
+          LINEAR_CLIENT_ID: ${{ secrets.LINEAR_CLIENT_ID }}
+          LINEAR_CLIENT_SECRET: ${{ secrets.LINEAR_CLIENT_SECRET }}
+          TODOIST_CLIENT_ID: ${{ secrets.TODOIST_CLIENT_ID }}
+          TODOIST_CLIENT_SECRET: ${{ secrets.TODOIST_CLIENT_SECRET }}
+          AIRTABLE_CLIENT_ID: ${{ secrets.AIRTABLE_CLIENT_ID }}
+          AIRTABLE_CLIENT_SECRET: ${{ secrets.AIRTABLE_CLIENT_SECRET }}
+          GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          GITLAB_CLIENT_ID: ${{ secrets.GITLAB_CLIENT_ID }}
+          GITLAB_CLIENT_SECRET: ${{ secrets.GITLAB_CLIENT_SECRET }}
+          SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
         run: node scripts/sync-worker-secrets.cjs
       - name: Deploy to Cloudflare
         env:
