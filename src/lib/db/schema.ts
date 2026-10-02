@@ -106,6 +106,21 @@ export const crmRecords = sqliteTable("crm_records", {
   sourceUrl: text("source_url"), syncedAt: text("synced_at").notNull(),
 });
 
+export const dealReviews = sqliteTable("deal_reviews", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), dealId: text("deal_id").notNull(),
+  category: text("category").notNull(), probability: integer("probability"),
+  nextStep: text("next_step").notNull().default(""), nextStepDate: text("next_step_date"),
+  playbook: text("playbook").notNull().default("{}"), revision: integer("revision").notNull(),
+  updatedBy: text("updated_by").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const forecastSubmissions = sqliteTable("forecast_submissions", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), period: text("period").notNull(),
+  owner: text("owner").notNull().default(""), currency: text("currency").notNull().default(""),
+  target: text("target"), notes: text("notes").notNull().default(""), snapshot: text("snapshot").notNull(),
+  createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull(),
+});
+
 export const callMetadata = sqliteTable("call_metadata", {
   callId: text("call_id").primaryKey(), orgId: text("org_id").notNull(), title: text("title").notNull(),
   source: text("source").notNull().default("upload"), externalId: text("external_id"), connectionId: text("connection_id"),

@@ -13,12 +13,27 @@ import { encryptCredentials, decryptCredentials } from './src/lib/revenue/securi
 import { pingProvider } from './src/lib/ai/llm';
 import { transcribeAudio } from './src/lib/ai/transcribe';
 import { REVENUE_MIGRATIONS } from './src/lib/db/revenueMigrations';
-import { externalTasks, taskExports, integrationExports, callProviderInsights } from './src/lib/db/schema';
+import { externalTasks, taskExports, integrationExports, callProviderInsights, dealReviews, forecastSubmissions } from './src/lib/db/schema';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
 export default { async fetch(request, env) {
   const url = new URL(request.url);
   try {
+    if (url.pathname === '/forecast-storage') {
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS calls (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, created_at TEXT NOT NULL)').run();
+      await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
+      const database = drizzle(env.DB); const now = new Date().toISOString();
+      const review = { id:'review-d1', orgId:'org_a', dealId:'deal', category:'commit', probability:80, revision:1, updatedBy:'manager', updatedAt:now };
+      const inserts = await Promise.all(Array.from({ length:24 }, () => database.insert(dealReviews).values(review).onConflictDoNothing().returning({ id:dealReviews.id }).all()));
+      const updates = await Promise.all(Array.from({ length:24 }, () => database.update(dealReviews).set({ revision:2, probability:60 }).where(and(eq(dealReviews.id,'review-d1'),eq(dealReviews.orgId,'org_a'),eq(dealReviews.revision,1))).returning({ id:dealReviews.id }).all()));
+      const foreign = await database.update(dealReviews).set({ probability:0 }).where(and(eq(dealReviews.id,'review-d1'),eq(dealReviews.orgId,'org_b'))).returning().all();
+      await database.insert(forecastSubmissions).values({ id:'forecast-d1', orgId:'org_a', period:'2026-Q4', currency:'USD', target:'20000', snapshot:JSON.stringify({ committed:10000 }), createdBy:'manager', createdAt:now }).onConflictDoNothing().run();
+      await database.insert(forecastSubmissions).values({ id:'forecast-d1', orgId:'org_a', period:'2026-Q4', snapshot:JSON.stringify({ committed:15000 }), createdBy:'manager', createdAt:now }).onConflictDoNothing().run();
+      await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
+      const saved = await database.select().from(forecastSubmissions).where(eq(forecastSubmissions.orgId,'org_a')).get();
+      const other = await database.select().from(forecastSubmissions).where(eq(forecastSubmissions.orgId,'org_b')).all();
+      return Response.json({ inserts:inserts.flat().length, updates:updates.flat().length, foreign:foreign.length, committed:JSON.parse(saved.snapshot).committed, target:saved.target, other:other.length });
+    }
     if (url.pathname === '/crm-export') {
       const id = await createCrmNote(url.searchParams.get('provider'), 'fixture-key', { kind:'deal', externalId:'123' }, { title:'Discovery', text:'Follow up <script>unsafe</script>', createdAt:new Date().toISOString(), callUrl:'https://coach.example.com/app/calls/123' });
       return Response.json({ exported:!!id });
@@ -154,6 +169,12 @@ test("D1 integration migrations preserve task/call data and allow exactly one of
   const response = await runtime.dispatchFetch("http://localhost/integration-schema");
   assert.equal(response.status, 200, await response.clone().text());
   assert.deepEqual(await response.json(), { count: 1, title: "Updated follow-up", claims: 1, exportClaims: 1, outcome: "Meeting booked", other: 0 });
+});
+
+test("D1 deal reviews reject concurrent writes and forecast snapshots survive retries and repeated migrations", async () => {
+  const response = await runtime.dispatchFetch("http://localhost/forecast-storage");
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(await response.json(), { inserts:1, updates:1, foreign:0, committed:10000, target:'20000', other:0 });
 });
 
 test("CRM notes and outbound automation events work with native Workers fetch", async () => {

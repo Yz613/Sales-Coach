@@ -8,6 +8,8 @@
 - Coaching library: saved call ranges organized into named collections, with the same access rules as their source calls.
 - Topics: configurable keyword/phrase trackers, speaker filters and timestamped matches. Speaker activity reports transcript word share and questions.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
+- Deal execution: manager forecast categories and probabilities, due next steps, evidence-linked MEDDICC qualification, buyer engagement, and conflict-safe reviews.
+- Forecast: calendar month/quarter and CRM owner filters, currency-separated won/committed/upside/weighted totals, targets, immutable submissions, and historical comparison. [Details and limitations](DEAL_FORECASTING.md).
 - Integrations: twenty-six tool cards with individual connection guides; six native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
 - Data management: workspace retention settings, manual purge, permanent local deletion, import tombstones, JSON/VTT/SRT exports and an audit log.
@@ -133,7 +135,7 @@ Risk flags are visible rules: absent conversations, no recent conversation, a pa
 
 Trackers perform literal keyword/phrase matching. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, CRM writeback, email timelines, semantic search/Q&A, calibrated forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. See INTEGRATIONS.md for the researched connector roadmap.
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback, email timelines, semantic search/Q&A, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Manager-led forecasting and manually reviewed deal playbooks are available now. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 
