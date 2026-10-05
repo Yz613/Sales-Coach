@@ -62,6 +62,12 @@ jobs:
       - run: npx tsc --noEmit
       - name: Resolve D1 database id
         run: node scripts/resolve-d1-id.cjs
+      # VISITOR_COMPANY_KV_ID is a repository variable, not a secret.
+      # An empty value uses the hosted namespace 05bb9e51843e4b26a424ed09dad780f6.
+      - name: Inject visitor company KV binding
+        env:
+          VISITOR_COMPANY_KV_ID: ${{ vars.VISITOR_COMPANY_KV_ID }}
+        run: node scripts/inject-visitor-company-kv.cjs
       - name: Configure authentication policy
         env:
           REQUIRE_MFA: ${{ vars.REQUIRE_MFA }}
@@ -79,10 +85,14 @@ jobs:
           PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_MEET_CLIENT_ID: ${{ secrets.GOOGLE_MEET_CLIENT_ID }}
+          GOOGLE_MEET_CLIENT_SECRET: ${{ secrets.GOOGLE_MEET_CLIENT_SECRET }}
           GOOGLE_CALENDAR_CLIENT_ID: ${{ secrets.GOOGLE_CALENDAR_CLIENT_ID }}
           GOOGLE_CALENDAR_CLIENT_SECRET: ${{ secrets.GOOGLE_CALENDAR_CLIENT_SECRET }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MICROSOFT_TEAMS_CLIENT_ID: ${{ secrets.MICROSOFT_TEAMS_CLIENT_ID }}
+          MICROSOFT_TEAMS_CLIENT_SECRET: ${{ secrets.MICROSOFT_TEAMS_CLIENT_SECRET }}
           MICROSOFT_CALENDAR_CLIENT_ID: ${{ secrets.MICROSOFT_CALENDAR_CLIENT_ID }}
           MICROSOFT_CALENDAR_CLIENT_SECRET: ${{ secrets.MICROSOFT_CALENDAR_CLIENT_SECRET }}
           CALENDLY_CLIENT_ID: ${{ secrets.CALENDLY_CLIENT_ID }}

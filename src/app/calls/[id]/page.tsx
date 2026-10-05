@@ -230,7 +230,7 @@ async function CallReviewPage({
       <AskAnything scope="call" id={call.id} />
 
       <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights} defaultFull={!ev}>
-      {(conversation.source === "fathom" || (conversation.source === "zoom" && !call.audioUrl)) ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} provider={conversation.source === "zoom" ? "Zoom" : "Fathom"} /> : <CallRecording
+      {(conversation.source === "fathom" || ((conversation.source === "zoom" || conversation.source === "google-meet") && !call.audioUrl)) ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} provider={conversation.source === "zoom" ? "Zoom" : conversation.source === "google-meet" ? "Google Meet" : "Fathom"} /> : <CallRecording
         audioUrl={call.audioUrl}
         transcriptText={call.transcriptText}
         durationSeconds={call.durationSeconds}

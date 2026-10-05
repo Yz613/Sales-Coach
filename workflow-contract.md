@@ -106,7 +106,7 @@ Connected (company-level only, free). The vendored MIT package is `visitor-compa
 | DNT and Global Privacy Control | Honored (package defaults). |
 | `IPINFO_TOKEN` | Optional Worker secret. Not set. Without it, and without `IPAPI_KEY`, the result is the network owner name. |
 | `IPAPI_KEY` | Optional Worker secret. Not set. |
-| `VISITOR_COMPANY_KV` | Optional Workers KV binding. Not in `wrangler.jsonc`. Until it exists, the isolate uses an in-memory cache. |
+| `VISITOR_COMPANY_KV` | Optional Workers KV binding. Not committed in `wrangler.jsonc`. CI injects the hosted namespace before deploy. Without the binding, the isolate uses an in-memory cache. |
 
 Do not commit a placeholder KV id. Create the namespace, then add the binding:
 
@@ -142,4 +142,4 @@ Do Not Track and Global Privacy Control are honored. Google Analytics and PostHo
 
 - [personas.json](personas.json) — not created yet
 - [visitor_followup_tracker](visitor_followup_tracker) — not created yet
-- `VISITOR_COMPANY_KV` namespace — not created yet (optional; in-memory cache until then)
+- `VISITOR_COMPANY_KV` namespace — hosted deploy injects it in CI. Self-hosters omit it or create their own. The id is not committed.

@@ -6,7 +6,9 @@ function redactString(value: string): string {
   return value
     .replace(/ya29\.[0-9A-Za-z._~+/-]+/g, "[redacted]")
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
-    .replace(/whsec_[A-Za-z0-9+/=_-]+/g, "whsec_[redacted]");
+    .replace(/whsec_[A-Za-z0-9+/=_-]+/g, "whsec_[redacted]")
+    .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, "[redacted]")
+    .replace(/((?:access|refresh|id)_token|client_secret)(["'\s:=]+)[A-Za-z0-9._~+/-]+/gi, "$1$2[redacted]");
 }
 
 function stripHeaderSecrets(body: string, headers: Record<string, string>): string {
@@ -52,22 +54,44 @@ export function providerFailureDetail(body: string): string {
     const error = parsed?.error;
     if (typeof parsed?.message === "string") providerMessage = parsed.message;
     if (typeof error === "string") message = String(parsed.error_description || error);
-    else if (error && typeof error === "object") {
+    else     if (error && typeof error === "object") {
       message = String(error.message || "");
       const first = Array.isArray(error.errors) ? error.errors[0] : undefined;
-      reason = String(first?.reason || error.status || "");
+      reason = String(first?.reason || error.code || error.status || "");
     }
   } catch {
     message = body.slice(0, 180);
   }
   const text = `${reason} ${message} ${providerMessage}`.toLowerCase();
-  if (/accessnotconfigured|has not been used|api has not been used|is disabled|service_disabled/.test(text)) return "The Gmail API is not enabled for this Google Cloud project.";
-  if (reason === "insufficientPermissions" || /insufficient authentication scopes|insufficient permission/.test(text)) return "The granted token is missing the Gmail metadata permission.";
+  if (/accessnotconfigured|has not been used|api has not been used|is disabled|service_disabled/.test(text)) {
+    if (/\bmeet\b/.test(text)) return "The Google Meet API is not enabled for this Google Cloud project.";
+    if (/\bdrive\b/.test(text)) return "The Google Drive API is not enabled for this Google Cloud project.";
+    if (/\bpeople\b/.test(text)) return "The People API is not enabled for this Google Cloud project.";
+    if (/\bgmail\b/.test(text)) return "The Gmail API is not enabled for this Google Cloud project.";
+    return "A required Google API is not enabled for this Google Cloud project.";
+  }
+  if (reason === "insufficientPermissions" || /insufficient authentication scopes|insufficient permission/.test(text)) {
+    if (/\bmeet\b|\bdrive\b|\bpeople\b|contacts/.test(text)) return "The granted token is missing Google Meet, Drive, or contacts read permission.";
+    return "The granted token is missing the Gmail metadata permission.";
+  }
   if (/domainpolicy|domain administrators have disabled/.test(text)) return "The Google Workspace domain blocks Gmail access for this app.";
   if (/does not support 'q'|metadata scope/.test(text)) return "Gmail rejected a search query that the metadata scope does not allow.";
+  if (/authorization_requestdenied|need admin approval|admin consent|aadsts65001|insufficient privileges/.test(text)) {
+    return safeProviderMessage(message) || "A Microsoft 365 administrator must grant consent for Teams transcript and recording access.";
+  }
+  if (/personal microsoft account|not supported for personal|work or school account/.test(text)) {
+    return "Teams transcripts need a work or school account. Personal Microsoft accounts cannot read meeting transcripts.";
+  }
+  if (/aadsts|onlinemeeting|microsoft graph|graph\.microsoft|teams transcript|teams recording/.test(text)) return safeProviderMessage(message);
   const cleaned = providerMessage.replace(/\s+/g, " ").trim().slice(0, 180);
-  if (cleaned && !/\[redacted\]|whsec_|bearer\s|api[_-]?key|token|secret|authorization/i.test(cleaned)) return cleaned;
+  if (cleaned && !/\[redacted\]|whsec_|bearer\s|api[_-]?key|token|secret|authorization|\beyj/i.test(cleaned)) return cleaned;
   return "";
+}
+
+function safeProviderMessage(message: string): string {
+  const cleaned = message.replace(/\s+/g, " ").trim();
+  if (!cleaned || /bearer\s|ya29\.|\beyj/i.test(cleaned)) return "";
+  return cleaned.slice(0, 220);
 }
 
 export class ProviderError extends RevenueError {

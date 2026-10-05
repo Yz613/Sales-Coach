@@ -74,11 +74,11 @@ async function vendorFetch(input: any, init?: RequestInit) {
 }
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; } }
 
-test("thirty providers classify schedules, mail, and alerts separately from transcript ingestion", () => {
-  assert.equal(INTEGRATION_TOOLS.length, 30);
+test("thirty-two providers classify schedules, mail, and alerts separately from transcript ingestion", () => {
+  assert.equal(INTEGRATION_TOOLS.length, 32);
   for (const provider of ["calendly", "google-calendar", "outlook-calendar"]) { assert.ok(isCalendarTool(provider)); assert.ok(!isCallTool(provider)); assert.ok(!isEmailTool(provider)); }
   for (const provider of ["gmail", "outlook"]) { assert.ok(isEmailTool(provider)); assert.ok(!isCallTool(provider)); assert.ok(!isCalendarTool(provider)); }
-  assert.ok(!isCallTool("slack")); assert.ok(isCallTool("aircall")); assert.ok(isCallTool("zoom")); assert.ok(isCallTool("quo")); assert.ok(isCallTool("zapier"));
+  assert.ok(!isCallTool("slack")); assert.ok(isCallTool("aircall")); assert.ok(isCallTool("zoom")); assert.ok(isCallTool("google-meet")); assert.ok(isCallTool("microsoft-teams")); assert.ok(isCallTool("quo")); assert.ok(isCallTool("zapier"));
   for (const url of ["https://example.com/services/T1/B1/secret", "https://hooks.slack.com/services/T1/B1/secret?token=x", "http://hooks.slack.com/services/T1/B1/secret", "https://user:pass@hooks.slack.com/services/T1/B1/secret"]) assert.throws(() => slackWebhook(url));
   assert.equal(slackWebhook("https://hooks.slack.com/services/T1/B1/secret").hostname, "hooks.slack.com");
   assert.throws(() => graphPagePath("https://attacker.example/v1.0/me/calendarView"));
