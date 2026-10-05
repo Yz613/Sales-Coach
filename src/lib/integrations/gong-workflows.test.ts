@@ -72,7 +72,7 @@ async function drain(orgId: string) {
   throw new Error("Jobs did not drain");
 }
 
-test("all 26 integration brands resolve to safe local assets and have clear capabilities", () => {
+test("all 27 integration brands resolve to safe local assets and have clear capabilities", () => {
   assert.deepEqual(Object.keys(INTEGRATION_LOGOS).sort(), INTEGRATION_TOOLS.map(t => t.id).sort());
   for (const tool of INTEGRATION_TOOLS) {
     const asset = fs.readFileSync(path.join(process.cwd(), "public/integrations", INTEGRATION_LOGOS[tool.id]));

@@ -207,6 +207,19 @@
     "refreshRequired": false,
     "docs": "https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/"
   },
+  "zoom": {
+    "label": "Zoom",
+    "prefix": "ZOOM",
+    "authorize": "https://zoom.us/oauth/authorize",
+    "tokenOrigin": "https://zoom.us",
+    "tokenPath": "/oauth/token",
+    "scope": "user:read:user cloud_recording:read:list_user_recordings cloud_recording:read:list_recording_files cloud_recording:read:meeting_transcript meeting:read:list_past_participants",
+    "pkce": true,
+    "encoding": "form",
+    "authentication": "basic",
+    "refreshRequired": true,
+    "docs": "https://developers.zoom.us/docs/integrations/oauth/"
+  },
   "discord": {
     "label": "Discord",
     "prefix": "DISCORD",

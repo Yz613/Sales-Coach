@@ -5,6 +5,7 @@ import type { dealDetail } from "@/lib/revenue/forecast";
 import { amountValue, CATEGORY_LABELS, FORECAST_CATEGORIES, MEDDICC, type DealReview, type Evidence, type PlaybookKey } from "@/lib/revenue/forecast-model";
 import type { Segment } from "@/lib/revenue/types";
 import { formatDuration } from "@/lib/utils";
+import AskAnything from "./AskAnything";
 import { buttonClass, Card, fieldClass, Notice, request, secondaryClass } from "./ui";
 type Detail = Awaited<ReturnType<typeof dealDetail>>;
 
@@ -53,6 +54,7 @@ export default function DealWorkspace({ initial }: { initial: Detail }) {
   return <div className="space-y-5">
     <div className="flex flex-wrap justify-between gap-4"><div><h1 className="text-2xl font-semibold">{deal.name}</h1><p className="text-sm text-[#6e6e73] mt-1">{deal.stage || "No stage"} · {deal.owner || "Unassigned"} · {deal.closed ? deal.won ? "Won" : "Closed" : "Open"}{deal.closeDate && ` · Closes ${deal.closeDate.slice(0, 10)}`}</p></div><div className="text-right"><p className="text-xl font-semibold">{amount === null ? "Amount unavailable" : `${amount.toLocaleString()} ${deal.currency || "Unspecified currency"}`}</p><Link href="/forecast" className="text-sm text-[#007AFF]">Open forecast →</Link></div></div>
     <Notice error={error} message={message} />
+    <AskAnything scope="deal" id={deal.id} />
     <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-5">
       <form className="space-y-5" onSubmit={e => { e.preventDefault(); void save(); }}>
         <Card title="Manager deal review"><fieldset disabled={busy} className="space-y-4"><div className="grid sm:grid-cols-2 gap-3"><label className="text-sm space-y-1">Forecast category<select className={fieldClass} value={review.category} onChange={e => change({ ...review, category: e.target.value as DealReview["category"] })}>{FORECAST_CATEGORIES.map(category => <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>)}</select></label><label className="text-sm space-y-1">Estimated win probability (%)<input className={fieldClass} type="number" min={0} max={100} step={1} placeholder="Not estimated" value={review.probability ?? ""} onChange={e => change({ ...review, probability: e.target.value === "" ? null : Number(e.target.value) })} /></label></div>

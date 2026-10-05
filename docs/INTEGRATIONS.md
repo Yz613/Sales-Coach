@@ -1,6 +1,6 @@
 # Integration API and cost roadmap
 
-Research checked October 2, 2026. The current library contains twenty-six implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+Research checked October 5, 2026. The current library contains twenty-seven implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
 
 ## Current library
 
@@ -23,6 +23,7 @@ Research checked October 2, 2026. The current library contains twenty-six implem
 | Google Calendar | Primary calendar events, recurring instances, attendees | OAuth/refresh; 15-minute snapshots |
 | Outlook Calendar | Default calendar events, recurring instances, attendees | OAuth/refresh; 15-minute snapshots |
 | Aircall | Completed transcripts, summaries, speaker timing, recording links | Authenticated live events; 15-minute fallback |
+| Zoom | Completed cloud recordings, transcripts, speaker timestamps, playback | OAuth; 15-minute sync |
 
 Each card opens a dedicated setup page. Credentials are encrypted, jobs are durable and retryable, calls are deduplicated, and source filters include all call connectors. [Setup instructions](REVENUE_WORKSPACE.md).
 
@@ -47,7 +48,7 @@ Effort estimates are engineering estimates for one experienced developer using t
 | 9 | **Outlook Calendar — implemented** | Default-calendar participants and scheduled-meeting matching; Microsoft Graph delegated Calendars.Read, UTC calendarView and 15-minute snapshots. | Standard Graph calendar endpoints are not listed as metered; Microsoft account / M365 license separate. [Graph](https://learn.microsoft.com/en-us/graph/overview), [metered API list](https://learn.microsoft.com/en-us/graph/metered-api-list). | Medium: **1–2 weeks**. |
 | 10 | Attio | People, companies, deals, notes and tasks. Scoped workspace bearer key or OAuth. | No separate request tariff found; CRM subscription separate. **100 reads/sec**, **25 writes/sec**, plus query-complexity limits. [Auth](https://docs.attio.com/rest-api/guides/authentication), [limits](https://docs.attio.com/rest-api/guides/rate-limiting). | Medium: **2–3 weeks**; configurable object/attribute mapping. |
 | 11 | Zoho CRM | Accounts, contacts, deals and activities; OAuth with region-specific API domains. | Free edition **5,000 credits/24 hours**; paid allowances vary by seats/edition. Purchased excess credits are billed monthly; price needs account confirmation. Most requests use one credit; some consume more. [Credits and concurrency](https://www.zoho.com/crm/developer/docs/api/v8/api-limits.html). | Medium: **2–3 weeks**. |
-| 12 | Zoom | Existing cloud recordings/transcripts; recording-completed events, owner mapping and authenticated download. OAuth or customer server-to-server app. | Cloud recording requires eligible Zoom account and host license; cloud storage separate. No separate standard REST request tariff found. [Meeting API prerequisites](https://developers.zoom.us/docs/api/meetings/), [download behavior](https://developers.zoom.us/blog/meeting-api-querying-tips-part4/). | Medium: **2–3 weeks**. |
+| 12 | **Zoom — implemented** | Completed cloud recordings and transcripts for the connected host. User OAuth with recording read scopes, month-sized pages, and dedupe by recording UUID. | Cloud recording and audio transcript require an eligible Zoom account. No separate standard REST request tariff found. [Cloud recordings](https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/recordingsList), [granular scopes](https://developers.zoom.us/docs/integrations/oauth-scopes-granular/). | Implemented for host cloud recordings. Account-wide admin ingestion and recording-completed webhooks remain later work. |
 | 13 | **Aircall — implemented** | Call metadata, available transcript/summary assets and recording links; API ID/token and authenticated transcript-ready webhooks. AI Assist is required for transcripts. | Essentials advertised **$30/license/month**, Professional **$50**, minimum **3 users**, with annual billing discount. FAQ says API access on all plans while Professional highlights “Full API access”: confirm target assets before buying. Current company limit **120 requests/minute**. [API](https://developers.aircall.io/), [plans](https://aircall.io/pricing/). | Medium: **2–3 weeks**. |
 | 14 | Dialpad | Call lifecycle, available recordings and transcripts; customer API credential or OAuth with product-specific permissions. | Paid voice/sales subscription; API and transcript entitlement must be confirmed. No separate request tariff found in reviewed developer overview. [Developer API](https://developers.dialpad.com/docs/welcome). | Medium: **2–3 weeks** after entitlement confirmation. |
 | 15 | RingCentral | Call logs and recordings; OAuth, phone-number matching and webhook/subscription renewal. | RingEX account and recording permissions required; automatic-recording eligibility varies. No separate standard request tariff found; rate groups differ by endpoint. [Rate limits](https://developers.ringcentral.com/guide/basics/rate-limits). | Medium: **2–4 weeks**. |
@@ -109,10 +110,30 @@ Plan for 60 requests/minute across all keys belonging to a user. API keys cannot
 
 Estimated incremental provider cost for the first HubSpot/Fathom deployment is $0 in separate request charges within included access and quotas. This assumes the customer's existing subscriptions provide the required content. Our AI review, transcription of raw audio, storage, hosting and any paid vendor features are additional. Avoid running a second transcription service on a Fathom transcript that already exists.
 
+## Zoom cloud recordings
+
+The connector is a user-managed OAuth app. It lists the connected host’s cloud recordings, not every user on the Zoom account, and it does not join live meetings. Zoom’s list endpoint accepts about one month per request, so sync walks backward in 29-day windows: 180 days on connect, or two years from Import history. Each completed recording instance is deduped by its meeting UUID. Recurring meetings keep the same meeting number and still import once per recording.
+
+A meeting is imported when Zoom has a completed transcript. Speaker names and cue times are read from the WebVTT file. Past-participant emails are added when Zoom still has them. Recordings that are still processing are left for the next sync. Disconnecting the integration cancels queued sync and import jobs.
+
+Playback asks Zoom for a short-lived download token when someone loads the recording. That token is not written to the call record. The stored link is the Zoom share page. A small M4A file can also be copied into the same encrypted recording store used for uploads; larger files stay on Zoom and play from the short-lived link.
+
+Production needs `ZOOM_CLIENT_ID` and `ZOOM_CLIENT_SECRET` on the deployment. The redirect URL is `{PUBLIC_APP_URL}/app/api/integrations/oauth/zoom/callback`. Create one General App in the Zoom Marketplace, choose user-managed OAuth, and add only these granular scopes:
+
+- `user:read:user`
+- `cloud_recording:read:list_user_recordings`
+- `cloud_recording:read:list_recording_files`
+- `cloud_recording:read:meeting_transcript`
+- `meeting:read:list_past_participants`
+
+The same Zoom account that owns the app can install the development build and connect. Other Zoom accounts need the app published. Publication is a separate Marketplace review and is not done by this connector. Zoom will ask for a deauthorization notification URL and a privacy policy at publish time; those are not required to connect the app owner’s own recordings. Access tokens expire in about an hour and refresh tokens rotate. The existing worker refreshes them. Hosts also need cloud recording and audio transcript turned on in Zoom settings.
+
+[OAuth](https://developers.zoom.us/docs/integrations/oauth/), [granular scopes](https://developers.zoom.us/docs/integrations/oauth-scopes-granular/), [list recordings](https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/recordingsList).
+
 ## Further integration work
 
 1. Extend Close with CRM objects. Slack alerts, Fireflies call ingestion and Pipedrive CRM reads are implemented.
-2. Add Zoom cloud recording ingestion. Calendly, Google and Outlook scheduling context is implemented.
+2. Zoom host cloud-recording ingestion is implemented. Calendly, Google and Outlook scheduling context is implemented. Account-wide Zoom admin ingestion and recording-completed webhooks are still open.
 3. Add Dialpad/RingCentral based on customers' existing phone systems. Aircall transcript ingestion is implemented.
 4. Add Apollo and Avoma/Otter only where entitlement and credit budgets make sense.
 5. Add Microsoft/Google mail, Salesforce and enterprise engagement suites when there is a customer ready to test their specific schema and permissions.
@@ -145,6 +166,7 @@ Configure operator application credentials before users can use calendar sign-in
 | Google Calendar | GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET | /app/api/integrations/oauth/google-calendar/callback | Enable Calendar API. Create a Web application OAuth client. Request calendar.readonly, configure consent and authorized test users or complete production verification. |
 | Outlook Calendar | MICROSOFT_CALENDAR_CLIENT_ID, MICROSOFT_CALENDAR_CLIENT_SECRET | /app/api/integrations/oauth/outlook-calendar/callback | Register a Web application in Microsoft Entra. Choose account types compatible with the common endpoint (multiple organizational tenants, optionally personal accounts). Delegated User.Read, Calendars.Read and offline_access. Use the secret value, not its ID. |
 | Calendly | CALENDLY_CLIENT_ID, CALENDLY_CLIENT_SECRET | /app/api/integrations/oauth/calendly/callback | Create a public OAuth application with users:read and scheduled_events:read. A personal access token remains available for private/account-owner connections. |
+| Zoom | ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET | /app/api/integrations/oauth/zoom/callback | Create a user-managed General App. Scopes: user:read:user, cloud_recording:read:list_user_recordings, cloud_recording:read:list_recording_files, cloud_recording:read:meeting_transcript, meeting:read:list_past_participants. Do not add meeting-bot or :admin scopes for this connector. |
 
 Prefix each callback path with the exact PUBLIC_APP_URL origin. For example, https://coach.example.com/app/api/integrations/oauth/google-calendar/callback. For local testing, use http://localhost:3000 consistently and register that exact callback origin and port. Calendly Sandbox specifically permits HTTP on localhost. Leave PUBLIC_APP_URL blank locally to use the request origin. Sign-in initiates from an authenticated workspace admin; callback completion requires the same admin, active workspace and browser within ten minutes. Token refresh needs the same operator application credentials used to connect. All three providers use PKCE; database leases serialize token refresh across workers to preserve single-use rotated tokens.
 

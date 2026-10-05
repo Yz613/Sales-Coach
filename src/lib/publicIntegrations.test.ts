@@ -9,7 +9,7 @@ import {
 } from "./publicIntegrations";
 
 const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite)\b/i;
-const ROADMAP_ONLY = ["Zoom", "Salesforce", "Dialpad", "Twilio", "Apollo", "Zoho", "Otter", "Avoma", "RingCentral", "Outreach", "Salesloft"];
+const ROADMAP_ONLY = ["Salesforce", "Dialpad", "Twilio", "Apollo", "Zoho", "Otter", "Avoma", "RingCentral", "Outreach", "Salesloft"];
 
 describe("public integration catalog", () => {
   it("lists every implemented connector and nothing else", () => {
@@ -17,8 +17,8 @@ describe("public integration catalog", () => {
     const publicIds = PUBLIC_INTEGRATIONS.map((item) => item.id).sort();
     assert.deepEqual(publicIds, catalogIds);
     assert.equal(new Set(publicIds).size, publicIds.length);
-    assert.equal(PUBLIC_INTEGRATION_COUNT, 26);
-    assert.equal(PUBLIC_INTEGRATIONS.length, 26);
+    assert.equal(PUBLIC_INTEGRATION_COUNT, 27);
+    assert.equal(PUBLIC_INTEGRATIONS.length, 27);
     for (const item of PUBLIC_INTEGRATIONS) {
       const tool = INTEGRATION_TOOLS.find((entry) => entry.id === item.id);
       assert.equal(item.name, tool?.name);
@@ -39,7 +39,7 @@ describe("public integration catalog", () => {
     assert.deepEqual(groups.map((group) => group.category), [...PUBLIC_INTEGRATION_CATEGORIES]);
     const counts = Object.fromEntries(groups.map((group) => [group.category, group.items.length]));
     assert.deepEqual(counts, {
-      Meetings: 6,
+      Meetings: 7,
       CRM: 3,
       Calendar: 3,
       Tasks: 10,
@@ -48,12 +48,12 @@ describe("public integration catalog", () => {
     });
     assert.deepEqual(
       groups.find((group) => group.category === "Meetings")?.items.map((item) => item.name),
-      ["Fathom", "Fireflies", "tl;dv", "Gong", "Close", "Aircall"]
+      ["Fathom", "Fireflies", "tl;dv", "Gong", "Close", "Aircall", "Zoom"]
     );
     assert.deepEqual(
       groups.find((group) => group.category === "CRM")?.items.map((item) => item.id),
       ["hubspot", "pipedrive", "attio"]
     );
-    assert.equal(groups.flatMap((group) => group.items).length, 26);
+    assert.equal(groups.flatMap((group) => group.items).length, 27);
   });
 });

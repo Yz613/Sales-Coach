@@ -24,6 +24,7 @@ Added October 2, 2026. Simple Icons SVGs are CC0 and use the brand color; remain
 | discord.svg | [Source](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/discord.svg) |
 | calendly.svg | [Source](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/calendly.svg) |
 | aircall.svg | [Source](https://aircall.io/favicon.svg) |
+| zoom.svg | [Source](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zoom.svg) (CC0), retrieved October 5, 2026. |
 | slack.png | [Source](https://a.slack-edge.com/9cc0056/img/icons/favicon-32.png) |
 | monday.png | [Source](https://cdn.prod.website-files.com/656da6fea306219773d04208/65af6bd6e742d497b5f23f69_645898132bbaac20f1963919_256x256.png) |
 | google-calendar.svg | [Source](https://www.gstatic.com/images/branding/productlogos/calendar_2026/v2/web/192px.svg) |
