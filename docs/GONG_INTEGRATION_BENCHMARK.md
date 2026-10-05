@@ -27,7 +27,7 @@ Checked against Gong's official documentation on October 2, 2026. This compares 
 
 ## Acceptance and delivery guarantees
 
-All 29 cards and connection headers use local brand assets with exhaustive provider coverage. Asset provenance is in `public/integrations/README.md`.
+All 30 cards and connection headers use local brand assets with exhaustive provider coverage. Asset provenance is in `public/integrations/README.md`.
 
 CRM exports use a durable delivery record and one note per connection, call, and target record. Rate limits retry. A timeout, malformed acknowledgment, server error, or expired worker lease can mean the CRM accepted the request; those deliveries require an admin to inspect the destination and confirm absence before resending. Automatic review exports prefer linked deals; when none are linked, they use linked contacts/companies. Source deletion, unlinking, removed review, disabled triggers, and disconnection cancel pending work.
 

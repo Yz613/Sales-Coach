@@ -1,6 +1,6 @@
 # Integration API and cost roadmap
 
-Research checked October 5, 2026. The current library contains twenty-nine implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+Research checked October 5, 2026. The current library contains thirty implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
 
 ## Current library
 
@@ -26,6 +26,7 @@ Research checked October 5, 2026. The current library contains twenty-nine imple
 | Outlook | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
 | Aircall | Completed transcripts, summaries, speaker timing, recording links | Authenticated live events; 15-minute fallback |
 | Zoom | Completed cloud recordings, transcripts, speaker timestamps, playback | OAuth; 15-minute sync |
+| Google Meet | Completed conferences, participants, speaker transcript entries, and recordings | OAuth; 15-minute sync. Transcript entries are kept for 30 days. |
 
 Each card opens a dedicated setup page. Credentials are encrypted, jobs are durable and retryable, calls are deduplicated, and source filters include all call connectors. [Setup instructions](REVENUE_WORKSPACE.md).
 
@@ -169,6 +170,7 @@ Configure operator application credentials before users can use calendar sign-in
 | Outlook Calendar | MICROSOFT_CALENDAR_CLIENT_ID, MICROSOFT_CALENDAR_CLIENT_SECRET | /app/api/integrations/oauth/outlook-calendar/callback | Register a Web application in Microsoft Entra. Choose account types compatible with the common endpoint (multiple organizational tenants, optionally personal accounts). Delegated User.Read, Calendars.Read and offline_access. Use the secret value, not its ID. |
 | Calendly | CALENDLY_CLIENT_ID, CALENDLY_CLIENT_SECRET | /app/api/integrations/oauth/calendly/callback | Create a public OAuth application with users:read and scheduled_events:read. A personal access token remains available for private/account-owner connections. |
 | Zoom | ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET | /app/api/integrations/oauth/zoom/callback | Create a user-managed General App. Scopes: user:read:user, cloud_recording:read:list_user_recordings, cloud_recording:read:list_recording_files, cloud_recording:read:meeting_transcript, meeting:read:list_past_participants. Do not add meeting-bot or :admin scopes for this connector. |
+| Google Meet | GOOGLE_MEET_CLIENT_ID, GOOGLE_MEET_CLIENT_SECRET. Falls back to GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, then to GOOGLE_CALENDAR_CLIENT_ID and GOOGLE_CALENDAR_CLIENT_SECRET. Authorize and token exchange keep the same client and redirect URI. | /app/api/integrations/oauth/google-meet/callback | Enable the Google Meet API, the Google Drive API, and the People API. Web application OAuth client. Scopes: `https://www.googleapis.com/auth/meetings.space.readonly` (conference records, participants, transcripts, and transcript entries), `https://www.googleapis.com/auth/drive.meet.readonly` (Meet recording files in Drive, narrower than full Drive read), `https://www.googleapis.com/auth/contacts.readonly` (People API email addresses for signed-in participants), and `https://www.googleapis.com/auth/userinfo.email` (the connected account, used as the rep). Request offline access. Transcript entries expire 30 days after the conference, so sync and Import history both use a 30-day window. A missing transcript is retried for six hours, then the call is imported with a note. A disabled API returns 403; the connection page includes that reason, and the worker log records the provider status and body with tokens removed. |
 
 Prefix each callback path with the exact PUBLIC_APP_URL origin. For example, https://coach.example.com/app/api/integrations/oauth/google-calendar/callback. For local testing, use http://localhost:3000 consistently and register that exact callback origin and port. Calendly Sandbox specifically permits HTTP on localhost. Leave PUBLIC_APP_URL blank locally to use the request origin. Sign-in initiates from an authenticated workspace admin; callback completion requires the same admin, active workspace and browser within ten minutes. Token refresh needs the same operator application credentials used to connect. All three providers use PKCE; database leases serialize token refresh across workers to preserve single-use rotated tokens.
 

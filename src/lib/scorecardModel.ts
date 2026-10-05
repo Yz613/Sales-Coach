@@ -33,6 +33,7 @@ export const SCORECARD_SOURCES: { id: string; label: string }[] = [
   { id: "close", label: "Close" },
   { id: "aircall", label: "Aircall" },
   { id: "zoom", label: "Zoom" },
+  { id: "google-meet", label: "Google Meet" },
   { id: "zapier", label: "Zapier" },
   { id: "make", label: "Make" },
 ];

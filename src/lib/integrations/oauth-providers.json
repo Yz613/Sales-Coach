@@ -12,6 +12,19 @@
     "refreshRequired": true,
     "docs": "https://developers.google.com/identity/protocols/oauth2/web-server"
   },
+  "google-meet": {
+    "label": "Google Meet",
+    "prefix": "GOOGLE_MEET",
+    "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
+    "tokenOrigin": "https://oauth2.googleapis.com",
+    "tokenPath": "/token",
+    "scope": "https://www.googleapis.com/auth/meetings.space.readonly https://www.googleapis.com/auth/drive.meet.readonly https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/userinfo.email",
+    "pkce": true,
+    "encoding": "form",
+    "authentication": "body",
+    "refreshRequired": true,
+    "docs": "https://developers.google.com/workspace/meet/api/guides/overview"
+  },
   "gmail": {
     "label": "Google",
     "prefix": "GOOGLE",
