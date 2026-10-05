@@ -327,6 +327,9 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     createdAt: new Date().toISOString(),
   }).run();
 
+  const { seedScorecardsFromRubric } = await import("../scorecards");
+  await seedScorecardsFromRubric(input.callId);
+
   await db.update(calls)
     .set({ status: "completed", coreOutcome: evaluationResult.coreOutcome })
     .where(and(eq(calls.id, input.callId), eq(calls.orgId, orgId)))

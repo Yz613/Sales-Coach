@@ -33,6 +33,7 @@ import { crmOverview } from "@/lib/revenue/crm";
 import ConversationWorkspace from "@/components/revenue/ConversationWorkspace";
 import FathomRecording from "@/components/revenue/FathomRecording";
 import AskAnything from "@/components/revenue/AskAnything";
+import CallScorecards from "@/components/scorecards/CallScorecards";
 
 export const dynamic = "force-dynamic";
 
@@ -557,6 +558,7 @@ async function CallReviewPage({
       {/* Teach the Coach from this call */}
       <TeachCoach callId={call.id} />
       </CallReviewSwitcher>
+      <CallScorecards callId={call.id} admin={auth.isAdmin} />
       <ConversationWorkspace callId={call.id} duration={call.durationSeconds} initial={conversation} admin={auth.isAdmin} viewerId={auth.userId || "local-admin"} metrics={scorecard.map(m => ({ key: m.key, label: m.label, score: m.score }))} deals={deals} />
     </div>
   );

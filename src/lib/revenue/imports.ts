@@ -38,6 +38,8 @@ export async function importMeeting(connection: { id: string; provider?: string;
     const { queueIntegrationEvents } = await import("./exports");
     await queueIntegrationEvents("call.imported", callId, callId);
   }
+  const { autoApplyScorecardsForCall } = await import("../scorecards");
+  await autoApplyScorecardsForCall(callId);
   if (meeting.transcriptText.trim()) {
     const { enqueueAlertScan } = await import("./alerts");
     await enqueueAlertScan(callId, { mode: "concepts", key: `content:${callId}:${stableId(meeting.transcriptText).slice(0, 12)}` });

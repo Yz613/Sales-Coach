@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 
 export const reps = sqliteTable("reps", {
   id: text("id").primaryKey(),
@@ -263,4 +263,58 @@ export const taskExports = sqliteTable("task_exports", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(), callId: text("call_id").notNull(),
   actionId: text("action_id").notNull(), title: text("title").notNull(), status: text("status").notNull().default("queued"), externalId: text("external_id"), sourceUrl: text("source_url"),
   attempt: integer("attempt").notNull().default(0), lastError: text("last_error"), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const scorecardTemplates = sqliteTable("scorecard_templates", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  visibility: text("visibility").notNull().default("managers"),
+  autoApply: integer("auto_apply", { mode: "boolean" }).notNull().default(false),
+  filters: text("filters").notNull().default("{}"),
+  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const scorecardQuestions = sqliteTable("scorecard_questions", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  templateId: text("template_id").notNull(),
+  position: integer("position").notNull(),
+  prompt: text("prompt").notNull(),
+  guidance: text("guidance").notNull().default(""),
+  scale: text("scale").notNull(),
+  weight: real("weight"),
+  rubricKey: text("rubric_key"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const scorecardApplications = sqliteTable("scorecard_applications", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  templateId: text("template_id").notNull(),
+  callId: text("call_id").notNull(),
+  source: text("source").notNull(),
+  status: text("status").notNull().default("open"),
+  overallScore: real("overall_score"),
+  answeredCount: integer("answered_count").notNull().default(0),
+  questionCount: integer("question_count").notNull().default(0),
+  appliedBy: text("applied_by").notNull(),
+  appliedAt: text("applied_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const scorecardAnswers = sqliteTable("scorecard_answers", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  applicationId: text("application_id").notNull(),
+  questionId: text("question_id").notNull(),
+  value: text("value").notNull(),
+  note: text("note").notNull().default(""),
+  origin: text("origin").notNull().default("manual"),
+  authorName: text("author_name").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
