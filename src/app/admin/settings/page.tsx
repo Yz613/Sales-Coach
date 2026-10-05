@@ -46,6 +46,10 @@ export default function AdminSettingsPage() {
   const [overageOptIn, setOverageOptIn] = useState(false);
   const [billingPaid, setBillingPaid] = useState(true);
   const [billingUsage, setBillingUsage] = useState<{ creditsUsed: number; overageCredits: number; overageAmountUsd: number; remaining: number | null; unlimited: boolean; monthlyLimit: number | null } | null>(null);
+  const [emailCaptureEnabled, setEmailCaptureEnabled] = useState(false);
+  const [emailExcludedDomains, setEmailExcludedDomains] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
 
   const providerMeta = getProvider(provider);
   const selectedModelId = providerMeta.allowsCustomModel && customModel.trim() ? customModel.trim() : activeModel;
@@ -84,6 +88,8 @@ export default function AdminSettingsPage() {
         if (data.billing?.planId) setBillingPlan(data.billing.planId);
         if (typeof data.billing?.paid === "boolean") setBillingPaid(data.billing.paid);
         if (typeof data.billing?.overageOptIn === "boolean") setOverageOptIn(data.billing.overageOptIn);
+        setEmailCaptureEnabled(Boolean(data.emailCapture?.enabled));
+        setEmailExcludedDomains((data.emailCapture?.excludedDomains || []).join("\n"));
         if (data.billing) {
           setBillingUsage({
             creditsUsed: data.billing.usage?.creditsUsed || 0,
@@ -493,6 +499,62 @@ export default function AdminSettingsPage() {
           >
             Open Call Bank
           </Link>
+        </div>
+
+        <div className="rounded-2xl glass-card p-6 space-y-5">
+          <div className="flex items-center gap-3 border-b border-black/[0.08] pb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[#248A3D]">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-[#1d1d1f]">Email capture</h2>
+              <p className="text-xs text-[#6e6e73]">
+                Sync Gmail and Outlook metadata onto deals. Only a short snippet is stored. Managers see every mailbox; reps see their own.
+              </p>
+            </div>
+          </div>
+          <form className="space-y-4" onSubmit={async (event) => {
+            event.preventDefault();
+            setEmailSaving(true);
+            setEmailMessage("");
+            setSettingsError("");
+            try {
+              const res = await fetch(apiPath("/api/admin/settings"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ emailCaptureEnabled, emailExcludedDomains }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.error || "Could not save email capture.");
+              setEmailMessage(emailCaptureEnabled ? "Email capture is on." : "Email capture is off. Stored snippets stay hidden until you turn it back on.");
+            } catch (err) {
+              setSettingsError(err instanceof Error ? err.message : "Could not save email capture.");
+            } finally {
+              setEmailSaving(false);
+            }
+          }}>
+            <label className="flex items-center gap-3 text-sm text-[#1d1d1f]">
+              <input type="checkbox" checked={emailCaptureEnabled} onChange={(event) => setEmailCaptureEnabled(event.target.checked)} />
+              Capture matching customer email for this workspace
+            </label>
+            <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73]">
+              Excluded domains
+              <textarea
+                value={emailExcludedDomains}
+                onChange={(event) => setEmailExcludedDomains(event.target.value)}
+                rows={4}
+                placeholder={"yourcompany.com\nvendor.example"}
+                className="mt-1.5 w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] font-mono focus:border-blue-500/50 focus:outline-none"
+              />
+            </label>
+            <p className="text-xs text-[#6e6e73]">Messages to or from these domains are not stored. One domain per line, such as your own company domain.</p>
+            <div className="flex items-center gap-3">
+              <button type="submit" disabled={emailSaving} className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-60">
+                {emailSaving ? "Saving…" : "Save email capture"}
+              </button>
+              {emailMessage && <span className="text-xs text-[#248A3D]">{emailMessage}</span>}
+            </div>
+          </form>
         </div>
 
         <div className="rounded-2xl glass-card p-6 space-y-5">

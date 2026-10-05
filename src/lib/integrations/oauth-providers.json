@@ -12,6 +12,32 @@
     "refreshRequired": true,
     "docs": "https://developers.google.com/identity/protocols/oauth2/web-server"
   },
+  "gmail": {
+    "label": "Google",
+    "prefix": "GOOGLE",
+    "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
+    "tokenOrigin": "https://oauth2.googleapis.com",
+    "tokenPath": "/token",
+    "scope": "https://www.googleapis.com/auth/gmail.metadata",
+    "pkce": true,
+    "encoding": "form",
+    "authentication": "body",
+    "refreshRequired": true,
+    "docs": "https://developers.google.com/workspace/gmail/api/auth/scopes"
+  },
+  "outlook": {
+    "label": "Microsoft",
+    "prefix": "MICROSOFT",
+    "authorize": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "tokenOrigin": "https://login.microsoftonline.com",
+    "tokenPath": "/common/oauth2/v2.0/token",
+    "scope": "offline_access Mail.Read User.Read",
+    "pkce": true,
+    "encoding": "form",
+    "authentication": "body",
+    "refreshRequired": true,
+    "docs": "https://learn.microsoft.com/en-us/graph/auth-v2-user"
+  },
   "outlook-calendar": {
     "label": "Microsoft",
     "prefix": "MICROSOFT_CALENDAR",

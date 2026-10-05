@@ -9,6 +9,7 @@ import { audit } from "./connections";
 import { RevenueError } from "./security";
 import { parseJson, type ActionItem, type Participant, type Segment } from "./types";
 import { buildForecast, currentQuarter, dealCurrency, emptyPlaybook, FORECAST_CATEGORIES, MEDDICC, periodBounds, validDate, type Evidence, type ForecastCategory, type ForecastFilters, type ForecastSnapshot } from "./forecast-model";
+import { emailCaptureEnabled, visibleDealEmails } from "../integrations/email";
 
 function admin(auth: AuthUser) { if (!auth.isAdmin) throw new RevenueError("Only workspace admins can manage deals and forecasts.", 403); }
 function text(value: unknown, label: string, max: number): string {
@@ -45,7 +46,8 @@ export async function dealDetail(auth: AuthUser, id: string) {
     for (const action of parseJson<ActionItem[]>(meta?.actions, []).filter(a => !a.completed)) actions.push({ ...action, callId: call.id, callTitle: call.title });
     return { ...call, summary: meta?.summary || "" };
   });
-  return { deal, timeline, stakeholders: [...stakeholders.values()], actions };
+  const emails = await visibleDealEmails(auth, id);
+  return { deal, timeline, emails, emailCaptureEnabled: await emailCaptureEnabled(), stakeholders: [...stakeholders.values()], actions };
 }
 
 export async function dealEvidence(auth: AuthUser, id: string, callId: string) {

@@ -1,21 +1,22 @@
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
-import { auditEvents, integrationConnections, processingJobs, integrationExports, crmPropertyWrites } from "../db/schema";
+import { auditEvents, integrationConnections, processingJobs, integrationExports, crmPropertyWrites, emailMessages } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { decryptCredentials, encryptCredentials, RevenueError, textInput } from "./security";
 import { parseJson, type ConnectionConfig, type ProviderId, type SyncCursor } from "./types";
 import { fathomRequest } from "../integrations/fathom";
 import { hubspotRequest } from "../integrations/hubspot";
-import { integrationTool, isCallTool, isCalendarTool, isTaskTool, isNotificationTool } from "../integrations/catalog";
+import { integrationTool, isCallTool, isCalendarTool, isEmailTool, isTaskTool, isNotificationTool } from "../integrations/catalog";
 import { verifyCallProvider, type CallProvider } from "../integrations/call-providers";
 import { verifyZoom } from "../integrations/zoom";
 import { verifyCrmProvider } from "../integrations/crm-providers";
 import { verifyCalendarProvider } from "../integrations/calendars";
+import { verifyMailbox } from "../integrations/email";
 import { slackPreferences, slackWebhook, discordWebhook } from "../integrations/slack";
 import { verifyTaskProvider } from "../integrations/tasks";
 import type { TaskProvider } from "./types";
-import type { CalendarProvider } from "./types";
+import type { CalendarProvider, MailboxProvider } from "./types";
 
 export async function audit(actor: string, action: string, entityId: string) {
   await db.insert(auditEvents).values({ id: randomUUID(), orgId: currentTenantId(), actor, action, entityId, createdAt: new Date().toISOString() }).run();
@@ -52,6 +53,7 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   await ensureRevenueSchema();
   const secrets: Record<string, string> = { ...authorized };
   if ((provider === "google-calendar" || provider === "outlook-calendar") && !authorized) throw new RevenueError("Use the calendar sign-in button to connect this account.");
+  if ((provider === "gmail" || provider === "outlook") && !authorized) throw new RevenueError("Use the mailbox sign-in button to connect this account.");
   if (provider === "zoom" && !authorized) throw new RevenueError("Use the Zoom sign-in button to connect this account.");
   const pendingSetup = Boolean(authorized && isTaskTool(provider) && !body.targetId);
   for (const field of tool.fields) if (!authorized || !["token", "webhookUrl"].includes(field.name)) secrets[field.name] = textInput(body[field.name] || "", field.label, 4096, field.required && !pendingSetup);
@@ -65,6 +67,7 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   else if (provider === "discord") discordWebhook(secrets.webhookUrl);
   else if (isTaskTool(provider) && !pendingSetup) calendarConfig = await verifyTaskProvider(provider as TaskProvider, secrets);
   else if (isCalendarTool(provider)) calendarConfig = await verifyCalendarProvider(provider as CalendarProvider, token);
+  else if (isEmailTool(provider)) calendarConfig = { ...await verifyMailbox(provider as MailboxProvider, token), ownerUserId: actor };
   else if (provider === "hubspot") {
     for (const type of ["companies", "contacts", "deals"]) await hubspotRequest(token, `/crm/v3/objects/${type}?limit=1`);
     await hubspotRequest(token, "/crm/v3/pipelines/deals");
@@ -101,6 +104,7 @@ export async function disconnectIntegration(id: string, actor: string) {
   const orgId = currentTenantId(); const now = new Date().toISOString();
   await db.update(integrationConnections).set({ status: "disconnected", credentials: "", config: "{}", cursor: "{}", lastError: null, updatedAt: now }).where(and(eq(integrationConnections.id, id), eq(integrationConnections.orgId, orgId))).run();
   await db.update(processingJobs).set({ status: "cancelled", payload: "{}", leaseToken: null, leaseUntil: null, updatedAt: now }).where(and(eq(processingJobs.orgId, orgId), eq(processingJobs.connectionId, id), inArray(processingJobs.status, ["queued", "running", "failed"]))).run();
+  await db.delete(emailMessages).where(and(eq(emailMessages.orgId, orgId), eq(emailMessages.connectionId, id))).run();
   await db.update(integrationExports).set({ status: "cancelled", updatedAt: now }).where(and(eq(integrationExports.orgId, orgId), eq(integrationExports.connectionId, id), inArray(integrationExports.status, ["queued", "sending"]))).run();
   await db.update(crmPropertyWrites).set({ status: "cancelled", updatedAt: now }).where(and(eq(crmPropertyWrites.orgId, orgId), eq(crmPropertyWrites.connectionId, id), inArray(crmPropertyWrites.status, ["queued", "sending"]))).run();
   await audit(actor, "integration.disconnected", id);

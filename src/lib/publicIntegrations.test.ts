@@ -17,8 +17,8 @@ describe("public integration catalog", () => {
     const publicIds = PUBLIC_INTEGRATIONS.map((item) => item.id).sort();
     assert.deepEqual(publicIds, catalogIds);
     assert.equal(new Set(publicIds).size, publicIds.length);
-    assert.equal(PUBLIC_INTEGRATION_COUNT, 27);
-    assert.equal(PUBLIC_INTEGRATIONS.length, 27);
+    assert.equal(PUBLIC_INTEGRATION_COUNT, 29);
+    assert.equal(PUBLIC_INTEGRATIONS.length, 29);
     for (const item of PUBLIC_INTEGRATIONS) {
       const tool = INTEGRATION_TOOLS.find((entry) => entry.id === item.id);
       assert.equal(item.name, tool?.name);
@@ -42,6 +42,7 @@ describe("public integration catalog", () => {
       Meetings: 7,
       CRM: 3,
       Calendar: 3,
+      Email: 2,
       Tasks: 10,
       Chat: 2,
       Automation: 2,
@@ -54,6 +55,10 @@ describe("public integration catalog", () => {
       groups.find((group) => group.category === "CRM")?.items.map((item) => item.id),
       ["hubspot", "pipedrive", "attio"]
     );
-    assert.equal(groups.flatMap((group) => group.items).length, 27);
+    assert.equal(groups.flatMap((group) => group.items).length, 29);
+    assert.deepEqual(
+      groups.find((group) => group.category === "Email")?.items.map((item) => item.id),
+      ["gmail", "outlook"]
+    );
   });
 });

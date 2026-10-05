@@ -236,6 +236,16 @@ export const checkoutClaims = sqliteTable("checkout_claims", {
   sessionId: text("session_id").primaryKey(), orgId: text("org_id").notNull(),
 });
 
+export const emailMessages = sqliteTable("email_messages", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
+  provider: text("provider").notNull(), externalId: text("external_id").notNull(), threadId: text("thread_id").notNull().default(""),
+  ownerUserId: text("owner_user_id").notNull().default(""), direction: text("direction").notNull(),
+  subject: text("subject").notNull().default(""), snippet: text("snippet").notNull().default(""),
+  participants: text("participants").notNull().default("[]"), sentAt: text("sent_at").notNull(),
+  dealIds: text("deal_ids").notNull().default("[]"), accountIds: text("account_ids").notNull().default("[]"),
+  syncedAt: text("synced_at").notNull(),
+});
+
 export const scheduledMeetings = sqliteTable("scheduled_meetings", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
   provider: text("provider").notNull(), externalId: text("external_id").notNull(), title: text("title").notNull(),

@@ -121,14 +121,29 @@ test("call and deal questions cite linked transcripts and enforce access, length
     id: "deal-b", orgId: "org-a", connectionId: "crm", provider: "hubspot", externalId: "deal-b", kind: "deal",
     name: "Other deal", amount: "9000", currency: "USD", stage: "Qualified", syncedAt: "2026-10-02",
   }).run();
+  const emailSnippet = "Please confirm the procurement hold until Friday before we send the order form.";
+  await db.insert(schema.emailMessages).values({
+    id: "email-1", orgId: "org-a", connectionId: "mail-1", provider: "gmail", externalId: "m1", threadId: "t1",
+    ownerUserId: "manager", direction: "inbound", subject: "Procurement timing", snippet: emailSnippet,
+    participants: JSON.stringify([{ name: "Pat", email: "pat@acme.com", role: "from" }]),
+    sentAt: "2026-10-04T15:00:00.000Z", dealIds: JSON.stringify(["deal-a"]), accountIds: "[]", syncedAt: "2026-10-04T16:00:00.000Z",
+  }).run();
+  await db.insert(schema.emailMessages).values({
+    id: "email-secret", orgId: "org-a", connectionId: "mail-2", provider: "outlook", externalId: "m2", threadId: "t2",
+    ownerUserId: "member", direction: "inbound", subject: "Other deal", snippet: "hidden mailbox phrase belongs on the other deal only",
+    participants: JSON.stringify([{ name: "Other", email: "other@elsewhere.com", role: "from" }]),
+    sentAt: "2026-10-04T12:00:00.000Z", dealIds: JSON.stringify(["deal-b"]), accountIds: "[]", syncedAt: "2026-10-04T16:00:00.000Z",
+  }).run();
 
   let prompts: string[] = [];
   globalThis.fetch = (async (_input: unknown, init?: { body?: string }) => {
     const body = JSON.parse(init?.body || "{}");
     const prompt = body.messages?.[1]?.content || "";
     prompts.push(prompt);
-    const quote = prompt.includes(LINKED_QUOTE) ? "forty thousand dollars this quarter" : "not present";
-    return new Response(aiJson("The buyer named a budget of forty thousand dollars this quarter.", [{ ref: "c0s0", quote }]), { status: 200, headers: { "content-type": "application/json" } });
+    const emailQuestion = prompt.includes("What did the email say");
+    const quote = emailQuestion ? "procurement hold until Friday" : prompt.includes(LINKED_QUOTE) ? "forty thousand dollars this quarter" : "not present";
+    const ref = emailQuestion ? "e0" : "c0s0";
+    return new Response(aiJson(emailQuestion ? "The email asked to confirm the procurement hold until Friday." : "The buyer named a budget of forty thousand dollars this quarter.", [{ ref, quote }]), { status: 200, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
 
   await runWithTenant("org-a", async () => {
@@ -136,6 +151,7 @@ test("call and deal questions cite linked transcripts and enforce access, length
     await setSetting("active_model", "gpt-4o-mini");
     await setSetting("ai_api_key", "sk-test-ask-key");
     await setSetting("billing:overage_opt_in", "false");
+    await setSetting("email_capture_enabled", "1");
     const month = utcMonthKey();
     await setSetting(`billing:usage:${month}`, JSON.stringify({ month, creditsUsed: 0, overageCredits: 0, overageAmountUsd: 0 }));
 
@@ -165,9 +181,20 @@ test("call and deal questions cite linked transcripts and enforce access, length
     assert.match(deal.citations[0].quote, /forty thousand dollars/);
     assert.doesNotMatch(prompts.at(-1) || "", new RegExp(SECRET));
     assert.doesNotMatch(prompts.at(-1) || "", /nine thousand/);
+    assert.match(prompts.at(-1) || "", /procurement hold until Friday/);
+    assert.doesNotMatch(prompts.at(-1) || "", /hidden mailbox phrase/);
+
+    const emailed = await answerDealQuestion(admin, "deal-a", "What did the email say about the procurement hold?");
+    assert.match(emailed.answer, /procurement hold/);
+    assert.equal(emailed.citations.length, 1);
+    assert.equal(emailed.citations[0].kind, "email");
+    assert.equal(emailed.citations[0].emailId, "email-1");
+    assert.equal(emailed.citations[0].href, "/deals/deal-a#email-email-1");
+    assert.match(emailed.citations[0].quote, /procurement hold until Friday/);
+    assert.doesNotMatch(prompts.at(-1) || "", /hidden mailbox phrase/);
 
     const usage = JSON.parse((await getSetting(`billing:usage:${month}`)) || "{}");
-    assert.equal(usage.creditsUsed, 2);
+    assert.equal(usage.creditsUsed, 3);
 
     await setSetting(`billing:usage:${month}`, JSON.stringify({ month, creditsUsed: 250, overageCredits: 0, overageAmountUsd: 0 }));
     const callsBeforeQuota = prompts.length;

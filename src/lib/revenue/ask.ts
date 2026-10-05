@@ -11,6 +11,7 @@ import { completeJson } from "../ai/llm";
 import { resolveAiSettings } from "../ai/settings";
 import { assertEvaluationAllowed, recordEvaluationUsage } from "../billingQuota";
 import { dealDetail } from "./forecast";
+import { visibleDealEmails, type EmailActivity } from "../integrations/email";
 import { audit } from "./connections";
 import { actorId } from "./conversations";
 import { RevenueError, textInput } from "./security";
@@ -54,6 +55,8 @@ export interface AskCitation {
   timing: "provider" | "estimated";
   quote: string;
   href: string;
+  kind?: "call" | "email";
+  emailId?: string;
 }
 
 export interface AskResult {
@@ -83,6 +86,9 @@ interface AskTurn {
   start: number;
   end: number | null;
   timing: "provider" | "estimated";
+  kind?: "call" | "email";
+  emailId?: string;
+  href?: string;
 }
 
 export interface PackedAsk {
@@ -240,7 +246,9 @@ export function groundAskAnswer(parsed: unknown, turns: AskTurn[]): { answer: st
       end: turn.end,
       timing: turn.timing,
       quote: turn.text.slice(0, 500),
-      href: citationHref(turn.callId, turn.start, turn.end),
+      href: turn.href || citationHref(turn.callId, turn.start, turn.end),
+      kind: turn.kind || "call",
+      ...(turn.emailId ? { emailId: turn.emailId } : {}),
     });
   }
   if (!citations.length) return { answer: UNSUPPORTED_ANSWER, citations: [] };
@@ -256,6 +264,7 @@ export function buildAskPrompt(question: string, packed: PackedAsk): string {
     "If the turns do not contain the answer, say it was not discussed and return an empty citations array.",
     'Return JSON: {"answer":"...","citations":[{"ref":"c0s0","quote":"exact words copied from that turn"}]}',
     "Each citation ref must be one of the turn ids. Each quote must be copied from that same turn.",
+    "Lines whose ref starts with e are email snippets. Cite that ref when the answer comes from the email.",
     "",
     "Question:",
     question,
@@ -335,6 +344,34 @@ async function linkedDealSources(auth: AuthUser, dealId: string): Promise<AskSou
   return ids.map((id) => byId.get(id)).filter((row): row is AskSource => Boolean(row));
 }
 
+export function emailAskTurns(emails: EmailActivity[], dealId: string, used = 0, budget = ASK_CONTEXT_CHAR_BUDGET): AskTurn[] {
+  const turns: AskTurn[] = [];
+  let spent = used;
+  emails.forEach((email, index) => {
+    const text = email.snippet.trim();
+    if (text.length < 12) return;
+    const ref = `e${index}`;
+    const speaker = email.participants.find(person => person.role === "from")?.email || email.direction;
+    const overhead = ref.length + email.subject.length + speaker.length + 24;
+    if (spent + overhead + text.length > budget) return;
+    turns.push({
+      ref,
+      callId: "",
+      title: email.subject,
+      speaker,
+      text,
+      start: 0,
+      end: null,
+      timing: "provider",
+      kind: "email",
+      emailId: email.id,
+      href: `/deals/${encodeURIComponent(dealId)}#email-${encodeURIComponent(email.id)}`,
+    });
+    spent += overhead + text.length;
+  });
+  return turns;
+}
+
 function readySources(sources: AskSource[], scope: "call" | "deal"): AskSource[] {
   const ready = sources.filter((source) => askBlocker(source.transcriptText, source.segments) === null && source.segments.length > 0);
   if (ready.length) return ready;
@@ -344,9 +381,12 @@ function readySources(sources: AskSource[], scope: "call" | "deal"): AskSource[]
   throw new RevenueError("This call has no transcript to answer from.", 422);
 }
 
-async function answerFromSources(auth: AuthUser, scope: "call" | "deal", entityId: string, question: string, sources: AskSource[]): Promise<AskResult> {
-  const ready = readySources(sources, scope);
+async function answerFromSources(auth: AuthUser, scope: "call" | "deal", entityId: string, question: string, sources: AskSource[], emails: EmailActivity[] = []): Promise<AskResult> {
+  const usable = sources.filter((source) => askBlocker(source.transcriptText, source.segments) === null && source.segments.length > 0);
+  const ready = usable.length ? usable : emails.length && scope === "deal" ? [] : readySources(sources, scope);
   const packed = packAskTurns(ready);
+  const used = packed.turns.reduce((sum, turn) => sum + turn.ref.length + turn.title.length + turn.speaker.length + turn.text.length + 24, 0);
+  packed.turns.push(...emailAskTurns(emails, entityId, used));
   if (!packed.turns.length) {
     throw new RevenueError(
       scope === "deal"
@@ -396,5 +436,6 @@ export async function answerCallQuestion(auth: AuthUser, callId: string, questio
 export async function answerDealQuestion(auth: AuthUser, dealId: string, question: unknown): Promise<AskResult> {
   const asked = textInput(question, "Question", 1000);
   const sources = await linkedDealSources(auth, dealId);
-  return answerFromSources(auth, "deal", dealId, asked, sources);
+  const emails = await visibleDealEmails(auth, dealId);
+  return answerFromSources(auth, "deal", dealId, asked, sources, emails);
 }

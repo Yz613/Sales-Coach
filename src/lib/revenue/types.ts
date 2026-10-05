@@ -1,7 +1,8 @@
 export type TaskProvider = "asana" | "notion" | "trello" | "clickup" | "monday" | "linear" | "todoist" | "airtable" | "github" | "gitlab";
-export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom";
+export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom" | "gmail" | "outlook";
 export interface ExternalTask { externalId: string; title: string; description: string; status: "open" | "completed" | "archived"; assignee: string; dueAt: string | null; sourceUrl: string | null }
 export type CalendarProvider = "calendly" | "google-calendar" | "outlook-calendar";
+export type MailboxProvider = "gmail" | "outlook";
 export interface ScheduledMeeting {
   externalId: string; title: string; startAt: string; endAt: string; status: "scheduled" | "cancelled";
   organizerEmail: string; participants: Participant[]; location: string; sourceUrl: string | null;
@@ -28,7 +29,7 @@ export type HubspotPropertyField = typeof HUBSPOT_PROPERTY_FIELDS[number];
 export interface HubspotPropertyMapping { source: HubspotPropertyField; object: "deal" | "contact"; property: string }
 export interface ConnectionConfig { autoSync: boolean; autoEvaluate: boolean; defaultStage: string; webhookId?: string; webhookUrl?: string; webhookError?: string; lastWebhookAt?: string; portalId?: string;
   calendarId?: string; userUri?: string; accountEmail?: string; accountName?: string; notifyReviewed?: boolean; notifyClips?: boolean; notifyLowScore?: boolean; lowScoreThreshold?: number; lastNotifiedAt?: string;
-  targetLabel?: string; titleProperty?: string; pendingSetup?: boolean; pendingAutoSync?: boolean; authMethod?: "oauth";
+  targetLabel?: string; titleProperty?: string; pendingSetup?: boolean; pendingAutoSync?: boolean; authMethod?: "oauth"; ownerUserId?: string;
   exportReviewed?: boolean; outboundConfigured?: boolean; outboundOnImported?: boolean; outboundOnReviewed?: boolean;
   propertyMappings?: HubspotPropertyMapping[]; writePropertiesOnReview?: boolean;
 }

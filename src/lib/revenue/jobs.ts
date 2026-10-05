@@ -14,13 +14,14 @@ import { callProviderPage, fetchProviderCall, type CallProvider } from "../integ
 import { maybeStoreZoomAudio } from "../integrations/zoom";
 import { normalizeGongCall } from "../integrations/gong";
 import { crmProviderPage } from "../integrations/crm-providers";
-import { integrationTool, isCallTool, isCalendarTool, isTaskTool } from "../integrations/catalog";
+import { integrationTool, isCallTool, isCalendarTool, isEmailTool, isTaskTool } from "../integrations/catalog";
 import { taskProviderPage } from "../integrations/tasks";
 import { storeExternalTask, executeTaskExport, TaskDeliveryError } from "./tasks";
 import { executeCallExport, ExportDeliveryError } from "./exports";
 import { executePropertyWrite, PropertyWriteError } from "./property-writes";
 import type { TaskProvider } from "./types";
 import { calendarProviderPage, fetchCalendlyMeeting, normalizeCalendlyEvent } from "../integrations/calendars";
+import { emailCaptureEnabled, mailboxProviderPage, reconcileEmailWindow, storeEmailMessage } from "../integrations/email";
 import { authorizedSecrets, OAuthReconnectError } from "../integrations/oauth";
 import { sendSlackJob } from "../integrations/slack";
 import { scanAlertJob } from "./alerts";
@@ -29,7 +30,7 @@ import { getConnection } from "./connections";
 import { importMeeting, importedCallId } from "./imports";
 import { relinkConversations } from "./crm";
 import { stableId, RevenueError } from "./security";
-import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider } from "./types";
+import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider, type MailboxProvider } from "./types";
 
 type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "scan-alerts" | "write-crm-properties";
 export async function enqueueJob(input: { kind: JobKind; connectionId?: string; callId?: string; payload?: unknown; key: string }) {
@@ -46,6 +47,7 @@ export async function enqueueSync(connectionId: string, full = false) {
   const existing = await db.select({ id: processingJobs.id }).from(processingJobs).where(and(eq(processingJobs.orgId, currentTenantId()), eq(processingJobs.connectionId, connectionId), eq(processingJobs.kind, "sync"), inArray(processingJobs.status, ["queued", "running"]))).get();
   if (existing) return existing.id;
   if (!integrationTool(connection.provider)?.syncMinutes) throw new RevenueError("This connection receives calls through its live feed. It has no history to sync.");
+  if (isEmailTool(connection.provider) && !(await emailCaptureEnabled())) throw new RevenueError("Turn on email capture in Admin settings before syncing mailboxes.");
   const state: SyncCursor = { syncStartedAt: new Date().toISOString(), full, ...(isCallTool(connection.provider) && !full && connection.lastSyncedAt ? { createdAfter: new Date(Date.parse(connection.lastSyncedAt) - 86400000).toISOString() } : {}) };
   return enqueueJob({ kind: "sync", connectionId, payload: state, key: `${connectionId}:${Math.floor(Date.now() / 60000)}:${full}` });
 }
@@ -140,6 +142,16 @@ async function executeJob(job: any) {
     for (const task of page.tasks) await storeExternalTask(connection, task);
     count = page.tasks.length; next = page.next;
     if (next.complete && state.syncStartedAt) await db.update(externalTasks).set({ status: "archived" }).where(and(eq(externalTasks.orgId, job.orgId), eq(externalTasks.connectionId, connection.id), lt(externalTasks.syncedAt, state.syncStartedAt))).run();
+  } else if (isEmailTool(connection.provider)) {
+    if (!(await emailCaptureEnabled())) next = { ...state, complete: true };
+    else {
+      const page = await mailboxProviderPage(connection.provider as MailboxProvider, connection.secrets.token, connection.config, state);
+      await getConnection(connection.id);
+      for (const item of page.messages) await storeEmailMessage(connection, item.message, item.match);
+      count = page.messages.length;
+      next = page.next;
+      if (next.complete) await reconcileEmailWindow(connection.id, next);
+    }
   } else if (isCalendarTool(connection.provider)) {
     const page = await calendarProviderPage(connection.provider as CalendarProvider, connection.secrets.token, connection.config, state);
     await getConnection(connection.id);
@@ -254,6 +266,7 @@ export async function scheduleSyncs() {
   for (const row of connections) {
     const config = parseJson<{ autoSync?: boolean }>(row.config, {});
     const interval = (integrationTool(row.provider)?.syncMinutes || 0) * 60000;
+    if (isEmailTool(row.provider) && !(await runWithTenant(row.orgId, emailCaptureEnabled))) continue;
     if (config.autoSync && interval && (!row.lastSyncedAt || Date.now() - Date.parse(row.lastSyncedAt) >= interval)) {
       try { await runWithTenant(row.orgId, () => enqueueSync(row.id)); }
       catch { /* One unavailable connection must not stop other workspaces. */ }

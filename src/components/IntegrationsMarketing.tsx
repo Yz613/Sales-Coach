@@ -16,7 +16,7 @@ export default function IntegrationsMarketing() {
             Connect the tools your team already uses.
           </h1>
           <p className="mt-5 max-w-2xl text-[17px] sm:text-[19px] text-[#6e6e73] leading-snug">
-            {PUBLIC_INTEGRATION_COUNT} connectors are in the product today. Calls, CRM records, calendars, tasks, chat alerts, and automation. If yours is missing, request it.
+            {PUBLIC_INTEGRATION_COUNT} connectors are in the product today. Calls, CRM records, calendars, email, tasks, chat alerts, and automation. If yours is missing, request it.
           </p>
           <a href="#request" className="mt-6 inline-flex text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
             Request an integration

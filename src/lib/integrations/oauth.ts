@@ -17,13 +17,22 @@ export function oauthProvider(value: string): OAuthProvider {
   if (!provider) throw new RevenueError("Unsupported sign-in provider.");
   return provider;
 }
+function credentialPrefixes(provider: OAuthProvider): string[] {
+  // Gmail can reuse the Google Calendar OAuth client when GOOGLE_CLIENT_ID is not set.
+  if (provider === "gmail") return ["GOOGLE", "GOOGLE_CALENDAR"];
+  return [APPS[provider].prefix];
+}
 function appCredentials(provider: OAuthProvider) {
-  const app = APPS[provider]; const clientId = runtimeSecret(`${app.prefix}_CLIENT_ID`); const clientSecret = runtimeSecret(`${app.prefix}_CLIENT_SECRET`);
-  if (!clientId || !clientSecret) throw new RevenueError(`Ask your app administrator to configure ${app.label} sign-in credentials.`, 503);
-  return { app, clientId, clientSecret };
+  const app = APPS[provider];
+  for (const prefix of credentialPrefixes(provider)) {
+    const clientId = runtimeSecret(`${prefix}_CLIENT_ID`);
+    const clientSecret = runtimeSecret(`${prefix}_CLIENT_SECRET`);
+    if (clientId && clientSecret) return { app, clientId, clientSecret };
+  }
+  throw new RevenueError(`Ask your app administrator to configure ${app.label} sign-in credentials.`, 503);
 }
 export function oauthAvailability() {
-  return Object.fromEntries(Object.entries(APPS).map(([id, app]) => [id, Boolean(runtimeSecret(`${app.prefix}_CLIENT_ID`) && runtimeSecret(`${app.prefix}_CLIENT_SECRET`))]));
+  return Object.fromEntries((Object.keys(APPS) as OAuthProvider[]).map(id => [id, credentialPrefixes(id).some(prefix => Boolean(runtimeSecret(`${prefix}_CLIENT_ID`) && runtimeSecret(`${prefix}_CLIENT_SECRET`)))]));
 }
 export function oauthRedirectUri(provider: OAuthProvider, requestOrigin: string) {
   const url = new URL(runtimeSecret("PUBLIC_APP_URL") || requestOrigin);
@@ -42,7 +51,7 @@ export async function startOAuth(provider: OAuthProvider, actor: string, body: a
   const url = new URL(app.authorize);
   url.search = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, ...(app.scope ? { scope: app.scope } : {}),
     ...(app.pkce ? { code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" } : {}),
-    ...(provider === "google-calendar" ? { access_type: "offline", prompt: "consent" } : {}),
+    ...(provider === "google-calendar" || provider === "gmail" ? { access_type: "offline", prompt: "consent" } : {}),
     ...(provider === "notion" ? { owner: "user" } : {}) }).toString();
   return { url: url.toString(), state };
 }

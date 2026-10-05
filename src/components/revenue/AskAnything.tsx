@@ -14,6 +14,8 @@ type Citation = {
   timing: "provider" | "estimated";
   quote: string;
   href: string;
+  kind?: "call" | "email";
+  emailId?: string;
 };
 
 type AskResponse = {
@@ -39,7 +41,7 @@ export default function AskAnything({
   const endpoint = scope === "call" ? `/api/calls/${encodeURIComponent(id)}/ask` : `/api/deals/${encodeURIComponent(id)}/ask`;
   const prompt = scope === "call"
     ? "Ask a question about this call. Quotes jump to that moment in the recording."
-    : "Ask a question about the conversations linked to this deal. Quotes open the call at that moment.";
+    : "Ask a question about the conversations and emails linked to this deal. Quotes open the call or the email.";
 
   function seek(citation: Citation) {
     const end = citation.end != null && citation.end > citation.start ? `-${Math.floor(citation.end)}` : "";
@@ -88,12 +90,15 @@ export default function AskAnything({
         <div className="space-y-3">
           <p className="text-sm text-[#1d1d1f] whitespace-pre-wrap">{result.answer}</p>
           {result.citations.map((citation) => {
+            const email = citation.kind === "email";
             const label = (
               <>
                 <span className="text-xs text-[#007AFF]">
-                  {scope === "deal" ? `${citation.title} · ` : ""}
-                  {formatDuration(citation.start)}
-                  {citation.timing === "estimated" ? " (estimated)" : ""} · {citation.speaker}
+                  {email ? `Email · ${citation.title} · ${citation.speaker}` : <>
+                    {scope === "deal" ? `${citation.title} · ` : ""}
+                    {formatDuration(citation.start)}
+                    {citation.timing === "estimated" ? " (estimated)" : ""} · {citation.speaker}
+                  </>}
                 </span>
                 <p className="text-sm mt-1 whitespace-pre-wrap">{citation.quote}</p>
               </>
