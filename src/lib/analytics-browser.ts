@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { rememberVisitorCompany } from "visitor-company/browser";
 import {
   FORM_SUBMITTED_EVENT,
   SIGNED_IN_EVENT,
@@ -12,6 +13,8 @@ import {
   submissionSucceeded,
 } from "@/lib/analytics-policy";
 import { POSTHOG_PROJECT_TOKEN, productAnalyticsInitOptions } from "@/lib/analytics-public";
+import { VISITOR_COMPANY_API_PATH } from "@/lib/public-path";
+import { apiPath } from "@/lib/utils";
 
 const ACCOUNT_STORAGE_KEY = "rq_analytics_account";
 const FETCH_PATCH = "__rqAnalyticsFetch";
@@ -35,6 +38,12 @@ export function startProductAnalytics(): void {
   if (!/^phc_[A-Za-z0-9]+$/.test(POSTHOG_PROJECT_TOKEN)) return;
   started = true;
   posthog.init(POSTHOG_PROJECT_TOKEN, productAnalyticsInitOptions());
+  // Once per tab session (the helper stores the result). Group analytics stays off.
+  void rememberVisitorCompany({
+    endpoint: apiPath(VISITOR_COMPANY_API_PATH),
+    posthog,
+    groupAnalytics: false,
+  });
 }
 
 function analyticsStorage(): Storage | null {
