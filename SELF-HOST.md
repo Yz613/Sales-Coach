@@ -90,6 +90,10 @@ INVITE_PRODUCT_NAME="Sales Coach"
 
 Hosted mail from `invites@refreshqueue.com` is only for [refreshqueue.com](https://refreshqueue.com). Do not copy that address into a self-hosted install.
 
+## Company lookup
+
+The hosted site caches company lookups in Workers KV. Docker and `npm run dev` do not have that binding, and they do not need it. When `VISITOR_COMPANY_KV` is missing, the app keeps an in-memory cache for the life of the process. Do not paste the hosted namespace id into a self-hosted install. If you deploy your own worker, create a separate namespace and add that id under `kv_namespaces` in `wrangler.jsonc`.
+
 ## Stop
 
 ```bash

@@ -62,6 +62,12 @@ jobs:
       - run: npx tsc --noEmit
       - name: Resolve D1 database id
         run: node scripts/resolve-d1-id.cjs
+      # VISITOR_COMPANY_KV_ID is a repository variable, not a secret.
+      # An empty value uses the hosted namespace 05bb9e51843e4b26a424ed09dad780f6.
+      - name: Inject visitor company KV binding
+        env:
+          VISITOR_COMPANY_KV_ID: ${{ vars.VISITOR_COMPANY_KV_ID }}
+        run: node scripts/inject-visitor-company-kv.cjs
       - name: Configure authentication policy
         env:
           REQUIRE_MFA: ${{ vars.REQUIRE_MFA }}
