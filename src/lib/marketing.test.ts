@@ -102,7 +102,7 @@ describe("marketing landing copy", () => {
     assert.match(source, /your own model keys/);
     assert.match(source, /Optional team sign-in/);
     assert.match(source, /no meeting bot/i);
-    assert.match(source, /does not write notes or scores back/);
+    assert.match(source, /selected deal and contact properties/);
     assert.match(source, /card payments/);
     assert.match(source, /paste a transcript/);
     assert.match(source, /by Refresh Queue/);

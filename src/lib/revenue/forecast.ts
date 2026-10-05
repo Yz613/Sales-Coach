@@ -101,6 +101,8 @@ export async function saveDealReview(auth: AuthUser, id: string, body: Record<st
     : await db.update(dealReviews).set(values).where(and(eq(dealReviews.id, reviewId), eq(dealReviews.orgId, orgId), eq(dealReviews.dealId, id), eq(dealReviews.revision, Number(body.revision)))).returning({ id: dealReviews.id }).all();
   if (!changed.length) throw new RevenueError("Another manager updated this review. Reload the latest review before saving.", 409);
   await audit(auth.userId || "local", "deal.review.saved", id);
+  const { queueDealReviewProperties } = await import("./property-writes");
+  await queueDealReviewProperties(id);
   return (await dealDetail(auth, id)).deal.review;
 }
 

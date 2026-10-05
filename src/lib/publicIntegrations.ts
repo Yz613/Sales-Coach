@@ -34,7 +34,7 @@ const BLURBS: Record<IntegrationTool["id"], string> = {
   gong: "Call metadata, participants, and transcripts.",
   close: "Completed call and voicemail transcripts.",
   aircall: "Completed transcripts, summaries, speaker timing, and recording links.",
-  hubspot: "Companies, contacts, deals, stages, and associations.",
+  hubspot: "Companies, contacts, deals, call notes, and mapped coaching properties.",
   pipedrive: "Organizations, people, deals, and stages.",
   attio: "Companies, people, deals, and relationships.",
   calendly: "Scheduled meetings, active invitees, and cancellations.",

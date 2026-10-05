@@ -47,6 +47,16 @@ Local SQLite and new revenue requests apply the additive tables automatically. D
 npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0003_deal_forecasting.sql
 ```
 
-No additional dependencies, external credentials, or background jobs are needed beyond an existing CRM integration. This release does not write categories, close dates, amounts, or probabilities back to the CRM. Calendar periods are fixed rather than custom fiscal calendars, and the rules are not a calibrated win-probability model.
+No additional dependencies are required to review deals locally. Close dates, amounts, and probabilities are not written back to any CRM. Calendar periods are fixed rather than custom fiscal calendars, and the rules are not a calibrated win-probability model.
+
+HubSpot can receive the saved forecast category when an admin maps it on **Admin → Integrations → HubSpot** and enables property updates on review. Saving the deal review queues that update. The native HubSpot property `hs_manual_forecast_category` is written as PIPELINE, BEST_CASE, COMMIT, or OMIT. Any other mapped property receives Pipeline, Best case, Commit, or Omitted. The connection needs `crm.objects.deals.write`. Pipedrive and Attio reviews stay in Sales Coach.
+
+Deployments that apply explicit migrations can add the delivery table with:
+
+```sh
+npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0004_hubspot_property_writes.sql
+```
+
+Local SQLite and new revenue requests apply that table automatically. See [HubSpot property updates](CALL_EXPORT_SETUP.md#hubspot-property-updates).
 
 Verification covers period boundaries, currency separation, missing data, closed outcomes, exact evidence validation, quote removal after unlink/change/deletion, concurrent review revisions, member restrictions, tenant isolation, immutable submissions, retry deduplication, and repeated SQLite/D1 migrations. Run `npm test`, `npx tsc --noEmit`, and `npm run build`.

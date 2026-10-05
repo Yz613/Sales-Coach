@@ -62,7 +62,7 @@ PUBLIC_APP_URL should be the public HTTPS origin, for example https://your-domai
 4. For live updates, use a webhook-capable HubSpot app access token and its client secret. The setup page verifies the token’s account ID and shows the feed URL. Add it as the app webhook target and subscribe to deal creation, deletion, and property changes (dealstage, dealname, amount, closedate, pipeline, hubspot_owner_id). Contact/company subscriptions keep conversation matching current.
 5. Open Deals after the job history shows the import completed. Signed events update changed records immediately; the pipeline refreshes while open.
 
-Existing legacy private-app tokens also work. Service keys are the preferred new credential. This release reads HubSpot and stores CRM changes locally; it does not write notes, tasks or scores back to HubSpot. Multi-account public distribution still needs OAuth.
+Existing legacy private-app tokens also work. Service keys are the preferred new credential. Call notes and mapped deal or contact properties can be written back by an admin. Add `crm.objects.contacts.write` for notes and contact properties, and `crm.objects.deals.write` for deal properties. Tasks are not created in HubSpot. Multi-account public distribution uses the HubSpot OAuth app.
 
 ### Fathom setup
 
@@ -135,7 +135,7 @@ Risk flags are visible rules: absent conversations, no recent conversation, a pa
 
 Trackers perform literal keyword/phrase matching. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback, email timelines, semantic search/Q&A, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Manager-led forecasting and manually reviewed deal playbooks are available now. See INTEGRATIONS.md for the researched connector roadmap.
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, email timelines, semantic search/Q&A, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 
