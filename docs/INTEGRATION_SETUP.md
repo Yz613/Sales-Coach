@@ -61,6 +61,8 @@ MICROSOFT_CALENDAR_CLIENT_ID=
 MICROSOFT_CALENDAR_CLIENT_SECRET=
 CALENDLY_CLIENT_ID=
 CALENDLY_CLIENT_SECRET=
+ZOOM_CLIENT_ID=
+ZOOM_CLIENT_SECRET=
 ```
 
 These are **operator application credentials**. Slack webhook URLs, Calendly personal tokens and Aircall keys are entered in the integration screen and encrypted per workspace. Do not put client secrets in `NEXT_PUBLIC_*` variables.
@@ -76,6 +78,8 @@ npx wrangler secret put MICROSOFT_CALENDAR_CLIENT_ID
 npx wrangler secret put MICROSOFT_CALENDAR_CLIENT_SECRET
 npx wrangler secret put CALENDLY_CLIENT_ID
 npx wrangler secret put CALENDLY_CLIENT_SECRET
+npx wrangler secret put ZOOM_CLIENT_ID
+npx wrangler secret put ZOOM_CLIENT_SECRET
 ```
 
 Each command prompts for its value; skip providers you are not enabling. For GitHub Actions deployment, add the same names under **Repository Settings → Secrets and variables → Actions**. The deployment workflow forwards and uploads configured OAuth credentials, while preserving secrets already on the Worker. Unconfigured optional providers do not block deployment. Adding credentials only to a build environment does not make them available at Worker runtime.
@@ -91,6 +95,7 @@ Register the **complete address**, including `/app`, with no extra trailing slas
 | Google | `https://coach.example.com/app/api/integrations/oauth/google-calendar/callback` | `http://localhost:3000/app/api/integrations/oauth/google-calendar/callback` |
 | Microsoft | `https://coach.example.com/app/api/integrations/oauth/outlook-calendar/callback` | `http://localhost:3000/app/api/integrations/oauth/outlook-calendar/callback` |
 | Calendly | `https://coach.example.com/app/api/integrations/oauth/calendly/callback` | `http://localhost:3000/app/api/integrations/oauth/calendly/callback` |
+| Zoom | `https://coach.example.com/app/api/integrations/oauth/zoom/callback` | `http://localhost:3000/app/api/integrations/oauth/zoom/callback` |
 
 Replace the hosted example's origin with your actual `PUBLIC_APP_URL`. Production callbacks require HTTPS. Remain signed in as the same admin in the same workspace and browser, and complete one connection at a time within ten minutes. Starting a second flow replaces the browser's state cookie. If sign-in expires, return to the integration page and start again.
 
@@ -232,6 +237,33 @@ Aircall's API exposes up to six months of call history and caps pagination at 10
 
 Disconnect clears local credentials and stops pending jobs. Revoke unwanted API keys or webhook subscriptions in Aircall as well.
 
+## Zoom
+
+### Operator setup
+
+1. Open the [Zoom App Marketplace](https://marketplace.zoom.us/) and create a **General App**. Choose **User-managed** OAuth. This connector does not join meetings and does not use a meeting bot or Server-to-Server credentials.
+2. Add the exact Zoom callback above. Production must use the HTTPS `PUBLIC_APP_URL` origin.
+3. Add only these granular scopes: `user:read:user`, `cloud_recording:read:list_user_recordings`, `cloud_recording:read:list_recording_files`, `cloud_recording:read:meeting_transcript`, and `meeting:read:list_past_participants`. Do not add `:admin` or meeting-bot scopes.
+4. Save the client ID and secret as `ZOOM_CLIENT_ID` and `ZOOM_CLIENT_SECRET`. Restart the app and worker, or set the same names as Worker secrets and GitHub Actions secrets.
+5. In Zoom, turn on cloud recording and audio transcript for the host account. Recordings still processing, or finished without a transcript, wait for a later sync.
+6. An admin clicks **Connect with Zoom**, signs in, and approves the read permissions. The same Zoom account that owns the app can install the development build. Other Zoom accounts need the app published on the Marketplace.
+
+Publication is a separate Marketplace review. Zoom asks for a deauthorization notification URL and a privacy policy at publish time. Those are not required to connect the app owner's own recordings. Access tokens expire in about an hour and refresh tokens rotate; the existing worker refreshes them.
+
+### Check it works
+
+Finish a cloud-recorded meeting and wait until Zoom marks the transcript complete. Click **Sync now**, open **Conversations**, and filter to **Zoom**. Confirm the title, speakers, timestamps, and playback. Repeat sync and confirm the same recording UUID does not create a second call. Disconnect the connection and confirm a later sync does not import new recordings.
+
+| Symptom | Fix |
+| --- | --- |
+| Sign-in disabled | Set both operator OAuth values and restart the app and worker, or update Worker secrets. |
+| Invalid return address | Register the exact callback, including `/app`, with no trailing slash. |
+| Sync completes with no imported calls | Confirm cloud recording and audio transcript are on, the meeting is completed, and the connected user is the host. Account-wide admin ingestion is not part of this connector. |
+| Playback asks Zoom again | Large recordings stay on Zoom and use a short-lived link. The stored page link does not keep the download token. |
+| Authorization cannot refresh | Disconnect and reconnect. Check the operator client credentials if it repeats. |
+
+No Zoom webhook is required. The connector polls every 15 minutes. Disconnect cancels queued sync and import jobs.
+
 ## Shared sync behavior and final acceptance checks
 
 Calendar snapshots cover **180 days in the past and 90 days ahead**; **Import history** expands the past to **730 days**. Upcoming/Past lists show up to 100 entries per view. Calendly reads each event's invitees separately. Missing meetings are marked cancelled only after every snapshot page succeeds; a failed page preserves prior entries. External attendee emails link to CRM contacts in the same workspace. Call matching requires an external customer email on both records and start times within two hours; internal rep email alone does not match.
@@ -247,4 +279,4 @@ Before treating an installation as verified:
 - For OAuth, verify a sync after access-token expiry still succeeds; for Calendly repeat after a second expiry to exercise refresh-token rotation.
 - Disconnect a test connection and confirm it stops subsequent scheduled work.
 
-The automated suite uses simulated provider responses. It covers permissions, PKCE/code exchange, token refresh and rotation across separate processes, pagination, cancellation, failed snapshots, invitees, customer matching, workspace isolation, Aircall ready events and webhook repair, Slack opt-in/deduplication/retries and disconnect behavior. Run `npm test`, `npx tsc --noEmit`, and `npm run build` for repository validation. Provider consent, real delivery, account policies and paid entitlements must also pass the live checks above; simulated tests do not establish those.
+The automated suite uses simulated provider responses. It covers permissions, PKCE/code exchange, token refresh and rotation across separate processes, pagination, cancellation, failed snapshots, invitees, customer matching, workspace isolation, Aircall ready events and webhook repair, Slack opt-in/deduplication/retries, Zoom recording windows and disconnect behavior. Run `npm test`, `npx tsc --noEmit`, and `npm run build` for repository validation. Provider consent, real delivery, account policies and paid entitlements must also pass the live checks above; simulated tests do not establish those.

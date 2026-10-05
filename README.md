@@ -44,7 +44,7 @@ graph TD
   - *Or use the built-in deterministic rubric engine for pasted transcripts with zero API keys.*
 - **📋 Deal Stages & Talk-Tracks:** Define customized rubrics, qualification criteria, and talking tracks per pipeline stage.
 - **👥 Rep Coaching Personas:** Track individual rep performance, identify repeat struggles vs. strengths, and auto-generate 1:1 manager talk tracks.
-- **🔗 26 Integrations:** Import completed calls, sync CRM and calendar context, create coaching follow-ups, share calls and clips, and send summaries to CRM records or Zapier/Make workflows. Every integration has a local brand logo and its own setup guide.
+- **🔗 27 Integrations:** Import completed calls, sync CRM and calendar context, create coaching follow-ups, share calls and clips, and send summaries to CRM records or Zapier/Make workflows. Every integration has a local brand logo and its own setup guide.
 - **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces. Each organization gets an isolated database partition (calls, transcripts, scripts, API keys). Hosted sign-up requires a paid plan before any workspace data is shown.
 - **🐳 Docker Ready:** Includes production-ready `Dockerfile` and `docker-compose.yml`.
 - **☁️ Cloudflare Workers Ready:** Preconfigured for edge deployment via OpenNext and Cloudflare D1.
@@ -108,18 +108,18 @@ The revenue workspace adds searchable conversations, topic trackers, saved searc
 
 **Deal execution and forecasting:** Open **Deals** to filter by CRM owner, forecast category, stage, or activity flags. Each deal has a manager review with a next step, due date, estimated win probability, and a MEDDICC qualification checklist. Attach exact transcript moments as supporting evidence and review buyer engagement, open call actions, and the conversation timeline. **Forecast** groups deals by calendar month or quarter, with separate currency totals for won, open, committed, upside, and weighted revenue. Submit a forecast with an optional single-currency target and notes; historical snapshots retain their original deal amounts and categories for comparison. These are manager-led forecasts, with no trained prediction or CRM field writeback. See [deal review and forecasting details](docs/DEAL_FORECASTING.md).
 
-The **Admin → Integrations** library includes 26 tools. Seventeen support a direct account sign-in button when their deployment credentials are configured. Task tools let you select a destination after sign-in; Slack and Discord select the channel during consent. See [One-click sign-in and deployment credentials](docs/ONE_CLICK_INTEGRATIONS.md). Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
+The **Admin → Integrations** library includes 27 tools. Eighteen support a direct account sign-in button when their deployment credentials are configured. Task tools let you select a destination after sign-in; Slack and Discord select the channel during consent. See [One-click sign-in and deployment credentials](docs/ONE_CLICK_INTEGRATIONS.md). Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
 
 | Category | Tools |
 | --- | --- |
-| Call recording | Fathom, Fireflies, tl;dv, Gong, Close, Aircall |
+| Call recording | Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom |
 | CRM | HubSpot, Pipedrive, Attio |
 | Calendar | Calendly, Google Calendar, Outlook Calendar |
 | Team messaging | Slack, Discord |
 | Automation | Zapier, Make |
 | Tasks and coaching follow-ups | Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab |
 
-- **Call import:** Import completed transcripts, timestamps, participants, recording links, and available summaries/actions. Fathom registers a signed content-ready feed on public HTTPS deployments; Fireflies supports signed transcript/summary events; Aircall registers authenticated transcript/summary events. Zapier/Make can also push completed call transcripts.
+- **Call import:** Import completed transcripts, timestamps, participants, recording links, and available summaries/actions. Fathom registers a signed content-ready feed on public HTTPS deployments; Fireflies supports signed transcript/summary events; Aircall registers authenticated transcript/summary events. Zoom imports completed cloud recordings and transcripts for the connected host. Zapier/Make can also push completed call transcripts.
 - **Gong insights:** Import briefs, key points, highlights, Next Steps, outlines, topics, tracker occurrences, outcomes, speaking time, interaction statistics, and question counts through Gong's current extensive API. Next Steps become timestamped action items. Late insights refresh without refetching transcripts or resetting completed actions and reviews; private calls are excluded.
 - **CRM context and exports:** Sync companies, contacts, deals, and associations. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Admins can export a call summary, available coaching score, next steps, and protected call link as a note on a linked HubSpot/Pipedrive/Attio record. Automatic export on manager review is opt-in.
 - **Call and clip sharing:** Admins can manually share full calls or saved clips through Slack/Discord channel webhooks. Reviewed-call, clip, and low-score alerts are separate opt-in settings. Call links follow workspace access permissions.
@@ -140,7 +140,7 @@ For local background sync, run `npm run worker` in a second terminal. Docker Com
 - [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
 - [Integration library, API access, costs and roadmap](docs/INTEGRATIONS.md)
 
-Integration checks cover provider contracts, all 26 logo assets, permissions and workspace isolation, retries, and duplicate delivery. The CRM stress test queues 3,000 duplicate requests for 300 exports across four workers and verifies exactly 300 notes. Native Workers/D1 tests check migrations, concurrent delivery claims, and outbound requests. Provider tests use simulated responses; live vendor acceptance requires account credentials and the controlled checks in the setup guides.
+Integration checks cover provider contracts, all 27 logo assets, permissions and workspace isolation, retries, and duplicate delivery. The CRM stress test queues 3,000 duplicate requests for 300 exports across four workers and verifies exactly 300 notes. Native Workers/D1 tests check migrations, concurrent delivery claims, and outbound requests. Provider tests use simulated responses; live vendor acceptance requires account credentials and the controlled checks in the setup guides.
 
 ## Gong Cost Comparison
 
@@ -256,7 +256,7 @@ The product name in invite mail defaults to **Sales Coach**. `invites@refreshque
 │       ├── integrations/         # Provider adapters, brand mapping & capability catalog
 │       ├── revenue/              # Conversations, sync jobs, tasks, exports & privacy controls
 │       └── auth.ts               # Local Standalone & Clerk multi-tenant RBAC logic
-├── public/                       # Public static assets, including all 26 integration logos
+├── public/                       # Public static assets, including all 27 integration logos
 ├── fixtures/                     # Private demo recordings
 ├── scripts/                      # Setup & audio synthesis utilities
 ├── schema.sql                    # Cloudflare D1 SQL schema

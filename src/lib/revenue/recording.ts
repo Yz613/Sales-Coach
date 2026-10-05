@@ -4,6 +4,7 @@ import { callMetadata } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { getConnection } from "./connections";
 import { fathomRequest } from "../integrations/fathom";
+import { zoomPlayback } from "../integrations/zoom";
 import { RevenueError, safeExternalUrl } from "./security";
 
 interface DownloadFile { url: string; content_type: string; file_size_bytes: number; expires_at: string }
@@ -20,4 +21,16 @@ export async function fathomRecording(callId: string, downloadId?: unknown) {
   const url = safeExternalUrl(file?.url);
   if (result.status === "completed" && !url) throw new RevenueError("Fathom did not return a usable recording URL.", 502);
   return { downloadId: result.download_id, status: result.status, url, kind: result.video ? "video" : "audio", expiresAt: file?.expires_at };
+}
+
+export async function providerRecording(callId: string, downloadId?: unknown) {
+  const meta = await db.select().from(callMetadata).where(and(eq(callMetadata.orgId, currentTenantId()), eq(callMetadata.callId, callId))).get();
+  if (meta?.source === "zoom") {
+    if (downloadId !== undefined) throw new RevenueError("Invalid recording request.");
+    if (!meta.connectionId || !meta.externalId) throw new RevenueError("This call has no Zoom recording.", 404);
+    const connection = await getConnection(meta.connectionId);
+    return zoomPlayback(connection.secrets.token, meta.externalId);
+  }
+  if (meta?.source === "fathom") return fathomRecording(callId, downloadId);
+  throw new RevenueError("This call has no recording.", 404);
 }
