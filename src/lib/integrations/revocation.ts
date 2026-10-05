@@ -40,7 +40,7 @@ export async function revokeProviderGrant(provider: string, secrets: Record<stri
     if (!response.ok && response.status !== 404) throw new RevenueError("Channel webhook cleanup will retry.", 502);
     url = "https://discord.com/api/oauth2/token/revoke"; body = form({ ...credentials(), token: secrets.oauthAccessToken || secrets.token });
   } else if (provider === "hubspot") {
-    url = "https://api.hubapi.com/oauth/2026-09/token/revoke"; body = form({ ...credentials(), token, token_type_hint: "refresh_token" });
+    url = "https://api.hubapi.com/oauth/2026-03/token/revoke"; body = form({ ...credentials(), token, token_type_hint: "refresh_token" });
   } else {
     url = provider === "asana" ? "https://app.asana.com/-/oauth_revoke" : provider === "linear" ? "https://api.linear.app/oauth/revoke" : `${app.tokenOrigin}/oauth/revoke`;
     body = form({ ...credentials(), token });

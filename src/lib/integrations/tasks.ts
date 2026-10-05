@@ -81,7 +81,7 @@ export async function verifyTaskProvider(provider: TaskProvider, secrets: Secret
       if (secrets.githubApp !== "true") throw new RevenueError("Reconnect using a GitHub App.", 409);
       const installations = await request(provider, secrets, "/user/installations?per_page=100");
       const allowed = list(installations.installations, provider);
-      if (!allowed.length || allowed.some(app => !restrictedGithubInstallation(app))) throw new RevenueError("The GitHub App must have only Metadata read and Issues read/write permissions.");
+      if (!allowed.length || allowed.some(app => !restrictedGithubInstallation(app, secrets.permissionMode === "write" ? "write" : "read"))) throw new RevenueError(secrets.permissionMode === "write" ? "The GitHub App must grant Issues write permission before enabling sending." : "The GitHub App must have only Metadata read and Issues read/write permissions.");
     } else if (!secrets.token?.startsWith("github_pat_")) throw new RevenueError("Use a fine-grained GitHub token limited to the selected repository and Issues. Classic tokens are unsupported.");
   }
   const target = targetPath(provider, secrets.targetId); let result: any;

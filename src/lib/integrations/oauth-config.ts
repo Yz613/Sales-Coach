@@ -23,9 +23,9 @@ export function readOnlyGitlabScope(scope: string | undefined) {
   return scopes.length > 0 && scopes.every(value => value === "read_api");
 }
 
-export function restrictedGithubInstallation(installation: any): boolean {
+export function restrictedGithubInstallation(installation: any, mode: IntegrationMode = "read"): boolean {
   const permissions = installation?.permissions;
   return installation?.repository_selection === "selected" && permissions?.metadata === "read" &&
-    ["read", "write"].includes(permissions?.issues) &&
+    (mode === "write" ? permissions?.issues === "write" : ["read", "write"].includes(permissions?.issues)) &&
     Object.entries(permissions).every(([key, value]) => value === "none" || ["metadata", "issues"].includes(key));
 }

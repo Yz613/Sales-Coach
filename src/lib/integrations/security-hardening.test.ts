@@ -6,7 +6,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { OAUTH_APPS, oauthScope, restrictedGithubInstallation } from "./oauth-config";
-import { startOAuth, authorizedSecrets, OAuthReconnectError } from "./oauth";
+import { startOAuth, finishOAuth, authorizedSecrets, OAuthReconnectError } from "./oauth";
 import { revokeProviderGrant } from "./revocation";
 import { verifyTaskProvider, createProviderTask } from "./tasks";
 import { connectIntegration, disconnectIntegration, getConnection, listConnections } from "../revenue/connections";
@@ -170,5 +170,45 @@ test("remote revocation does not mistake rejected credentials for successful cle
       return Response.json({ ok: false, error: "invalid_auth" });
     };
     await assert.rejects(revokeProviderGrant("slack", { authType: "oauth-webhook", oauthAccessToken: "expired" }), /will retry/);
+  } finally { global.fetch = original; }
+});
+
+test("HubSpot revocation uses the published endpoint with tokens only in the form body", async () => {
+  const original = global.fetch;
+  global.fetch = async (input, init) => {
+    assert.equal(String(input), "https://api.hubapi.com/oauth/2026-03/token/revoke");
+    assert.equal(init?.method, "POST");
+    assert.equal(init?.redirect, "manual");
+    const form = new URLSearchParams(String(init?.body));
+    assert.equal(form.get("token"), "hubspot-refresh");
+    assert.equal(form.get("token_type_hint"), "refresh_token");
+    assert.equal(form.get("client_id"), "app-id");
+    assert.equal(form.get("client_secret"), "app-secret");
+    return new Response(null, {status:204});
+  };
+  try { await revokeProviderGrant("hubspot", {authType:"oauth",token:"hubspot-access",refreshToken:"hubspot-refresh"}); }
+  finally { global.fetch = original; }
+});
+
+test("GitHub permits import-only installations but rejects sending without Issues write permission", async () => {
+  const original = global.fetch;
+  let issues = "read";
+  const installation = () => ({repository_selection:"selected",permissions:{metadata:"read",issues}});
+  global.fetch = async input => new URL(String(input)).hostname === "github.com"
+    ? Response.json({access_token:"ghu_fixture",refresh_token:"refresh-fixture",expires_in:3600,token_type:"Bearer"})
+    : Response.json({installations:[installation()]});
+  try {
+    assert.equal(restrictedGithubInstallation(installation(), "read"), true);
+    assert.equal(restrictedGithubInstallation(installation(), "write"), false);
+    await runWithTenant("org-github-issues-consent", async () => {
+      const read = await startOAuth("github", "admin", {mode:"read"}, "https://coach.example.com");
+      assert.equal((await finishOAuth("github", "admin", read.state, read.state, "read-code")).secrets.permissionMode, "read");
+      const write = await startOAuth("github", "admin", {mode:"write"}, "https://coach.example.com");
+      await assert.rejects(() => finishOAuth("github", "admin", write.state, write.state, "write-code"), /Issues write permission/);
+      await assert.rejects(() => verifyTaskProvider("github", {authType:"oauth",githubApp:"true",token:"ghu_fixture",targetId:"owner/repo",permissionMode:"write"}), /Issues write permission/);
+      issues = "write";
+      const allowed = await startOAuth("github", "admin", {mode:"write"}, "https://coach.example.com");
+      assert.equal((await finishOAuth("github", "admin", allowed.state, allowed.state, "allowed-code")).secrets.permissionMode, "write");
+    });
   } finally { global.fetch = original; }
 });
