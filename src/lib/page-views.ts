@@ -1,3 +1,5 @@
+import { analyticsConnectHosts, analyticsScriptHosts } from "@/lib/analytics-policy";
+
 // Public measurement id for https://refreshqueue.com. It is not a secret:
 // the tag is served in the document so a deploy does not need a new env var.
 
@@ -91,8 +93,9 @@ export function fallbackContentSecurityPolicy(nonce: string, development: boolea
     "'strict-dynamic'",
     ...(development ? ["'unsafe-eval'"] : []),
     ...tagScriptHosts,
+    ...analyticsScriptHosts,
   ].join(" ");
-  const connectSrc = ["'self'", ...(development ? ["ws:"] : []), ...tagConnectHosts].join(" ");
+  const connectSrc = ["'self'", ...(development ? ["ws:"] : []), ...tagConnectHosts, ...analyticsConnectHosts].join(" ");
   const imgSrc = ["'self'", "data:", "https://img.clerk.com", ...tagImgHosts].join(" ");
   return [
     "default-src 'self'",

@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { analyticsConnectHosts, analyticsScriptHosts } from "./analytics-policy";
 import {
   MEASUREMENT_ID,
   TAG_SCRIPT_SRC,
@@ -78,12 +79,13 @@ describe("page view tag", () => {
     const policy = fallbackContentSecurityPolicy("abc+/=", false);
     assert.ok(
       policy.includes(
-        "script-src 'self' 'nonce-abc+/=' 'strict-dynamic' https://www.googletagmanager.com https://*.googletagmanager.com"
+        "script-src 'self' 'nonce-abc+/=' 'strict-dynamic' https://www.googletagmanager.com https://*.googletagmanager.com https://us.i.posthog.com https://us-assets.i.posthog.com"
       )
     );
-    for (const host of [...tagScriptHosts, ...tagConnectHosts, ...tagImgHosts]) {
+    for (const host of [...tagScriptHosts, ...tagConnectHosts, ...tagImgHosts, ...analyticsScriptHosts, ...analyticsConnectHosts]) {
       assert.ok(policy.includes(host), host);
     }
+    assert.equal(policy.includes("eu.i.posthog.com"), false);
     assert.ok(policy.includes("connect-src 'self' https://www.googletagmanager.com"));
     assert.equal(policy.includes("unsafe-eval"), false);
     assert.equal(policy.includes(" ws:"), false);
@@ -121,17 +123,18 @@ describe("page view tag", () => {
         "base-uri": ["'self'"],
         "frame-ancestors": ["'none'"],
         "media-src": ["'self'", "https:", "blob:"],
-        "script-src": [...tagScriptHosts],
-        "connect-src": [...tagConnectHosts],
+        "script-src": [...tagScriptHosts, ...analyticsScriptHosts],
+        "connect-src": [...tagConnectHosts, ...analyticsConnectHosts],
         "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
       },
     });
     const policy = headers.find(([name]) => name.toLowerCase() === "content-security-policy")?.[1] || "";
     assert.match(policy, /'strict-dynamic'/);
     assert.match(policy, /'nonce-/);
-    for (const host of [...tagScriptHosts, ...tagConnectHosts, ...tagImgHosts]) {
+    for (const host of [...tagScriptHosts, ...tagConnectHosts, ...tagImgHosts, ...analyticsScriptHosts, ...analyticsConnectHosts]) {
       assert.ok(policy.includes(host), host);
     }
+    assert.equal(policy.includes("eu.i.posthog.com"), false);
     assert.match(policy, /https:\/\/img\.clerk\.com/);
     assert.match(policy, /frame-ancestors 'none'/);
   });
