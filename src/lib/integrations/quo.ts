@@ -2,7 +2,7 @@ import { createHash, createHmac } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { ProviderError, providerList, providerRequest } from "./http";
 import { normalizedMeeting } from "./meeting";
-import { saveCallAudio } from "../callAudioStore";
+import { rememberCallAudioParts, saveCallAudio } from "../callAudioStore";
 import { db } from "../db";
 import { calls } from "../db/schema";
 import { currentTenantId } from "../tenant";
@@ -256,6 +256,58 @@ async function loadTranscripts(secrets: Secrets, id: string) {
   return transcripts;
 }
 
+type ExternalParty = { name: string; email: string; phone: string; company: string };
+
+function partyForPhone(phone: string, people: QuoContact[]): ExternalParty {
+  const contact = phone ? people.find(person => person.phones.includes(phone)) : undefined;
+  return { name: contact?.name?.trim() || phone || "Prospect", email: contact?.email || "", phone, company: contact?.company || "" };
+}
+
+/** MPEG frame sync after an optional ID3v2 tag. Containers and bare bytes are not safe to concatenate. */
+function mpegPayload(bytes: Uint8Array, mime: string): Uint8Array | null {
+  const type = mime.toLowerCase().split(";")[0].trim();
+  if (type !== "audio/mpeg" && type !== "audio/mp3") return null;
+  let start = 0;
+  if (bytes.length >= 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+    const size = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) | ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
+    start = 10 + size;
+    if (start > bytes.length) return null;
+  }
+  if (start + 1 >= bytes.length || bytes[start] !== 0xff || (bytes[start + 1] & 0xe0) !== 0xe0) return null;
+  return start ? bytes.subarray(start) : bytes;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0));
+  let offset = 0;
+  for (const part of parts) { out.set(part, offset); offset += part.byteLength; }
+  return out;
+}
+
+export type QuoAudioPiece = { bytes: Uint8Array; mime: string };
+
+/** Keep every segment that fits. Concatenate only when each piece is the same MPEG stream. */
+export function planQuoAudio(parts: QuoAudioPiece[], limit = AUDIO_LIMIT): { combined: Uint8Array | null; mime: string; separate: QuoAudioPiece[] } {
+  const fitting: QuoAudioPiece[] = [];
+  let used = 0;
+  for (const part of parts) {
+    if (!part.bytes.byteLength || part.bytes.byteLength > limit || used + part.bytes.byteLength > limit) continue;
+    used += part.bytes.byteLength;
+    fitting.push(part);
+  }
+  if (!fitting.length) return { combined: null, mime: "audio/mpeg", separate: [] };
+  if (fitting.length === 1) return { combined: fitting[0].bytes, mime: fitting[0].mime.startsWith("audio/") ? fitting[0].mime : "audio/mpeg", separate: [] };
+  const payloads = fitting.map(part => mpegPayload(part.bytes, part.mime));
+  if (payloads.every((payload): payload is Uint8Array => !!payload)) return { combined: concatBytes(payloads), mime: "audio/mpeg", separate: [] };
+  return { combined: null, mime: "audio/mpeg", separate: fitting };
+}
+
+function recordingFileName(mime: string, index: number, many: boolean): string {
+  const type = mime.toLowerCase();
+  const ext = type.includes("wav") ? "wav" : type.includes("mp4") || type.includes("m4a") || type.includes("aac") ? "m4a" : type.includes("ogg") ? "ogg" : type.includes("webm") ? "webm" : "mp3";
+  return many ? `quo-recording-${index + 1}.${ext}` : `quo-recording.${ext}`;
+}
+
 function summaryText(summary: any): { summary: string; actionItems: { id: string; description: string; completed: boolean }[] } {
   if (!summary || summary.status === "absent" || summary.status === "failed" || summary.status === "in-progress") return { summary: "", actionItems: [] };
   const lines = Array.isArray(summary.summary) ? summary.summary.filter((line: unknown) => typeof line === "string" && line.trim()).map((line: string) => line.trim()) : [];
@@ -276,11 +328,21 @@ export async function fetchQuoCall(secrets: Secrets, raw: any) {
   const participants = Array.isArray(call.participants) ? call.participants : [];
   const external = participants.find((person: any) => person?.phoneNumber && !String(person.actorId || "").startsWith("US") && !String(person.actorId || "").startsWith("SYU"))
     || participants.find((person: any) => person?.phoneNumber);
-  const externalPhone = normalizeE164(external?.phoneNumber) || "";
   const contactIds = Array.isArray(raw?.contactIds) ? raw.contactIds.filter((item: unknown): item is string => typeof item === "string" && CONTACT_ID.test(item)).slice(0, 20) : [];
   const directoryPeople = contactIds.length ? await peopleByIds(secrets, contactIds) : await phoneDirectory(secrets);
-  const contact = directoryPeople.find(person => externalPhone && person.phones.includes(externalPhone)) || (contactIds.length ? directoryPeople[0] : undefined);
-  const prospectName = contact?.name || externalPhone || "Prospect";
+  const phones: string[] = [];
+  const primaryPhone = normalizeE164(external?.phoneNumber) || "";
+  if (primaryPhone) phones.push(primaryPhone);
+  for (const transcript of ready) {
+    for (const turn of transcript.dialogue || []) {
+      const actor = String(turn?.actorId || turn?.userId || "");
+      if (actor.startsWith("US") || actor.startsWith("SYU")) continue;
+      const phone = normalizeE164(turn?.identifier);
+      if (phone && !phones.includes(phone)) phones.push(phone);
+    }
+  }
+  const externals = (phones.length ? phones : [""]).map(phone => partyForPhone(phone, directoryPeople));
+  const prospect = externals[0];
   const repId = [call.answeredBy, call.initiatedBy, call.actorId, ...participants.map((person: any) => person?.actorId)].find(actor => typeof actor === "string" && actor.startsWith("US"));
   const rep = (repId && users.get(repId)) || { name: "Sales Rep", email: "" };
   let offset = 0;
@@ -288,7 +350,10 @@ export async function fetchQuoCall(secrets: Secrets, raw: any) {
     const turns = transcript.dialogue.filter((turn: any) => typeof turn?.content === "string" && turn.content.trim()).map((turn: any) => {
       const actor = String(turn.actorId || turn.userId || "");
       const user = users.get(actor);
-      const speaker = actor.startsWith("US") ? user?.name || rep.name : actor.startsWith("SYU") ? user?.name || "Quo AI" : prospectName;
+      const phone = normalizeE164(turn.identifier);
+      const speaker = actor.startsWith("US") ? user?.name || rep.name
+        : actor.startsWith("SYU") ? user?.name || "Quo AI"
+        : (phone && externals.find(person => person.phone === phone)?.name) || prospect.name;
       const start = offset + (Number(turn.start) || 0);
       const end = offset + (Number(turn.end) || Number(turn.start) || 0);
       return { speaker, text: String(turn.content).trim(), start, end, timing: "provider" as const };
@@ -299,18 +364,17 @@ export async function fetchQuoCall(secrets: Secrets, raw: any) {
   });
   const written = summaryText(call.summary);
   const direction = call.direction === "outgoing" ? "Outgoing" : call.direction === "incoming" ? "Incoming" : "Call";
-  const email = contact?.email || "";
   return normalizedMeeting({
-    externalId: id, title: `Quo · ${direction} · ${prospectName}`, repName: rep.name, repEmail: rep.email,
-    prospectName, prospectCompany: contact?.company || "", createdAt: call.answeredAt || call.createdAt || call.completedAt,
+    externalId: id, title: `Quo · ${direction} · ${prospect.name}`, repName: rep.name, repEmail: rep.email,
+    prospectName: prospect.name, prospectCompany: prospect.company, createdAt: call.answeredAt || call.createdAt || call.completedAt,
     durationSeconds: Number(call.duration) || undefined, recordingPageUrl: safeExternalUrl(call.links?.quo) || undefined, summary: written.summary,
-    participants: [{ name: rep.name, email: rep.email, external: false }, { name: prospectName, email, external: true }],
+    participants: [{ name: rep.name, email: rep.email, external: false }, ...externals.map(person => ({ name: person.name, email: person.email, external: true }))],
     segments, actionItems: written.actionItems.map((item, index) => ({ ...item, id: `quo_${id}_${index}` })),
-    crmMatches: [{ kind: "contact", email: email || undefined, phone: externalPhone || undefined, name: prospectName }],
+    crmMatches: externals.map(person => ({ kind: "contact", email: person.email || undefined, phone: person.phone || undefined, name: person.name })),
   });
 }
 
-/** Copy the first completed recording that fits. Signed media URLs are not stored on the call. */
+/** Store every completed recording segment. Signed media URLs are not stored on the call. */
 export async function maybeStoreQuoAudio(secrets: Secrets, callIdValue: string, externalId: string): Promise<boolean> {
   if (!CALL_ID.test(externalId)) return false;
   const existing = await db.select({ audioUrl: calls.audioUrl }).from(calls).where(and(eq(calls.id, callIdValue), eq(calls.orgId, currentTenantId()))).get();
@@ -320,6 +384,7 @@ export async function maybeStoreQuoAudio(secrets: Secrets, callIdValue: string, 
   catch (error) { if (error instanceof ProviderError && [403, 404].includes(error.providerStatus)) return false; throw error; }
   const files = recordings.filter(file => file?.status === "completed" && safeExternalUrl(file.url))
     .sort((a, b) => Date.parse(a.startTime || "") - Date.parse(b.startTime || ""));
+  const downloaded: QuoAudioPiece[] = [];
   for (const file of files) {
     let bytes: Uint8Array;
     try { bytes = await quoDownload(secrets.token, String(file.url), AUDIO_LIMIT); }
@@ -329,12 +394,26 @@ export async function maybeStoreQuoAudio(secrets: Secrets, callIdValue: string, 
       throw error;
     }
     const mime = typeof file.type === "string" && file.type.startsWith("audio/") ? file.type : "audio/mpeg";
-    const audioUrl = await saveCallAudio(callIdValue, bytes, mime, "quo-recording.mp3");
+    downloaded.push({ bytes, mime });
+  }
+  const plan = planQuoAudio(downloaded);
+  if (plan.combined) {
+    const audioUrl = await saveCallAudio(callIdValue, plan.combined, plan.mime, recordingFileName(plan.mime, 0, false));
     if (!audioUrl) return false;
     await db.update(calls).set({ audioUrl }).where(and(eq(calls.id, callIdValue), eq(calls.orgId, currentTenantId()))).run();
     return true;
   }
-  return false;
+  if (!plan.separate.length) return false;
+  let primary = "";
+  for (let index = 0; index < plan.separate.length; index++) {
+    const part = plan.separate[index];
+    const audioUrl = await saveCallAudio(callIdValue, part.bytes, part.mime, recordingFileName(part.mime, index, true), index);
+    if (!audioUrl) return false;
+    if (index === 0) primary = audioUrl;
+  }
+  await rememberCallAudioParts(callIdValue, plan.separate.length);
+  await db.update(calls).set({ audioUrl: primary }).where(and(eq(calls.id, callIdValue), eq(calls.orgId, currentTenantId()))).run();
+  return true;
 }
 
 export async function deleteQuoWebhook(secrets: Secrets, webhookId: string) {

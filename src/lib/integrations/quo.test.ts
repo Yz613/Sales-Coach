@@ -37,7 +37,11 @@ let v1Mode: "ok" | "403" = "ok";
 let hookState: "enabled" | "disabled" | "missing" = "enabled";
 let hookId = "";
 let hookUrl = "";
-let recordingMode: "ok" | "429" | "huge" = "ok";
+let recordingMode: "ok" | "429" | "huge" | "segments" | "mixed" | "skip-large" = "ok";
+let groupCall = false;
+const mpegA = Uint8Array.from([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xfb, 0x90, 0x64]);
+const mpegB = Uint8Array.from([0xff, 0xfb, 0x90, 0x65, 0x01]);
+const wavPiece = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0x08, 0x00, 0x00, 0x00]);
 
 function summary() {
   return summaryReady
@@ -57,6 +61,9 @@ function quoFetch(input: RequestInfo | URL, init?: RequestInit): Response | Prom
   if (url.hostname === "files.example.com") {
     assert.equal(authorization, null);
     if (url.pathname.endsWith("/big.mp3")) return new Response(Uint8Array.from([1]), { headers: { "content-type": "audio/mpeg", "content-length": String(30 * 1024 * 1024) } });
+    if (url.pathname.endsWith("/a.mp3")) return new Response(mpegA, { headers: { "content-type": "audio/mpeg", "content-length": String(mpegA.byteLength) } });
+    if (url.pathname.endsWith("/b.mp3")) return new Response(mpegB, { headers: { "content-type": "audio/mpeg", "content-length": String(mpegB.byteLength) } });
+    if (url.pathname.endsWith("/c.wav")) return new Response(wavPiece, { headers: { "content-type": "audio/wav", "content-length": String(wavPiece.byteLength) } });
     return new Response(Uint8Array.from([1, 2, 3, 4]), { headers: { "content-type": "audio/mpeg", "content-length": "4" } });
   }
   if (url.hostname !== "api.quo.com") return new Response("no", { status: 404 });
@@ -67,7 +74,9 @@ function quoFetch(input: RequestInfo | URL, init?: RequestInit): Response | Prom
   if (url.pathname === "/users") return Response.json({ data: [{ id: "USrep1", email: "alex@example.com", firstName: "Alex", lastName: "Rep", role: "admin" }] });
   if (url.pathname === "/v1/contacts") {
     if (v1Mode === "403") return new Response(JSON.stringify({ message: "Contacts are not available" }), { status: 403, headers: { "content-type": "application/json" } });
-    return Response.json({ data: [{ id: "CTpat", defaultFields: { firstName: "Pat", lastName: "Buyer", company: "Acme", emails: [{ name: "work", value: "pat@acme.com" }], phoneNumbers: [{ name: "mobile", value: "+1 (415) 555-0199" }] } }] });
+    const people = [{ id: "CTpat", defaultFields: { firstName: "Pat", lastName: "Buyer", company: "Acme", emails: [{ name: "work", value: "pat@acme.com" }], phoneNumbers: [{ name: "mobile", value: "+1 (415) 555-0199" }] } }];
+    if (groupCall) people.push({ id: "CTsam", defaultFields: { firstName: "Sam", lastName: "Seller", company: "Beta", emails: [{ name: "work", value: "sam@beta.com" }], phoneNumbers: [{ name: "mobile", value: "(415) 555-0200" }] } });
+    return Response.json({ data: people });
   }
   if (url.pathname === "/contacts/CTpat") return Response.json({ data: { id: "CTpat", firstName: "Pat", lastName: "Buyer", company: "Acme" } });
   if (url.pathname === "/contacts/CTpat/properties") return Response.json({ data: [{ type: "phone-number", name: "mobile", value: "+14155550199" }, { type: "email", name: "work", value: "pat@acme.com" }] });
@@ -97,10 +106,29 @@ function quoFetch(input: RequestInfo | URL, init?: RequestInit): Response | Prom
     if (transcriptMode === "403") return new Response(JSON.stringify({ message: "Transcripts require Business or Scale", token: "quo-api-key", hint: "whsec_supersecretvalue" }), { status: 403, headers: { "content-type": "application/json" } });
     if (transcriptMode === "absent") return Response.json({ data: [{ recordingId: "CRone", status: "absent", dialogue: null }] });
     if (transcriptMode === "empty") return Response.json({ data: [{ recordingId: "CRone", status: "completed", dialogue: [] }] });
+    if (groupCall) return Response.json({ data: [{ recordingId: "CRone", status: "completed", startTime: "2026-10-01T15:00:00.000Z", duration: 20, dialogue: [
+      { content: "Who is on the line?", start: 1, end: 3, actorId: "USrep1", identifier: null },
+      { content: "Pat speaking.", start: 4, end: 6, actorId: null, identifier: "+14155550199" },
+      { content: "Sam here.", start: 7, end: 9, userId: null, identifier: "+1 415 555 0200" },
+      { content: "I can help.", start: 10, end: 12, actorId: "SYUai", identifier: null },
+      { content: "Pat again.", start: 13, end: 15, actorId: null, identifier: "+14155550199" },
+    ] }] });
     return Response.json({ data: transcripts });
   }
   if (url.pathname.endsWith("/recordings")) {
     if (recordingMode === "429") return new Response("slow down", { status: 429, headers: { "retry-after": "30" } });
+    if (recordingMode === "segments" || recordingMode === "skip-large") {
+      const rows = [
+        { id: "CRlater", status: "completed", startTime: "2026-10-01T15:00:20.000Z", duration: 10, url: "https://files.example.com/b.mp3", type: "audio/mpeg" },
+        { id: "CRearly", status: "completed", startTime: "2026-10-01T15:00:00.000Z", duration: 20, url: "https://files.example.com/a.mp3", type: "audio/mpeg" },
+      ];
+      if (recordingMode === "skip-large") rows.splice(1, 0, { id: "CRbig", status: "completed", startTime: "2026-10-01T15:00:10.000Z", duration: 5, url: "https://files.example.com/big.mp3", type: "audio/mpeg" });
+      return Response.json({ data: rows });
+    }
+    if (recordingMode === "mixed") return Response.json({ data: [
+      { id: "CRwav", status: "completed", startTime: "2026-10-01T15:00:20.000Z", duration: 8, url: "https://files.example.com/c.wav", type: "audio/wav" },
+      { id: "CRmp3", status: "completed", startTime: "2026-10-01T15:00:00.000Z", duration: 12, url: "https://files.example.com/a.mp3", type: "audio/mpeg" },
+    ] });
     const file = recordingMode === "huge" ? "https://files.example.com/big.mp3" : "https://files.example.com/quo.mp3";
     return Response.json({ data: [{ id: "CRone", status: "completed", startTime: "2026-10-01T15:00:00.000Z", duration: 20, url: file, type: "audio/mpeg" }] });
   }
@@ -110,7 +138,10 @@ function quoFetch(input: RequestInfo | URL, init?: RequestInit): Response | Prom
   }
   if (url.pathname.startsWith("/calls/")) {
     const id = decodeURIComponent(url.pathname.split("/")[2]);
-    return Response.json({ data: { ...call, id, summary: summary() } });
+    const participants = groupCall
+      ? [{ phoneNumber: "+15551230000", actorId: "USrep1" }, { phoneNumber: "+14155550199", actorId: null }, { phoneNumber: "+14155550200", actorId: null }]
+      : call.participants;
+    return Response.json({ data: { ...call, id, participants, summary: summary() } });
   }
   return new Response(JSON.stringify({ message: "missing" }), { status: 404 });
 }
@@ -128,6 +159,7 @@ async function withQuo(fn: () => Promise<void>) {
     hookId = "";
     hookUrl = "";
     recordingMode = "ok";
+    groupCall = false;
     const { clearQuoDirectoryCache } = await import("./quo");
     clearQuoDirectoryCache();
   }
@@ -227,6 +259,7 @@ test("Quo imports completed calls, recordings, transcripts, summaries, and phone
     assert.equal(detail.participants.find((person: { external?: boolean }) => person.external)?.email, "pat@acme.com");
     assert.equal(detail.segments[0].speaker, "Alex Rep");
     assert.equal(detail.segments[0].start, 1);
+    assert.equal(detail.segments[1].speaker, "Pat Buyer");
     assert.equal(detail.segments[1].text, "We can do this quarter.");
     assert.equal(detail.segments[2].start, 21);
     assert.equal(imported.durationSeconds, 300);
@@ -314,4 +347,58 @@ test("Quo imports completed calls, recordings, transcripts, summaries, and phone
   global.fetch = async () => Response.json({ data: { calls: {} } });
   try { await assert.rejects(() => quoPage({ token: "quo-api-key" }, { syncStartedAt: new Date().toISOString() }), /invalid|oversized/); }
   finally { global.fetch = original; }
+}));
+
+test("Quo group-call transcripts name each external speaker from the dialogue identifier", async () => withQuo(async () => {
+  groupCall = true;
+  const { fetchQuoCall } = await import("./quo");
+  const meeting = await fetchQuoCall({ token: "quo-api-key" }, { id: "ACgroup1" });
+  assert.ok(meeting);
+  assert.deepEqual(meeting.segments.map(turn => turn.speaker), ["Alex Rep", "Pat Buyer", "Sam Seller", "Quo AI", "Pat Buyer"]);
+  assert.deepEqual(meeting.segments.map(turn => turn.text), ["Who is on the line?", "Pat speaking.", "Sam here.", "I can help.", "Pat again."]);
+  assert.equal(meeting.title, "Quo · Incoming · Pat Buyer");
+  assert.deepEqual(meeting.participants.filter(person => person.external).map(person => person.name), ["Pat Buyer", "Sam Seller"]);
+  assert.equal(meeting.participants.find(person => person.name === "Sam Seller")?.email, "sam@beta.com");
+  assert.deepEqual(meeting.crmMatches.map(match => match.phone), ["+14155550199", "+14155550200"]);
+  assert.equal(meeting.crmMatches[1].name, "Sam Seller");
+  assert.equal(meeting.crmMatches[1].email, "sam@beta.com");
+}));
+
+test("Quo stores every recording segment, concatenating MPEG and keeping mixed formats separate", async () => withQuo(async () => {
+  const { runWithTenant } = await import("../tenant");
+  const { maybeStoreQuoAudio, planQuoAudio } = await import("./quo");
+  const { callAudioSegmentUrl, deleteCallAudio, readCallAudio, readCallAudioParts } = await import("../callAudioStore");
+  const frame = Uint8Array.from([0xff, 0xfb, 0x90, 0x00]);
+  const tooBig = planQuoAudio([{ bytes: frame, mime: "audio/mpeg" }, { bytes: frame, mime: "audio/mpeg" }], frame.byteLength);
+  assert.equal(tooBig.separate.length, 0);
+  assert.deepEqual([...(tooBig.combined || [])], [...frame]);
+  const unsafe = planQuoAudio([{ bytes: Uint8Array.from([1, 2, 3, 4]), mime: "audio/mpeg" }, { bytes: Uint8Array.from([5, 6]), mime: "audio/mpeg" }]);
+  assert.equal(unsafe.combined, null);
+  assert.equal(unsafe.separate.length, 2);
+
+  await runWithTenant("org-quo-audio", async () => {
+    recordingMode = "segments";
+    assert.equal(await maybeStoreQuoAudio({ token: "quo-api-key" }, "quo-segments", "ACabc123"), true);
+    const joined = await readCallAudio("quo-segments");
+    assert.deepEqual([...(joined?.bytes || [])], [0xff, 0xfb, 0x90, 0x64, ...mpegB]);
+    assert.equal(await readCallAudioParts("quo-segments"), 1);
+    assert.equal(requests.filter(request => request.url.hostname === "files.example.com").map(request => request.url.pathname).join(","), "/a.mp3,/b.mp3");
+    assert.equal(requests.some(request => request.url.hostname === "files.example.com" && request.authorization), false);
+
+    recordingMode = "skip-large";
+    assert.equal(await maybeStoreQuoAudio({ token: "quo-api-key" }, "quo-skip", "ACabc123"), true);
+    assert.deepEqual([...(await readCallAudio("quo-skip"))?.bytes || []], [0xff, 0xfb, 0x90, 0x64, ...mpegB]);
+
+    recordingMode = "mixed";
+    assert.equal(await maybeStoreQuoAudio({ token: "quo-api-key" }, "quo-mixed", "ACabc123"), true);
+    assert.deepEqual([...(await readCallAudio("quo-mixed"))?.bytes || []], [...mpegA]);
+    assert.deepEqual([...(await readCallAudio("quo-mixed", 1))?.bytes || []], [...wavPiece]);
+    assert.equal(await readCallAudioParts("quo-mixed"), 2);
+    assert.equal(callAudioSegmentUrl("quo-mixed", 0), "/api/calls/quo-mixed/audio");
+    assert.equal(callAudioSegmentUrl("quo-mixed", 1), "/api/calls/quo-mixed/audio?segment=1");
+    await deleteCallAudio("quo-mixed");
+    assert.equal(await readCallAudio("quo-mixed"), null);
+    assert.equal(await readCallAudio("quo-mixed", 1), null);
+    assert.equal(await readCallAudioParts("quo-mixed"), 1);
+  });
 }));
