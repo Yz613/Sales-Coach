@@ -36,9 +36,19 @@ function isItemActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function RoleNavPlaceholder() {
+  return (
+    <div className="flex flex-1 flex-col gap-2 px-1" aria-hidden>
+      {["role-a", "role-b", "role-c", "role-d"].map((key) => (
+        <div key={key} className="h-8 rounded-[8px] bg-black/[0.05]" />
+      ))}
+    </div>
+  );
+}
+
 export default function Navigation() {
   const pathname = usePathname();
-  const { isAdmin, isClerkConfigured } = useAppAuth();
+  const { isAdmin, isClerkConfigured, isLoading: authLoading } = useAppAuth();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadInitialTab, setUploadInitialTab] = useState<"paste" | "single_file" | "batch">("paste");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -65,22 +75,27 @@ export default function Navigation() {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  const primaryNavItems: NavItem[] = isAdmin
-    ? [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Conversations", href: "/conversations", icon: PhoneCall },
-        { label: "Coach", href: "/coach", icon: GraduationCap },
-        { label: "Reps", href: "/reps", icon: Users },
-      ]
-    : [
-        { label: "Conversations", href: "/conversations", icon: PhoneCall },
-        { label: "Library", href: "/library", icon: BookOpen },
-        ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
-      ];
+  const primaryNavItems: NavItem[] = authLoading
+    ? []
+    : isAdmin
+      ? [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Conversations", href: "/conversations", icon: PhoneCall },
+          { label: "Coach", href: "/coach", icon: GraduationCap },
+          { label: "Reps", href: "/reps", icon: Users },
+        ]
+      : [
+          { label: "Conversations", href: "/conversations", icon: PhoneCall },
+          { label: "Library", href: "/library", icon: BookOpen },
+          ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
+        ];
 
-  if (isClerkConfigured) {
+  if (!authLoading && isClerkConfigured) {
     primaryNavItems.push({ label: "Main menu", href: "/workspaces", icon: LayoutDashboard });
   }
+
+  const homeHref = authLoading || isAdmin ? "/" : "/calls";
+  const roleLabel = authLoading ? "Loading" : isAdmin ? "Admin" : "Member";
 
   const adminMenuItems: NavItem[] = [
     { label: "Deals", href: "/deals", icon: Briefcase },
@@ -102,19 +117,19 @@ export default function Navigation() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] flex-col border-r border-black/[0.08] bg-[#EFEFF4] px-3 py-4 md:flex">
-        <Link href={isAdmin ? "/" : "/calls"} className="mb-5 flex items-center gap-2.5 px-2">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] flex-col border-r border-black/[0.08] bg-[#EFEFF4] px-3 py-4 md:flex" aria-busy={authLoading}>
+        <Link href={homeHref} className="mb-5 flex items-center gap-2.5 px-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#007AFF] text-[11px] font-semibold tracking-tight text-white shadow-xs">
             SC
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#1d1d1f]">Sales Coach</div>
-            <div className="text-[11px] text-[#86868b] font-normal">{isAdmin ? "Admin" : "Member"}</div>
+            <div className="text-[11px] text-[#86868b] font-normal">{roleLabel}</div>
           </div>
         </Link>
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
-          {primaryNavItems.map((item) => {
+          {authLoading ? <RoleNavPlaceholder /> : primaryNavItems.map((item) => {
             const Icon = item.icon;
             const active = isItemActive(pathname, item.href);
             return (
@@ -131,7 +146,7 @@ export default function Navigation() {
             );
           })}
 
-          {isAdmin && (
+          {!authLoading && isAdmin && (
             <>
               <div className="px-2.5 pb-1.5 pt-5 text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">Admin</div>
               {adminMenuItems.map((item) => {
@@ -156,7 +171,7 @@ export default function Navigation() {
       </aside>
 
       <div className="sticky top-0 z-30 flex h-[52px] items-center justify-between gap-3 border-b border-black/[0.06] bg-[#F5F5F7] px-4 md:justify-end md:px-8">
-        <Link href={isAdmin ? "/" : "/calls"} className="flex items-center gap-2 md:hidden">
+        <Link href={homeHref} className="flex items-center gap-2 md:hidden">
           <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007AFF] text-[10px] font-semibold text-white shadow-xs">
             SC
           </div>
@@ -205,7 +220,10 @@ export default function Navigation() {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-[#F8F8F8] pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-[#F8F8F8] pb-[env(safe-area-inset-bottom)] md:hidden" aria-busy={authLoading}>
+        {authLoading ? (
+          <div className="flex items-center justify-center py-3 text-[11px] text-[#86868b]">Loading</div>
+        ) : (
         <div
           className="grid items-center"
           style={{ gridTemplateColumns: `repeat(${primaryNavItems.length + (isAdmin ? 1 : 0)}, minmax(0, 1fr))` }}
@@ -241,6 +259,7 @@ export default function Navigation() {
             </button>
           )}
         </div>
+        )}
       </nav>
 
       {isMobileMenuOpen && isAdmin && (
