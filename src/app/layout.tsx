@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
+import PageViewTracker from "@/components/PageViewTracker";
+import { TAG_SCRIPT_SRC, pageViewBootstrap } from "@/lib/page-views";
 import { authRedirectPath, getServerAuth, publicGuestAuth } from "@/lib/auth";
 import {
   isApiRoute,
@@ -50,6 +53,11 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="ambient-field min-h-screen text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
+        <script async nonce={nonce} src={TAG_SCRIPT_SRC} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: pageViewBootstrap() }} />
+        <Suspense fallback={null}>
+          <PageViewTracker />
+        </Suspense>
         <AuthProvider
           nonce={nonce}
           initialRole={auth.role}

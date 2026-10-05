@@ -13,6 +13,7 @@ import {
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
+import { fallbackContentSecurityPolicy, tagConnectHosts, tagImgHosts, tagScriptHosts } from "@/lib/page-views";
 import { assertSecureDeployment, assertMutationOrigin, privateResponse } from "@/lib/security-policy";
 
 const isAdminRoute = createRouteMatcher([
@@ -116,7 +117,9 @@ function clerkHandlerImpl() {
         directives: {
           "object-src": ["'none'"], "base-uri": ["'self'"], "frame-ancestors": ["'none'"],
           "media-src": ["'self'", "https:", "blob:"],
-          "img-src": ["'self'", "https://img.clerk.com", "data:"],
+          "script-src": [...tagScriptHosts],
+          "connect-src": [...tagConnectHosts],
+          "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
         },
       },
     });
@@ -161,13 +164,7 @@ function nextWithPath(req: NextRequest, publicPath: string): NextResponse {
   let policy: string | undefined;
   if (!hasClerkServerAuth()) {
     const nonce = btoa(crypto.randomUUID());
-    policy = [
-      "default-src 'self'", `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""}`,
-      "style-src 'self' 'unsafe-inline'", "img-src 'self' data: https://img.clerk.com", "font-src 'self' data:",
-      `connect-src 'self'${process.env.NODE_ENV !== "production" ? " ws:" : ""}`,
-      "media-src 'self' https: blob:", "worker-src 'self' blob:", "object-src 'none'", "base-uri 'self'",
-      "form-action 'self'", "frame-ancestors 'none'", "frame-src 'none'",
-    ].join("; ");
+    policy = fallbackContentSecurityPolicy(nonce, process.env.NODE_ENV !== "production");
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", policy);
   }
