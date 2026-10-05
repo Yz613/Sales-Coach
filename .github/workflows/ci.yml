@@ -11,15 +11,12 @@ on:
 jobs:
   test:
     name: Test & Build (Node ${{ matrix.node-version }})
-    # Spread the unchanged checks across hosted pools during runner-assignment delays.
-    runs-on: ${{ matrix.runner }}
+    # Use the available Linux ARM pool and limit parallel provisioning during runner delays.
+    runs-on: ubuntu-24.04-arm
     strategy:
+      max-parallel: 1
       matrix:
-        include:
-          - node-version: 20
-            runner: ubuntu-24.04-arm
-          - node-version: 22
-            runner: macos-15
+        node-version: [20, 22]
 
     steps:
       - name: Checkout code
