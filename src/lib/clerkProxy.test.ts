@@ -91,8 +91,9 @@ describe("hosted Clerk proxy wiring", () => {
     const worker = readFileSync(new URL("../../cloudflare/worker.js", import.meta.url), "utf8");
     assert.match(worker, /forwardClerkProxyRequest/);
     assert.match(worker, /isClerkProxyPath/);
-    assert.match(wrangler, /refreshqueue.com\/__auth\/\*/);
-    assert.equal(worker.indexOf("getApexAliasRedirect") < worker.indexOf("isClerkProxyPath(pathname)"), true);
+    assert.match(wrangler, /"pattern": "refreshqueue\.com\/\*"/);
+    assert.equal(wrangler.includes("refreshqueue.com/__auth/*"), false);
+    assert.equal(worker.indexOf("apexWorkerAction") < worker.indexOf("isClerkProxyPath(pathname)"), true);
 
     const provider = readFileSync(new URL("../components/AuthProvider.tsx", import.meta.url), "utf8");
     assert.match(provider, /telemetry=\{\{ disabled: true \}\}/);

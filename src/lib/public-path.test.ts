@@ -17,7 +17,14 @@ import {
   getApexAliasRedirect,
   getApexIntegrationsRewrite,
   getApexMarketingRewrite,
+  getApexPrivacyRewrite,
+  getApexContentRewrite,
+  getApexNotFoundRewrite,
+  apexWorkerAction,
+  isPublicDocumentPath,
+  PUBLIC_SITEMAP_PATHS,
 } from "./public-path";
+import { readFileSync } from "node:fs";
 
 describe("toAppPath", () => {
   it("keeps server redirects compatible with Next's automatic base path", () => {
@@ -160,6 +167,21 @@ describe("route classifiers", () => {
     assert.equal(isMarketingAppPath("/integrations"), true);
     assert.equal(isMarketingAppPath("/app/integrations"), true);
     assert.equal(isPublicMarketingPath("/app/api/marketing/integration-request"), false);
+    assert.equal(isPublicMarketingPath("/privacy"), true);
+    assert.equal(isPublicMarketingPath("/privacy/"), true);
+    assert.equal(isPublicMarketingPath("/app/privacy"), true);
+    assert.equal(isPublicMarketingPath("/app/privacy/"), true);
+    assert.equal(isMarketingAppPath("/privacy"), true);
+    assert.equal(isMarketingAppPath("/app/privacy"), true);
+    assert.equal(isPublicMarketingPath("/privacy/notes"), false);
+    assert.equal(isPublicMarketingPath("/robots.txt"), true);
+    assert.equal(isPublicMarketingPath("/app/robots.txt"), true);
+    assert.equal(isPublicMarketingPath("/sitemap.xml"), true);
+    assert.equal(isPublicMarketingPath("/app/sitemap.xml"), true);
+    assert.equal(isPublicDocumentPath("/app/robots.txt"), true);
+    assert.equal(isPublicMarketingPath("/app/site-missing"), true);
+    assert.equal(isPublicMarketingPath("/site-missing"), true);
+    assert.equal(isPublicMarketingPath("/app/calls"), false);
   });
 
   it("redirects apex /calls, /favicon.ico, and /pricing", () => {
@@ -218,5 +240,94 @@ describe("route classifiers", () => {
     assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/"), null);
     assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/app/integrations"), null);
     assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/integrations/fathom.png"), null);
+  });
+
+  it("rewrites apex /privacy, robots.txt, and sitemap.xml onto the app", () => {
+    assert.equal(
+      getApexPrivacyRewrite("https://refreshqueue.com/privacy?from=footer"),
+      "https://refreshqueue.com/app/privacy?from=footer"
+    );
+    assert.equal(getApexPrivacyRewrite("https://refreshqueue.com/privacy/"), "https://refreshqueue.com/app/privacy");
+    assert.equal(getApexContentRewrite("https://refreshqueue.com/robots.txt"), "https://refreshqueue.com/app/robots.txt");
+    assert.equal(
+      getApexContentRewrite("https://refreshqueue.com/sitemap.xml"),
+      "https://refreshqueue.com/app/sitemap.xml"
+    );
+    assert.equal(getApexPrivacyRewrite("https://refreshqueue.com/"), null);
+    assert.equal(getApexContentRewrite("https://refreshqueue.com/privacy/extra"), null);
+  });
+
+  it("keeps query strings on the home page and does not redirect twice", () => {
+    const home = apexWorkerAction("https://refreshqueue.com/?utm_source=x");
+    assert.deepEqual(home, { type: "rewrite", url: "https://refreshqueue.com/app/marketing?utm_source=x" });
+    assert.equal(apexWorkerAction("https://refreshqueue.com/").type, "rewrite");
+
+    const samples = [
+      "https://refreshqueue.com/",
+      "https://refreshqueue.com/?utm_source=x",
+      "https://refreshqueue.com/pricing",
+      "https://refreshqueue.com/pricing/",
+      "https://refreshqueue.com/pricing?plan=coach",
+      "https://refreshqueue.com/calls?rep=1",
+      "https://refreshqueue.com/calls/abc",
+      "https://refreshqueue.com/integrations",
+      "https://refreshqueue.com/integrations/",
+      "https://refreshqueue.com/privacy",
+      "https://refreshqueue.com/privacy/",
+      "https://refreshqueue.com/robots.txt",
+      "https://refreshqueue.com/sitemap.xml",
+      "https://refreshqueue.com/favicon.ico",
+      "https://refreshqueue.com/icon.svg",
+      "https://refreshqueue.com/app",
+      "https://refreshqueue.com/app/calls",
+      "https://refreshqueue.com/app/marketing",
+      "https://refreshqueue.com/__auth/v1/client",
+      "https://refreshqueue.com/old-static-page",
+      "https://refreshqueue.com/integrations/fathom.png",
+    ];
+    for (const start of samples) {
+      const first = apexWorkerAction(start);
+      if (first.type !== "redirect") continue;
+      const nextUrl = first.location.split("#")[0];
+      const second = apexWorkerAction(nextUrl);
+      assert.notEqual(second.type, "redirect", `${start} -> ${first.location}`);
+    }
+
+    const pricing = apexWorkerAction("https://refreshqueue.com/pricing");
+    assert.deepEqual(pricing, { type: "redirect", location: "https://refreshqueue.com/#pricing", status: 308 });
+    assert.equal(apexWorkerAction("https://refreshqueue.com/#pricing").type, "rewrite");
+
+    const missing = apexWorkerAction("https://refreshqueue.com/old-static-page?utm_source=x");
+    assert.deepEqual(missing, { type: "not-found", url: "https://refreshqueue.com/app/site-missing" });
+    assert.equal(apexWorkerAction(missing.type === "not-found" ? missing.url : "").type, "passthrough");
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/"), null);
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/?utm_source=x"), null);
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/app/calls"), null);
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/privacy"), null);
+    assert.equal(apexWorkerAction("https://refreshqueue.com/integrations/fathom.png").type, "not-found");
+    assert.equal(apexWorkerAction("https://refreshqueue.com/app/icon.svg").type, "passthrough");
+  });
+
+  it("routes the whole apex through one worker pattern and lists /privacy in the sitemap", () => {
+    const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
+    const patterns = [...wrangler.matchAll(/"pattern":\s*"([^"]+)"/g)].map((match) => match[1]);
+    assert.deepEqual(patterns, ["refreshqueue.com/*"]);
+    const worker = readFileSync(new URL("../../cloudflare/worker.js", import.meta.url), "utf8");
+    assert.match(worker, /apexWorkerAction/);
+    assert.equal(worker.indexOf("apexWorkerAction") < worker.indexOf("isClerkProxyPath(pathname)"), true);
+    const nextConfig = readFileSync(new URL("../../next.config.ts", import.meta.url), "utf8");
+    assert.match(nextConfig, /source: "\/pricing"/);
+    assert.match(nextConfig, /destination: "\/#pricing"/);
+    assert.match(nextConfig, /source: "\/privacy"/);
+    assert.doesNotMatch(nextConfig, /destination: "\/pricing"/);
+    assert.deepEqual([...PUBLIC_SITEMAP_PATHS], ["/", "/integrations", "/privacy"]);
+    const sitemap = readFileSync(new URL("../app/sitemap.ts", import.meta.url), "utf8");
+    const robots = readFileSync(new URL("../app/robots.ts", import.meta.url), "utf8");
+    assert.match(sitemap, /PUBLIC_SITEMAP_PATHS/);
+    assert.match(robots, /sitemap\.xml/);
+    assert.match(robots, /allow: "\/"/);
+    const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+    assert.doesNotMatch(middleware, /"\/favicon\.ico"/);
+    assert.doesNotMatch(middleware, /"\/icon\.svg"/);
   });
 });

@@ -100,7 +100,7 @@ Connected (company-level only, free). The vendored MIT package is `visitor-compa
 | --- | --- |
 | Public endpoint | `GET` and `HEAD` `/app/api/visitor-company` |
 | Next route | `src/app/api/visitor-company/route.ts` |
-| Worker route | Already covered by `refreshqueue.com/app/*`. No new route pattern. |
+| Worker route | `refreshqueue.com/*` in `wrangler.jsonc`. Apex `/privacy` rewrites to `/app/privacy`. |
 | Browser | `rememberVisitorCompany` runs once after the existing `posthog.init` in `src/lib/analytics-browser.ts`. Group analytics stays off. |
 | EU, UK, and EEA | Country only. The IP is not sent to a lookup provider. |
 | DNT and Global Privacy Control | Honored (package defaults). |
@@ -126,17 +126,20 @@ The tokens are secrets. Do not commit them and do not send them to the browser. 
 
 ### Privacy policy
 
-There is no public privacy policy page. Admin → Data & privacy is call retention, not a visitor notice. When a public privacy policy or other legal page exists, add this disclosure there. Do not put it on the landing page or other marketing copy:
+Public page: `https://refreshqueue.com/privacy` (`src/app/privacy/page.tsx`), linked from the marketing footer. Admin → Data & privacy is still call retention, not this notice.
+
+The page includes this disclosure. Do not put it on the landing page or other marketing copy:
 
 > For visitors outside the EU, UK, and EEA, this site uses the IP address to infer the visitor's company from the network operator. The IP address is not stored and is not used to identify a person. EU, UK, and EEA visitors contribute a country only.
 
-Show this attribution line only when `IPINFO_TOKEN` is configured, on that privacy or legal page, with a link to `https://ipinfo.io`:
+The same page shows this attribution, linked to `https://ipinfo.io` (`IPINFO_ATTRIBUTION` / `IPINFO_ATTRIBUTION_URL`):
 
 > IP address data is powered by IPinfo
+
+Do Not Track and Global Privacy Control are honored. Google Analytics and PostHog may be named on this privacy page as subprocessors. Do not name them, IPinfo, or other infra vendors on the landing page or other marketing pages.
 
 ## Not created yet
 
 - [personas.json](personas.json) — not created yet
 - [visitor_followup_tracker](visitor_followup_tracker) — not created yet
-- Public privacy policy page with the company-identification disclosure above — not created yet
 - `VISITOR_COMPANY_KV` namespace — not created yet (optional; in-memory cache until then)

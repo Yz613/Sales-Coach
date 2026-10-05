@@ -50,7 +50,7 @@ export default function MarketingShell({
 }: {
   children: React.ReactNode;
   onLanding?: boolean;
-  current?: "integrations";
+  current?: "integrations" | "privacy";
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -169,6 +169,9 @@ export default function MarketingShell({
           <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
             <a href="/integrations" className="hover:text-[#1d1d1f] transition" aria-current={current === "integrations" ? "page" : undefined}>
               Integrations
+            </a>
+            <a href="/privacy" className="hover:text-[#1d1d1f] transition" aria-current={current === "privacy" ? "page" : undefined}>
+              Privacy
             </a>
             <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#1d1d1f] transition">
               GitHub

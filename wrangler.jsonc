@@ -10,22 +10,12 @@
 	],
 	"workers_dev": true,
 	"triggers": { "crons": ["*/5 * * * *"] },
-	// Optional custom domain routes (replace with your domain if deploying to Cloudflare Workers).
-	// Apex `/`, `/pricing`, and `/integrations` must reach this worker so marketing pages are not a 404.
+	// One zone route so every path on the apex reaches this worker, including
+	// `/?utm_source=...`. Path-specific routes left query-string URLs on the old static site.
+	// No www route: www.refreshqueue.com is not configured here.
+	// Production config lives outside this repo. Apply the same single pattern there.
 	"routes": [
-		{ "pattern": "refreshqueue.com", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/pricing", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/integrations", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/integrations/", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/app", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/app/*", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/calls", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/calls/*", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/favicon.ico", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/icon.svg", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/__auth", "zone_name": "refreshqueue.com" },
-		{ "pattern": "refreshqueue.com/__auth/*", "zone_name": "refreshqueue.com" }
+		{ "pattern": "refreshqueue.com/*", "zone_name": "refreshqueue.com" }
 	],
 	// Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in the build environment. GitHub
 	// Actions reads it from repository secrets. The Clerk secret key is set
