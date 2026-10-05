@@ -10,6 +10,7 @@
 - Alert streams: subscriptions for a tracker hit, keyword, low script score, or linked deal stage. Delivery uses connected Slack or Discord channels and an in-app list. No email mailbox is required.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
 - Deal execution: manager forecast categories and probabilities, due next steps, evidence-linked MEDDICC qualification, buyer engagement, and conflict-safe reviews.
+- Ask: natural-language questions on a call or a deal, answered from that transcript set with timestamped quotes that seek playback.
 - Forecast: calendar month/quarter and CRM owner filters, currency-separated won/committed/upside/weighted totals, targets, immutable submissions, and historical comparison. [Details and limitations](DEAL_FORECASTING.md).
 - Integrations: twenty-seven tool cards with individual connection guides; seven native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
@@ -63,7 +64,7 @@ PUBLIC_APP_URL should be the public HTTPS origin, for example https://your-domai
 4. For live updates, use a webhook-capable HubSpot app access token and its client secret. The setup page verifies the token’s account ID and shows the feed URL. Add it as the app webhook target and subscribe to deal creation, deletion, and property changes (dealstage, dealname, amount, closedate, pipeline, hubspot_owner_id). Contact/company subscriptions keep conversation matching current.
 5. Open Deals after the job history shows the import completed. Signed events update changed records immediately; the pipeline refreshes while open.
 
-Existing legacy private-app tokens also work. Service keys are the preferred new credential. This release reads HubSpot and stores CRM changes locally; it does not write notes, tasks or scores back to HubSpot. Multi-account public distribution still needs OAuth.
+Existing legacy private-app tokens also work. Service keys are the preferred new credential. Call notes and mapped deal or contact properties can be written back by an admin. Add `crm.objects.contacts.write` for notes and contact properties, and `crm.objects.deals.write` for deal properties. Tasks are not created in HubSpot. Multi-account public distribution uses the HubSpot OAuth app.
 
 ### Fathom setup
 
@@ -115,7 +116,8 @@ For a new installation initialize schema.sql first. New revenue tables are addit
 
     npx wrangler d1 execute sales-coach-db --remote --file=./schema.sql
     npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0001_revenue.sql
-    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0004_concept_trackers.sql
+    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0004_hubspot_property_writes.sql
+    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0005_concept_trackers.sql
 
 Set INTEGRATION_ENCRYPTION_KEY and INTEGRATION_CRON_SECRET with wrangler secret put. Set PUBLIC_APP_URL to the public HTTPS origin in the worker's environment. The cron in wrangler.jsonc fires every five minutes and invokes the protected job runner internally. It requires both PUBLIC_APP_URL and INTEGRATION_CRON_SECRET. Do not expose the cron secret in client configuration.
 
@@ -137,11 +139,17 @@ Risk flags are visible rules: absent conversations, no recent conversation, a pa
 
 Keyword trackers perform literal keyword/phrase matching. Concept trackers send the timestamped transcript and the manager's description to the model configured in Settings. A hit is stored only when the quoted words appear in that turn, with the turn's timestamp. Creating a tracker or stream queues scans for the 40 most recent calls; the background worker finishes the rest. Each concept scan of a call uses one evaluation credit and records the estimated model cost on the job. Streams that only check keywords, scores, stages, or hits already stored do not call the model. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback, email timelines, open-ended semantic search/Q&A, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Concept trackers, filter-based alert streams, manager-led forecasting, and manually reviewed deal playbooks are available now. See INTEGRATIONS.md for the researched connector roadmap.
+## Ask
+
+On a call, Ask answers from that call's transcript. Each quote seeks playback at that timestamp. On a deal, Ask uses only conversations linked to that deal. When the linked set is too long for one question, the newest conversations that fit are used and the rest are reported as omitted. There is no separate search index.
+
+Empty transcripts and calls that are too short to quote return an explanation and do not call the provider. Each question uses the workspace AI provider key already saved for coaching and one credit from the evaluation allowance. Members can ask about calls they can already open. Deal questions require workspace admin access and stay inside that team's linked conversations.
+
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, email timelines, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Concept trackers, filter-based alert streams, call and deal questions with transcript citations, manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 
-The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, concept-tracker hits, alert-stream delivery, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention and deletion. Existing regression tests and production/type builds should be run before release:
+The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, concept-tracker hits, alert-stream delivery, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, and Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance). Existing regression tests and production/type builds should be run before release:
 
     npm test
     npx tsc --noEmit

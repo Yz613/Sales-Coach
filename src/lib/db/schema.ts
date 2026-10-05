@@ -142,6 +142,15 @@ export const integrationExports = sqliteTable("integration_exports", {
   createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
 });
 
+export const crmPropertyWrites = sqliteTable("crm_property_writes", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), connectionId: text("connection_id").notNull(),
+  callId: text("call_id"), targetId: text("target_id").notNull(), event: text("event").notNull(),
+  payloadHash: text("payload_hash").notNull(), properties: text("properties").notNull(),
+  status: text("status").notNull().default("queued"), externalId: text("external_id"),
+  attempt: integer("attempt").notNull().default(0), lastError: text("last_error"),
+  createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
 export const conversationComments = sqliteTable("conversation_comments", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
   authorId: text("author_id").notNull(), authorName: text("author_name").notNull(), body: text("body").notNull(),
