@@ -17,8 +17,9 @@ function main(args = process.argv.slice(2)) {
     restrictions: null, required_conversation_resolution: true, allow_force_pushes: false, allow_deletions: false,
   });
   api("environments/production", { deployment_branch_policy: { protected_branches: true, custom_branch_policies: false } });
-  gh(["variable", "set", "REQUIRE_MFA", "--repo", repo, "--body", "true"]);
-  console.log("Protected main, restricted production environment, and enabled MFA for the next deployment.");
+  // MFA enforcement must follow verified identity-provider enrollment to avoid locking out users.
+  if (args.includes("--enable-mfa")) gh(["variable", "set", "REQUIRE_MFA", "--repo", repo, "--body", "true"]);
+  console.log("Protected main and restricted production environment. MFA policy is preserved unless --enable-mfa is supplied after enrollment verification.");
   const index = args.indexOf("--secrets-file");
   if (index < 0) {
     console.log("Secret migration requires --secrets-file with a private JSON object of secret names and original values. GitHub cannot return stored values.");

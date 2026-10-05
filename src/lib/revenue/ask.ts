@@ -1,3 +1,4 @@
+import { untrustedEvidence } from "../ai/evidence";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "../db";
 import { callMetadata, calls } from "../db/schema";
@@ -267,10 +268,10 @@ export function buildAskPrompt(question: string, packed: PackedAsk): string {
     "Lines whose ref starts with e are email snippets. Cite that ref when the answer comes from the email.",
     "",
     "Question:",
-    question,
+    untrustedEvidence("question", question),
     "",
     "Turns:",
-    lines.join("\n"),
+    untrustedEvidence("transcript-and-email-turns", lines.join("\n")),
   ].join("\n");
 }
 

@@ -1,3 +1,4 @@
+import { downloadFetch } from "./download-fetch";
 import { and, eq } from "drizzle-orm";
 import { ProviderError, providerFailureDetail, providerList, providerRequest, redactProviderBody } from "./http";
 import { externalParticipants, normalizedMeeting } from "./meeting";
@@ -37,7 +38,7 @@ function graphRequest<T>(token: string, path: string): Promise<T> {
 }
 
 function publicHttps(url: URL): boolean {
-  if (url.protocol !== "https:" || url.username || url.password || url.hostname === "localhost" || url.hostname.endsWith(".local")) return false;
+  if (url.protocol !== "https:" || (url.port && url.port !== "443") || url.username || url.password || url.hostname === "localhost" || url.hostname.endsWith(".local")) return false;
   if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(url.hostname) || url.hostname.includes(":")) return false;
   return url.hostname.includes(".");
 }
@@ -57,7 +58,7 @@ export async function teamsDownload(token: string, start: string, maxBytes: numb
   for (let hop = 0; hop < 3; hop++) {
     const url = new URL(current);
     if (!publicHttps(url) || (sendBearer && url.hostname !== "graph.microsoft.com")) throw new RevenueError("Microsoft Teams returned an invalid download address.", 502);
-    const response: Response = await fetch(url, {
+    const response: Response = await downloadFetch(url, {
       headers: { Accept: accept, ...(sendBearer ? { Authorization: `Bearer ${token}` } : {}) },
       redirect: "manual", signal: AbortSignal.timeout(25000), cache: "no-store",
     });

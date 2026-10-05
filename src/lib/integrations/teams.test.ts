@@ -312,7 +312,10 @@ test("Teams imports organizer calls once, stores a short recording, and matches 
         await enqueueSync(id).catch(() => undefined);
         await processJobs("org-teams-stop", 5);
         assert.equal((await searchConversations(auth("org-teams-stop"), { source: "microsoft-teams" })).total, importedAfter);
-        assert.equal((await listConnections()).length, 0);
+        const disconnected = await listConnections();
+        assert.equal(disconnected.length, 1);
+        assert.equal(disconnected[0].status, "disconnected");
+        assert.equal(disconnected[0].config.revocationPending, true);
       });
       mode = "forbidden";
       logged = [];

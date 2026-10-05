@@ -1,3 +1,4 @@
+import { untrustedEvidence } from "../ai/evidence";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
@@ -104,10 +105,10 @@ Rules:
 - Do not invent speakers, times, or quotes.
 
 Concepts:
-${trackers.map(tracker => `- id ${tracker.id}: ${tracker.name}. ${tracker.concept} Speaker focus: ${tracker.speaker}.`).join("\n")}
+${untrustedEvidence("concept-definitions", trackers)}
 
 Transcript:
-${lines.join("\n")}`;
+${untrustedEvidence("transcript", lines.join("\n"))}`;
 }
 
 const CONCEPT_SCHEMA = {
@@ -394,7 +395,7 @@ export async function scanAlertJob(job: { orgId: string; callId?: string; payloa
       const result = await completeJson({
         providerId: settings.providerId, apiKey, model: settings.model,
         prompt: conceptPrompt(trackers, segments),
-        responseSchema: settings.providerId === "gemini" ? CONCEPT_SCHEMA : undefined,
+        responseSchema: CONCEPT_SCHEMA,
       });
       const accepted = acceptConceptHits({ trackers, segments, repName: loaded.repName, parsed: result.parsed });
       const ids = trackers.map((tracker: { id: string }) => tracker.id);
