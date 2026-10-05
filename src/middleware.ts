@@ -212,12 +212,12 @@ export default async function middleware(request: NextRequest, event: NextFetchE
 
 export const config = {
   matcher: [
-    // Base-path root ("/" → "/app"): without this, the exact root bypasses the matcher under basePath
+    // Base-path root ("/" → "/app"): without this, the exact root bypasses the matcher under basePath.
+    // Do not match /icon.svg or /favicon.ico. Those are static files. An explicit
+    // matcher sends signed-out visitors to sign-in instead of the icon.
     "/",
     "/calls",
     "/calls/:path*",
-    "/favicon.ico",
-    "/icon.svg",
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest|mp3|wav|m4a|aac|ogg|webm|flac)).*)",
     "/(api|trpc)(.*)",
   ],

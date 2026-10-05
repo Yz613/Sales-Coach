@@ -82,6 +82,22 @@ export const MARKETING_PAGE_PATH = "/marketing";
 /** Public integrations catalog. Apex `/integrations` rewrites here on the hosted site. */
 export const INTEGRATIONS_PAGE_PATH = "/integrations";
 
+/** Public privacy policy. Apex `/privacy` rewrites here on the hosted site. */
+export const PRIVACY_PAGE_PATH = "/privacy";
+
+/** Metadata routes. Apex `/robots.txt` and `/sitemap.xml` rewrite onto the app base path. */
+export const ROBOTS_PATH = "/robots.txt";
+export const SITEMAP_PATH = "/sitemap.xml";
+
+/**
+ * Internal target for an apex URL the app does not serve.
+ * The page calls `notFound()` so the response is the app 404.
+ */
+export const NOT_FOUND_PAGE_PATH = "/site-missing";
+
+/** Absolute paths listed in `src/app/sitemap.ts`. `/pricing` is a redirect, not a page. */
+export const PUBLIC_SITEMAP_PATHS = ["/", INTEGRATIONS_PAGE_PATH, PRIVACY_PAGE_PATH] as const;
+
 /** Unauthenticated POST target for the public integration request form. */
 export const INTEGRATION_REQUEST_API_PATH = "/api/marketing/integration-request";
 
@@ -113,22 +129,48 @@ export function isApexIntegrationsPath(pathname: string): boolean {
   return pathname === INTEGRATIONS_PAGE_PATH || pathname === `${INTEGRATIONS_PAGE_PATH}/`;
 }
 
+export function isApexPrivacyPath(pathname: string): boolean {
+  return pathname === PRIVACY_PAGE_PATH || pathname === `${PRIVACY_PAGE_PATH}/`;
+}
+
+export function isApexRobotsPath(pathname: string): boolean {
+  return pathname === ROBOTS_PATH;
+}
+
+export function isApexSitemapPath(pathname: string): boolean {
+  return pathname === SITEMAP_PATH;
+}
+
+export function isNotFoundPath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  return normalized === NOT_FOUND_PAGE_PATH || normalized === `${NOT_FOUND_PAGE_PATH}/`;
+}
+
+export function isPublicDocumentPath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  return isApexRobotsPath(normalized) || isApexSitemapPath(normalized);
+}
+
 export function isMarketingAppPath(pathname: string): boolean {
   const normalized = stripAppBasePath(pathname);
   return (
     normalized === MARKETING_PAGE_PATH ||
     normalized.startsWith(`${MARKETING_PAGE_PATH}/`) ||
-    isApexIntegrationsPath(normalized)
+    isApexIntegrationsPath(normalized) ||
+    isApexPrivacyPath(normalized) ||
+    isNotFoundPath(normalized)
   );
 }
 
 /**
- * True apex `/` (marketing), `/integrations`, or the `/app/marketing` preview route.
+ * Public site paths that skip sign-in: apex `/`, marketing, integrations,
+ * privacy, the not-found page, robots.txt, and sitemap.xml.
  * Pass the full public URL pathname (`getPublicPath`), not `usePathname()`.
  * `/app` (the admin dashboard) must stay authenticated.
  */
 export function isPublicMarketingPath(pathname: string): boolean {
   if (pathname === "/" || pathname === "") return true;
+  if (isPublicDocumentPath(pathname)) return true;
   return isMarketingAppPath(pathname);
 }
 
@@ -200,4 +242,78 @@ export function getApexIntegrationsRewrite(requestUrl: string): string | null {
   const dest = new URL(toAppPath(INTEGRATIONS_PAGE_PATH), url.origin);
   dest.search = url.search;
   return dest.href;
+}
+
+function rewriteExactApex(requestUrl: string, matches: (pathname: string) => boolean, target: string): string | null {
+  const url = new URL(requestUrl);
+  if (!matches(url.pathname)) return null;
+  const dest = new URL(toAppPath(target), url.origin);
+  dest.search = url.search;
+  return dest.href;
+}
+
+export function getApexPrivacyRewrite(requestUrl: string): string | null {
+  return rewriteExactApex(requestUrl, isApexPrivacyPath, PRIVACY_PAGE_PATH);
+}
+
+export function getApexRobotsRewrite(requestUrl: string): string | null {
+  return rewriteExactApex(requestUrl, isApexRobotsPath, ROBOTS_PATH);
+}
+
+export function getApexSitemapRewrite(requestUrl: string): string | null {
+  return rewriteExactApex(requestUrl, isApexSitemapPath, SITEMAP_PATH);
+}
+
+/** Internal rewrite that keeps the browser on the apex URL. */
+export function getApexContentRewrite(requestUrl: string): string | null {
+  return (
+    getApexMarketingRewrite(requestUrl) ||
+    getApexIntegrationsRewrite(requestUrl) ||
+    getApexPrivacyRewrite(requestUrl) ||
+    getApexRobotsRewrite(requestUrl) ||
+    getApexSitemapRewrite(requestUrl)
+  );
+}
+
+/** Paths OpenNext already owns. Apex misses must not be treated as these. */
+export function isWorkerPassthroughPath(pathname: string): boolean {
+  return (
+    pathname === APP_BASE_PATH ||
+    pathname.startsWith(`${APP_BASE_PATH}/`) ||
+    pathname.startsWith("/_next/") ||
+    pathname === "/cdn-cgi" ||
+    pathname.startsWith("/cdn-cgi/")
+  );
+}
+
+/**
+ * Apex URL with no page, redirect, or asset route. Fetch `NOT_FOUND_PAGE_PATH`
+ * and return that response as 404. `/integrations/logo.svg` is included so a
+ * missing file is a 404; real files are served by the assets layer first.
+ */
+export function getApexNotFoundRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (getApexAliasRedirect(requestUrl) || getApexContentRewrite(requestUrl)) return null;
+  if (isWorkerPassthroughPath(url.pathname)) return null;
+  return new URL(toAppPath(NOT_FOUND_PAGE_PATH), url.origin).href;
+}
+
+export type ApexWorkerAction =
+  | { type: "redirect"; location: string; status: 307 | 308 }
+  | { type: "rewrite"; url: string }
+  | { type: "not-found"; url: string }
+  | { type: "passthrough" };
+
+/**
+ * What the Cloudflare worker should do before OpenNext.
+ * Redirects run first so `/pricing` cannot bounce through another redirect.
+ */
+export function apexWorkerAction(requestUrl: string): ApexWorkerAction {
+  const alias = getApexAliasRedirect(requestUrl);
+  if (alias) return { type: "redirect", location: alias.location, status: alias.status };
+  const rewrite = getApexContentRewrite(requestUrl);
+  if (rewrite) return { type: "rewrite", url: rewrite };
+  const missing = getApexNotFoundRewrite(requestUrl);
+  if (missing) return { type: "not-found", url: missing };
+  return { type: "passthrough" };
 }

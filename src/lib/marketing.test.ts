@@ -12,7 +12,7 @@ import {
 } from "./marketing";
 import { ENTERPRISE_SEATS_BULLET, HOSTED_COACH_EVALS, OVERAGE_LINE } from "./billing";
 
-const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite)\b/i;
+const VENDOR_NAME = /\b(Clerk|Stripe|Cloudflare|OpenAI|Whisper|Resend|Tailwind|Next\.js|Gemini|Groq|Anthropic|DeepSeek|OpenRouter|Docker|SQLite|PostHog|IPinfo|Google Analytics)\b/i;
 
 describe("hosted pricing", () => {
   it("publishes Hosted Coach / Hosted Team / Enterprise with Team highlighted", () => {
@@ -135,5 +135,46 @@ describe("marketing landing copy", () => {
     assert.match(calculator, /GONG_COMPARE_DISCLAIMER/);
     assert.match(calculator, /Self-hosted/);
     assert.match(calculator, /Hosted/);
+  });
+});
+
+describe("privacy policy", () => {
+  it("publishes the public notice on /privacy and keeps vendors off marketing pages", () => {
+    const page = readFileSync(new URL("../app/privacy/page.tsx", import.meta.url), "utf8");
+    const shell = readFileSync(new URL("../components/MarketingShell.tsx", import.meta.url), "utf8");
+    const integrations = readFileSync(new URL("../components/IntegrationsMarketing.tsx", import.meta.url), "utf8");
+    const attribution = readFileSync(new URL("../../packages/visitor-company/src/attribution.ts", import.meta.url), "utf8");
+    const contract = readFileSync(new URL("../../workflow-contract.md", import.meta.url), "utf8");
+
+    assert.match(page, /from "visitor-company"/);
+    assert.match(page, /IPINFO_ATTRIBUTION/);
+    assert.match(page, /IPINFO_ATTRIBUTION_URL/);
+    assert.match(attribution, /export const IPINFO_ATTRIBUTION = "IP address data is powered by IPinfo"/);
+    assert.match(attribution, /export const IPINFO_ATTRIBUTION_URL = "https:\/\/ipinfo.io"/);
+    assert.match(page, /October 4, 2026/);
+    assert.match(page, /CONTACT_EMAIL/);
+    assert.match(page, /page views, clicks, and form submissions/);
+    assert.match(page, /masked/);
+    assert.match(page, /Google Analytics and PostHog/);
+    assert.match(page, /subprocessors/);
+    assert.match(page, /We do not sell personal data/);
+    assert.match(page, /company network you are on/);
+    assert.match(page, /We do not store the IP address/);
+    assert.match(page, /does not identify a person/);
+    assert.match(page, /EU, UK, or EEA/);
+    assert.match(page, /country only/);
+    assert.match(page, /Do Not Track and Global Privacy Control/);
+    assert.match(page, /integration request or join the waitlist/);
+    assert.match(page, /Call recordings/);
+    assert.match(page, /customer agreement/);
+    assert.match(page, /retention settings/);
+    assert.match(page, /current="privacy"/);
+    assert.match(shell, /href="\/privacy"/);
+    assert.match(integrations, /MarketingShell/);
+    assert.equal(shell.match(VENDOR_NAME), null);
+    assert.equal(integrations.match(VENDOR_NAME), null);
+    assert.match(contract, /https:\/\/refreshqueue\.com\/privacy/);
+    assert.match(contract, /IP address data is powered by IPinfo/);
+    assert.doesNotMatch(contract, /Public privacy policy page with the company-identification disclosure above — not created yet/);
   });
 });
