@@ -9,6 +9,7 @@
 - Topics: configurable keyword/phrase trackers, speaker filters and timestamped matches. Speaker activity reports transcript word share and questions.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
 - Deal execution: manager forecast categories and probabilities, due next steps, evidence-linked MEDDICC qualification, buyer engagement, and conflict-safe reviews.
+- Ask: natural-language questions on a call or a deal, answered from that transcript set with timestamped quotes that seek playback.
 - Forecast: calendar month/quarter and CRM owner filters, currency-separated won/committed/upside/weighted totals, targets, immutable submissions, and historical comparison. [Details and limitations](DEAL_FORECASTING.md).
 - Integrations: twenty-seven tool cards with individual connection guides; seven native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
@@ -135,11 +136,17 @@ Risk flags are visible rules: absent conversations, no recent conversation, a pa
 
 Trackers perform literal keyword/phrase matching. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback, email timelines, semantic search/Q&A, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Manager-led forecasting and manually reviewed deal playbooks are available now. See INTEGRATIONS.md for the researched connector roadmap.
+## Ask
+
+On a call, Ask answers from that call's transcript. Each quote seeks playback at that timestamp. On a deal, Ask uses only conversations linked to that deal. When the linked set is too long for one question, the newest conversations that fit are used and the rest are reported as omitted. There is no separate search index.
+
+Empty transcripts and calls that are too short to quote return an explanation and do not call the provider. Each question uses the workspace AI provider key already saved for coaching and one credit from the evaluation allowance. Members can ask about calls they can already open. Deal questions require workspace admin access and stay inside that team's linked conversations.
+
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback, email timelines, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Call and deal questions with transcript citations are available now, as are manager-led forecasting and manually reviewed deal playbooks. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 
-The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention and deletion. Existing regression tests and production/type builds should be run before release:
+The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, and Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance). Existing regression tests and production/type builds should be run before release:
 
     npm test
     npx tsc --noEmit
