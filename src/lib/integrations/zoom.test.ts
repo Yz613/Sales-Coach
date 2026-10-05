@@ -173,6 +173,7 @@ test("Zoom history walks month windows, imports each recording once, and isolate
         callB = importedCallId("org-zoom-a", id, "uuid-b==");
         assert.equal((await getCallById(callB))?.audioUrl, undefined);
         const playback = await providerRecording(callB);
+        assert.ok(playback.url);
         assert.equal(playback.status, "completed"); assert.match(playback.url, /^https:\/\/zoom\.us\//); assert.match(playback.url, /access_token=playback-token/);
         assert.equal(playback.url.includes("zoom-token"), false);
         const payloads = (await db.select().from(processingJobs).where(eq(processingJobs.orgId, "org-zoom-a")).all()).map((job: { payload: string }) => job.payload).join("\n");
