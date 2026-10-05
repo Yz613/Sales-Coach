@@ -6,6 +6,7 @@ import "./globals.css";
 import AppChrome from "@/components/AppChrome";
 import AuthProvider from "@/components/AuthProvider";
 import PageViewTracker from "@/components/PageViewTracker";
+import ProductAnalytics from "@/components/ProductAnalytics";
 import { TAG_SCRIPT_SRC, pageViewBootstrap } from "@/lib/page-views";
 import { authRedirectPath, getServerAuth, publicGuestAuth } from "@/lib/auth";
 import {
@@ -67,6 +68,7 @@ export default async function RootLayout({
             auth.userId ? { id: auth.userId, email: auth.email, name: auth.name } : null
           }
         >
+          <ProductAnalytics />
           <AppChrome>{children}</AppChrome>
         </AuthProvider>
       </body>

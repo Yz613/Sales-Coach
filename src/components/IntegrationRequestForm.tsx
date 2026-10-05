@@ -66,7 +66,14 @@ export default function IntegrationRequestForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative rounded-3xl glass-card p-6 sm:p-8" noValidate>
+    <form
+      onSubmit={onSubmit}
+      className="relative rounded-3xl glass-card p-6 sm:p-8"
+      noValidate
+      data-analytics-form="integration_request"
+      data-analytics-email-source="integration_request"
+      data-analytics-contact="email"
+    >
       <h2 className="text-xl font-semibold text-[#1d1d1f]">Request an integration</h2>
       <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">
         Name the tool and what you need it to do. Email is required so we can reply.

@@ -13,6 +13,7 @@ import {
   getApexAliasRedirect,
 } from "@/lib/public-path";
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
+import { analyticsConnectHosts, analyticsScriptHosts } from "@/lib/analytics-policy";
 import { fallbackContentSecurityPolicy, tagConnectHosts, tagImgHosts, tagScriptHosts } from "@/lib/page-views";
 import { assertSecureDeployment, assertMutationOrigin, privateResponse } from "@/lib/security-policy";
 
@@ -117,8 +118,8 @@ function clerkHandlerImpl() {
         directives: {
           "object-src": ["'none'"], "base-uri": ["'self'"], "frame-ancestors": ["'none'"],
           "media-src": ["'self'", "https:", "blob:"],
-          "script-src": [...tagScriptHosts],
-          "connect-src": [...tagConnectHosts],
+          "script-src": [...tagScriptHosts, ...analyticsScriptHosts],
+          "connect-src": [...tagConnectHosts, ...analyticsConnectHosts],
           "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
         },
       },
