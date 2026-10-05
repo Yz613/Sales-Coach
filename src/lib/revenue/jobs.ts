@@ -13,6 +13,7 @@ import { hubspotPage, hubspotRequest, hubspotChangedRecord, crmRecordId } from "
 import { callProviderPage, fetchProviderCall, type CallProvider } from "../integrations/call-providers";
 import { maybeStoreZoomAudio } from "../integrations/zoom";
 import { maybeStoreGoogleMeetAudio } from "../integrations/google-meet";
+import { maybeStoreTeamsRecording } from "../integrations/teams";
 import { normalizeGongCall } from "../integrations/gong";
 import { crmProviderPage } from "../integrations/crm-providers";
 import { integrationTool, isCallTool, isCalendarTool, isEmailTool, isTaskTool } from "../integrations/catalog";
@@ -49,7 +50,14 @@ export async function enqueueSync(connectionId: string, full = false) {
   if (existing) return existing.id;
   if (!integrationTool(connection.provider)?.syncMinutes) throw new RevenueError("This connection receives calls through its live feed. It has no history to sync.");
   if (isEmailTool(connection.provider) && !(await emailCaptureEnabled())) throw new RevenueError("Turn on email capture in Admin settings before syncing mailboxes.");
-  const state: SyncCursor = { syncStartedAt: new Date().toISOString(), full, ...(isCallTool(connection.provider) && !full && connection.lastSyncedAt ? { createdAfter: new Date(Date.parse(connection.lastSyncedAt) - 86400000).toISOString() } : {}) };
+  const remembered: SyncCursor = connection.provider === "microsoft-teams" ? {
+    ...(connection.cursor.teamsDiscovery ? { teamsDiscovery: connection.cursor.teamsDiscovery } : {}),
+    ...(connection.cursor.teamsRecordings ? { teamsRecordings: connection.cursor.teamsRecordings } : {}),
+    ...(connection.cursor.teamsUserId ? { teamsUserId: connection.cursor.teamsUserId } : {}),
+    ...(connection.cursor.hostEmail ? { hostEmail: connection.cursor.hostEmail } : {}),
+    ...(connection.cursor.hostName ? { hostName: connection.cursor.hostName } : {}),
+  } : {};
+  const state: SyncCursor = { syncStartedAt: new Date().toISOString(), full, ...remembered, ...(isCallTool(connection.provider) && !full && connection.lastSyncedAt ? { createdAfter: new Date(Date.parse(connection.lastSyncedAt) - 86400000).toISOString() } : {}) };
   return enqueueJob({ kind: "sync", connectionId, payload: state, key: `${connectionId}:${Math.floor(Date.now() / 60000)}:${full}` });
 }
 
@@ -137,12 +145,12 @@ async function executeJob(job: any) {
     // A disconnect during the provider request revokes the pending import too.
     await getConnection(connection.id);
     const result = await importMeeting(connection, meeting);
-    if ((connection.provider === "zoom" || connection.provider === "google-meet") && !result.deleted) {
+    if ((connection.provider === "zoom" || connection.provider === "google-meet" || connection.provider === "microsoft-teams") && !result.deleted) {
       try {
         if (connection.provider === "zoom") await maybeStoreZoomAudio(connection.secrets, result.callId, meeting.externalId);
-        else await maybeStoreGoogleMeetAudio(connection.secrets, result.callId, meeting.externalId);
-      }
-      catch (error) { if (error instanceof ProviderError && error.providerStatus === 429) throw error; }
+        else if (connection.provider === "google-meet") await maybeStoreGoogleMeetAudio(connection.secrets, result.callId, meeting.externalId);
+        else await maybeStoreTeamsRecording(connection.secrets, result.callId, meeting.externalId);
+      } catch (error) { if (error instanceof ProviderError && error.providerStatus === 429) throw error; }
     }
     if (!result.deleted && connection.config.autoEvaluate) await enqueueJob({ kind: "evaluate", connectionId: connection.id, callId: result.callId, key: result.callId });
     return result;

@@ -22,6 +22,8 @@ function credentialPrefixes(provider: OAuthProvider): string[] {
   if (provider === "google-meet") return ["GOOGLE_MEET", "GOOGLE", "GOOGLE_CALENDAR"];
   // Gmail can reuse the Google Calendar OAuth client when GOOGLE_CLIENT_ID is not set.
   if (provider === "gmail") return ["GOOGLE", "GOOGLE_CALENDAR"];
+  // Teams can reuse the Outlook mail app. That app is multitenant plus personal accounts, so tokens use /common.
+  if (provider === "microsoft-teams") return ["MICROSOFT_TEAMS", "MICROSOFT"];
   return [APPS[provider].prefix];
 }
 function credentialChoices(provider: OAuthProvider) {
@@ -128,6 +130,10 @@ export async function finishOAuth(provider: OAuthProvider, actor: string, state:
     throw new RevenueError(provider === "gmail"
       ? "Google did not grant Gmail metadata access. Reconnect and allow View your email message metadata."
       : "Google did not grant Google Meet access. Reconnect and allow Meet conferences, Meet recordings, and contacts read access.");
+  }
+  if (provider === "microsoft-teams" && typeof tokens.scope === "string" && tokens.scope.trim()) {
+    const required = APPS["microsoft-teams"].scope.split(/\s+/).filter(scope => scope && scope !== "offline_access").join(" ");
+    if (!scopeGrantIncludes(tokens.scope, required)) throw new RevenueError("Microsoft did not grant Teams meeting, transcript, and recording access. Reconnect and approve the requested permissions.");
   }
   const secrets: Record<string, string> = { ...tokenSecrets(provider, tokens), redirectUri: saved.redirectUri, ...(saved.clientId ? { oauthClientId: saved.clientId } : {}) };
   return { body: JSON.parse(saved.body), secrets };

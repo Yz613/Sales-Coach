@@ -1,5 +1,5 @@
 export type TaskProvider = "asana" | "notion" | "trello" | "clickup" | "monday" | "linear" | "todoist" | "airtable" | "github" | "gitlab";
-export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom" | "google-meet" | "gmail" | "outlook";
+export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom" | "google-meet" | "microsoft-teams" | "gmail" | "outlook";
 export interface ExternalTask { externalId: string; title: string; description: string; status: "open" | "completed" | "archived"; assignee: string; dueAt: string | null; sourceUrl: string | null }
 export type CalendarProvider = "calendly" | "google-calendar" | "outlook-calendar";
 export type MailboxProvider = "gmail" | "outlook";
@@ -23,7 +23,7 @@ export interface ProviderInsights {
   topics: { name: string; duration: number }[]; trackers: { name: string; occurrences: { start: number; phrase: string }[] }[];
   metrics: { name: string; value: number }[]; speakers: { name: string; seconds: number }[]; outcome: string;
 }
-export interface SyncCursor { kind?: number; after?: string; pageCount?: number; createdAfter?: string; syncStartedAt?: string; windowStart?: string; windowEnd?: string; hostEmail?: string; hostName?: string; stages?: Record<string, { label: string; closed: boolean }>; complete?: boolean; full?: boolean }
+export interface SyncCursor { kind?: number; after?: string; pageCount?: number; createdAfter?: string; syncStartedAt?: string; windowStart?: string; windowEnd?: string; hostEmail?: string; hostName?: string; teamsUserId?: string; teamsDiscovery?: "delta" | "calendar"; teamsRecordings?: "yes" | "no"; stages?: Record<string, { label: string; closed: boolean }>; complete?: boolean; full?: boolean }
 export const HUBSPOT_PROPERTY_FIELDS = ["summary", "score", "nextSteps", "forecastCategory"] as const;
 export type HubspotPropertyField = typeof HUBSPOT_PROPERTY_FIELDS[number];
 export interface HubspotPropertyMapping { source: HubspotPropertyField; object: "deal" | "contact"; property: string }

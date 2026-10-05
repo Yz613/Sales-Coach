@@ -63,6 +63,8 @@ CALENDLY_CLIENT_ID=
 CALENDLY_CLIENT_SECRET=
 ZOOM_CLIENT_ID=
 ZOOM_CLIENT_SECRET=
+MICROSOFT_TEAMS_CLIENT_ID=
+MICROSOFT_TEAMS_CLIENT_SECRET=
 ```
 
 These are **operator application credentials**. Slack webhook URLs, Calendly personal tokens and Aircall keys are entered in the integration screen and encrypted per workspace. Do not put client secrets in `NEXT_PUBLIC_*` variables.
@@ -80,6 +82,8 @@ npx wrangler secret put CALENDLY_CLIENT_ID
 npx wrangler secret put CALENDLY_CLIENT_SECRET
 npx wrangler secret put ZOOM_CLIENT_ID
 npx wrangler secret put ZOOM_CLIENT_SECRET
+npx wrangler secret put MICROSOFT_TEAMS_CLIENT_ID
+npx wrangler secret put MICROSOFT_TEAMS_CLIENT_SECRET
 ```
 
 Each command prompts for its value; skip providers you are not enabling. For GitHub Actions deployment, add the same names under **Repository Settings → Secrets and variables → Actions**. The deployment workflow forwards and uploads configured OAuth credentials, while preserving secrets already on the Worker. Unconfigured optional providers do not block deployment. Adding credentials only to a build environment does not make them available at Worker runtime.
@@ -96,6 +100,7 @@ Register the **complete address**, including `/app`, with no extra trailing slas
 | Microsoft | `https://coach.example.com/app/api/integrations/oauth/outlook-calendar/callback` | `http://localhost:3000/app/api/integrations/oauth/outlook-calendar/callback` |
 | Calendly | `https://coach.example.com/app/api/integrations/oauth/calendly/callback` | `http://localhost:3000/app/api/integrations/oauth/calendly/callback` |
 | Zoom | `https://coach.example.com/app/api/integrations/oauth/zoom/callback` | `http://localhost:3000/app/api/integrations/oauth/zoom/callback` |
+| Microsoft Teams | `https://coach.example.com/app/api/integrations/oauth/microsoft-teams/callback` | `http://localhost:3000/app/api/integrations/oauth/microsoft-teams/callback` |
 
 Replace the hosted example's origin with your actual `PUBLIC_APP_URL`. Production callbacks require HTTPS. Remain signed in as the same admin in the same workspace and browser, and complete one connection at a time within ten minutes. Starting a second flow replaces the browser's state cookie. If sign-in expires, return to the integration page and start again.
 
@@ -263,6 +268,31 @@ Finish a cloud-recorded meeting and wait until Zoom marks the transcript complet
 | Authorization cannot refresh | Disconnect and reconnect. Check the operator client credentials if it repeats. |
 
 No Zoom webhook is required. The connector polls every 15 minutes. Disconnect cancels queued sync and import jobs.
+
+## Microsoft Teams
+
+### Operator setup
+
+1. Reuse the Outlook mail Entra app, or create a web app that allows multiple organizations and personal Microsoft accounts. Tokens are requested from `https://login.microsoftonline.com/common`. That app type is rejected on the `/organizations` endpoint. Transcripts still require a work or school account.
+2. Add the exact Teams callback above. Production must use the HTTPS `PUBLIC_APP_URL` origin.
+3. Add only these delegated permissions: `offline_access`, `User.Read`, `Calendars.Read`, `OnlineMeetings.Read`, `OnlineMeetingTranscript.Read.All`, and `OnlineMeetingRecording.Read.All`. Do not add `OnlineMeetings.ReadWrite`, application permissions, chat, files, or call-record permissions.
+4. Grant **admin consent** for `OnlineMeetingTranscript.Read.All` and `OnlineMeetingRecording.Read.All`. The other four can be user-consented unless the tenant blocks user consent. An application access policy is not used.
+5. Save the client ID and secret as `MICROSOFT_TEAMS_CLIENT_ID` and `MICROSOFT_TEAMS_CLIENT_SECRET`. If those are unset, the connector uses `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. Restart the app and worker, or set the same names as Worker secrets and GitHub Actions secrets. If neither pair is set, the sign-in button stays disabled.
+6. An admin opens **Admin → Integrations → Microsoft Teams**, clicks **Sign in with Microsoft**, and approves the requested access with a work or school account.
+
+### Check it works
+
+Finish a Teams meeting you organized and wait until a transcript exists. Click **Sync now**, open **Conversations**, and filter to **Microsoft Teams**. Confirm speakers, timestamps, and playback when a short recording was stored. A meeting with no transcript stays out of the library. **Import history** queues the last 30 days and does not duplicate an existing meeting. Disconnect and confirm a later sync does not import new meetings.
+
+| Symptom | Fix |
+| --- | --- |
+| Sign-in disabled | Set `MICROSOFT_TEAMS_CLIENT_ID` and `MICROSOFT_TEAMS_CLIENT_SECRET`, or the Outlook mail `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. The calendar variables do not enable Teams. |
+| Administrator approval required | A Microsoft 365 admin must consent to the two `.Read.All` permissions. The banner includes the provider reason. The worker log records the status and body with tokens removed. |
+| Personal account | Sign in with a work or school account. Personal Outlook, Hotmail, Live, and MSN addresses cannot read Teams transcripts. |
+| Sync completes with no imported calls | The connected user must be the organizer, the event must be a timed Teams meeting, and a transcript must be ready. The window is 30 days. |
+| Invalid return address | Register the exact callback, including `/app`, with no trailing slash. |
+
+No Teams webhook is required. The connector polls every 15 minutes. Disconnect cancels queued sync and import jobs.
 
 ## Shared sync behavior and final acceptance checks
 

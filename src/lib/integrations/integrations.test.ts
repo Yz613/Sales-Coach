@@ -66,7 +66,7 @@ async function vendorFetch(input: any, init?: RequestInit) {
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; } }
 
 test("incoming call payloads reject missing transcripts, invalid IDs, and invalid timestamps", () => {
-  assert.equal(INTEGRATION_TOOLS.length, 30);
+  assert.equal(INTEGRATION_TOOLS.length, 31);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "call-1" }), /Transcript/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "", transcriptText: "hello" }), /Source call ID/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "1", segments: [{ speaker: "Alex", text: "hello", start: -1 }] }), /timestamps/);

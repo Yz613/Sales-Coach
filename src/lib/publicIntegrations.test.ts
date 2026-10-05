@@ -17,8 +17,8 @@ describe("public integration catalog", () => {
     const publicIds = PUBLIC_INTEGRATIONS.map((item) => item.id).sort();
     assert.deepEqual(publicIds, catalogIds);
     assert.equal(new Set(publicIds).size, publicIds.length);
-    assert.equal(PUBLIC_INTEGRATION_COUNT, 30);
-    assert.equal(PUBLIC_INTEGRATIONS.length, 30);
+    assert.equal(PUBLIC_INTEGRATION_COUNT, 31);
+    assert.equal(PUBLIC_INTEGRATIONS.length, 31);
     for (const item of PUBLIC_INTEGRATIONS) {
       const tool = INTEGRATION_TOOLS.find((entry) => entry.id === item.id);
       assert.equal(item.name, tool?.name);
@@ -39,7 +39,7 @@ describe("public integration catalog", () => {
     assert.deepEqual(groups.map((group) => group.category), [...PUBLIC_INTEGRATION_CATEGORIES]);
     const counts = Object.fromEntries(groups.map((group) => [group.category, group.items.length]));
     assert.deepEqual(counts, {
-      Meetings: 8,
+      Meetings: 9,
       CRM: 3,
       Calendar: 3,
       Email: 2,
@@ -49,13 +49,13 @@ describe("public integration catalog", () => {
     });
     assert.deepEqual(
       groups.find((group) => group.category === "Meetings")?.items.map((item) => item.name),
-      ["Fathom", "Fireflies", "tl;dv", "Gong", "Close", "Aircall", "Zoom", "Google Meet"]
+      ["Fathom", "Fireflies", "tl;dv", "Gong", "Close", "Aircall", "Zoom", "Google Meet", "Microsoft Teams"]
     );
     assert.deepEqual(
       groups.find((group) => group.category === "CRM")?.items.map((item) => item.id),
       ["hubspot", "pipedrive", "attio"]
     );
-    assert.equal(groups.flatMap((group) => group.items).length, 30);
+    assert.equal(groups.flatMap((group) => group.items).length, 31);
     assert.deepEqual(
       groups.find((group) => group.category === "Email")?.items.map((item) => item.id),
       ["gmail", "outlook"]

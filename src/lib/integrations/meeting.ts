@@ -3,7 +3,7 @@ import { RevenueError, safeExternalUrl, textInput } from "../revenue/security";
 import type { ImportedMeeting, Participant, Segment } from "../revenue/types";
 
 export function normalizedMeeting(input: Partial<ImportedMeeting> & { externalId: string }): ImportedMeeting {
-  const externalId = textInput(input.externalId, "Source call ID", 200);
+  const externalId = textInput(input.externalId, "Source call ID", 1000);
   const segments = (input.segments || []).filter(turn => typeof turn.text === "string" && turn.text.trim())
     .map(turn => ({ ...turn, text: turn.text.trim(), start: Number.isFinite(turn.start) ? Math.max(0, turn.start) : 0 }))
     .sort((a, b) => a.start - b.start);
