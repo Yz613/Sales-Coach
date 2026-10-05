@@ -3,6 +3,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiPath } from "@/lib/utils";
 import type { UserRole } from "./auth";
+import {
+  initialClientRoleMemory,
+  reduceClientRole,
+  type ClerkMembershipInput,
+} from "./client-role";
+
+export type { ClerkMembershipInput } from "./client-role";
 
 interface AuthContextValue {
   role: UserRole;
@@ -30,22 +37,50 @@ export function useAppAuth() {
   return useContext(AuthContext);
 }
 
+function isUserRole(value: unknown): value is UserRole {
+  return value === "admin" || value === "member";
+}
+
 export function AuthContextProvider({
   children,
   initialRole = "member",
   isClerkConfigured = false,
   clerkUser = null,
   skipRoleFetch = false,
+  clerkMembership = null,
 }: {
   children: React.ReactNode;
   initialRole?: UserRole;
   isClerkConfigured?: boolean;
   clerkUser?: { id?: string | null; email?: string; name?: string } | null;
   skipRoleFetch?: boolean;
+  clerkMembership?: ClerkMembershipInput | null;
 }) {
-  const [role, setRole] = useState<UserRole>(initialRole);
+  const trustServerRole = !skipRoleFetch;
+  const [memory, setMemory] = useState(() =>
+    initialClientRoleMemory(initialRole, trustServerRole)
+  );
+  const reduced = reduceClientRole(memory, {
+    initialRole,
+    trustServerRole,
+    clerkConfigured: isClerkConfigured,
+    authLoaded: Boolean(clerkMembership?.authLoaded),
+    orgLoaded: Boolean(clerkMembership?.orgLoaded),
+    userId: clerkMembership?.userId ?? clerkUser?.id ?? null,
+    orgRole: clerkMembership?.orgRole ?? null,
+    hasOrgAdmin: Boolean(clerkMembership?.hasOrgAdmin),
+  });
+  if (
+    reduced.memory.role !== memory.role ||
+    reduced.memory.prevInitialRole !== memory.prevInitialRole ||
+    reduced.memory.prevTrustServerRole !== memory.prevTrustServerRole ||
+    reduced.memory.prevClerkRole !== memory.prevClerkRole
+  ) {
+    setMemory(reduced.memory);
+  }
+
   const [user, setUser] = useState(clerkUser);
-  const [isLoading, setIsLoading] = useState(false);
+  const [fetchedRole, setFetchedRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     if (clerkUser?.id) {
@@ -54,7 +89,13 @@ export function AuthContextProvider({
   }, [clerkUser]);
 
   useEffect(() => {
-    if (skipRoleFetch || clerkUser?.id) return;
+    setFetchedRole(null);
+  }, [initialRole]);
+
+  // Clerk membership drives the role when it is configured. This fetch only
+  // covers local sessions that have no Clerk user yet.
+  useEffect(() => {
+    if (skipRoleFetch || isClerkConfigured || clerkUser?.id) return;
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 5000);
     fetch(apiPath("/api/auth/role"), { signal: ac.signal })
@@ -64,8 +105,8 @@ export function AuthContextProvider({
         return res.json();
       })
       .then((data) => {
-        if (data?.role) {
-          setRole(data.role);
+        if (isUserRole(data?.role)) {
+          setFetchedRole(data.role);
         }
         if (data?.userId) {
           setUser({
@@ -81,12 +122,15 @@ export function AuthContextProvider({
       clearTimeout(timer);
       ac.abort();
     };
-  }, [skipRoleFetch, clerkUser?.id]);
+  }, [skipRoleFetch, isClerkConfigured, clerkUser?.id]);
+
+  const role = !isClerkConfigured && fetchedRole ? fetchedRole : reduced.role;
+  const isLoading = reduced.isLoading;
 
   const value: AuthContextValue = {
     role,
-    isAdmin: role === "admin",
-    isMember: role === "member",
+    isAdmin: role === "admin" && !isLoading,
+    isMember: role === "member" && !isLoading,
     isClerkConfigured,
     user,
     isLoading,

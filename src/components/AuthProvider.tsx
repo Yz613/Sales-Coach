@@ -2,7 +2,8 @@
 
 import React from "react";
 import { AuthContextProvider } from "@/lib/auth-context";
-import { ClerkProvider, useSession, useUser } from "@clerk/nextjs";
+import { clerkOrgRole } from "@/lib/client-role";
+import { ClerkProvider, useAuth, useOrganization, useSession, useUser } from "@clerk/nextjs";
 import type { UserRole } from "@/lib/auth";
 import { CLERK_PATHS, clerkAppearance, teamLocalization } from "@/lib/clerk-ui";
 import ActiveTeamSync from "@/components/ActiveTeamSync";
@@ -32,6 +33,8 @@ function ClerkBridge({
 }) {
   const { user } = useUser();
   const { session } = useSession();
+  const { isLoaded: authLoaded, userId, orgId, orgRole, has } = useAuth();
+  const { isLoaded: orgLoaded, membership } = useOrganization();
 
   const clerkUser =
     user && session?.status === "active"
@@ -42,12 +45,25 @@ function ClerkBridge({
         }
       : initialUser;
 
+  const hasOrgAdmin = Boolean(authLoaded && orgId && has?.({ role: "org:admin" }));
+
   return (
     <AuthContextProvider
       initialRole={initialRole}
       isClerkConfigured={true}
       clerkUser={clerkUser}
       skipRoleFetch={skipRoleFetch}
+      clerkMembership={{
+        authLoaded,
+        orgLoaded,
+        userId,
+        orgRole: clerkOrgRole({
+          authOrgRole: orgRole,
+          orgLoaded,
+          membershipRole: membership?.role,
+        }),
+        hasOrgAdmin,
+      }}
     >
       <ActiveTeamSync />
       {children}
