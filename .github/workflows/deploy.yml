@@ -111,6 +111,8 @@ jobs:
           SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+          ZOOM_CLIENT_ID: ${{ secrets.ZOOM_CLIENT_ID }}
+          ZOOM_CLIENT_SECRET: ${{ secrets.ZOOM_CLIENT_SECRET }}
         run: node scripts/sync-worker-secrets.cjs
       - name: Deploy to Cloudflare
         env:

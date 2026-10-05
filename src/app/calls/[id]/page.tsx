@@ -226,7 +226,7 @@ async function CallReviewPage({
       </div>
 
       <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights} defaultFull={!ev}>
-      {conversation.source === "fathom" ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} /> : <CallRecording
+      {(conversation.source === "fathom" || (conversation.source === "zoom" && !call.audioUrl)) ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} provider={conversation.source === "zoom" ? "Zoom" : "Fathom"} /> : <CallRecording
         audioUrl={call.audioUrl}
         transcriptText={call.transcriptText}
         durationSeconds={call.durationSeconds}

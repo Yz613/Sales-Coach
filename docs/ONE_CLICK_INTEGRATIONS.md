@@ -31,6 +31,7 @@ The deployment operator must register an OAuth app for each provider. These cred
 | [GitLab](https://docs.gitlab.com/api/oauth2/) | `GITLAB` | `https://refreshqueue.com/app/api/integrations/oauth/gitlab/callback` | Confidential application with api scope and PKCE. Hosted gitlab.com projects; api scope includes project write access. |
 | [Slack](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/) | `SLACK` | `https://refreshqueue.com/app/api/integrations/oauth/slack/callback` | incoming-webhook scope; enable Incoming Webhooks and app distribution. Customers choose a channel during installation. |
 | [Discord](https://docs.discord.com/developers/topics/oauth2#webhooks) | `DISCORD` | `https://refreshqueue.com/app/api/integrations/oauth/discord/callback` | webhook.incoming scope. Customers choose a server channel during consent. |
+| [Zoom](https://developers.zoom.us/docs/integrations/oauth/) | `ZOOM` | `https://refreshqueue.com/app/api/integrations/oauth/zoom/callback` | User-managed General App. user:read:user, cloud_recording:read:list_user_recordings, cloud_recording:read:list_recording_files, cloud_recording:read:meeting_transcript, meeting:read:list_past_participants. No meeting bot. |
 
 For example, after registering the Google application, set its actual credentials with:
 
@@ -49,8 +50,8 @@ Expiring calendar, CRM and task credentials refresh before sync or export. Datab
 
 Task destination lists are paginated where the provider supports pagination. ClickUp browses workspace → space → folder/list; Asana browses workspace → project; Airtable browses base → table and detects its primary title field. Notion lists data sources shared during authorization. A destination ID fallback remains available when the provider omits an otherwise accessible destination. Destination access is verified before automatic sync is enabled, and concurrent setup requests cannot overwrite a chosen destination or refreshed credentials.
 
-The remaining key/feed connectors retain their supported setup flows: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Trello, Zapier and Make. Their existing import/export behavior is preserved. This release adds account sign-in for the 17 providers above; it does not promise an OAuth flow for every connector.
+The remaining key/feed connectors retain their supported setup flows: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Trello, Zapier and Make. Their existing import/export behavior is preserved. Account sign-in covers the 18 providers above, including Zoom cloud recordings. It does not promise an OAuth flow for every connector.
 
 ## Verification
 
-Run `npm test` and `npx tsc --noEmit`. OAuth regression tests cover all 17 exchanges, PKCE, replay/admin/workspace rejection, webhook grants, malformed authorization responses, expiration handling, task destination verification/concurrency, refresh and Bearer-vs-personal-token compatibility. Deployment tests verify that all 34 provider secrets are forwarded while unconfigured integrations stay optional. Provider API responses are simulated; live consent and account acceptance require registered apps and provider accounts.
+Run `npm test` and `npx tsc --noEmit`. OAuth regression tests cover all 18 exchanges, PKCE, replay/admin/workspace rejection, webhook grants, malformed authorization responses, expiration handling, task destination verification/concurrency, refresh and Bearer-vs-personal-token compatibility. Deployment tests verify that all 36 provider secrets are forwarded while unconfigured integrations stay optional. Provider API responses are simulated; live consent and account acceptance require registered apps and provider accounts.
