@@ -44,7 +44,7 @@
     "authorize": "https://app.hubspot.com/oauth/authorize",
     "tokenOrigin": "https://api.hubapi.com",
     "tokenPath": "/oauth/v1/token",
-    "scope": "crm.objects.companies.read crm.objects.contacts.read crm.objects.deals.read crm.objects.contacts.write",
+    "scope": "crm.objects.companies.read crm.objects.contacts.read crm.objects.deals.read crm.objects.contacts.write crm.objects.deals.write",
     "pkce": false,
     "encoding": "form",
     "authentication": "body",

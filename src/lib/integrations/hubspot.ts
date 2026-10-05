@@ -1,10 +1,21 @@
 import { providerRequest, providerList } from "./http";
-import { stableId } from "../revenue/security";
+import { RevenueError, stableId } from "../revenue/security";
 import type { CrmRecord, SyncCursor } from "../revenue/types";
 
 const ORIGIN = "https://api.hubapi.com";
 export function hubspotRequest<T>(token: string, pathname: string, init?: RequestInit): Promise<T> {
   return providerRequest<T>("HubSpot", ORIGIN, pathname, { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, init);
+}
+
+const PROPERTY_NAME = /^[a-z][a-z0-9_]{0,99}$/;
+/** PATCH is idempotent for the same values. A missing id is not confirmation that HubSpot stored the change. */
+export async function updateHubspotProperties(token: string, kind: "deal" | "contact", externalId: string, properties: Record<string, string>) {
+  const names = Object.keys(properties);
+  if ((kind !== "deal" && kind !== "contact") || !/^\d+$/.test(externalId) || !names.length || names.some(name => !PROPERTY_NAME.test(name))) throw new RevenueError("Choose a HubSpot deal or contact and writable properties.");
+  for (const value of Object.values(properties)) if (typeof value !== "string" || !value || value.length > 65000) throw new RevenueError("HubSpot property values must be non-empty text.");
+  const result = await hubspotRequest<{ id?: unknown }>(token, `/crm/v3/objects/${kind === "deal" ? "deals" : "contacts"}/${externalId}`, { method: "PATCH", body: JSON.stringify({ properties }) });
+  if ((typeof result.id !== "string" && typeof result.id !== "number") || !String(result.id)) throw new RevenueError("HubSpot did not confirm the property update. Check the record before retrying.", 502);
+  return String(result.id);
 }
 
 const OBJECTS = [

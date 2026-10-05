@@ -68,6 +68,7 @@ Only mark an account ready after its relevant acceptance checks succeed. Marketp
 - 300 CRM exports under 3,000 duplicate requests and four concurrent workers produce exactly 300 remote note creations.
 - Malformed acknowledgments and 503 responses stay uncertain until an admin confirms retry; 429 respects retry backoff, 403 fails without resending. Deletion, unlinking, disabled review export, and disconnection stop pending writes.
 - Reviewed-call exports prefer linked deals. Admin API guards reject members and other workspace records.
+- HubSpot property mappings reject unsupported fields, other tenants, and duplicate unchanged payloads. Uncertain property updates wait for an admin to check HubSpot before a confirmed retry.
 - Zapier/Make opt-in and 100 duplicate event bursts; temporary retries retain the event ID and include summary, actions, CRM context, and protected call links without credentials/transcript bodies. Vendor-only HTTPS catch hooks reject private hosts, credentials, query strings, and foreign providers; redirects remain blocked.
 - Manual Slack/Discord shares work with automatic alerts off, include clip playback ranges, and retain plain Slack text / suppressed Discord mentions.
 - Native Workers/D1 smoke replays all migrations and confirms one of 24 concurrent claims for both task and call deliveries; Gong insight data survives migration replay.

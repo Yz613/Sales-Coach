@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents, taskExports, externalTasks, integrationExports, callProviderInsights, scorecardApplications, scorecardAnswers } from "../db/schema";
+import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents, taskExports, externalTasks, integrationExports, crmPropertyWrites, callProviderInsights, aiTrackerHits, streamNotifications, scorecardApplications, scorecardAnswers } from "../db/schema";
 import { currentTenantId, runWithTenant } from "../tenant";
 import { getSetting, setSetting, getCoachLessons, deleteCoachLesson } from "../db/service";
 import { deleteCallAudio } from "../callAudioStore";
@@ -22,7 +22,7 @@ export async function deleteConversation(id: string, actor: string) {
   const scorecardApps = await db.select({ id: scorecardApplications.id }).from(scorecardApplications).where(and(eq(scorecardApplications.orgId, orgId), eq(scorecardApplications.callId, id))).all();
   if (scorecardApps.length) await db.delete(scorecardAnswers).where(and(eq(scorecardAnswers.orgId, orgId), inArray(scorecardAnswers.applicationId, scorecardApps.map((row: { id: string }) => row.id)))).run();
   await db.delete(scorecardApplications).where(and(eq(scorecardApplications.orgId, orgId), eq(scorecardApplications.callId, id))).run();
-  for (const table of [conversationClips, conversationComments, scoreOverrides, callMetadata, evaluations, callProviderInsights, integrationExports]) await db.delete(table).where(and(eq(table.orgId, orgId), eq(table.callId, id))).run();
+  for (const table of [conversationClips, conversationComments, scoreOverrides, callMetadata, evaluations, callProviderInsights, integrationExports, crmPropertyWrites, aiTrackerHits, streamNotifications]) await db.delete(table).where(and(eq(table.orgId, orgId), eq(table.callId, id))).run();
   await db.delete(taskExports).where(and(eq(taskExports.orgId, orgId), eq(taskExports.callId, id))).run();
   await db.update(externalTasks).set({ callId: null }).where(and(eq(externalTasks.orgId, orgId), eq(externalTasks.callId, id))).run();
   for (const lesson of await getCoachLessons()) if (lesson.sourceCallId === id) await deleteCoachLesson(lesson.id);

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- HubSpot admins can map coaching summary, score, next steps, and forecast category to deal or contact properties. Updates are delivered once per value, with retries and confirmed resend after an uncertain result.
 - Self-host guide (`SELF-HOST.md`) for the Docker Compose path.
 - Invite defaults and in-app invite copy use **Sales Coach**. The hosted From domain `refreshqueue.com` is unchanged.
 - `package.json` metadata for the GitHub repository and https://refreshqueue.com.

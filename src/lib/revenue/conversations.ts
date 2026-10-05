@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull, isNotNull, gte, lte, or, sql } fro
 import { randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
 import { calls, reps, callMetadata, conversationComments, conversationClips, conversationTrackers, scoreOverrides, savedSearches, crmRecords, callProviderInsights, evaluations } from "../db/schema";
+import { conceptMatchesForCall } from "./alerts";
 import { currentTenantId } from "../tenant";
 import { listRepIdentities } from "../db/service";
 import { isOwnRep } from "../call-access";
@@ -22,7 +23,7 @@ export const actorName = (auth: AuthUser) => auth.name || auth.email || "Local a
 
 export function readFilters(params: URLSearchParams): ConversationFilters {
   const result: ConversationFilters = { page: Math.max(1, Math.min(10000, Number(params.get("page")) || 1)) };
-  for (const key of ["q", "repId", "stage", "source", "from", "to", "reviewed", "tracker"] as const) {
+  for (const key of ["q", "repId", "stage", "source", "from", "to", "reviewed", "tracker", "aiTracker"] as const) {
     const value = params.get(key)?.trim(); if (value) result[key] = value.slice(0, 200);
   }
   for (const key of ["from", "to"] as const) if (result[key] && !/^\d{4}-\d{2}-\d{2}$/.test(result[key]!)) throw new RevenueError("Use dates in YYYY-MM-DD format.");
@@ -50,6 +51,9 @@ export async function searchConversations(auth: AuthUser, filters: ConversationF
     const tracker = await db.select().from(conversationTrackers).where(and(scoped(conversationTrackers), eq(conversationTrackers.id, filters.tracker))).get();
     if (!tracker) throw new RevenueError("Tracker not found.", 404);
     conditions.push(or(...parseJson<string[]>(tracker.keywords, []).map(term => sql`instr(lower(${calls.transcriptText}), ${term.toLowerCase()}) > 0`)));
+  }
+  if (filters.aiTracker) {
+    conditions.push(sql`exists (select 1 from ai_tracker_hits where ai_tracker_hits.org_id = ${currentTenantId()} and ai_tracker_hits.call_id = ${calls.id} and ai_tracker_hits.tracker_id = ${filters.aiTracker})`);
   }
   const where = and(...conditions);
   const total = await db.select({ count: sql<number>`count(*)` }).from(calls).leftJoin(callMetadata, eq(calls.id, callMetadata.callId)).leftJoin(reps, eq(calls.repId, reps.id)).where(where).get();
@@ -93,7 +97,7 @@ export async function conversationDetail(call: Call) {
   ]);
   const participants = parseJson<Participant[]>(meta.participants, []);
   const insights = await db.select().from(callProviderInsights).where(and(scoped(callProviderInsights), eq(callProviderInsights.callId, call.id))).get();
-  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), stats: conversationStats(segments), linked };
+  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), conceptTrackers: await conceptMatchesForCall(call.id, segments), stats: conversationStats(segments), linked };
 }
 
 function seconds(value: unknown, max: number, required = true): number | null {

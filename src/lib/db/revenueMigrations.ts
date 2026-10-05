@@ -19,6 +19,13 @@ export const REVENUE_MIGRATIONS = [
     last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_integration_exports_connection ON integration_exports(org_id, connection_id)`,
+  `CREATE TABLE IF NOT EXISTS crm_property_writes (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, call_id TEXT, target_id TEXT NOT NULL,
+    event TEXT NOT NULL, payload_hash TEXT NOT NULL, properties TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued',
+    external_id TEXT, attempt INTEGER NOT NULL DEFAULT 0, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_crm_property_writes_connection ON crm_property_writes(org_id, connection_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_property_writes_payload ON crm_property_writes(org_id, connection_id, target_id, payload_hash)`,
   `CREATE TABLE IF NOT EXISTS external_tasks (
     id TEXT PRIMARY KEY, org_id TEXT NOT NULL, connection_id TEXT NOT NULL, provider TEXT NOT NULL,
     external_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
@@ -99,6 +106,30 @@ export const REVENUE_MIGRATIONS = [
     speaker TEXT NOT NULL DEFAULT 'any', created_at TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_trackers_org ON conversation_trackers(org_id)`,
+  `CREATE TABLE IF NOT EXISTS ai_trackers (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, concept TEXT NOT NULL,
+    speaker TEXT NOT NULL DEFAULT 'any', enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ai_trackers_org ON ai_trackers(org_id)`,
+  `CREATE TABLE IF NOT EXISTS ai_tracker_hits (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, tracker_id TEXT NOT NULL, call_id TEXT NOT NULL,
+    start_seconds INTEGER NOT NULL, speaker TEXT NOT NULL, quote TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ai_tracker_hits_call ON ai_tracker_hits(org_id, call_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_ai_tracker_hits_tracker ON ai_tracker_hits(org_id, tracker_id)`,
+  `CREATE TABLE IF NOT EXISTS alert_streams (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, filter TEXT NOT NULL,
+    notify_slack INTEGER NOT NULL DEFAULT 0, notify_discord INTEGER NOT NULL DEFAULT 0,
+    notify_in_app INTEGER NOT NULL DEFAULT 1, enabled INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT NOT NULL, created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_alert_streams_org ON alert_streams(org_id)`,
+  `CREATE TABLE IF NOT EXISTS stream_notifications (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, stream_id TEXT NOT NULL, call_id TEXT NOT NULL,
+    title TEXT NOT NULL, body TEXT NOT NULL, start_seconds INTEGER, read_at TEXT, created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_stream_notifications_org ON stream_notifications(org_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS saved_searches (
     id TEXT PRIMARY KEY, org_id TEXT NOT NULL, user_id TEXT NOT NULL,
     name TEXT NOT NULL, filters TEXT NOT NULL, created_at TEXT NOT NULL
