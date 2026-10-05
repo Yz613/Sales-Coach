@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
 import { auditEvents, integrationConnections, processingJobs, integrationExports, crmPropertyWrites, emailMessages } from "../db/schema";
@@ -19,6 +19,7 @@ import { slackPreferences, slackWebhook, discordWebhook } from "../integrations/
 import { verifyTaskProvider } from "../integrations/tasks";
 import type { TaskProvider } from "./types";
 import type { CalendarProvider, MailboxProvider } from "./types";
+import { automaticRevocation } from "../integrations/revocation";
 
 export async function audit(actor: string, action: string, entityId: string) {
   await db.insert(auditEvents).values({ id: randomUUID(), orgId: currentTenantId(), actor, action, entityId, createdAt: new Date().toISOString() }).run();
@@ -37,7 +38,7 @@ export async function listConnections() {
   const rows = await db.select({ id: integrationConnections.id, provider: integrationConnections.provider, name: integrationConnections.name,
     config: integrationConnections.config, status: integrationConnections.status, lastSyncedAt: integrationConnections.lastSyncedAt,
     lastError: integrationConnections.lastError, createdAt: integrationConnections.createdAt }).from(integrationConnections)
-    .where(and(eq(integrationConnections.orgId, currentTenantId()), inArray(integrationConnections.status, ["connected", "syncing", "error"]))).orderBy(desc(integrationConnections.createdAt)).all();
+    .where(and(eq(integrationConnections.orgId, currentTenantId()), or(inArray(integrationConnections.status, ["connected", "syncing", "error"]), sql`json_extract(${integrationConnections.config}, '$.revocationPending') = 1`))).orderBy(desc(integrationConnections.createdAt)).all();
   return rows.map((row: any) => ({ ...row, config: parseJson<ConnectionConfig>(row.config, { autoSync: true, autoEvaluate: false, defaultStage: "First Discovery" }) }));
 }
 
@@ -82,7 +83,7 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   else if (provider === "pipedrive" || provider === "attio") await verifyCrmProvider(provider, token, secrets.authType === "oauth", secrets.apiDomain);
   else if (tool.category === "Calls") await verifyCallProvider(provider as CallProvider, secrets);
   const id = randomUUID(); const orgId = currentTenantId(); const now = new Date().toISOString();
-  const config: ConnectionConfig = { autoSync: tool.syncMinutes > 0 && body.autoSync !== false, autoEvaluate: isCallTool(provider) && body.autoEvaluate === true, defaultStage: textInput(body.defaultStage || "First Discovery", "Default call stage", 100), ...calendarConfig,
+  const config: ConnectionConfig = { writeEnabled: authorized ? authorized.permissionMode === "write" : body.writeEnabled === true, autoSync: tool.syncMinutes > 0 && body.autoSync !== false, autoEvaluate: isCallTool(provider) && body.autoEvaluate === true, defaultStage: textInput(body.defaultStage || "First Discovery", "Default call stage", 100), ...calendarConfig,
     ...(authorized ? { authMethod: "oauth" as const } : {}),
     ...(pendingSetup ? { pendingSetup: true, pendingAutoSync: body.autoSync !== false, autoSync: false } : {}),
     ...(isNotificationTool(provider) ? slackPreferences(body) : {}) };
@@ -106,12 +107,20 @@ export async function saveConnectionConfig(id: string, config: ConnectionConfig)
 }
 
 export async function disconnectIntegration(id: string, actor: string) {
-  await getConnection(id);
+  const connection = await getConnection(id);
+  const remote = automaticRevocation(connection.provider, connection.secrets);
+  const pending = remote || ["oauth", "oauth-webhook"].includes(connection.secrets.authType);
   const orgId = currentTenantId(); const now = new Date().toISOString();
-  await db.update(integrationConnections).set({ status: "disconnected", credentials: "", config: "{}", cursor: "{}", lastError: null, updatedAt: now }).where(and(eq(integrationConnections.id, id), eq(integrationConnections.orgId, orgId))).run();
+  const changed = await db.update(integrationConnections).set({ status: "disconnected", credentials: remote ? connection.credentials : "", config: JSON.stringify({ revocationPending: pending }), cursor: "{}", lastError: null, updatedAt: now }).where(and(eq(integrationConnections.id, id), eq(integrationConnections.orgId, orgId), eq(integrationConnections.credentials, connection.credentials))).returning({ id: integrationConnections.id }).all();
+  if (!changed.length) throw new RevenueError("Connection changed during disconnect. Try again.", 409);
   await db.update(processingJobs).set({ status: "cancelled", payload: "{}", leaseToken: null, leaseUntil: null, updatedAt: now }).where(and(eq(processingJobs.orgId, orgId), eq(processingJobs.connectionId, id), inArray(processingJobs.status, ["queued", "running", "failed"]))).run();
   await db.delete(emailMessages).where(and(eq(emailMessages.orgId, orgId), eq(emailMessages.connectionId, id))).run();
   await db.update(integrationExports).set({ status: "cancelled", updatedAt: now }).where(and(eq(integrationExports.orgId, orgId), eq(integrationExports.connectionId, id), inArray(integrationExports.status, ["queued", "sending"]))).run();
   await db.update(crmPropertyWrites).set({ status: "cancelled", updatedAt: now }).where(and(eq(crmPropertyWrites.orgId, orgId), eq(crmPropertyWrites.connectionId, id), inArray(crmPropertyWrites.status, ["queued", "sending"]))).run();
+  if (remote) {
+    const { enqueueJob } = await import("./jobs");
+    await enqueueJob({ kind: "revoke-integration", connectionId: id, key: id });
+  }
   await audit(actor, "integration.disconnected", id);
+  return { revocationPending: pending, warning: pending ? remote ? "Provider revocation is queued. Access is disabled locally." : "Finish revocation in the provider's connected-app settings; this provider has no supported remote revocation API." : undefined };
 }

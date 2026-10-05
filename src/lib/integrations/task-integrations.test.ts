@@ -35,7 +35,7 @@ async function vendorFetch(input: any, init?: RequestInit) {
   }
   const provider = vendors[url.hostname]; assert.ok(provider, "Only simulated fixed provider hosts are used");
   const h = init?.headers as Record<string, string>;
-  assert.equal(provider === "gitlab" ? h["PRIVATE-TOKEN"] : h.Authorization, provider === "trello" ? 'OAuth oauth_consumer_key="api-key", oauth_token="api-token"' : ["monday", "linear", "clickup"].includes(provider) || provider === "gitlab" ? "api-token" : "Bearer api-token");
+  assert.equal(provider === "gitlab" ? h["PRIVATE-TOKEN"] : h.Authorization, provider === "github" ? "Bearer github_pat_fixture" : provider === "trello" ? 'OAuth oauth_consumer_key="api-key", oauth_token="api-token"' : ["monday", "linear", "clickup"].includes(provider) || provider === "gitlab" ? "api-token" : "Bearer api-token");
   if (provider === "notion") assert.equal(h["Notion-Version"], "2025-09-03");
   if (provider === "github") assert.equal(h["X-GitHub-Api-Version"], "2026-03-10");
   const body = init?.body ? JSON.parse(String(init.body)) : {};
@@ -58,6 +58,7 @@ async function vendorFetch(input: any, init?: RequestInit) {
   if (provider === "trello" && !url.pathname.includes("/cards/")) return Response.json({ id: "board-id", name: "Coaching" });
   if (provider === "clickup" && !url.pathname.endsWith("/task")) return Response.json({ id: "123", name: "Coaching" });
   if (provider === "todoist" && !url.pathname.endsWith("/tasks")) return Response.json({ id: "project-id", name: "Coaching" });
+  if (provider === "gitlab" && url.pathname.endsWith("/user")) return Response.json({ username: "project_123_bot_fixture", bot: true });
   if (["github", "gitlab"].includes(provider) && !url.pathname.endsWith("/issues")) return Response.json({ id: 123, name: "Coaching", has_issues: true, issues_enabled: true });
   if (["monday", "linear"].includes(provider) && body.query.includes("Verify")) return Response.json({ data: provider === "monday" ? { boards: [{ id: "123", name: "Coaching" }] } : { team: { id: "team-id", name: "Coaching" } } });
   if (fault) return new Response("api-token must stay secret", { status: fault, headers: { "Retry-After": "120" } });
@@ -76,7 +77,7 @@ async function vendorFetch(input: any, init?: RequestInit) {
   return Response.json(rows);
 }
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; fault = 0; lostResponse = false; repeatedCursor = false; count = 450; } }
-function credentials(provider: string) { return { provider, token: "api-token", apiKey: "api-key", listId: "list-id", baseId: "app123", targetId: ["asana", "clickup", "monday"].includes(provider) ? "123" : provider === "github" ? "owner/repo" : provider === "gitlab" ? "group/project" : provider === "linear" ? "team-id" : "project-id" }; }
+function credentials(provider: string) { return { provider, writeEnabled: true, token: provider === "github" ? "github_pat_fixture" : "api-token", apiKey: "api-key", listId: "list-id", baseId: "app123", targetId: ["asana", "clickup", "monday"].includes(provider) ? "123" : provider === "github" ? "owner/repo" : provider === "gitlab" ? "group/project" : provider === "linear" ? "team-id" : "project-id" }; }
 async function drain(orgId: string) {
   const { processJobs } = await import("../revenue/jobs");
   for (let round = 0; round < 100; round++) { const results = await Promise.all(Array.from({ length: 4 }, () => processJobs(orgId, 10))); if (!results.flat().length) return; }
@@ -112,7 +113,8 @@ test("ten task providers import 4,500 tasks through concurrent workers, deduplic
 test("all task APIs reject malformed lists, stop repeating cursors and expose errors without leaking credentials", async () => withVendors(async () => {
   count = 300; repeatedCursor = true;
   for (const tool of TASK_TOOLS) {
-    const secrets = credentials(tool.id);
+    const { writeEnabled: _writeEnabled, ...fields } = credentials(tool.id);
+    const secrets = { ...fields, projectScoped: "123" };
     if (!["trello", "github", "gitlab", "clickup"].includes(tool.id)) await assert.rejects(() => taskProviderPage(tool.id as TaskProvider, secrets, { after: "100" }), /repeated/);
     fault = 401; await assert.rejects(() => taskProviderPage(tool.id as TaskProvider, secrets, {}), error => { assert.ok(error instanceof Error); assert.ok(!error.message.includes("api-token")); return true; }); fault = 0;
     if (tool.id !== "trello") await assert.rejects(() => taskProviderPage(tool.id as TaskProvider, secrets, { pageCount: 99 }), /100 pages/);

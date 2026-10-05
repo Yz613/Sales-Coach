@@ -27,7 +27,9 @@ async function linkedTarget(connectionId: string, callId: string, targetId: stri
   return target;
 }
 export async function queueCallExport(connectionId: string, callId: string, actor: string, targetId?: string, event = "call.shared", eventKey = callId) {
-  const connection = await getConnection(connectionId); await sourceCall(callId);
+  const connection = await getConnection(connectionId);
+  if (isCrm(connection.provider) && connection.config.writeEnabled !== true) throw new RevenueError("Authorize sending for this connection first.", 409);
+  await sourceCall(callId);
   if (isCrm(connection.provider)) {
     if (!targetId) throw new RevenueError("Choose a linked CRM record.");
     await linkedTarget(connectionId, callId, targetId);
@@ -51,7 +53,7 @@ export async function queueIntegrationEvents(event: "call.imported" | "call.revi
       const { queueReviewedCallProperties } = await import("./property-writes");
       await queueReviewedCallProperties(row.id, callId);
     }
-    if (isCrm(row.provider) && event === "call.reviewed" && config.exportReviewed) {
+    if (isCrm(row.provider) && event === "call.reviewed" && config.exportReviewed && config.writeEnabled === true) {
       const targets = await db.select().from(crmRecords).where(and(eq(crmRecords.orgId, currentTenantId()), eq(crmRecords.connectionId, row.id), inArray(crmRecords.id, parseJson<string[]>(meta?.crmRecordIds, [])))).all();
       // Prefer the deal timeline; one note per linked record and call prevents duplicate reviews.
       const selected = targets.some((r: any) => r.kind === "deal") ? targets.filter((r: any) => r.kind === "deal") : targets;
@@ -66,6 +68,7 @@ export async function executeCallExport(connection: Awaited<ReturnType<typeof ge
   if (!row) return { skipped: "The export was deleted." };
   if (row.status === "completed") return { exportedCall: row.externalId };
   const automation = isAutomation(connection.provider);
+  if (!automation && connection.config.writeEnabled !== true) throw new ExportDeliveryError("Sending has been disabled for this connection.", 409);
   if (row.status !== "queued") throw new ExportDeliveryError("Delivery needs review. Check the destination before confirming a retry.", 409);
   let source: Awaited<ReturnType<typeof sourceCall>>; let target: Awaited<ReturnType<typeof linkedTarget>> | undefined;
   try {
@@ -79,7 +82,8 @@ export async function executeCallExport(connection: Awaited<ReturnType<typeof ge
     return { skipped: error.message };
   }
   if (automation && !connection.secrets.outboundWebhookUrl) throw new ExportDeliveryError("Configure the outbound destination again.");
-  await getConnection(connection.id);
+  const latest = await getConnection(connection.id);
+  if (!automation && latest.config.writeEnabled !== true) throw new ExportDeliveryError("Sending has been disabled for this connection.", 409);
   const claimed = await db.update(integrationExports).set({ status: "sending", updatedAt: new Date().toISOString() }).where(and(scope, eq(integrationExports.status, "queued"))).returning().all();
   if (!claimed.length) throw new ExportDeliveryError("Another worker is sending this export.", 409);
   const { call, meta } = source; const title = meta?.title || `${call.prospectCompany || "Sales call"} · ${call.callStage}`;

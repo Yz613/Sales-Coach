@@ -52,3 +52,6 @@ bin/
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# Private input for protected deployment secret migration
+.production-secrets*.json

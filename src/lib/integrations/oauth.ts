@@ -8,7 +8,7 @@ import { runtimeSecret } from "../revenue/runtime";
 import { getConnection } from "../revenue/connections";
 import { pipedriveOrigin } from "./pipedrive";
 import { ProviderError, providerRequest } from "./http";
-import { OAUTH_APPS, supportedOAuthProvider, type OAuthProvider } from "./oauth-config";
+import { OAUTH_APPS, oauthScope, readOnlyGitlabScope, restrictedGithubInstallation, supportedOAuthProvider, type OAuthProvider } from "./oauth-config";
 
 export const OAUTH_COOKIE = "sales_coach_integration_oauth";
 const APPS = OAUTH_APPS;
@@ -72,13 +72,20 @@ export function oauthRedirectUri(provider: OAuthProvider, requestOrigin: string)
 /** The one-use authorization state is bound to the initiating admin, workspace and browser. */
 export async function startOAuth(provider: OAuthProvider, actor: string, body: any, origin: string) {
   const { app, clientId } = appCredentials(provider); await ensureRevenueSchema();
+  const mode = body.mode === "write" ? "write" : "read";
+  if (provider === "gitlab" && mode === "write") throw new RevenueError("For GitLab writes, connect a project access token for the selected project.");
+  if (body.connectionId) {
+    const connection = await getConnection(body.connectionId);
+    if (connection.provider !== provider) throw new RevenueError("Choose a matching connection.");
+  }
+  const scope = oauthScope(provider, mode);
   const state = randomBytes(32).toString("base64url"); const id = stableId(state); const orgId = currentTenantId();
   const verifier = randomBytes(32).toString("base64url"); const redirectUri = oauthRedirectUri(provider, origin);
   await db.delete(integrationOAuthStates).where(lt(integrationOAuthStates.expiresAt, Date.now())).run();
   await db.insert(integrationOAuthStates).values({ id, orgId, actor, provider, expiresAt: Date.now() + 600000,
-    credentials: encryptCredentials({ verifier, redirectUri, clientId, body: JSON.stringify({ name: body.name, autoSync: body.autoSync !== false }) }, `oauth:${orgId}:${id}`) }).run();
+    credentials: encryptCredentials({ verifier, redirectUri, clientId, body: JSON.stringify({ name: body.name, autoSync: body.autoSync !== false, mode, connectionId: body.connectionId }) }, `oauth:${orgId}:${id}`) }).run();
   const url = new URL(app.authorize);
-  url.search = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, ...(app.scope ? { scope: app.scope } : {}),
+  url.search = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, ...(scope ? { scope } : {}),
     ...(app.pkce ? { code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" } : {}),
     ...(provider === "google-calendar" || provider === "gmail" || provider === "google-meet" ? { access_type: "offline", prompt: "consent" } : {}),
     ...(provider === "notion" ? { owner: "user" } : {}) }).toString();
@@ -102,7 +109,7 @@ function tokenSecrets(provider: OAuthProvider, tokens: Tokens, previous: Record<
   if (provider === "slack" || provider === "discord") {
     const webhookUrl = provider === "slack" ? tokens.incoming_webhook?.url : tokens.webhook?.url;
     if (!webhookUrl) throw new RevenueError("Choose a channel and approve incoming webhook access before connecting.");
-    return { webhookUrl, authType: "oauth-webhook" };
+    return { webhookUrl, authType: "oauth-webhook", oauthAccessToken: tokens.access_token };
   }
   let expiresAt = "";
   if (tokens.expires_in !== undefined) {
@@ -135,8 +142,15 @@ export async function finishOAuth(provider: OAuthProvider, actor: string, state:
     const required = APPS["microsoft-teams"].scope.split(/\s+/).filter(scope => scope && scope !== "offline_access").join(" ");
     if (!scopeGrantIncludes(tokens.scope, required)) throw new RevenueError("Microsoft did not grant Teams meeting, transcript, and recording access. Reconnect and approve the requested permissions.");
   }
-  const secrets: Record<string, string> = { ...tokenSecrets(provider, tokens), redirectUri: saved.redirectUri, ...(saved.clientId ? { oauthClientId: saved.clientId } : {}) };
-  return { body: JSON.parse(saved.body), secrets };
+  const body = JSON.parse(saved.body);
+  if (provider === "github" && !tokens.access_token.startsWith("ghu_")) throw new RevenueError("Configure a GitHub App with only Metadata and Issues permissions. Legacy OAuth Apps are unsupported.");
+  if (provider === "github") {
+    const installations = await providerRequest<{ installations: { permissions: Record<string, string>; repository_selection: string }[] }>("GitHub", "https://api.github.com", "/user/installations?per_page=100", { Authorization: `Bearer ${tokens.access_token}`, "User-Agent": "Sales-Coach" });
+    if (!Array.isArray(installations.installations) || !installations.installations.length || installations.installations.length > 100 || installations.installations.some(installation => !restrictedGithubInstallation(installation, body.mode === "write" ? "write" : "read"))) throw new RevenueError(body.mode === "write" ? "Install the GitHub App on selected repositories with Issues write permission before authorizing sending." : "Install the GitHub App on selected repositories with only Metadata and Issues permissions.");
+  }
+  if (provider === "gitlab" && (!readOnlyGitlabScope(tokens.scope))) throw new RevenueError("GitLab must grant read_api only. Revoke the old authorization and reconnect.");
+  const secrets: Record<string, string> = { ...tokenSecrets(provider, tokens), redirectUri: saved.redirectUri, ...(saved.clientId ? { oauthClientId: saved.clientId } : {}), permissionMode: body.mode || "read", ...(provider === "github" ? { githubApp: "true" } : {}), ...(tokens.scope ? { grantedScope: tokens.scope } : {}) };
+  return { body, secrets };
 }
 
 const refreshing = new Map<string, Promise<Record<string, string>>>();
@@ -144,6 +158,8 @@ export class OAuthReconnectError extends RevenueError {
   constructor() { super("Account authorization could not be refreshed. Disconnect and connect this integration again. If this repeats, ask your administrator to check the sign-in app credentials.", 409); }
 }
 export async function authorizedSecrets(connection: { id: string; provider: string; secrets: Record<string, string> }) {
+  if (connection.provider === "github" && connection.secrets.authType === "oauth" && connection.secrets.githubApp !== "true") throw new OAuthReconnectError();
+  if (connection.provider === "gitlab" && connection.secrets.authType === "oauth" && (!readOnlyGitlabScope(connection.secrets.grantedScope))) throw new OAuthReconnectError();
   if (connection.secrets.authType !== "oauth" || !connection.secrets.expiresAt || Number(connection.secrets.expiresAt) > Date.now() + 120000) return connection.secrets;
   const key = `${currentTenantId()}:${connection.id}`; const pending = refreshing.get(key); if (pending) return pending;
   const refresh = (async () => {

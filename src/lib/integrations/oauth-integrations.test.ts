@@ -23,7 +23,7 @@ const jwt = () => `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.no
 const hooks = { slack: "https://hooks.slack.com/services/T1/B1/secret", discord: "https://discord.com/api/webhooks/123/secret" };
 
 // These fixtures exercise the differing vendor contracts, including tokens that do not expire.
-const permanent = new Set(["clickup", "attio", "github"]);
+const permanent = new Set(["clickup", "attio"]);
 const jsonProviders = new Set(["clickup", "notion", "monday"]);
 const basicProviders = new Set(["calendly", "pipedrive", "notion", "airtable", "slack", "discord", "zoom"]);
 test("all 22 account sign-ins exchange codes using each provider's contract and reject replay", async () => {
@@ -68,6 +68,7 @@ test("all 22 account sign-ins exchange codes using each provider's contract and 
       }
       const previous = global.fetch;
       global.fetch = async (input, init) => {
+        if (provider === "github" && String(input).startsWith("https://api.github.com/user/installations")) return Response.json({ installations: [{ repository_selection: "selected", permissions: { metadata: "read", issues: "write" } }] });
         assert.equal(String(input), app.tokenOrigin + app.tokenPath);
         assert.equal(init?.redirect, "manual");
         const headers = init?.headers as Record<string, string>;
@@ -80,7 +81,7 @@ test("all 22 account sign-ins exchange codes using each provider's contract and 
           assert.equal(Buffer.from(headers.Authorization.slice(6), "base64").toString(), "app-id:app-secret");
           assert.equal(params.client_secret, undefined);
         } else { assert.equal(params.client_secret, "app-secret"); assert.equal(params.client_id, "app-id"); }
-        return Response.json({ access_token: provider === "monday" ? jwt() : "account-token", ...(provider === "pipedrive" ? { api_domain: "https://sales.pipedrive.com" } : {}), token_type: provider === "slack" ? "bot" : provider === "airtable" ? "Bearer " : "Bearer",
+        return Response.json({ access_token: provider === "monday" ? jwt() : provider === "github" ? "ghu_account_token" : "account-token", ...(provider === "pipedrive" ? { api_domain: "https://sales.pipedrive.com" } : {}), ...(provider === "gitlab" ? { scope: "read_api" } : {}), token_type: provider === "slack" ? "bot" : provider === "airtable" ? "Bearer " : "Bearer",
           ...(!permanent.has(provider) ? { refresh_token: "refresh-token", ...(provider !== "monday" ? { expires_in: 3600 } : {}) } : {}),
           ...(provider === "slack" ? { ok: true, incoming_webhook: { url: hooks.slack } } : {}),
           ...(provider === "discord" ? { webhook: { url: hooks.discord } } : {}) });
@@ -171,7 +172,7 @@ test("OAuth task destinations use Bearer auth for ClickUp, Linear, monday and Gi
     assert.equal(headers.Authorization, "Bearer account-token"); assert.equal(headers["PRIVATE-TOKEN"], undefined);
     return Response.json(replies[url.hostname]);
   };
-  try { for (const provider of ["clickup", "linear", "monday", "gitlab"] as const) assert.equal((await taskDestinations(provider, { token: "account-token", authType: "oauth" })).items.length, 1); }
+  try { for (const provider of ["clickup", "linear", "monday", "gitlab"] as const) assert.equal((await taskDestinations(provider, { token: "account-token", authType: "oauth", githubApp: "true", grantedScope: "read_api" })).items.length, 1); }
   finally { global.fetch = original; }
 });
 
@@ -202,7 +203,7 @@ test("CRM and task refresh rotates credentials across providers and preserves th
       const id = `refresh-${provider}`; const redirectUri = `https://coach.example.com/app/api/integrations/oauth/${provider}/callback`;
       const now = new Date().toISOString();
       await db.insert(integrationConnections).values({ id, orgId: "org-generic-refresh", provider, name: provider, status: "connected", config: "{}", cursor: "{}", createdAt: now, updatedAt: now,
-        credentials: encryptCredentials({ token: "expired", refreshToken: "rotate-me", authType: "oauth", expiresAt: "0", redirectUri, ...(provider === "pipedrive" ? { apiDomain: "https://sales.pipedrive.com" } : {}) }, `org-generic-refresh:${id}`) }).run();
+        credentials: encryptCredentials({ token: "expired", refreshToken: "rotate-me", authType: "oauth", expiresAt: "0", redirectUri, ...(provider === "github" ? { githubApp: "true" } : {}), ...(provider === "gitlab" ? { grantedScope: "read_api" } : {}), ...(provider === "pipedrive" ? { apiDomain: "https://sales.pipedrive.com" } : {}) }, `org-generic-refresh:${id}`) }).run();
       const original = global.fetch; let requests = 0;
       global.fetch = async (input, init) => {
         requests++; const app = OAUTH_APPS[provider]; assert.equal(String(input), app.tokenOrigin + app.tokenPath);
@@ -228,7 +229,7 @@ test("Pipedrive OAuth API origins reject credential forwarding to untrusted dest
 });
 
 test("destination browsing handles Airtable title fields, shared Notion data sources, ClickUp folders and cursor pages", async () => {
-  const original = global.fetch; const secrets = { token: "account-token", authType: "oauth" };
+  const original = global.fetch; const secrets = { token: "account-token", authType: "oauth", githubApp: "true", grantedScope: "read_api" };
   global.fetch = async (input, init) => {
     const url = new URL(String(input)); assert.equal((init?.headers as any).Authorization, "Bearer account-token");
     if (url.hostname === "api.airtable.com") {
@@ -245,7 +246,8 @@ test("destination browsing handles Airtable title fields, shared Notion data sou
       assert.equal(url.searchParams.get("cursor"), "next-project");
       return Response.json({ results: [{ id: "1", name: "Coaching" }], next_cursor: "more-projects" });
     }
-    if (url.hostname === "api.github.com") return Response.json([{ full_name: "sales/coaching", has_issues: true }, { full_name: "sales/archived", archived: true }]);
+    if (url.hostname === "api.github.com" && url.pathname === "/user/installations") return Response.json({ installations: [{ id: 1, account: { login: "sales" }, repository_selection: "selected", permissions: { metadata: "read", issues: "write" } }] });
+    if (url.hostname === "api.github.com") return Response.json({ repositories: [{ full_name: "sales/coaching", has_issues: true }, { full_name: "sales/archived", archived: true }] });
     if (url.hostname === "api.clickup.com") {
       if (url.pathname.endsWith("/space")) return Response.json({ spaces: [{ id: "2", name: "Sales" }] });
       if (url.pathname.endsWith("/folder")) return Response.json({ folders: [{ id: "3", name: "Coaching" }] });
@@ -258,7 +260,9 @@ test("destination browsing handles Airtable title fields, shared Notion data sou
     const tables = await taskDestinations("airtable", secrets, "base", "appSales"); assert.deepEqual(tables.items[0].fields, { baseId: "appSales", titleField: "Action" });
     assert.equal((await taskDestinations("notion", secrets, "", "", "next-notion")).items[0].label, "Coaching");
     assert.equal((await taskDestinations("todoist", secrets, "", "", "next-project")).nextCursor, "more-projects");
-    assert.equal((await taskDestinations("github", secrets)).items.length, 1);
+    const installations = await taskDestinations("github", secrets);
+    assert.equal(installations.items[0].group, "installation");
+    assert.equal((await taskDestinations("github", secrets, "installation", "1")).items.length, 1);
     assert.equal((await taskDestinations("clickup", secrets, "team", "1")).items[0].group, "space");
     const contents = await taskDestinations("clickup", secrets, "space", "2"); assert.equal(contents.items[0].group, "folder"); assert.equal(contents.items[1].id, "4");
     assert.equal((await taskDestinations("clickup", secrets, "folder", "3")).items[0].id, "4");

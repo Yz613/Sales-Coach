@@ -11,8 +11,10 @@ on:
 jobs:
   test:
     name: Test & Build (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
+    # Use the available Linux ARM pool and limit parallel provisioning during runner delays.
+    runs-on: ubuntu-24.04-arm
     strategy:
+      max-parallel: 1
       matrix:
         node-version: [20, 22]
 

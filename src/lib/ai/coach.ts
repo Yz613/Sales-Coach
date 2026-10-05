@@ -1,3 +1,4 @@
+import { untrustedEvidence, EVIDENCE_POLICY } from "./evidence";
 import { db } from "../db";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
 import { getActiveScriptForStage, getRepPersona, getCoachContext, getSalesMethodId } from "../db/service";
@@ -405,24 +406,23 @@ ${coachContext}
   const stamped = timestampedTranscript(input.transcriptText, durationSeconds);
 
   const prompt = `
+${EVIDENCE_POLICY}
 You are the ultimate AI Sales Manager for a B2B sales team. You act like an experienced, grounded VP of Sales reviewing a call WITH a coach sitting next to you. Pick the call apart beat by beat.
 ${coachDirectives}
 ${formatMethodologyBlock(methodology)}
-${personaContext}
+${untrustedEvidence("Rep profile", personaContext)}
 
 ${scriptContext}
 
-Prospect: ${formatProspectContext(input)}
+${untrustedEvidence("Prospect", formatProspectContext(input))}
 Call Stage: ${input.callStage}
 Call duration: ${durationSeconds} seconds
 
 Past Coaching History (last calls):
-${pastFixes || "None on record."}
+${untrustedEvidence("Prior coaching", pastFixes || "None on record.")}
 
 Call Transcript (each line is prefixed with an estimated clock time [m:ss]):
-"""
-${stamped}
-"""
+${untrustedEvidence("Call transcript", stamped)}
 
 EVIDENCE RULES (non-negotiable):
 - Every claim must cite the clock time from the transcript prefix AND the exact quote.

@@ -35,6 +35,7 @@ async function sourceAction(callId: string, actionId: string) {
 }
 export async function queueTaskExport(connectionId: string, callId: string, actionId: string, actor: string) {
   const connection = await getConnection(connectionId); if (!isTaskTool(connection.provider)) throw new RevenueError("Choose a task integration.");
+  if (connection.config.writeEnabled !== true) throw new RevenueError("Authorize sending for this connection first.", 409);
   if (connection.config.pendingSetup) throw new RevenueError("Choose a task destination before sending a follow-up.", 409);
   const { item } = await sourceAction(callId, actionId); const orgId = currentTenantId(); const id = stableId("task-export", orgId, connectionId, callId, actionId); const now = new Date().toISOString();
   await db.insert(taskExports).values({ id, orgId, connectionId, callId, actionId, title: textInput(item.description, "Action item", 2000), createdAt: now, updatedAt: now }).onConflictDoNothing().run();
@@ -58,7 +59,8 @@ export async function executeTaskExport(connection: Awaited<ReturnType<typeof ge
     return { skipped: "The source action was completed or deleted before delivery." };
   }
   const { item, callTitle } = source;
-  await getConnection(connection.id);
+  const latest = await getConnection(connection.id);
+  if (latest.config.writeEnabled !== true) throw new TaskDeliveryError("Sending has been disabled for this connection.", 409);
   const claimed = await db.update(taskExports).set({ status: "sending", updatedAt: new Date().toISOString() }).where(and(scoped, eq(taskExports.status, "queued"))).returning().all();
   if (!claimed.length) throw new TaskDeliveryError("Another worker is sending this task. Check its delivery status.", 409);
   const origin = runtimeSecret("PUBLIC_APP_URL"); const callUrl = origin ? new URL(`/app/calls/${encodeURIComponent(row.callId)}`, origin).toString() : "";

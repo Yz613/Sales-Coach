@@ -91,7 +91,7 @@ async function queuePropertyWrite(input: { connectionId: string; target: { id: s
 export async function queueReviewedCallProperties(connectionId: string, callId: string) {
   await ensureRevenueSchema();
   const connection = await hubspotConfig(connectionId);
-  if (!connection?.config.writePropertiesOnReview || !connection.mappings.length) return [];
+  if (connection?.config.writeEnabled !== true || !connection?.config.writePropertiesOnReview || !connection.mappings.length) return [];
   const loaded = await loadCall(callId);
   if (!loaded?.meta.reviewedAt) return [];
   const targets = await linkedRecords(connectionId, callId, connection.mappings);
@@ -106,7 +106,7 @@ export async function queueDealReviewProperties(dealId: string) {
   const deal = await db.select().from(crmRecords).where(and(eq(crmRecords.orgId, orgId), eq(crmRecords.id, dealId), eq(crmRecords.kind, "deal"), eq(crmRecords.provider, "hubspot"))).get();
   if (!deal) return;
   const connection = await hubspotConfig(deal.connectionId);
-  if (!connection?.config.writePropertiesOnReview || !connection.mappings.some(mapping => mapping.object === "deal")) return;
+  if (connection?.config.writeEnabled !== true || !connection?.config.writePropertiesOnReview || !connection.mappings.some(mapping => mapping.object === "deal")) return;
   const metas = await db.select({ callId: callMetadata.callId, reviewedAt: callMetadata.reviewedAt, crmRecordIds: callMetadata.crmRecordIds }).from(callMetadata).where(eq(callMetadata.orgId, orgId)).all();
   const linked = metas.filter((meta: any) => meta.reviewedAt && parseJson<string[]>(meta.crmRecordIds, []).includes(deal.id)).sort((left: any, right: any) => left.reviewedAt! < right.reviewedAt! ? 1 : -1);
   await queuePropertyWrite({ connectionId: connection.id, target: deal, callId: linked[0]?.callId || null, event: "deal.reviewed", mappings: connection.mappings, strict: false });
@@ -114,6 +114,7 @@ export async function queueDealReviewProperties(dealId: string) {
 
 export async function queueManualPropertyWrite(connectionId: string, callId: string, actor: string, targetId?: string) {
   const connection = await getConnection(connectionId);
+  if (connection.config.writeEnabled !== true) throw new RevenueError("Authorize sending before updating HubSpot properties.", 409);
   if (connection.provider !== "hubspot") throw new RevenueError("Property updates are available for HubSpot.");
   const mappings = readPropertyMappings(connection.config.propertyMappings);
   if (!mappings.length) throw new RevenueError("Map at least one HubSpot property first.");
@@ -147,6 +148,7 @@ export async function executePropertyWrite(connection: Awaited<ReturnType<typeof
   let built: ReturnType<typeof buildHubspotProperties>;
   try {
     const live = await getConnection(connection.id);
+    if (live.config.writeEnabled !== true) throw new RevenueError("Sending has been disabled for this connection.", 409);
     if (live.provider !== "hubspot") throw new RevenueError("Property updates are available for HubSpot.", 409);
     const mappings = readPropertyMappings(live.config.propertyMappings);
     if (row.event !== "manual" && !live.config.writePropertiesOnReview) throw new RevenueError("HubSpot property updates were disabled.", 409);
@@ -176,7 +178,9 @@ export async function executePropertyWrite(connection: Awaited<ReturnType<typeof
   const claimed = await db.update(crmPropertyWrites).set({ status: "sending", updatedAt: new Date().toISOString() }).where(and(scope, eq(crmPropertyWrites.status, "queued"))).returning().all();
   if (!claimed.length) throw new PropertyWriteError("Another worker is sending this HubSpot update.", 409);
   try {
-    const externalId = await updateHubspotProperties(connection.secrets.token, target.kind as "deal" | "contact", target.externalId, built.properties);
+    const latest = await getConnection(connection.id);
+    if (latest.config.writeEnabled !== true) return cancelWrite(scope, "Sending has been disabled for this connection.");
+    const externalId = await updateHubspotProperties(latest.secrets.token, target.kind as "deal" | "contact", target.externalId, built.properties);
     await db.update(crmPropertyWrites).set({ status: "completed", externalId, lastError: null, updatedAt: new Date().toISOString() }).where(and(scope, eq(crmPropertyWrites.status, "sending"))).run();
     return { updatedProperties: externalId };
   } catch (error) {

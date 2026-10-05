@@ -207,7 +207,10 @@ test("Zoom history walks month windows, imports each recording once, and isolate
         await enqueueSync(id).catch(() => undefined);
         await processJobs("org-zoom-stop", 5);
         assert.equal((await searchConversations(auth("org-zoom-stop"), { source: "zoom" })).total, importedAfter);
-        assert.equal((await (await import("../revenue/connections")).listConnections()).length, 0);
+        const disconnected = await (await import("../revenue/connections")).listConnections();
+        assert.equal(disconnected.length, 1);
+        assert.equal(disconnected[0].status, "disconnected");
+        assert.equal(disconnected[0].config.revocationPending, true);
       });
     } finally {
       if (previousClef === undefined) delete process.env.CLEF_EVALUATION_MODE; else process.env.CLEF_EVALUATION_MODE = previousClef;

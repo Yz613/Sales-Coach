@@ -5,11 +5,15 @@ import { completeJson } from "./llm";
 const originalFetch = globalThis.fetch;
 
 const malformed = `{
+  "callTypeDetected": "Cold Call",
+  "sandlerBreakdown": {"pain":{"status":"Fail","evidence":"none"},"budget":{"status":"Fail","evidence":"none"},"decision":{"status":"Fail","evidence":"none"},"scriptAdherence":{"score":0,"feedback":"none"}},
+  "missedOpportunities": [], "scorecard": [], "scriptDivergence": {"scriptTitle":"Default","milestones":[]},
+  "topFixes": [], "coachingBrief":{"praiseReinforcement":"none","tacticalGaps":"none","remedialDrills":"none"},
   "coreOutcome": "Dropped",
   "bottomLine": "Folded at 1:12 after "send me an email".",
   "walkthrough": [
     {
-      "step": 1,
+      "step": 1, "timestamp": "1:12", "speaker": "Prospect", "shouldHaveDone": "Ask why", "verdict": "coach", "category": "Objection",
       "quote": "Just send me an email"
       "whatHappened": "Prospect offered a brush-off"
     }

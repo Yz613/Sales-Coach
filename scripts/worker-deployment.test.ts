@@ -177,3 +177,47 @@ test("CI injects the visitor company KV binding without dropping production sett
     at = next;
   }
 });
+test("every secret-bearing deployment job requires main and the protected production environment", () => {
+  const workflow = fs.readFileSync(require.resolve("../.github/workflows/deploy.yml"), "utf8");
+  for (const job of workflow.split(/\n  (?=[a-z-]+:\n)/).slice(1)) {
+    if (!job.includes("secrets.")) continue;
+    assert.match(job, /github.ref == 'refs\/heads\/main'/);
+    assert.match(job, /environment: production/);
+  }
+});
+
+test("production secret migration uses stdin and preserves repository copies when an upload fails", () => {
+  const { createRequire } = require("node:module");
+  const requireFromScript = createRequire(require.resolve("./configure-production-github.cjs"));
+  function fixture(failUpload: boolean) {
+    const calls: { args: string[]; input?: string }[] = [];
+    const exports: any = {};
+    const moduleFixture = { exports };
+    vm.runInNewContext(fs.readFileSync(require.resolve("./configure-production-github.cjs"), "utf8"), {
+      __dirname: "/fixture/scripts", module: moduleFixture, console: { log() {} },
+      require: (name: string) => name === "node:fs" ? {
+        readFileSync: (filename: string) => filename.endsWith("deploy.yml") ? "${{ secrets.CLOUDFLARE_API_TOKEN }}" : JSON.stringify({ CLOUDFLARE_API_TOKEN: "private-fixture-token" }),
+      } : name === "node:child_process" ? {
+        execFileSync: (_command: string, args: string[], options: { input?: string }) => {
+          calls.push({ args, input: options.input });
+          assert.ok(!args.includes("private-fixture-token"));
+          if (args[0] === "repo") return JSON.stringify({ nameWithOwner: "owner/repo" });
+          if (args[0] === "api") return "{}";
+          if (args[0] === "secret" && args[1] === "set" && failUpload) throw new Error("upload failed");
+          if (args[0] === "secret" && args[1] === "list") return JSON.stringify([{ name: "CLOUDFLARE_API_TOKEN" }]);
+          return "";
+        },
+      } : requireFromScript(name),
+    });
+    return { calls, main: moduleFixture.exports.main };
+  }
+  const failed = fixture(true);
+  assert.throws(() => failed.main(["--secrets-file", "/private.json", "--remove-repository-copies"]), /GitHub configuration failed/);
+  assert.ok(!failed.calls.some(call => call.args[0] === "secret" && call.args[1] === "delete"));
+  const successful = fixture(false);
+  successful.main(["--secrets-file", "/private.json", "--remove-repository-copies"]);
+  assert.equal(successful.calls.find(call => call.args[0] === "secret" && call.args[1] === "set")?.input, "private-fixture-token");
+  const verified = successful.calls.findIndex(call => call.args[0] === "secret" && call.args[1] === "list");
+  const removed = successful.calls.findIndex(call => call.args[0] === "secret" && call.args[1] === "delete");
+  assert.ok(verified >= 0 && removed > verified);
+});

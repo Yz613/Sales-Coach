@@ -74,7 +74,7 @@ test("incoming call payloads reject missing transcripts, invalid IDs, and invali
   assert.match(meeting.transcriptText, /0:05/); assert.equal(meeting.durationSeconds, 10);
 });
 
-test("HubSpot v1/v3 and Fireflies signatures reject tampering, expired signatures, and account mismatches", async () => {
+test("HubSpot v3 and Fireflies signatures reject tampering, expired signatures, and account mismatches", async () => {
   const { verifyHubspotWebhook, verifyFirefliesWebhook, hubspotEventObjects } = await import("./live");
   const body = '[{"portalId":999,"subscriptionType":"deal.creation","objectId":44}]'; const secret = "app-secret";
   const url = "https://coach.example.com/app/api/webhooks/hubspot?connection=abc"; const timestamp = String(Date.now());
@@ -82,7 +82,7 @@ test("HubSpot v1/v3 and Fireflies signatures reject tampering, expired signature
   const headers = new Headers({ "x-hubspot-signature-v3": signature, "x-hubspot-request-timestamp": timestamp });
   assert.ok(verifyHubspotWebhook(secret, headers, body, url)); assert.ok(!verifyHubspotWebhook(secret, headers, body + " ", url));
   assert.ok(!verifyHubspotWebhook(secret, headers, body, url, "POST", Date.now() + 301000));
-  assert.ok(verifyHubspotWebhook(secret, new Headers({ "x-hubspot-signature-version": "v1", "x-hubspot-signature": createHash("sha256").update(secret + body).digest("hex") }), body, url));
+  assert.ok(!verifyHubspotWebhook(secret, new Headers({ "x-hubspot-signature-version": "v1", "x-hubspot-signature": createHash("sha256").update(secret + body).digest("hex") }), body, url));
   const ffHeaders = new Headers({ "x-hub-signature": `sha256=${createHmac("sha256", secret).update(body).digest("hex")}` });
   assert.ok(verifyFirefliesWebhook(secret, ffHeaders, body)); assert.ok(!verifyFirefliesWebhook(secret, ffHeaders, body + " "));
   assert.throws(() => hubspotEventObjects([{ portalId: 1, objectId: 44, subscriptionType: "deal.creation" }], "999"), /another HubSpot account/);
@@ -154,7 +154,8 @@ test("HubSpot events update just changed deals, reconcile deletions, and reject 
     const feed = await enableLiveFeed(id, "admin", undefined, "hub-secret");
     const deliver = async (amount: string, event: string) => {
       dealAmount = amount; const body = JSON.stringify([{ eventId: event, portalId: 999, subscriptionType: "deal.propertyChange", objectId: 44 }]);
-      const headers = new Headers({ "x-hubspot-signature-version": "v1", "x-hubspot-signature": createHash("sha256").update("hub-secret" + body).digest("hex") });
+      const timestamp = String(Date.now());
+      const headers = new Headers({ "x-hubspot-request-timestamp": timestamp, "x-hubspot-signature-v3": createHmac("sha256", "hub-secret").update(`POST${feed.url}${body}${timestamp}`).digest("base64") });
       const result = await acceptLiveWebhook("hubspot", id, headers, body, feed.url); await processJobs("org-hub-live", 1, [result.jobId!]);
     };
     await deliver("1000", "a"); assert.equal((await crmOverview()).totals.USD, 1000);

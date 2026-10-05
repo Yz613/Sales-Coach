@@ -46,7 +46,7 @@ async function withVendors(fn: () => Promise<void>) {
 async function seedConnection(orgId: string, provider = "hubspot", config = {}) {
   const { db, ensureRevenueSchema } = await import("../db"); const { integrationConnections } = await import("../db/schema"); const { encryptCredentials } = await import("../revenue/security");
   await ensureRevenueSchema(); const id = `${orgId}-${provider}`;
-  await db.insert(integrationConnections).values({ id, orgId, provider, name: provider, credentials: encryptCredentials({ token: "hubspot-token-a" }, `${orgId}:${id}`), config: JSON.stringify({ autoSync: false, autoEvaluate: false, defaultStage: "First Discovery", ...config }), createdAt: now, updatedAt: now }).run();
+  await db.insert(integrationConnections).values({ id, orgId, provider, name: provider, credentials: encryptCredentials({ token: "hubspot-token-a" }, `${orgId}:${id}`), config: JSON.stringify({ writeEnabled: true, autoSync: false, autoEvaluate: false, defaultStage: "First Discovery", ...config }), createdAt: now, updatedAt: now }).run();
   return id;
 }
 async function seedCall(label: string) {
@@ -265,4 +265,24 @@ test("property endpoints reject members and other workspaces, and a manual updat
   assert.equal(sent.status, 202); await drain(orgId); assert.equal(patches().length, before + 1); assert.equal(patches().at(-1)!.body.properties.coaching_score, "5");
   const repeat = await post(auth, { action: "write", callId, targetId: `${id}-deal` });
   assert.equal(repeat.status, 200); await drain(orgId); assert.equal(patches().length, before + 1);
+}));
+
+test("read-only HubSpot connections cannot queue property updates, and disabling sending cancels queued delivery", async () => withVendors(async () => {
+  const { runWithTenant } = await import("../tenant");
+  const { queueManualPropertyWrite, queueReviewedCallProperties, executePropertyWrite } = await import("../revenue/property-writes");
+  const { getConnection, saveConnectionConfig } = await import("../revenue/connections");
+  await runWithTenant("org-props-readonly", async () => {
+    const id = await seedConnection("org-props-readonly", "hubspot", { writeEnabled: false, propertyMappings: mappings, writePropertiesOnReview: true });
+    const callId = await seedCall("readonly");
+    const target = await seedTarget(id, callId);
+    await assert.rejects(() => queueManualPropertyWrite(id, callId, "admin", target), /Authorize sending/);
+    assert.deepEqual(await queueReviewedCallProperties(id, callId), []);
+    const connection = await getConnection(id);
+    await saveConnectionConfig(id, { ...connection.config, writeEnabled: true });
+    const queued = await queueManualPropertyWrite(id, callId, "admin", target);
+    await saveConnectionConfig(id, { ...connection.config, writeEnabled: false });
+    const result = await executePropertyWrite(await getConnection(id), queued[0].writeId!);
+    assert.match(result.skipped || "", /Sending has been disabled/);
+    assert.equal(patches().length, 0);
+  });
 }));

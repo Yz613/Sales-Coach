@@ -13,7 +13,8 @@ on:
 
 jobs:
   check-secrets:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - name: Confirm Cloudflare secrets exist
@@ -43,8 +44,9 @@ jobs:
           exit "$missing"
 
   deploy:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: check-secrets
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -117,8 +119,8 @@ jobs:
           TODOIST_CLIENT_SECRET: ${{ secrets.TODOIST_CLIENT_SECRET }}
           AIRTABLE_CLIENT_ID: ${{ secrets.AIRTABLE_CLIENT_ID }}
           AIRTABLE_CLIENT_SECRET: ${{ secrets.AIRTABLE_CLIENT_SECRET }}
-          GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
-          GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          GH_APP_CLIENT_ID: ${{ secrets.GH_APP_CLIENT_ID }}
+          GH_APP_CLIENT_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
           GITLAB_CLIENT_ID: ${{ secrets.GITLAB_CLIENT_ID }}
           GITLAB_CLIENT_SECRET: ${{ secrets.GITLAB_CLIENT_SECRET }}
           SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
