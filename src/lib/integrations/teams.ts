@@ -57,14 +57,14 @@ export async function teamsDownload(token: string, start: string, maxBytes: numb
   for (let hop = 0; hop < 3; hop++) {
     const url = new URL(current);
     if (!publicHttps(url) || (sendBearer && url.hostname !== "graph.microsoft.com")) throw new RevenueError("Microsoft Teams returned an invalid download address.", 502);
-    const response = await fetch(url, {
+    const response: Response = await fetch(url, {
       headers: { Accept: accept, ...(sendBearer ? { Authorization: `Bearer ${token}` } : {}) },
       redirect: "manual", signal: AbortSignal.timeout(25000), cache: "no-store",
     });
     if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
+      const location: string | null = response.headers.get("location");
       if (!location) throw new ProviderError("Microsoft Teams", response.status);
-      const next = new URL(location, url);
+      const next: URL = new URL(location, url);
       sendBearer = next.hostname === "graph.microsoft.com";
       current = next.toString();
       continue;
