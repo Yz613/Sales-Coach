@@ -2,6 +2,7 @@ import { pipedriveOrigin } from "./pipedrive";
 import { providerRequest, providerList } from "./http";
 import { crmRecordId } from "./hubspot";
 import { safeExternalUrl } from "../revenue/security";
+import { normalizeE164 } from "../revenue/matching";
 import type { CrmRecord, SyncCursor } from "../revenue/types";
 
 type CrmProvider = "pipedrive" | "attio";
@@ -19,6 +20,10 @@ export async function verifyCrmProvider(provider: CrmProvider, token: string, oa
     else await attioRequest(token, object.attio, { limit: 1 });
   }
 }
+function phoneProperties(values: unknown[], base: Record<string, string>): Record<string, string> {
+  const phones = [...new Set(values.map(value => normalizeE164(typeof value === "string" ? value : value && typeof value === "object" ? String((value as { value?: unknown; phone_number?: unknown; original_phone_number?: unknown }).value || (value as { phone_number?: unknown }).phone_number || (value as { original_phone_number?: unknown }).original_phone_number || "") : "")).filter((phone): phone is string => Boolean(phone)))];
+  return phones.length ? { ...base, phone: phones[0], phones: phones.join(",") } : base;
+}
 function baseRecord(provider: CrmProvider, raw: any, index: number, orgId: string, connectionId: string): CrmRecord {
   const kind = OBJECTS[index].kind; const externalId = String(provider === "attio" ? raw.id.record_id : raw.id);
   return { id: crmRecordId(orgId, connectionId, kind, externalId), connectionId, provider, externalId, kind, name: `${kind} ${externalId}`,
@@ -31,7 +36,7 @@ export function normalizePipedriveRecord(raw: any, index: number, orgId: string,
   return { ...record, name: raw.title || raw.name || record.name, email: raw.emails?.find((email: any) => email.primary)?.value || raw.emails?.[0]?.value || raw.email?.[0]?.value || null,
     stage: stages?.[raw.stage_id]?.label || (raw.stage_id ? String(raw.stage_id) : null), pipeline: raw.pipeline_id ? String(raw.pipeline_id) : null,
     amount: raw.value != null ? String(raw.value) : null, currency: raw.currency || null, owner: raw.owner_id ? String(raw.owner_id) : null,
-    closeDate: raw.expected_close_date || null, closed: ["won", "lost"].includes(raw.status), properties: { hs_is_closed_won: String(raw.status === "won") },
+    closeDate: raw.expected_close_date || null, closed: ["won", "lost"].includes(raw.status), properties: phoneProperties(index === 1 ? [...(raw.phones || []), ...(Array.isArray(raw.phone) ? raw.phone : [])] : [], { hs_is_closed_won: String(raw.status === "won") }),
     associations: [...ref("company", raw.org_id), ...ref("contact", raw.person_id)] };
 }
 export function normalizeAttioRecord(raw: any, index: number, orgId: string, connectionId: string): CrmRecord {
@@ -43,7 +48,7 @@ export function normalizeAttioRecord(raw: any, index: number, orgId: string, con
     domain: first("domains")?.domain || null, stage, amount: first("value")?.currency_value != null ? String(first("value").currency_value) : null,
     currency: first("value")?.currency_code || null, owner: first("owner")?.referenced_actor_id || null,
     // Standard Attio deal stages have no closed flag; only explicit won/lost stage labels are classified.
-    closed: /^(won|lost|closed won|closed lost)$/i.test(stage || ""), properties: { hs_is_closed_won: String(/^(won|closed won)$/i.test(stage || "")) },
+    closed: /^(won|lost|closed won|closed lost)$/i.test(stage || ""), properties: phoneProperties(index === 1 ? values.phone_numbers || [] : [], { hs_is_closed_won: String(/^(won|closed won)$/i.test(stage || "")) }),
     associations: references, sourceUrl: safeExternalUrl(raw.web_url) };
 }
 export async function crmProviderPage(provider: CrmProvider, token: string, state: SyncCursor, orgId: string, connectionId: string, oauth = false, apiDomain?: string) {

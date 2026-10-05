@@ -13,7 +13,12 @@ async function GETHandler(
   try {
     const { id } = await params;
     const { auth } = await requireConversation(id);
-    const stored = await readCallAudio(id);
+    const rawSegment = new URL(req.url).searchParams.get("segment");
+    const segment = rawSegment == null ? 0 : Number(rawSegment);
+    if (!Number.isInteger(segment) || segment < 0 || segment > 49) {
+      return NextResponse.json({ error: "Unknown recording segment" }, { status: 400 });
+    }
+    const stored = await readCallAudio(id, segment);
     if (!stored) {
       return NextResponse.json({ error: "No recording stored for this call" }, { status: 404 });
     }

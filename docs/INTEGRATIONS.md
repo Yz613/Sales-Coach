@@ -1,6 +1,6 @@
 # Integration API and cost roadmap
 
-Research checked October 5, 2026. The current library contains thirty-one implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+Research checked October 5, 2026. The current library contains thirty-two implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
 
 ## Current library
 
@@ -25,6 +25,7 @@ Research checked October 5, 2026. The current library contains thirty-one implem
 | Gmail | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
 | Outlook | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
 | Aircall | Completed transcripts, summaries, speaker timing, recording links | Authenticated live events; 15-minute fallback |
+| Quo (formerly OpenPhone) | Completed calls, recordings, transcripts, summaries, speaker timing | Signed live events; 15-minute fallback. History is the last 30 days. |
 | Zoom | Completed cloud recordings, transcripts, speaker timestamps, playback | OAuth; 15-minute sync |
 | Google Meet | Completed conferences, participants, speaker transcript entries, and recordings | OAuth; 15-minute sync. Transcript entries are kept for 30 days. |
 | Microsoft Teams | Meetings the signed-in user organized, speaker timestamps, and a short recording when one is available | OAuth; 15-minute sync. 30-day window. |
@@ -134,6 +135,28 @@ The same Zoom account that owns the app can install the development build and co
 
 [OAuth](https://developers.zoom.us/docs/integrations/oauth/), [granular scopes](https://developers.zoom.us/docs/integrations/oauth-scopes-granular/), [list recordings](https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/recordingsList).
 
+## Quo (formerly OpenPhone)
+
+Quo calls use the dated API at `https://api.quo.com` with the workspace API key in the `Authorization` header and `Quo-Api-Version: 2026-03-30`. The older `api.openphone.com` host is not the current base. A v1 contact list on the same host is used only as a bounded phone and email directory.
+
+| Purpose | Endpoint |
+| --- | --- |
+| Verify the key and map the rep | `GET /users` |
+| Completed calls and summaries | `GET /calls?status=completed&include=summary` and `GET /calls/{callId}?include=summary` |
+| Recordings copied into the workspace | `GET /calls/{callId}/recordings` |
+| Transcripts with speaker timing | `GET /calls/{callId}/transcripts` |
+| Phone and email when a webhook names the contact | `GET /contacts/{contactId}` and `GET /contacts/{contactId}/properties` |
+| Phone and email directory | `GET /v1/contacts` |
+| Live feed | `POST`, `GET`, `PATCH`, and `DELETE /webhooks` |
+
+Subscribed events are `call.completed`, `call.recording.completed`, `call.transcript.completed`, and `call.summary.completed`. Deliveries are verified with the webhook signing secret from registration. The same call is deduplicated. A later transcript or summary event fills the existing call.
+
+Transcripts and summaries require a Business or Scale plan and call recording. They are generated only for calls after that upgrade. Next steps are a Scale feature. An API key itself is available to an owner or admin on an active plan. Starter plans, calls without recording, and calls whose transcript status is `absent` are skipped. A missing transcript does not mark the connection as failed. Provider error status and body are written to the server log with credentials removed.
+
+Sync now and Import history both look back 30 days when there is no newer cursor. Automatic sync then uses a one-day overlap every 15 minutes. Contacts and deals match on E.164 phone numbers and, when Quo provides one, on email.
+
+[Quo API introduction](https://www.quo.com/docs/2026-03-30/introduction).
+
 ## Microsoft Teams meetings
 
 The connector uses delegated Microsoft Graph access for the signed-in user. It does not use application permissions, so a Teams application access policy is not required. It imports online meetings that user organized. It does not join live meetings and it does not read channel messages or files.
@@ -165,7 +188,7 @@ OAuth and Graph failures log the provider status and response body on the worker
 
 1. Extend Close with CRM objects. Slack alerts, Fireflies call ingestion and Pipedrive CRM reads are implemented.
 2. Zoom host cloud-recording ingestion is implemented. Calendly, Google and Outlook scheduling context is implemented. Account-wide Zoom admin ingestion and recording-completed webhooks are still open.
-3. Add Dialpad/RingCentral based on customers' existing phone systems. Aircall transcript ingestion is implemented.
+3. Add Dialpad/RingCentral based on customers' existing phone systems. Aircall and Quo call ingestion are implemented.
 4. Add Apollo and Avoma/Otter only where entitlement and credit budgets make sense.
 5. Microsoft and Google mail timelines are implemented as metadata plus a short snippet. Google Meet conferences and Microsoft Teams organizer transcripts are implemented. Salesforce and enterprise engagement suites remain later work, when a customer is ready to test their schema and permissions.
 6. Treat LinkedIn as a partner-access project; do not substitute scraping for the authorized API.

@@ -12,6 +12,7 @@ import { enableLiveFeed } from "@/lib/integrations/live";
 import { integrationTool, isCallTool, isNotificationTool } from "@/lib/integrations/catalog";
 import { slackPreferences } from "@/lib/integrations/slack";
 import { aircallRequest } from "@/lib/integrations/aircall";
+import { deleteQuoWebhook } from "@/lib/integrations/quo";
 import { automationDestination } from "@/lib/integrations/outbound";
 type Context = { params: Promise<{ id: string }> };
 async function POSTHandler(req: Request, ctx: Context) {
@@ -49,6 +50,10 @@ async function DELETEHandler(_req: Request, ctx: Context) {
     }
     if (connection.provider === "aircall" && connection.config.webhookId) {
       try { await aircallRequest(connection.secrets, `/webhooks/${encodeURIComponent(connection.config.webhookId)}`, { method: "DELETE" }); }
+      catch { /* Disconnect still revokes local acceptance if remote cleanup fails. */ }
+    }
+    if (connection.provider === "quo" && connection.config.webhookId) {
+      try { await deleteQuoWebhook(connection.secrets, connection.config.webhookId); }
       catch { /* Disconnect still revokes local acceptance if remote cleanup fails. */ }
     }
     await disconnectIntegration(id, actorId(auth)); return NextResponse.json({ ok: true });

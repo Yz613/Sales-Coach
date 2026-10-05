@@ -6,8 +6,20 @@ function redactString(value: string): string {
   return value
     .replace(/ya29\.[0-9A-Za-z._~+/-]+/g, "[redacted]")
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
+    .replace(/whsec_[A-Za-z0-9+/=_-]+/g, "whsec_[redacted]")
     .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, "[redacted]")
     .replace(/((?:access|refresh|id)_token|client_secret)(["'\s:=]+)[A-Za-z0-9._~+/-]+/gi, "$1$2[redacted]");
+}
+
+function stripHeaderSecrets(body: string, headers: Record<string, string>): string {
+  let text = body;
+  for (const [name, value] of Object.entries(headers)) {
+    if (!/authorization|api-key|token|secret/i.test(name) || typeof value !== "string") continue;
+    for (const secret of [value, value.replace(/^(Bearer|Basic)\s+/i, "")]) {
+      if (secret.length >= 8) text = text.split(secret).join("[redacted]");
+    }
+  }
+  return text;
 }
 
 function redactValue(value: unknown, key = ""): unknown {
@@ -36,9 +48,11 @@ export function redactProviderBody(body: string): string {
 export function providerFailureDetail(body: string): string {
   let message = "";
   let reason = "";
+  let providerMessage = "";
   try {
     const parsed = JSON.parse(body.slice(0, 8000));
     const error = parsed?.error;
+    if (typeof parsed?.message === "string") providerMessage = parsed.message;
     if (typeof error === "string") message = String(parsed.error_description || error);
     else     if (error && typeof error === "object") {
       message = String(error.message || "");
@@ -48,7 +62,7 @@ export function providerFailureDetail(body: string): string {
   } catch {
     message = body.slice(0, 180);
   }
-  const text = `${reason} ${message}`.toLowerCase();
+  const text = `${reason} ${message} ${providerMessage}`.toLowerCase();
   if (/accessnotconfigured|has not been used|api has not been used|is disabled|service_disabled/.test(text)) {
     if (/\bmeet\b/.test(text)) return "The Google Meet API is not enabled for this Google Cloud project.";
     if (/\bdrive\b/.test(text)) return "The Google Drive API is not enabled for this Google Cloud project.";
@@ -69,6 +83,8 @@ export function providerFailureDetail(body: string): string {
     return "Teams transcripts need a work or school account. Personal Microsoft accounts cannot read meeting transcripts.";
   }
   if (/aadsts|onlinemeeting|microsoft graph|graph\.microsoft|teams transcript|teams recording/.test(text)) return safeProviderMessage(message);
+  const cleaned = providerMessage.replace(/\s+/g, " ").trim().slice(0, 180);
+  if (cleaned && !/\[redacted\]|whsec_|bearer\s|api[_-]?key|token|secret|authorization|\beyj/i.test(cleaned)) return cleaned;
   return "";
 }
 
@@ -106,7 +122,7 @@ export async function providerRequest<T>(provider: string, origin: string, pathn
   if (!response.ok) {
     const retry = response.headers.get("retry-after");
     const seconds = retry ? Number(retry) || Math.max(0, (Date.parse(retry) - Date.now()) / 1000) : 0;
-    const body = await response.text().catch(() => "");
+    const body = stripHeaderSecrets(await response.text().catch(() => ""), headers);
     // The admin banner stays short. Workers logs get the provider status and body with tokens removed.
     console.error(`${provider} request failed`, response.status, redactProviderBody(body));
     throw new ProviderError(provider, response.status, Math.min(3600, Math.ceil(seconds)), providerFailureDetail(body));

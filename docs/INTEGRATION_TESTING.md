@@ -1,6 +1,6 @@
 # Integration verification and stress tests
 
-Checked October 5, 2026. The library contains 31 implemented connectors. Automated tests use simulated vendor responses and isolated temporary SQLite databases. They never send customer tasks or messages to real providers. The results establish application behavior against these API contracts; they do not establish that a customer's credentials, account plan or organization policies permit every operation.
+Checked October 5, 2026. The library contains 32 implemented connectors. Automated tests use simulated vendor responses and isolated temporary SQLite databases. They never send customer tasks or messages to real providers. The results establish application behavior against these API contracts; they do not establish that a customer's credentials, account plan or organization policies permit every operation.
 
 ## Run the checks
 
@@ -20,7 +20,7 @@ npm run test:revenue
 
 The revenue suite contains 34 scenarios, including the stress cases below. It bounds each run and fails if jobs do not drain. Four job runners execute concurrently in the same process against SQLite. Calendar token rotation is also checked across two separate Node processes sharing the database. This is a deterministic correctness/load regression suite, not a production latency benchmark or live vendor quota test. The Cloudflare build checks packaging. A separate native Workers/local D1 test replays migrations, preserves task upserts, scopes tenant reads and gives exactly one winner among 24 concurrent delivery claims. Bulk adapter load tests use SQLite rather than hosted D1.
 
-## Coverage across all 31 connectors
+## Coverage across all 32 connectors
 
 | Connectors | Stress workload and checks |
 | --- | --- |
@@ -30,6 +30,7 @@ The revenue suite contains 34 scenarios, including the stress cases below. It bo
 | Zoom | Walk month-sized recording windows, paginate inside a window, dedupe by recording UUID, isolate tenants, copy only small audio, and confirm disconnect cancels further imports. Transcripts with speaker cues become coaching-eligible calls. |
 | Google Meet | Import completed conferences, speaker transcript entries, and a small recording. Missing transcripts retry, then import with a note. |
 | Microsoft Teams | Probe Graph transcript and recording delta, fall back to calendar meetings the user organized, import VTT speaker cues, copy a short recording, match participant email to a deal, and skip meetings with no transcript. |
+| Quo (formerly OpenPhone) | Import completed calls, recordings, speaker-timed transcripts, and summaries. Verify webhook signatures, phone and email CRM matches, and skip plans or calls without a transcript. |
 | Zapier, Make | Submit 200 authenticated deliveries per connector, including duplicate pairs: 400 deliveries become exactly 200 distinct import jobs/calls. Check authentication, tenant boundaries and revocation. |
 | Slack, Discord | Submit a 300-alert duplicate burst to each provider; it coalesces to one job per event key. Verify opt-in, safe message content, score/review checks, provider rate limits and disconnect cancellation. Slack also delivers 20 distinct test jobs exactly once. Discord disables mentions and waits for a message ID. |
 
@@ -64,7 +65,7 @@ Only mark an account ready after its relevant acceptance checks succeed. Marketp
 
 ## Gong benchmark workflows (October 2, 2026)
 
-- All 31 providers have a validated local brand asset; unsafe SVG scripting/external references are rejected by the asset completeness check.
+- All 32 providers have a validated local brand asset; unsafe SVG scripting/external references are rejected by the asset completeness check.
 - Gong current content-selector contract, primary rep selection, millisecond transcript timing, stable Next Steps IDs, CRM references, private-call exclusion, and late insight refresh without extra transcript requests or loss of completed actions/reviews.
 - Nine CRM target associations (three record kinds across HubSpot/Pipedrive/Attio), markup escaping, and linked call URLs.
 - 300 CRM exports under 3,000 duplicate requests and four concurrent workers produce exactly 300 remote note creations.

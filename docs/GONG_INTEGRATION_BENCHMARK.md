@@ -4,7 +4,7 @@ Checked against Gong's official documentation on October 2, 2026. This compares 
 
 | Workflow | Sales Coach support | Difference from Gong |
 | --- | --- | --- |
-| Completed call ingestion | Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom, authenticated Zapier/Make feeds; transcript timestamps, participants, recording links, available summaries and actions | Provider plans determine which processed data is available. Recording happens in the source tool. Zoom imports the connected host’s completed cloud recordings and does not join live meetings. |
+| Completed call ingestion | Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Quo (formerly OpenPhone), Zoom, Google Meet, Microsoft Teams, authenticated Zapier/Make feeds; transcript timestamps, participants, recording links, available summaries and actions | Provider plans determine which processed data is available. Recording happens in the source tool. Zoom imports the connected host’s completed cloud recordings and does not join live meetings. Google Meet and Microsoft Teams import completed meetings for the connected account and do not join live meetings. |
 | Gong call intelligence | Current extensive API imports briefs, highlights, Next Steps, key points, outline, topics, tracker occurrences, outcomes, and speaker metrics | Private calls are excluded. Available insights depend on Gong's account, plan, and processing status. Late insights refresh without downloading transcripts again. |
 | CRM context | HubSpot, Pipedrive, Attio companies/contacts/deals, associations, stage, owner, amount, and call matching | Selected standard fields; no arbitrary custom-field mapping or historical CRM field changes. |
 | Deal execution | Local manager categories, estimated probabilities, due next steps, evidence-linked MEDDICC reviews, buyer engagement, and a merged call and email timeline. HubSpot can receive mapped coaching summary, score, next steps, and forecast category on deals or contacts | Manual qualification and rule-based activity flags. No AI playbook completion. Pipedrive, Attio, and Salesforce fields are not updated. |
@@ -27,7 +27,7 @@ Checked against Gong's official documentation on October 2, 2026. This compares 
 
 ## Acceptance and delivery guarantees
 
-All 31 cards and connection headers use local brand assets with exhaustive provider coverage. Asset provenance is in `public/integrations/README.md`.
+All 32 cards and connection headers use local brand assets with exhaustive provider coverage. Asset provenance is in `public/integrations/README.md`.
 
 CRM exports use a durable delivery record and one note per connection, call, and target record. Rate limits retry. A timeout, malformed acknowledgment, server error, or expired worker lease can mean the CRM accepted the request; those deliveries require an admin to inspect the destination and confirm absence before resending. Automatic review exports prefer linked deals; when none are linked, they use linked contacts/companies. Source deletion, unlinking, removed review, disabled triggers, and disconnection cancel pending work.
 

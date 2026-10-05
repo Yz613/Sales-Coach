@@ -1,4 +1,4 @@
-# Set up Slack, Calendly, Google Calendar, Outlook Calendar and Aircall
+# Set up Slack, Calendly, Google Calendar, Outlook Calendar, Aircall and Quo
 
 [One-click sign-in and deployment credentials](ONE_CLICK_INTEGRATIONS.md) covers the account sign-in buttons and destination picker. Use the manual setup below when your installation has not enabled provider sign-in.
 
@@ -6,7 +6,7 @@ For CRM call exports, outgoing Zapier/Make events, manual channel sharing, and G
 
 For Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab and Discord, see [task and Discord setup](TASK_INTEGRATIONS.md).
 
-These five integrations are available under **Admin → Integrations** at `/app/admin/integrations`. Connect as a workspace administrator. Use one connection per intended account or feed to avoid duplicate imports across separate connections.
+These integrations are available under **Admin → Integrations** at `/app/admin/integrations`. Connect as a workspace administrator. Use one connection per intended account or feed to avoid duplicate imports across separate connections.
 
 | Tool | What appears in Sales Coach | What you need |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ These five integrations are available under **Admin → Integrations** at `/app/
 | Google Calendar | Timed meetings and attendees from your primary calendar | An operator-configured Google OAuth app and account consent |
 | Outlook Calendar | Timed meetings and attendees from your default calendar | An operator-configured Microsoft OAuth app and account consent |
 | Aircall | Completed call transcripts, speaker timing, summaries and recording links | API ID, API token and transcript entitlement |
+| Quo (formerly OpenPhone) | Completed calls, recordings, transcripts, speaker timing and summaries | Workspace API key. Transcripts need Business or Scale plus call recording |
 
 Calendar connections add context to conversations. Use a call connector or upload a transcript for coaching evaluations.
 
@@ -241,6 +242,29 @@ Aircall's API exposes up to six months of call history and caps pagination at 10
 | API rate limit | Let queued jobs retry. Avoid repeated full-history imports against the same company limit. |
 
 Disconnect clears local credentials and stops pending jobs. Revoke unwanted API keys or webhook subscriptions in Aircall as well.
+
+## Quo (formerly OpenPhone)
+
+### Connect
+
+1. Ask a Quo workspace owner or admin to create an API key under Workspace settings → API. Paste the key itself. Do not add a Bearer prefix.
+2. Turn on call recording for the numbers you want to coach. Transcripts and summaries are available on **Business and Scale** plans, and only for calls recorded after that upgrade. Next steps are a Scale feature. An API key on a lower plan can still connect, but calls without a transcript are skipped.
+3. Open **Admin → Integrations → Quo (formerly OpenPhone)**, paste the API key, choose a default call stage, and connect. The first import covers the last 30 days.
+4. On a public HTTPS installation, Sales Coach registers `call.completed`, `call.recording.completed`, `call.transcript.completed`, and `call.summary.completed`, and stores the signing secret Quo returns. Use **Check live feed** if the subscription was disabled or removed. Polling continues every 15 minutes. [Quo API introduction](https://www.quo.com/docs/2026-03-30/introduction).
+
+### Check it works
+
+Complete a recorded call and wait until Quo finishes the transcript. Open **Call Bank**, filter to **Quo (formerly OpenPhone)**, and check direction, numbers, rep, speaker timestamps, recording playback, and any summary. **Sync now** and **Import history** both revisit the last 30 days and skip calls already imported. A later summary event fills the existing call. A local HTTP app can test polling, but cannot receive public webhook events.
+
+| Symptom | Fix |
+| --- | --- |
+| Credentials rejected | Use a current workspace API key from an owner or admin. The key is sent as-is, not as a Bearer token. |
+| Sync completes with no imported calls | Only completed calls with a transcript import. Confirm recording is on and the plan is Business or Scale. Calls from before the upgrade are not transcribed. |
+| Summary or next step missing | It can finish after the transcript. A later live event or the next sync can add it. Next steps require Scale. |
+| Feed cannot be registered | Set a reachable public HTTPS `PUBLIC_APP_URL` and click Check live feed. Sync now remains available. |
+| API rate limit | Quo allows about 10 requests per second per key. Let queued jobs retry. |
+
+Disconnect removes the registered webhook when Quo is reachable and clears the local key. Revoke the API key in Quo as well.
 
 ## Zoom
 

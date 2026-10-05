@@ -14,6 +14,7 @@ import { callProviderPage, fetchProviderCall, type CallProvider } from "../integ
 import { maybeStoreZoomAudio } from "../integrations/zoom";
 import { maybeStoreGoogleMeetAudio } from "../integrations/google-meet";
 import { maybeStoreTeamsRecording } from "../integrations/teams";
+import { maybeStoreQuoAudio } from "../integrations/quo";
 import { normalizeGongCall } from "../integrations/gong";
 import { crmProviderPage } from "../integrations/crm-providers";
 import { integrationTool, isCallTool, isCalendarTool, isEmailTool, isTaskTool } from "../integrations/catalog";
@@ -152,6 +153,10 @@ async function executeJob(job: any) {
         else await maybeStoreTeamsRecording(connection.secrets, result.callId, meeting.externalId);
       } catch (error) { if (error instanceof ProviderError && error.providerStatus === 429) throw error; }
     }
+    if (connection.provider === "quo" && !result.deleted) {
+      try { await maybeStoreQuoAudio(connection.secrets, result.callId, meeting.externalId); }
+      catch (error) { if (error instanceof ProviderError && error.providerStatus === 429) throw error; }
+    }
     if (!result.deleted && connection.config.autoEvaluate) await enqueueJob({ kind: "evaluate", connectionId: connection.id, callId: result.callId, key: result.callId });
     return result;
   }
@@ -220,7 +225,7 @@ async function executeJob(job: any) {
     const ids = page.deferred.map(raw => importedCallId(job.orgId, connection.id, String(raw.id)));
     const existing = ids.length && !state.full ? await db.select({ callId: callMetadata.callId, summary: callMetadata.summary, segments: callMetadata.segments }).from(callMetadata)
       .where(and(eq(callMetadata.orgId, job.orgId), inArray(callMetadata.callId, ids))).all() : [];
-    const complete = new Set(existing.filter((meta: { summary: string }) => !["fireflies", "aircall"].includes(connection.provider) || meta.summary).map((meta: { callId: string }) => meta.callId));
+    const complete = new Set(existing.filter((meta: { summary: string }) => !["fireflies", "aircall", "quo"].includes(connection.provider) || meta.summary).map((meta: { callId: string }) => meta.callId));
     // Do not repeatedly spend API requests fetching transcripts already imported in the overlap window.
     for (const raw of page.deferred) {
       const callId = importedCallId(job.orgId, connection.id, String(raw.id));

@@ -4,7 +4,7 @@ import { db } from "../db";
 import { callMetadata, calls, crmRecords, dealReviews } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { parseJson, type ActionItem, type ImportedMeeting, type Participant, type Segment } from "./types";
-import { matchesCrmRecord } from "./matching";
+import { crmLinkIds } from "./matching";
 import { amountValue, dealCurrency, storedReview, type DealSummary, type EvidenceRef } from "./forecast-model";
 
 export async function crmOverview() {
@@ -54,8 +54,7 @@ export async function relinkConversations() {
   for (const meta of metadata) {
     const matches = parseJson<ImportedMeeting["crmMatches"]>(meta.crmMatches, []);
     const externalEmails = parseJson<Participant[]>(meta.participants, []).filter(p => p.external && p.email).map(p => p.email!.toLowerCase());
-    const found = records.filter((r: any) => matches.some(m => matchesCrmRecord(r, m)) || (r.kind === "contact" && r.email && externalEmails.includes(r.email.toLowerCase())));
-    const ids = [...new Set([...parseJson<string[]>(meta.crmRecordIds, []), ...found.map((r: any) => r.id)])];
+    const ids = crmLinkIds(records, matches, externalEmails, parseJson<string[]>(meta.crmRecordIds, []));
     if (JSON.stringify(ids) !== meta.crmRecordIds) await db.update(callMetadata).set({ crmRecordIds: JSON.stringify(ids) }).where(and(eq(callMetadata.orgId, orgId), eq(callMetadata.callId, meta.callId))).run();
   }
 }

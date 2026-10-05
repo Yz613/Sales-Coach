@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { getActiveScriptForStage, getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
-import { formatDate, formatDuration } from "@/lib/utils";
+import { formatDate, formatDuration, mediaPath } from "@/lib/utils";
+import { callAudioSegmentUrl, readCallAudioParts } from "@/lib/callAudioStore";
 import TeachCoach from "@/components/TeachCoach";
 import CoachWalkthrough from "@/components/CoachWalkthrough";
 import ScorecardGrid from "@/components/ScorecardGrid";
@@ -92,6 +93,7 @@ async function CallReviewPage({
     : [];
   await ensureRevenueSchema();
   const conversation = await conversationDetail(call);
+  const recordingParts = conversation.source === "quo" && call.audioUrl ? await readCallAudioParts(call.id) : 1;
   const scorecard = [...baseScorecard, ...skillScores].map(metric => {
     const correction = conversation.overrides.find((o: any) => o.metricKey === metric.key);
     return correction ? { ...metric, score: correction.score, status: (correction.score >= 7 ? "Pass" : correction.score >= 4 ? "Incomplete" : "Fail") as "Pass" | "Incomplete" | "Fail", evidence: `Human correction by ${correction.authorName}: ${correction.reason}` } : metric;
@@ -235,6 +237,24 @@ async function CallReviewPage({
         transcriptText={call.transcriptText}
         durationSeconds={call.durationSeconds}
       />}
+      {recordingParts > 1 && (
+        <div className="rounded-xl border border-black/[0.08] bg-white px-6 py-4 space-y-4">
+          <div>
+            <p className="text-[10px] uppercase font-bold tracking-wider text-[#86868b]">Recording segments</p>
+            <h3 className="text-lg font-bold text-[#1d1d1f] mt-1">Pause and resume</h3>
+            <p className="text-xs text-[#6e6e73]">This call was recorded in {recordingParts} parts. The first part plays with the transcript above.</p>
+          </div>
+          {Array.from({ length: recordingParts - 1 }, (_, index) => {
+            const segment = index + 1;
+            return (
+              <div key={segment} className="space-y-1">
+                <p className="text-sm font-medium text-[#1d1d1f]">Segment {segment + 1}</p>
+                <audio className="w-full" controls preload="none" src={mediaPath(callAudioSegmentUrl(call.id, segment))} />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {ev ? (
         <>

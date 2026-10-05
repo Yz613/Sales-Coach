@@ -2,7 +2,7 @@
 
 [One-click sign-in and deployment credentials](ONE_CLICK_INTEGRATIONS.md) covers the account sign-in buttons and destination picker. Use the manual setup below when your installation has not enabled provider sign-in.
 
-Available under **Admin → Integrations**: Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab and Discord. The library now contains 31 integrations. Connect as a workspace administrator.
+Available under **Admin → Integrations**: Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab and Discord. The library now contains 32 integrations. Connect as a workspace administrator.
 
 Task connectors import one selected destination and let you explicitly send an open coaching action item as a new task there. Discord sends opt-in coaching alerts to one channel. These eleven connectors use account tokens or webhooks; no operator OAuth app is required.
 

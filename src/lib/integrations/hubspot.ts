@@ -20,7 +20,7 @@ export async function updateHubspotProperties(token: string, kind: "deal" | "con
 
 const OBJECTS = [
   { type: "companies", kind: "company", properties: ["name", "domain", "hubspot_owner_id"] },
-  { type: "contacts", kind: "contact", properties: ["firstname", "lastname", "email", "hubspot_owner_id"] },
+  { type: "contacts", kind: "contact", properties: ["firstname", "lastname", "email", "phone", "mobilephone", "hubspot_owner_id"] },
   { type: "deals", kind: "deal", properties: ["dealname", "dealstage", "pipeline", "amount", "deal_currency_code", "closedate", "hs_is_closed", "hs_is_closed_won", "hubspot_owner_id"] },
 ];
 export async function hubspotChangedRecord(token: string, index: number, externalId: string, orgId: string, connectionId: string, stages: SyncCursor["stages"]) {
