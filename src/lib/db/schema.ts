@@ -159,6 +159,11 @@ export const scoreOverrides = sqliteTable("score_overrides", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), callId: text("call_id").notNull(),
   metricKey: text("metric_key").notNull(), score: integer("score").notNull(), reason: text("reason").notNull(),
   authorName: text("author_name").notNull(), updatedAt: text("updated_at").notNull(),
+  originalScore: integer("original_score"),
+  originalProbabilities: text("original_probabilities"),
+  clefModel: text("clef_model"),
+  rubricVersion: text("rubric_version"),
+  metadata: text("metadata"),
 });
 
 export const conversationTrackers = sqliteTable("conversation_trackers", {
