@@ -66,7 +66,7 @@ async function vendorFetch(input: any, init?: RequestInit) {
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; } }
 
 test("incoming call payloads reject missing transcripts, invalid IDs, and invalid timestamps", () => {
-  assert.equal(INTEGRATION_TOOLS.length, 29);
+  assert.equal(INTEGRATION_TOOLS.length, 30);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "call-1" }), /Transcript/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "", transcriptText: "hello" }), /Source call ID/);
   assert.throws(() => normalizeAutomationMeeting({ externalId: "1", segments: [{ speaker: "Alex", text: "hello", start: -1 }] }), /timestamps/);
@@ -210,7 +210,7 @@ test("provider pagination retains each API’s cursor and object boundaries", as
 
 test("only supported POST webhook paths bypass interactive workspace authentication", async () => {
   const { isPublicApiRoute } = await import("../public-path");
-  for (const provider of ["fathom", "hubspot", "fireflies", "zapier", "make"]) {
+  for (const provider of ["fathom", "hubspot", "fireflies", "zapier", "make", "quo"]) {
     assert.ok(isPublicApiRoute(`/app/api/webhooks/${provider}`, "POST"));
     assert.ok(!isPublicApiRoute(`/app/api/webhooks/${provider}`, "GET"));
   }
@@ -226,6 +226,8 @@ test("CRM matching keeps numeric source IDs scoped to their provider", async () 
   assert.ok(!matchesCrmRecord(pipe, { kind: "contact", externalId: "1" }));
   assert.ok(matchesCrmRecord(pipe, { kind: "contact", externalId: "1", provider: "pipedrive" }));
   assert.ok(matchesCrmRecord({ ...pipe, email: "PAT@ACME.COM" }, { kind: "contact", email: "pat@acme.com" }));
+  assert.ok(matchesCrmRecord({ ...hub, email: null, properties: { phone: "+1 (415) 555-0199" } }, { kind: "contact", phone: "4155550199" }));
+  assert.ok(!matchesCrmRecord({ ...hub, kind: "deal", email: null, properties: { phone: "+14155550199" } }, { kind: "deal", phone: "+14155550199" }));
 });
 
 async function drainStress(orgId: string) {

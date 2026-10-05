@@ -20,7 +20,7 @@ npm run test:revenue
 
 The revenue suite contains 34 scenarios, including the stress cases below. It bounds each run and fails if jobs do not drain. Four job runners execute concurrently in the same process against SQLite. Calendar token rotation is also checked across two separate Node processes sharing the database. This is a deterministic correctness/load regression suite, not a production latency benchmark or live vendor quota test. The Cloudflare build checks packaging. A separate native Workers/local D1 test replays migrations, preserves task upserts, scopes tenant reads and gives exactly one winner among 24 concurrent delivery claims. Bulk adapter load tests use SQLite rather than hosted D1.
 
-## Coverage across all 29 connectors
+## Coverage across all 30 connectors
 
 | Connectors | Stress workload and checks |
 | --- | --- |

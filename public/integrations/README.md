@@ -29,6 +29,7 @@ Added October 2, 2026. Simple Icons SVGs are CC0 and use the brand color; remain
 | monday.png | [Source](https://cdn.prod.website-files.com/656da6fea306219773d04208/65af6bd6e742d497b5f23f69_645898132bbaac20f1963919_256x256.png) |
 | google-calendar.svg | [Source](https://www.gstatic.com/images/branding/productlogos/calendar_2026/v2/web/192px.svg) |
 | outlook-calendar.svg | [Source](https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/brand-icons/product/svg/outlook_48x1.svg) |
+| quo.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Quo, OpenPhone, or Simple Icons asset. |
 | gmail.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Google or Simple Icons asset. |
 | outlook.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Microsoft or Simple Icons asset. |
 

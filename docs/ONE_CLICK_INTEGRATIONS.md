@@ -52,7 +52,7 @@ Expiring calendar, CRM and task credentials refresh before sync or export. Datab
 
 Task destination lists are paginated where the provider supports pagination. ClickUp browses workspace → space → folder/list; Asana browses workspace → project; Airtable browses base → table and detects its primary title field. Notion lists data sources shared during authorization. A destination ID fallback remains available when the provider omits an otherwise accessible destination. Destination access is verified before automatic sync is enabled, and concurrent setup requests cannot overwrite a chosen destination or refreshed credentials.
 
-The remaining key/feed connectors retain their supported setup flows: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Trello, Zapier and Make. Their existing import/export behavior is preserved. Account sign-in covers the 20 providers above, including Zoom cloud recordings and the Gmail and Outlook mailboxes. It does not promise an OAuth flow for every connector.
+The remaining key/feed connectors retain their supported setup flows: Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Quo (formerly OpenPhone), Trello, Zapier and Make. Their existing import/export behavior is preserved. Account sign-in covers the 20 providers above, including Zoom cloud recordings and the Gmail and Outlook mailboxes. It does not promise an OAuth flow for every connector.
 
 ## Verification
 

@@ -1,5 +1,5 @@
 export type TaskProvider = "asana" | "notion" | "trello" | "clickup" | "monday" | "linear" | "todoist" | "airtable" | "github" | "gitlab";
-export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom" | "gmail" | "outlook";
+export type ProviderId = TaskProvider | "discord" | "fathom" | "fireflies" | "tldv" | "gong" | "close" | "hubspot" | "pipedrive" | "attio" | "zapier" | "make" | "slack" | "calendly" | "google-calendar" | "outlook-calendar" | "aircall" | "zoom" | "gmail" | "outlook" | "quo";
 export interface ExternalTask { externalId: string; title: string; description: string; status: "open" | "completed" | "archived"; assignee: string; dueAt: string | null; sourceUrl: string | null }
 export type CalendarProvider = "calendly" | "google-calendar" | "outlook-calendar";
 export type MailboxProvider = "gmail" | "outlook";
@@ -14,7 +14,7 @@ export interface ImportedMeeting {
   externalId: string; title: string; repName: string; repEmail: string; prospectName: string; prospectCompany: string;
   durationSeconds: number; transcriptText: string; createdAt: string; recordingPageUrl: string | null;
   participants: Participant[]; segments: Segment[]; summary: string; actionItems: ActionItem[];
-  crmMatches: { kind: string; externalId?: string; email?: string; name?: string; provider?: string }[];
+  crmMatches: { kind: string; externalId?: string; email?: string; phone?: string; name?: string; provider?: string }[];
   providerInsights?: ProviderInsights;
 }
 export interface ProviderInsights {

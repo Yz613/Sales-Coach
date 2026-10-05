@@ -32,6 +32,7 @@ export const SCORECARD_SOURCES: { id: string; label: string }[] = [
   { id: "gong", label: "Gong" },
   { id: "close", label: "Close" },
   { id: "aircall", label: "Aircall" },
+  { id: "quo", label: "Quo" },
   { id: "zoom", label: "Zoom" },
   { id: "zapier", label: "Zapier" },
   { id: "make", label: "Make" },

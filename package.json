@@ -17,7 +17,7 @@
     "start": "next start",
     "worker": "tsx scripts/integration-worker.ts",
     "worker:once": "tsx scripts/integration-worker.ts --once",
-    "test:revenue": "tsx --test src/lib/revenue/revenue.test.ts src/lib/revenue/alerts.test.ts src/lib/integrations/integrations.test.ts src/lib/integrations/next-integrations.test.ts src/lib/integrations/oauth-integrations.test.ts src/lib/integrations/task-integrations.test.ts src/lib/integrations/gong-workflows.test.ts src/lib/integrations/zoom.test.ts src/lib/integrations/hubspot-properties.test.ts src/lib/revenue/forecast.test.ts src/lib/revenue/ask.test.ts src/lib/integrations/email.test.ts",
+    "test:revenue": "tsx --test src/lib/revenue/revenue.test.ts src/lib/revenue/alerts.test.ts src/lib/integrations/integrations.test.ts src/lib/integrations/next-integrations.test.ts src/lib/integrations/oauth-integrations.test.ts src/lib/integrations/task-integrations.test.ts src/lib/integrations/gong-workflows.test.ts src/lib/integrations/zoom.test.ts src/lib/integrations/quo.test.ts src/lib/integrations/hubspot-properties.test.ts src/lib/revenue/forecast.test.ts src/lib/revenue/ask.test.ts src/lib/integrations/email.test.ts",
     "lint": "next lint",
     "test": "node scripts/test.cjs",
     "db:seed": "tsx src/lib/db/seed.ts",

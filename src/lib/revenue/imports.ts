@@ -5,7 +5,7 @@ import { getOrCreateRep } from "../db/service";
 import { currentTenantId } from "../tenant";
 import { stableId } from "./security";
 import { classifyCoreOutcomeFromTranscript } from "../coreOutcome";
-import { matchesCrmRecord } from "./matching";
+import { crmLinkIds } from "./matching";
 import { parseJson, type ActionItem, type ImportedMeeting } from "./types";
 
 export function importedCallId(orgId: string, connectionId: string, externalId: string): string {
@@ -20,10 +20,11 @@ export async function importMeeting(connection: { id: string; provider?: string;
   const inserted = await db.insert(calls).values({ id: callId, orgId, repId, prospectCompany: meeting.prospectCompany, prospectName: meeting.prospectName,
     callStage: connection.config.defaultStage, coreOutcome: classifyCoreOutcomeFromTranscript(meeting.transcriptText), durationSeconds: meeting.durationSeconds, transcriptText: meeting.transcriptText,
     status: "completed", createdAt: meeting.createdAt }).onConflictDoNothing().returning({ id: calls.id }).all();
-  const records = await db.select({ id: crmRecords.id, provider: crmRecords.provider, externalId: crmRecords.externalId, kind: crmRecords.kind, email: crmRecords.email }).from(crmRecords).where(eq(crmRecords.orgId, orgId)).all();
-  const crmIds = records.filter((record: any) => meeting.crmMatches.some(match => matchesCrmRecord(record, match))).map((record: any) => record.id);
+  const records = await db.select({ id: crmRecords.id, provider: crmRecords.provider, externalId: crmRecords.externalId, kind: crmRecords.kind, email: crmRecords.email, properties: crmRecords.properties, associations: crmRecords.associations }).from(crmRecords).where(eq(crmRecords.orgId, orgId)).all();
   // Later summary-ready events enrich existing calls while keeping reviews and completed action items.
   const previous = await db.select().from(callMetadata).where(and(eq(callMetadata.callId, callId), eq(callMetadata.orgId, orgId))).get();
+  const emails = meeting.participants.filter(person => person.external && person.email).map(person => person.email!.toLowerCase());
+  const crmIds = crmLinkIds(records, meeting.crmMatches, emails, parseJson<string[]>(previous?.crmRecordIds, []));
   const previousActions = parseJson<ActionItem[]>(previous?.actionItems, []);
   const actionItems = meeting.actionItems.map(item => ({ ...item, completed: previousActions.find(old => old.id === item.id)?.completed ?? item.completed }));
   const metadata = { title: meeting.title, source: connection.provider || "fathom", externalId: meeting.externalId, connectionId: connection.id,
