@@ -39,7 +39,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
   const [query, setQuery] = useState(""); const [category, setCategory] = useState("All tools"); const [feeds, setFeeds] = useState<Record<string, Feed>>({}); const [refreshError, setRefreshError] = useState("");
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("connected")) setMessage(params.get("connected") === "setup" ? "Account connected. Choose a task destination below to finish setup." : providerId && isNotificationTool(providerId) ? "Channel connected. Enable your preferred alerts below." : "Connected. Your first import is queued.");
+    if (params.get("connected")) setMessage(params.get("connected") === "setup" ? "Account connected. Choose a task destination below to finish setup." : params.get("sync") === "held" ? "Connected. Turn on email capture in Admin settings to import messages." : providerId && isNotificationTool(providerId) ? "Channel connected. Enable your preferred alerts below." : "Connected. Your first import is queued.");
     if (params.get("connectionError")) setError(params.get("connectionError")!);
     if (params.has("connected") || params.has("connectionError")) window.history.replaceState(null, "", window.location.pathname);
   }, []);

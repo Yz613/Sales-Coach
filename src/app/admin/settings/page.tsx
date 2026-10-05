@@ -152,6 +152,26 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const saveEmailCapture = async () => {
+    setEmailSaving(true);
+    setEmailMessage("");
+    setSettingsError("");
+    try {
+      const res = await fetch(apiPath("/api/admin/settings"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailCaptureEnabled, emailExcludedDomains }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save email capture.");
+      setEmailMessage(emailCaptureEnabled ? "Email capture is on." : "Email capture is off. Stored snippets stay hidden until you turn it back on.");
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : "Could not save email capture.");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -513,26 +533,7 @@ export default function AdminSettingsPage() {
               </p>
             </div>
           </div>
-          <form className="space-y-4" onSubmit={async (event) => {
-            event.preventDefault();
-            setEmailSaving(true);
-            setEmailMessage("");
-            setSettingsError("");
-            try {
-              const res = await fetch(apiPath("/api/admin/settings"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ emailCaptureEnabled, emailExcludedDomains }),
-              });
-              const data = await res.json().catch(() => ({}));
-              if (!res.ok) throw new Error(data.error || "Could not save email capture.");
-              setEmailMessage(emailCaptureEnabled ? "Email capture is on." : "Email capture is off. Stored snippets stay hidden until you turn it back on.");
-            } catch (err) {
-              setSettingsError(err instanceof Error ? err.message : "Could not save email capture.");
-            } finally {
-              setEmailSaving(false);
-            }
-          }}>
+          <div className="space-y-4">
             <label className="flex items-center gap-3 text-sm text-[#1d1d1f]">
               <input type="checkbox" checked={emailCaptureEnabled} onChange={(event) => setEmailCaptureEnabled(event.target.checked)} />
               Capture matching customer email for this workspace
@@ -549,12 +550,12 @@ export default function AdminSettingsPage() {
             </label>
             <p className="text-xs text-[#6e6e73]">Messages to or from these domains are not stored. One domain per line, such as your own company domain.</p>
             <div className="flex items-center gap-3">
-              <button type="submit" disabled={emailSaving} className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-60">
+              <button type="button" disabled={emailSaving} onClick={() => void saveEmailCapture()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-60">
                 {emailSaving ? "Saving…" : "Save email capture"}
               </button>
               {emailMessage && <span className="text-xs text-[#248A3D]">{emailMessage}</span>}
             </div>
-          </form>
+          </div>
         </div>
 
         <div className="rounded-2xl glass-card p-6 space-y-5">

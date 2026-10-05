@@ -3,7 +3,7 @@ import { withWorkspaceApi } from "@/lib/workspace";
 import { requireRevenueAdmin } from "@/lib/revenue/access";
 import { actorId } from "@/lib/revenue/conversations";
 import { connectIntegration } from "@/lib/revenue/connections";
-import { enqueueSync, processJobs } from "@/lib/revenue/jobs";
+import { processJobs, queueConnectionSync } from "@/lib/revenue/jobs";
 import { getConnection } from "@/lib/revenue/connections";
 import { currentTenantId } from "@/lib/tenant";
 import { OAUTH_COOKIE, oauthProvider, finishOAuth } from "@/lib/integrations/oauth";
@@ -20,7 +20,9 @@ export const GET = withWorkspaceApi(async (req: Request, ctx: { params: Promise<
     const id = await connectIntegration({ ...result.body, provider }, actorId(auth), result.secrets);
     const connection = await getConnection(id);
     if (!connection.config.pendingSetup && !["slack", "discord"].includes(provider)) {
-      await enqueueSync(id); const orgId = currentTenantId(); after(() => processJobs(orgId, 4));
+      const queued = await queueConnectionSync(id);
+      if (queued.jobId) { const orgId = currentTenantId(); after(() => processJobs(orgId, 4)); }
+      if (queued.held) destination.searchParams.set("sync", "held");
     }
     destination.searchParams.set("connected", connection.config.pendingSetup ? "setup" : "1");
   } catch (error) {
