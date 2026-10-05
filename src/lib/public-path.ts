@@ -60,6 +60,7 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   if (["fathom", "stripe", "hubspot", "fireflies", "zapier", "make", "aircall"].some(provider => normalized === `/api/webhooks/${provider}`) && verb === "POST") return true;
   if (normalized === "/api/jobs/run" && verb === "POST") return true;
   if (normalized === INTEGRATION_REQUEST_API_PATH && verb === "POST") return true;
+  if (normalized === VISITOR_COMPANY_API_PATH && (verb === "GET" || verb === "HEAD")) return true;
   return false;
 }
 
@@ -83,6 +84,12 @@ export const INTEGRATIONS_PAGE_PATH = "/integrations";
 
 /** Unauthenticated POST target for the public integration request form. */
 export const INTEGRATION_REQUEST_API_PATH = "/api/marketing/integration-request";
+
+/**
+ * Unauthenticated GET/HEAD target for company-level visitor tagging.
+ * Public URL is `/app/api/visitor-company` (`basePath` + this path).
+ */
+export const VISITOR_COMPANY_API_PATH = "/api/visitor-company";
 
 export function isApexPricingPath(pathname: string): boolean {
   return pathname === "/pricing" || pathname === "/pricing/";

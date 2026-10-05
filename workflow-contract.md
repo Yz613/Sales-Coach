@@ -83,6 +83,7 @@ This contract does not deploy the worker.
 | System | Status |
 | --- | --- |
 | Product analytics | Connected in the browser with the public project token |
+| Company identification | Connected (company-level only, free) |
 | Decision model | Cloudflare Workers AI `@cf/cloudflare/clef` (not Jev), using the `AI` binding in `wrangler.jsonc` |
 | CRM | Not connected |
 | Identity provider | Not connected |
@@ -91,7 +92,51 @@ This contract does not deploy the worker.
 
 Clerk still signs people into the product. That account id is used only after sign-in. No separate identity provider, CRM, or cold-email sender is connected for follow-up. Invite mail is unchanged and is not a live campaign send.
 
+## Company identification
+
+Connected (company-level only, free). The vendored MIT package is `visitor-company` 0.1.0 in `packages/visitor-company`. It names the visitor's network organization. It does not name a person, and the IP address is not written to product analytics.
+
+| Item | Value |
+| --- | --- |
+| Public endpoint | `GET` and `HEAD` `/app/api/visitor-company` |
+| Next route | `src/app/api/visitor-company/route.ts` |
+| Worker route | Already covered by `refreshqueue.com/app/*`. No new route pattern. |
+| Browser | `rememberVisitorCompany` runs once after the existing `posthog.init` in `src/lib/analytics-browser.ts`. Group analytics stays off. |
+| EU, UK, and EEA | Country only. The IP is not sent to a lookup provider. |
+| DNT and Global Privacy Control | Honored (package defaults). |
+| `IPINFO_TOKEN` | Optional Worker secret. Not set. Without it, and without `IPAPI_KEY`, the result is the network owner name. |
+| `IPAPI_KEY` | Optional Worker secret. Not set. |
+| `VISITOR_COMPANY_KV` | Optional Workers KV binding. Not in `wrangler.jsonc`. Until it exists, the isolate uses an in-memory cache. |
+
+Do not commit a placeholder KV id. Create the namespace, then add the binding:
+
+```bash
+npx wrangler kv namespace create VISITOR_COMPANY_KV
+npx wrangler secret put IPINFO_TOKEN
+npx wrangler secret put IPAPI_KEY
+```
+
+```jsonc
+"kv_namespaces": [
+  { "binding": "VISITOR_COMPANY_KV", "id": "<id printed by kv namespace create>" }
+]
+```
+
+The tokens are secrets. Do not commit them and do not send them to the browser. Same-origin fetch does not need a CSP change.
+
+### Privacy policy
+
+There is no public privacy policy page. Admin → Data & privacy is call retention, not a visitor notice. When a public privacy policy or other legal page exists, add this disclosure there. Do not put it on the landing page or other marketing copy:
+
+> For visitors outside the EU, UK, and EEA, this site uses the IP address to infer the visitor's company from the network operator. The IP address is not stored and is not used to identify a person. EU, UK, and EEA visitors contribute a country only.
+
+Show this attribution line only when `IPINFO_TOKEN` is configured, on that privacy or legal page, with a link to `https://ipinfo.io`:
+
+> IP address data is powered by IPinfo
+
 ## Not created yet
 
 - [personas.json](personas.json) — not created yet
 - [visitor_followup_tracker](visitor_followup_tracker) — not created yet
+- Public privacy policy page with the company-identification disclosure above — not created yet
+- `VISITOR_COMPANY_KV` namespace — not created yet (optional; in-memory cache until then)

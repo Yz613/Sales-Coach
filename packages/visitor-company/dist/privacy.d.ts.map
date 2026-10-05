@@ -1,0 +1,1 @@
+{"version":3,"file":"privacy.d.ts","sourceRoot":"","sources":["../src/privacy.ts"],"names":[],"mappings":"AAEA,0FAA0F;AAC1F,eAAO,MAAM,mBAAmB,qMAgCtB,CAAC;AAIX,wBAAgB,eAAe,CAAC,KAAK,EAAE;IACrC,OAAO,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACxB,WAAW,CAAC,EAAE,OAAO,CAAC;IACtB,SAAS,CAAC,EAAE,SAAS,MAAM,EAAE,CAAC;CAC/B,GAAG,OAAO,CAQV"}

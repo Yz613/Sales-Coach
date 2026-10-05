@@ -195,6 +195,11 @@ describe("product analytics policy", () => {
     assert.match(middleware, /analyticsConnectHosts/);
     assert.match(bootstrap, /startProductAnalytics/);
     assert.match(client, /posthog\.init\(POSTHOG_PROJECT_TOKEN/);
+    assert.equal(client.match(/posthog\.init\(/g)?.length, 1);
+    assert.match(client, /rememberVisitorCompany\(\{/);
+    assert.match(client, /groupAnalytics:\s*false/);
+    assert.match(client, /apiPath\(VISITOR_COMPANY_API_PATH\)/);
+    assert.doesNotMatch(client, /groupAnalytics:\s*true/);
     assert.match(client, /posthog\.identify\(/);
     assert.doesNotMatch(client, /eu\.i\.posthog\.com/);
     assert.doesNotMatch(client, /phx_/);

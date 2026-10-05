@@ -117,6 +117,10 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/marketing/integration-request", "POST"), true);
     assert.equal(isPublicApiRoute("/api/marketing/integration-request", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/marketing/integration-request", "GET"), false);
+    assert.equal(isPublicApiRoute("/app/api/visitor-company", "GET"), true);
+    assert.equal(isPublicApiRoute("/api/visitor-company", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/visitor-company", "HEAD"), true);
+    assert.equal(isPublicApiRoute("/app/api/visitor-company", "POST"), false);
     assert.equal(isPublicApiRoute("/app/api/integrations", "POST"), false);
   });
 
