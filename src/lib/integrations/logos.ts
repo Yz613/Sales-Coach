@@ -8,4 +8,5 @@ export const INTEGRATION_LOGOS: Record<ProviderId, string> = {
   linear: "linear.svg", todoist: "todoist.svg", airtable: "airtable.svg", github: "github.svg", gitlab: "gitlab.svg",
   discord: "discord.svg", slack: "slack.png", calendly: "calendly.svg", "google-calendar": "google-calendar.svg",
   "outlook-calendar": "outlook-calendar.svg", gmail: "gmail.svg", outlook: "outlook.svg", aircall: "aircall.svg", zoom: "zoom.svg",
+  "google-meet": "google-meet.svg",
 };

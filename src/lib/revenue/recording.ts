@@ -5,6 +5,7 @@ import { currentTenantId } from "../tenant";
 import { getConnection } from "./connections";
 import { fathomRequest } from "../integrations/fathom";
 import { zoomPlayback } from "../integrations/zoom";
+import { googleMeetPlayback } from "../integrations/google-meet";
 import { RevenueError, safeExternalUrl } from "./security";
 
 interface DownloadFile { url: string; content_type: string; file_size_bytes: number; expires_at: string }
@@ -30,6 +31,12 @@ export async function providerRecording(callId: string, downloadId?: unknown) {
     if (!meta.connectionId || !meta.externalId) throw new RevenueError("This call has no Zoom recording.", 404);
     const connection = await getConnection(meta.connectionId);
     return zoomPlayback(connection.secrets.token, meta.externalId);
+  }
+  if (meta?.source === "google-meet") {
+    if (downloadId !== undefined) throw new RevenueError("Invalid recording request.");
+    if (!meta.connectionId || !meta.externalId) throw new RevenueError("This call has no Google Meet recording.", 404);
+    const connection = await getConnection(meta.connectionId);
+    return googleMeetPlayback(connection.secrets.token, meta.externalId);
   }
   if (meta?.source === "fathom") return fathomRecording(callId, downloadId);
   throw new RevenueError("This call has no recording.", 404);

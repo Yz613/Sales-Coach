@@ -5,8 +5,9 @@ import type { ImportedMeeting, SyncCursor } from "../revenue/types";
 import { GONG_CONTENT_SELECTOR, normalizeGongCall } from "./gong";
 import { aircallPage, aircallRequest, fetchAircallCall } from "./aircall";
 import { fetchZoomCall, verifyZoom, zoomPage } from "./zoom";
+import { fetchGoogleMeetCall, googleMeetPage, verifyGoogleMeet } from "./google-meet";
 
-export type CallProvider = "fireflies" | "tldv" | "gong" | "close" | "aircall" | "zoom";
+export type CallProvider = "fireflies" | "tldv" | "gong" | "close" | "aircall" | "zoom" | "google-meet";
 type Secrets = Record<string, string>;
 const FIREFLIES_FIELDS = `id title date duration host_email organizer_email participants transcript_url sentences { speaker_name text start_time end_time } summary { overview action_items }`;
 export async function firefliesQuery<T>(token: string, query: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -26,6 +27,7 @@ const CLOSE_FIELDS = "id,date_created,date_updated,user_id,lead_id,contact_id,du
 
 export async function verifyCallProvider(provider: CallProvider, secrets: Secrets) {
   if (provider === "zoom") { await verifyZoom(secrets.token); return; }
+  if (provider === "google-meet") { await verifyGoogleMeet(secrets.token); return; }
   if (provider === "aircall") await aircallRequest(secrets, "/calls?per_page=1&fetch_contact=true");
   if (provider === "fireflies") await firefliesQuery(secrets.token, "query { transcripts(limit: 1) { id } }");
   if (provider === "tldv") await tldvRequest(secrets, "/meetings?limit=1&page=1");
@@ -36,6 +38,7 @@ export async function verifyCallProvider(provider: CallProvider, secrets: Secret
 /** Page only metadata; each transcript has its own durable, retryable job. */
 export async function callProviderPage(provider: CallProvider, secrets: Secrets, state: SyncCursor): Promise<{ deferred: any[]; next: SyncCursor }> {
   if (provider === "zoom") return zoomPage(secrets, state);
+  if (provider === "google-meet") return googleMeetPage(secrets, state);
   if (provider === "aircall") return aircallPage(secrets, state);
   if (provider === "fireflies") {
     const skip = Number(state.after || 0);
@@ -78,6 +81,7 @@ export function normalizeFirefliesCall(raw: any): ImportedMeeting {
 
 export async function fetchProviderCall(provider: CallProvider, secrets: Secrets, raw: any): Promise<ImportedMeeting | null> {
   if (provider === "zoom") return fetchZoomCall(secrets, raw);
+  if (provider === "google-meet") return fetchGoogleMeetCall(secrets, raw);
   if (provider === "aircall") return fetchAircallCall(secrets, raw);
   const id = String(raw.id || "");
   if (!id || id.length > 200) throw new RevenueError("Provider call ID is missing.");

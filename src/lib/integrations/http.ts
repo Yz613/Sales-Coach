@@ -47,8 +47,17 @@ export function providerFailureDetail(body: string): string {
     message = body.slice(0, 180);
   }
   const text = `${reason} ${message}`.toLowerCase();
-  if (/accessnotconfigured|has not been used|api has not been used|is disabled|service_disabled/.test(text)) return "The Gmail API is not enabled for this Google Cloud project.";
-  if (reason === "insufficientPermissions" || /insufficient authentication scopes|insufficient permission/.test(text)) return "The granted token is missing the Gmail metadata permission.";
+  if (/accessnotconfigured|has not been used|api has not been used|is disabled|service_disabled/.test(text)) {
+    if (/\bmeet\b/.test(text)) return "The Google Meet API is not enabled for this Google Cloud project.";
+    if (/\bdrive\b/.test(text)) return "The Google Drive API is not enabled for this Google Cloud project.";
+    if (/\bpeople\b/.test(text)) return "The People API is not enabled for this Google Cloud project.";
+    if (/\bgmail\b/.test(text)) return "The Gmail API is not enabled for this Google Cloud project.";
+    return "A required Google API is not enabled for this Google Cloud project.";
+  }
+  if (reason === "insufficientPermissions" || /insufficient authentication scopes|insufficient permission/.test(text)) {
+    if (/\bmeet\b|\bdrive\b|\bpeople\b|contacts/.test(text)) return "The granted token is missing Google Meet, Drive, or contacts read permission.";
+    return "The granted token is missing the Gmail metadata permission.";
+  }
   if (/domainpolicy|domain administrators have disabled/.test(text)) return "The Google Workspace domain blocks Gmail access for this app.";
   if (/does not support 'q'|metadata scope/.test(text)) return "Gmail rejected a search query that the metadata scope does not allow.";
   return "";
