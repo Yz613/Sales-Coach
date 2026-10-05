@@ -55,7 +55,8 @@
 		"binding": "AI"
 	},
 	// Optional company lookup (a network organization, never a person).
-	// Leave this unset until the namespace exists. Do not commit a placeholder id.
+	// Do not commit a namespace id. Hosted deploys inject VISITOR_COMPANY_KV in CI.
+	// Self-hosters can omit it (in-memory cache) or add their own namespace:
 	//   npx wrangler kv namespace create VISITOR_COMPANY_KV
 	//   then add: "kv_namespaces": [{ "binding": "VISITOR_COMPANY_KV", "id": "<id from create>" }]
 	// Optional secrets, both unset today. With neither, the route uses the network owner name:

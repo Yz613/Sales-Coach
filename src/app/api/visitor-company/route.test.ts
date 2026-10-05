@@ -133,6 +133,34 @@ describe("visitor company route", () => {
     assert.equal(JSON.stringify(flaggedBody).includes("Ford"), false);
   });
 
+  it("keeps working when the KV binding is absent and uses it when present", async () => {
+    const absent = await handleVisitorCompany(visitorRequest(COMPANY_CF), {
+      env: { VISITOR_COMPANY_KV: "not-a-binding" },
+    });
+    const absentBody = await jsonBody(absent);
+    assert.equal(absent.status, 200);
+    assert.equal(absentBody.status, "identified");
+    assert.equal(absentBody.company_name, "Ford Motor Company");
+
+    const missing = await handleVisitorCompany(visitorRequest(COMPANY_CF), { env: {} });
+    assert.equal((await jsonBody(missing)).company_name, "Ford Motor Company");
+
+    let reads = 0;
+    const present = await handleVisitorCompany(visitorRequest(COMPANY_CF), {
+      env: {
+        VISITOR_COMPANY_KV: {
+          async get() {
+            reads += 1;
+            return null;
+          },
+          async put() {},
+        },
+      },
+    });
+    assert.equal(reads, 1);
+    assert.equal((await jsonBody(present)).company_name, "Ford Motor Company");
+  });
+
   it("reads Cloudflare cf from the Worker context when the route request has none", async () => {
     const request = new Request("https://refreshqueue.com/app/api/visitor-company", {
       headers: {

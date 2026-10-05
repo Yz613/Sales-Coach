@@ -316,7 +316,7 @@ Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext a
    npx wrangler secret put GEMINI_API_KEY
    npx wrangler secret put RESEND_API_KEY
    ```
-   Use a stable, securely generated 32-byte base64 encryption key, a random scheduler secret of at least 32 characters, and your canonical HTTPS origin. Enable authenticator MFA and backup codes in Clerk before inviting users. See [production security setup](docs/SECURITY.md). Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed.
+   Use a stable, securely generated 32-byte base64 encryption key, a random scheduler secret of at least 32 characters, and your canonical HTTPS origin. Enable authenticator MFA and backup codes in Clerk before inviting users. See [production security setup](docs/SECURITY.md). Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed. The same deploy injects `VISITOR_COMPANY_KV` from the `VISITOR_COMPANY_KV_ID` repository variable when it is set, and otherwise uses the hosted namespace `05bb9e51843e4b26a424ed09dad780f6`. That id is not a secret and is not committed. A self-hosted worker keeps its own config and still runs when the binding is absent.
 
 5. **Create private recording and cache buckets:**
    ```bash
