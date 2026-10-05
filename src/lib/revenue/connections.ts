@@ -10,6 +10,7 @@ import { hubspotRequest } from "../integrations/hubspot";
 import { integrationTool, isCallTool, isCalendarTool, isEmailTool, isTaskTool, isNotificationTool } from "../integrations/catalog";
 import { verifyCallProvider, type CallProvider } from "../integrations/call-providers";
 import { verifyZoom } from "../integrations/zoom";
+import { verifyGoogleMeet } from "../integrations/google-meet";
 import { verifyTeams } from "../integrations/teams";
 import { verifyCrmProvider } from "../integrations/crm-providers";
 import { verifyCalendarProvider } from "../integrations/calendars";
@@ -56,6 +57,7 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
   if ((provider === "google-calendar" || provider === "outlook-calendar") && !authorized) throw new RevenueError("Use the calendar sign-in button to connect this account.");
   if ((provider === "gmail" || provider === "outlook") && !authorized) throw new RevenueError("Use the mailbox sign-in button to connect this account.");
   if (provider === "zoom" && !authorized) throw new RevenueError("Use the Zoom sign-in button to connect this account.");
+  if (provider === "google-meet" && !authorized) throw new RevenueError("Use the Google Meet sign-in button to connect this account.");
   if (provider === "microsoft-teams" && !authorized) throw new RevenueError("Use the Microsoft sign-in button to connect this account.");
   const pendingSetup = Boolean(authorized && isTaskTool(provider) && !body.targetId);
   for (const field of tool.fields) if (!authorized || !["token", "webhookUrl"].includes(field.name)) secrets[field.name] = textInput(body[field.name] || "", field.label, 4096, field.required && !pendingSetup);
@@ -75,6 +77,7 @@ export async function connectIntegration(body: any, actor: string, authorized?: 
     await hubspotRequest(token, "/crm/v3/pipelines/deals");
   }   else if (provider === "fathom") await fathomRequest(token, "/meetings");
   else if (provider === "zoom") calendarConfig = await verifyZoom(token);
+  else if (provider === "google-meet") calendarConfig = await verifyGoogleMeet(token);
   else if (provider === "microsoft-teams") calendarConfig = await verifyTeams(token);
   else if (provider === "pipedrive" || provider === "attio") await verifyCrmProvider(provider, token, secrets.authType === "oauth", secrets.apiDomain);
   else if (tool.category === "Calls") await verifyCallProvider(provider as CallProvider, secrets);

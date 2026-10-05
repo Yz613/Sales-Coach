@@ -30,6 +30,7 @@ Added October 2, 2026. Simple Icons SVGs are CC0 and use the brand color; remain
 | google-calendar.svg | [Source](https://www.gstatic.com/images/branding/productlogos/calendar_2026/v2/web/192px.svg) |
 | outlook-calendar.svg | [Source](https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/brand-icons/product/svg/outlook_48x1.svg) |
 | gmail.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Google or Simple Icons asset. |
+| google-meet.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Google or Simple Icons asset. |
 | outlook.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Microsoft or Simple Icons asset. |
 | teams.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Microsoft or Simple Icons asset. |
 

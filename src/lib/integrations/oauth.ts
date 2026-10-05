@@ -18,6 +18,8 @@ export function oauthProvider(value: string): OAuthProvider {
   return provider;
 }
 function credentialPrefixes(provider: OAuthProvider): string[] {
+  // Meet prefers its own client, then the Gmail client in the same Cloud project, then Calendar.
+  if (provider === "google-meet") return ["GOOGLE_MEET", "GOOGLE", "GOOGLE_CALENDAR"];
   // Gmail can reuse the Google Calendar OAuth client when GOOGLE_CLIENT_ID is not set.
   if (provider === "gmail") return ["GOOGLE", "GOOGLE_CALENDAR"];
   // Teams can reuse the Outlook mail app. That app is multitenant plus personal accounts, so tokens use /common.
@@ -78,7 +80,7 @@ export async function startOAuth(provider: OAuthProvider, actor: string, body: a
   const url = new URL(app.authorize);
   url.search = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, ...(app.scope ? { scope: app.scope } : {}),
     ...(app.pkce ? { code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" } : {}),
-    ...(provider === "google-calendar" || provider === "gmail" ? { access_type: "offline", prompt: "consent" } : {}),
+    ...(provider === "google-calendar" || provider === "gmail" || provider === "google-meet" ? { access_type: "offline", prompt: "consent" } : {}),
     ...(provider === "notion" ? { owner: "user" } : {}) }).toString();
   return { url: url.toString(), state };
 }
@@ -124,8 +126,10 @@ export async function finishOAuth(provider: OAuthProvider, actor: string, state:
   if (!rows.length) throw new RevenueError("Sign-in expired or belongs to another workspace. Start again.");
   const saved = decryptCredentials(rows[0].credentials, `oauth:${orgId}:${id}`);
   const tokens = await exchange(provider, { grant_type: "authorization_code", code, redirect_uri: saved.redirectUri, ...(APPS[provider].pkce ? { code_verifier: saved.verifier } : {}) }, saved.clientId);
-  if (provider === "gmail" && typeof tokens.scope === "string" && tokens.scope.trim() && !scopeGrantIncludes(tokens.scope, APPS.gmail.scope)) {
-    throw new RevenueError("Google did not grant Gmail metadata access. Reconnect and allow View your email message metadata.");
+  if ((provider === "gmail" || provider === "google-meet") && typeof tokens.scope === "string" && tokens.scope.trim() && !scopeGrantIncludes(tokens.scope, APPS[provider].scope)) {
+    throw new RevenueError(provider === "gmail"
+      ? "Google did not grant Gmail metadata access. Reconnect and allow View your email message metadata."
+      : "Google did not grant Google Meet access. Reconnect and allow Meet conferences, Meet recordings, and contacts read access.");
   }
   if (provider === "microsoft-teams" && typeof tokens.scope === "string" && tokens.scope.trim()) {
     const required = APPS["microsoft-teams"].scope.split(/\s+/).filter(scope => scope && scope !== "offline_access").join(" ");

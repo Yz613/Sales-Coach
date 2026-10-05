@@ -12,6 +12,7 @@ import { fathomPage, fathomRequest, normalizeFathomMeeting } from "../integratio
 import { hubspotPage, hubspotRequest, hubspotChangedRecord, crmRecordId } from "../integrations/hubspot";
 import { callProviderPage, fetchProviderCall, type CallProvider } from "../integrations/call-providers";
 import { maybeStoreZoomAudio } from "../integrations/zoom";
+import { maybeStoreGoogleMeetAudio } from "../integrations/google-meet";
 import { maybeStoreTeamsRecording } from "../integrations/teams";
 import { normalizeGongCall } from "../integrations/gong";
 import { crmProviderPage } from "../integrations/crm-providers";
@@ -144,9 +145,10 @@ async function executeJob(job: any) {
     // A disconnect during the provider request revokes the pending import too.
     await getConnection(connection.id);
     const result = await importMeeting(connection, meeting);
-    if ((connection.provider === "zoom" || connection.provider === "microsoft-teams") && !result.deleted) {
+    if ((connection.provider === "zoom" || connection.provider === "google-meet" || connection.provider === "microsoft-teams") && !result.deleted) {
       try {
         if (connection.provider === "zoom") await maybeStoreZoomAudio(connection.secrets, result.callId, meeting.externalId);
+        else if (connection.provider === "google-meet") await maybeStoreGoogleMeetAudio(connection.secrets, result.callId, meeting.externalId);
         else await maybeStoreTeamsRecording(connection.secrets, result.callId, meeting.externalId);
       } catch (error) { if (error instanceof ProviderError && error.providerStatus === 429) throw error; }
     }
