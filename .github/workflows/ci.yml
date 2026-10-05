@@ -11,7 +11,9 @@ on:
 jobs:
   test:
     name: Test & Build (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
+    # The Linux hosted pool is delayed by the Actions runner incident on 2026-10-05.
+    # Keep the same Node 20/22 test, audit, type, and build gates on macOS.
+    runs-on: macos-15
     strategy:
       matrix:
         node-version: [20, 22]
