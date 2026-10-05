@@ -34,7 +34,7 @@ export interface CrmRecord {
   amount: string | null; currency: string | null; owner: string | null; closeDate: string | null; closed: boolean;
   associations: string[]; properties: Record<string, string | null>; sourceUrl: string | null; syncedAt: string;
 }
-export interface ConversationFilters { q?: string; repId?: string; stage?: string; source?: string; from?: string; to?: string; reviewed?: string; tracker?: string; page?: number }
+export interface ConversationFilters { q?: string; repId?: string; stage?: string; source?: string; from?: string; to?: string; reviewed?: string; tracker?: string; aiTracker?: string; page?: number }
 export function parseJson<T>(value: string | null | undefined, fallback: T): T {
   try { return value ? JSON.parse(value) as T : fallback; } catch { return fallback; }
 }

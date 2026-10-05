@@ -7,8 +7,9 @@ import { RevenueError } from "../revenue/security";
 import { runtimeSecret } from "../revenue/runtime";
 import { parseJson, type ConnectionConfig } from "../revenue/types";
 import { ProviderError } from "./http";
+import { streamAlertCopy } from "../revenue/alerts";
 
-export type SlackEvent = "reviewed" | "clip" | "low-score" | "test" | "share";
+export type SlackEvent = "reviewed" | "clip" | "low-score" | "test" | "share" | "stream";
 export function slackWebhook(value: string): URL {
   let url: URL; try { url = new URL(value); } catch { throw new RevenueError("Enter a valid Slack incoming webhook URL."); }
   if (url.protocol !== "https:" || !["hooks.slack.com", "hooks.slack-gov.com"].includes(url.hostname) || url.port || url.username || url.password || url.search || url.hash || !/^\/services\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+$/.test(url.pathname)) throw new RevenueError("Use an incoming webhook URL from Slack's app settings.");
@@ -25,7 +26,7 @@ export function slackPreferences(body: any, previous: Partial<ConnectionConfig> 
   return { notifyReviewed: body.notifyReviewed === true, notifyClips: body.notifyClips === true, notifyLowScore: body.notifyLowScore === true, lowScoreThreshold };
 }
 function enabled(config: ConnectionConfig, event: SlackEvent) {
-  return event === "test" || event === "share" || (event === "reviewed" ? config.notifyReviewed : event === "clip" ? config.notifyClips : config.notifyLowScore);
+  return event === "test" || event === "share" || event === "stream" || (event === "reviewed" ? config.notifyReviewed : event === "clip" ? config.notifyClips : config.notifyLowScore);
 }
 export async function queueSlackAlerts(event: Exclude<SlackEvent, "test" | "share">, callId: string, eventId: string, clipId?: string) {
   await ensureRevenueSchema(); const orgId = currentTenantId();
@@ -41,11 +42,16 @@ export async function queueSlackAlerts(event: Exclude<SlackEvent, "test" | "shar
 }
 export async function sendSlackJob(connection: { id: string; provider: string; config: ConnectionConfig; secrets: Record<string, string> }, job: { callId?: string; payload: string }) {
   if (!["slack", "discord"].includes(connection.provider)) throw new RevenueError("This alert needs a channel notification connection.");
-  const { event, clipId } = parseJson<{ event: SlackEvent; clipId?: string }>(job.payload, {} as any);
-  if (!["reviewed", "clip", "low-score", "test", "share"].includes(event)) throw new RevenueError("Unknown coaching alert.");
+  const { event, clipId, streamId, start, summary } = parseJson<{ event: SlackEvent; clipId?: string; streamId?: string; start?: number | null; summary?: string }>(job.payload, {} as any);
+  if (!["reviewed", "clip", "low-score", "test", "share", "stream"].includes(event)) throw new RevenueError("Unknown coaching alert.");
   if (!enabled(connection.config, event)) return { skipped: "This alert is disabled." };
   let title = "Sales Coach is connected"; let text = "Your coaching alerts can now arrive in this channel."; let href = "";
-  if (event !== "test") {
+  if (event === "stream") {
+    if (!job.callId) return { skipped: "Call was deleted." };
+    const copy = await streamAlertCopy(connection.provider, job.callId, { streamId, start, summary });
+    if ("skipped" in copy) return copy;
+    title = copy.title; text = copy.text; href = copy.href;
+  } else if (event !== "test") {
     const call = job.callId ? await getCallById(job.callId) : null;
     if (!call) return { skipped: "Call was deleted." };
     const meta = await db.select().from(callMetadata).where(and(eq(callMetadata.orgId, currentTenantId()), eq(callMetadata.callId, call.id))).get();
