@@ -40,6 +40,19 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
       // Index may already exist.
     }
   }
+  for (const col of [
+    "original_score INTEGER",
+    "original_probabilities TEXT",
+    "clef_model TEXT",
+    "rubric_version TEXT",
+    "metadata TEXT",
+  ]) {
+    try {
+      await d1.prepare(`ALTER TABLE score_overrides ADD COLUMN ${col}`).run();
+    } catch {
+      // Column may already exist
+    }
+  }
 }
 
 let _db: any = null;
@@ -91,6 +104,28 @@ function initLocalSqlite() {
     }
   } catch {
     // Table may not exist yet; schema.sql creates it with the column.
+  }
+  try {
+    const oCols = sqlite.prepare("PRAGMA table_info(score_overrides)").all();
+    if (oCols.length > 0) {
+      if (!oCols.some((c: { name: string }) => c.name === "original_score")) {
+        sqlite.exec("ALTER TABLE score_overrides ADD COLUMN original_score INTEGER");
+      }
+      if (!oCols.some((c: { name: string }) => c.name === "original_probabilities")) {
+        sqlite.exec("ALTER TABLE score_overrides ADD COLUMN original_probabilities TEXT");
+      }
+      if (!oCols.some((c: { name: string }) => c.name === "clef_model")) {
+        sqlite.exec("ALTER TABLE score_overrides ADD COLUMN clef_model TEXT");
+      }
+      if (!oCols.some((c: { name: string }) => c.name === "rubric_version")) {
+        sqlite.exec("ALTER TABLE score_overrides ADD COLUMN rubric_version TEXT");
+      }
+      if (!oCols.some((c: { name: string }) => c.name === "metadata")) {
+        sqlite.exec("ALTER TABLE score_overrides ADD COLUMN metadata TEXT");
+      }
+    }
+  } catch {
+    // Table may not exist yet
   }
   return drizzle(sqlite, { schema });
 }

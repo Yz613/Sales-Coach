@@ -83,7 +83,7 @@ This contract does not deploy the worker.
 | System | Status |
 | --- | --- |
 | Product analytics | Connected in the browser with the public project token |
-| Decision model | Not wired. Planned model is Cloudflare Workers AI `@cf/cloudflare/clef`, not Jev |
+| Decision model | Cloudflare Workers AI `@cf/cloudflare/clef` (not Jev), using the `AI` binding in `wrangler.jsonc` |
 | CRM | Not connected |
 | Identity provider | Not connected |
 | Cold-email sending | Not connected |

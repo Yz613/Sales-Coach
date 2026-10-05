@@ -90,7 +90,8 @@ export const REVENUE_MIGRATIONS = [
   `CREATE INDEX IF NOT EXISTS idx_clips_org ON conversation_clips(org_id, collection)`,
   `CREATE TABLE IF NOT EXISTS score_overrides (
     id TEXT PRIMARY KEY, org_id TEXT NOT NULL, call_id TEXT NOT NULL, metric_key TEXT NOT NULL,
-    score INTEGER NOT NULL, reason TEXT NOT NULL, author_name TEXT NOT NULL, updated_at TEXT NOT NULL
+    score INTEGER NOT NULL, reason TEXT NOT NULL, author_name TEXT NOT NULL, updated_at TEXT NOT NULL,
+    original_score INTEGER, original_probabilities TEXT, clef_model TEXT, rubric_version TEXT, metadata TEXT
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_override_metric ON score_overrides(org_id, call_id, metric_key)`,
   `CREATE TABLE IF NOT EXISTS conversation_trackers (

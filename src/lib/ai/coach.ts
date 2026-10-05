@@ -16,7 +16,11 @@ import {
   type ExtendedReview,
   type ScorecardMetric,
   type CoachWalkthroughStep,
+  type ClefDecisionMetadata,
+  type ShadowComparisonData,
 } from "./review";
+import { evaluateCallWithClef, getClefEvaluationMode } from "./clefEvaluator";
+import { buildShadowComparison } from "./clefComparison";
 import { parseTranscript, requireUsableTranscript } from "../transcript";
 import {
   CORE_OUTCOME_RULES,
@@ -86,35 +90,187 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   const ai = await resolveAiSettings();
 
   let evaluationResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
+  let clefMetadata: ClefDecisionMetadata | undefined;
+  let shadowComparison: ShadowComparisonData | undefined;
 
-  if (ai.apiKey) {
+  const mode = getClefEvaluationMode();
+
+  if (mode === "primary") {
     try {
-      evaluationResult = await callLlmEvaluation(
+      evaluationResult = await evaluateCallWithClef({
+        callId: input.callId,
+        repId: input.repId,
+        repName,
+        transcriptText: input.transcriptText,
+        callStage: input.callStage,
+        prospectCompany: input.prospectCompany,
+        prospectName: input.prospectName,
+        durationSeconds,
+        methodology,
+        script: activeScript,
+        coachContext,
+        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model } : undefined,
+      });
+      clefMetadata = (evaluationResult as any).clefMetadata;
+    } catch (clefErr) {
+      console.error("Clef evaluation failed; falling back to deterministic rule engine.", clefErr);
+      evaluationResult = generateRuleBasedEvaluation(
         input,
         repName,
         pastFixesSummary,
         persona,
         activeScript,
-        ai.apiKey,
-        ai.providerId,
-        ai.model,
         coachContext,
         durationSeconds,
         methodology
       );
-    } catch (err) {
-      const message = llmErrorMessage(err);
-      console.error("LLM evaluation failed; using the rule engine.");
-      evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds, methodology);
       evaluationResult.evaluatedWith = {
-        provider: ai.providerId,
-        model: ai.model,
+        provider: "clef",
+        model: "@cf/cloudflare/clef",
         fallback: "rules",
-        error: "The AI provider could not complete this review. Check the provider configuration.",
+        degraded: true,
+        error: `Clef evaluation failed (${clefErr instanceof Error ? clefErr.message : String(clefErr)}). Degraded evaluation: scored using built-in rule engine.`,
       };
     }
+  } else if (mode === "shadow") {
+    // 1. Run legacy evaluation for the user
+    let legacyResult: Omit<CallEvaluation, "id" | "callId" | "repId" | "createdAt">;
+    if (ai.apiKey) {
+      try {
+        legacyResult = await callLlmEvaluation(
+          input,
+          repName,
+          pastFixesSummary,
+          persona,
+          activeScript,
+          ai.apiKey,
+          ai.providerId,
+          ai.model,
+          coachContext,
+          durationSeconds,
+          methodology
+        );
+      } catch (err) {
+        legacyResult = generateRuleBasedEvaluation(
+          input,
+          repName,
+          pastFixesSummary,
+          persona,
+          activeScript,
+          coachContext,
+          durationSeconds,
+          methodology
+        );
+        legacyResult.evaluatedWith = {
+          provider: ai.providerId,
+          model: ai.model,
+          fallback: "rules",
+          error: "The AI provider could not complete this review. Check the provider configuration.",
+        };
+      }
+    } else {
+      legacyResult = generateRuleBasedEvaluation(
+        input,
+        repName,
+        pastFixesSummary,
+        persona,
+        activeScript,
+        coachContext,
+        durationSeconds,
+        methodology
+      );
+    }
+
+    // 2. Run Clef evaluation in shadow mode and record comparison
+    try {
+      const clefResult = await evaluateCallWithClef({
+        callId: input.callId,
+        repId: input.repId,
+        repName,
+        transcriptText: input.transcriptText,
+        callStage: input.callStage,
+        prospectCompany: input.prospectCompany,
+        prospectName: input.prospectName,
+        durationSeconds,
+        methodology,
+        script: activeScript,
+        coachContext,
+        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model } : undefined,
+      });
+      const detResult = generateRuleBasedEvaluation(
+        input,
+        repName,
+        pastFixesSummary,
+        persona,
+        activeScript,
+        coachContext,
+        durationSeconds,
+        methodology
+      );
+      shadowComparison = buildShadowComparison({
+        legacyScorecard: legacyResult.scorecard || [],
+        legacyScriptScore: legacyResult.sandlerBreakdown.scriptAdherence.score,
+        clefScorecard: clefResult.scorecard || [],
+        clefScriptScore: clefResult.sandlerBreakdown.scriptAdherence.score,
+        deterministicScorecard: detResult.scorecard || [],
+        deterministicScriptScore: detResult.sandlerBreakdown.scriptAdherence.score,
+        clefLatencyMs: (clefResult as any).clefMetadata?.latencyMs || 0,
+        clefModel: (clefResult as any).clefMetadata?.model || "@cf/cloudflare/clef",
+        clefConfidence: (clefResult as any).clefMetadata?.confidence || "medium",
+      });
+      clefMetadata = (clefResult as any).clefMetadata;
+    } catch (shadowErr) {
+      console.warn("Clef shadow evaluation failed:", shadowErr);
+    }
+
+    evaluationResult = legacyResult;
   } else {
-    evaluationResult = generateRuleBasedEvaluation(input, repName, pastFixesSummary, persona, activeScript, coachContext, durationSeconds, methodology);
+    // mode === "off"
+    if (ai.apiKey) {
+      try {
+        evaluationResult = await callLlmEvaluation(
+          input,
+          repName,
+          pastFixesSummary,
+          persona,
+          activeScript,
+          ai.apiKey,
+          ai.providerId,
+          ai.model,
+          coachContext,
+          durationSeconds,
+          methodology
+        );
+      } catch (err) {
+        evaluationResult = generateRuleBasedEvaluation(
+          input,
+          repName,
+          pastFixesSummary,
+          persona,
+          activeScript,
+          coachContext,
+          durationSeconds,
+          methodology
+        );
+        evaluationResult.evaluatedWith = {
+          provider: ai.providerId,
+          model: ai.model,
+          fallback: "rules",
+          error: "The AI provider could not complete this review. Check the provider configuration.",
+        };
+      }
+    } else {
+      evaluationResult = generateRuleBasedEvaluation(
+        input,
+        repName,
+        pastFixesSummary,
+        persona,
+        activeScript,
+        coachContext,
+        durationSeconds,
+        methodology
+      );
+    }
   }
 
   evaluationResult.missedOpportunities = stampMissedOpportunities(
@@ -140,6 +296,8 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     evaluatedWith: evaluationResult.evaluatedWith,
     coachingBrief: evaluationResult.coachingBrief,
     debrief: evaluationResult.debrief,
+    clefMetadata: clefMetadata || (evaluationResult as any).clefMetadata,
+    shadowComparison,
   };
 
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;

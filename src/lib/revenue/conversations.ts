@@ -1,12 +1,13 @@
 import { and, asc, desc, eq, inArray, isNull, isNotNull, gte, lte, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, reps, callMetadata, conversationComments, conversationClips, conversationTrackers, scoreOverrides, savedSearches, crmRecords, callProviderInsights } from "../db/schema";
+import { calls, reps, callMetadata, conversationComments, conversationClips, conversationTrackers, scoreOverrides, savedSearches, crmRecords, callProviderInsights, evaluations } from "../db/schema";
 import { currentTenantId } from "../tenant";
 import { listRepIdentities } from "../db/service";
 import { isOwnRep } from "../call-access";
 import { toCallViewer } from "../viewer-calls";
 import { parseLeadingTimestamp, parseTranscript } from "../transcript";
+import { parseExtendedReview } from "../ai/review";
 import type { AuthUser } from "../auth";
 import type { Call } from "../../types";
 import { RevenueError, stableId, textInput } from "./security";
@@ -123,7 +124,58 @@ export async function updateConversation(auth: AuthUser, call: Call, body: any) 
       if (!auth.isAdmin) throw new RevenueError("Only an admin can correct a score.", 403);
       const metricKey = textInput(body.metricKey, "Metric", 100); const score = Number(body.score);
       if (!Number.isInteger(score) || score < 1 || score > 10) throw new RevenueError("Score must be a whole number from 1 to 10.");
-      const values = { id: stableId(orgId, call.id, metricKey), orgId, callId: call.id, metricKey, score, reason: textInput(body.reason, "Correction reason", 2000), authorName: actorName(auth), updatedAt: now };
+
+      let originalScore: number | null = null;
+      let originalProbabilities: string | null = null;
+      let clefModel: string | null = null;
+      let rubricVersion: string = "1.0";
+      let metadataStr: string | null = null;
+
+      try {
+        const evRow = await db.select().from(evaluations).where(and(scoped(evaluations), eq(evaluations.callId, call.id))).get();
+        if (evRow) {
+          const extended = parseExtendedReview(evRow.extendedReview);
+          const metric = extended?.scorecard?.find((m) => m.key === metricKey);
+          if (metric) {
+            originalScore = metric.score;
+            if (metric.probabilities) {
+              originalProbabilities = JSON.stringify(metric.probabilities);
+            }
+          } else if (metricKey === "scriptAdherence") {
+            originalScore = evRow.scriptAdherenceScore;
+          }
+          clefModel = extended?.clefMetadata?.model || (extended?.evaluatedWith?.provider === "clef" ? extended.evaluatedWith.model : null);
+          rubricVersion = extended?.clefMetadata?.schemaVersion || "1.0";
+          metadataStr = JSON.stringify({
+            originalScore,
+            originalStatus: metric?.status,
+            originalProbabilities: metric?.probabilities,
+            confidence: metric?.confidence,
+            clefModel,
+            rubricVersion,
+            correctedAt: now,
+            authorName: actorName(auth),
+          });
+        }
+      } catch {
+        // Tolerant if evaluation lookup is unavailable
+      }
+
+      const values = {
+        id: stableId(orgId, call.id, metricKey),
+        orgId,
+        callId: call.id,
+        metricKey,
+        score,
+        reason: textInput(body.reason, "Correction reason", 2000),
+        authorName: actorName(auth),
+        updatedAt: now,
+        originalScore,
+        originalProbabilities,
+        clefModel,
+        rubricVersion,
+        metadata: metadataStr,
+      };
       await db.insert(scoreOverrides).values(values).onConflictDoUpdate({ target: scoreOverrides.id, set: values }).run(); break;
     }
     case "removeOverride":

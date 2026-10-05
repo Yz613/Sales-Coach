@@ -30,6 +30,9 @@ export interface ScorecardMetric {
   score: number;
   evidence: string;
   cite?: TranscriptCite;
+  probabilities?: Record<string, number>;
+  confidence?: number;
+  needsReview?: boolean;
 }
 
 export interface CoachWalkthroughStep {
@@ -48,9 +51,48 @@ export interface EvaluatedWith {
   provider: string;
   model: string;
   estimatedCostUsd?: number;
-  /** Present when the LLM call failed and the rule engine produced this score. */
+  /** Present when the primary model failed and the rule engine produced this score. */
   fallback?: "rules";
   error?: string;
+  degraded?: boolean;
+}
+
+export interface ClefDecisionMetadata {
+  model: string;
+  schemaVersion: string;
+  timestamp: string;
+  overallScore?: number;
+  confidence?: "high" | "medium" | "low";
+  needsReview?: boolean;
+  latencyMs?: number;
+  mode: "primary" | "shadow" | "off";
+  probabilities?: Record<string, Record<string, number>>;
+  answers?: Record<string, unknown>;
+  degraded?: boolean;
+}
+
+export interface ShadowComparisonData {
+  timestamp: string;
+  legacyScore: number;
+  clefScore: number;
+  deterministicScore: number;
+  disagreement: number;
+  statusDisagreements: string[];
+  clefConfidence: "high" | "medium" | "low";
+  clefLatencyMs: number;
+  clefModel: string;
+  metricComparisons: Record<
+    string,
+    {
+      legacyScore: number;
+      legacyStatus: string;
+      clefScore: number;
+      clefStatus: string;
+      clefProbabilities?: Record<string, number>;
+      clefConfidence?: number;
+      needsReview?: boolean;
+    }
+  >;
 }
 
 export interface ExtendedReview {
@@ -59,6 +101,8 @@ export interface ExtendedReview {
   evaluatedWith?: EvaluatedWith;
   coachingBrief?: CoachingBrief;
   debrief?: DebriefMark[];
+  clefMetadata?: ClefDecisionMetadata;
+  shadowComparison?: ShadowComparisonData;
 }
 
 export const SCORECARD_LABELS: Record<ScorecardKey, string> = {
@@ -110,6 +154,8 @@ export function parseExtendedReview(raw: string | null | undefined): ExtendedRev
       evaluatedWith: parsed.evaluatedWith,
       coachingBrief: normalizeStoredBrief(parsed.coachingBrief),
       debrief: normalizeStoredDebrief(parsed.debrief),
+      clefMetadata: parsed.clefMetadata,
+      shadowComparison: parsed.shadowComparison,
     };
   } catch {
     return undefined;
