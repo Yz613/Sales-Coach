@@ -7,6 +7,7 @@ import { processJobs, queueConnectionSync } from "@/lib/revenue/jobs";
 import { getConnection } from "@/lib/revenue/connections";
 import { currentTenantId } from "@/lib/tenant";
 import { OAUTH_COOKIE, oauthProvider, finishOAuth } from "@/lib/integrations/oauth";
+import { providerFailureDetail, redactProviderBody } from "@/lib/integrations/http";
 import { RevenueError } from "@/lib/revenue/security";
 
 export const GET = withWorkspaceApi(async (req: Request, ctx: { params: Promise<{ provider: string }> }) => {
@@ -14,7 +15,12 @@ export const GET = withWorkspaceApi(async (req: Request, ctx: { params: Promise<
   const destination = new URL(`/app/admin/integrations/${provider}`, url.origin);
   try {
     const auth = await requireRevenueAdmin();
-    if (url.searchParams.has("error")) throw new RevenueError("Sign-in was cancelled or access was declined. You can try again.");
+    if (url.searchParams.has("error")) {
+      const description = url.searchParams.get("error_description") || "";
+      console.error("OAuth authorization failed", provider, url.searchParams.get("error"), redactProviderBody(description));
+      const detail = providerFailureDetail(JSON.stringify({ error: url.searchParams.get("error") || "access_denied", error_description: description }));
+      throw new RevenueError(detail ? `Sign-in was declined. ${detail}` : "Sign-in was cancelled or access was declined. You can try again.");
+    }
     const browserState = req.headers.get("cookie")?.split(";").map(part => part.trim()).find(part => part.startsWith(`${OAUTH_COOKIE}=`))?.slice(OAUTH_COOKIE.length + 1) || "";
     const result = await finishOAuth(provider, actorId(auth), url.searchParams.get("state") || "", browserState, url.searchParams.get("code") || "");
     const id = await connectIntegration({ ...result.body, provider }, actorId(auth), result.secrets);

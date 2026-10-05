@@ -34,6 +34,7 @@ The deployment operator must register an OAuth app for each provider. These cred
 | [Zoom](https://developers.zoom.us/docs/integrations/oauth/) | `ZOOM` | `https://refreshqueue.com/app/api/integrations/oauth/zoom/callback` | User-managed General App. user:read:user, cloud_recording:read:list_user_recordings, cloud_recording:read:list_recording_files, cloud_recording:read:meeting_transcript, meeting:read:list_past_participants. No meeting bot. |
 | [Gmail](https://developers.google.com/workspace/gmail/api/auth/scopes) | `GOOGLE` | `https://refreshqueue.com/app/api/integrations/oauth/gmail/callback` | gmail.metadata only. Falls back to the `GOOGLE_CALENDAR` client when `GOOGLE_CLIENT_ID` is unset. Enable the Gmail API on that app and register this callback. |
 | [Outlook mail](https://learn.microsoft.com/en-us/graph/auth-v2-user) | `MICROSOFT` | `https://refreshqueue.com/app/api/integrations/oauth/outlook/callback` | Delegated Mail.Read, User.Read, and offline_access. Separate from `MICROSOFT_CALENDAR`. |
+| [Microsoft Teams](https://learn.microsoft.com/en-us/graph/auth-v2-user) | `MICROSOFT_TEAMS` | `https://refreshqueue.com/app/api/integrations/oauth/microsoft-teams/callback` | Delegated offline_access, User.Read, Calendars.Read, OnlineMeetings.Read, OnlineMeetingTranscript.Read.All, and OnlineMeetingRecording.Read.All. Falls back to `MICROSOFT` when `MICROSOFT_TEAMS` is unset. Uses the common endpoint. The two .Read.All permissions need Microsoft 365 admin consent. |
 
 For example, after registering the Google application, set its actual credentials with:
 
@@ -56,4 +57,4 @@ The remaining key/feed connectors retain their supported setup flows: Fathom, Fi
 
 ## Verification
 
-Run `npm test` and `npx tsc --noEmit`. OAuth regression tests cover all 20 exchanges, PKCE, replay/admin/workspace rejection, webhook grants, malformed authorization responses, expiration handling, task destination verification/concurrency, refresh and Bearer-vs-personal-token compatibility. Deployment tests verify that all 40 provider secrets are forwarded while unconfigured integrations stay optional. Provider API responses are simulated; live consent and account acceptance require registered apps and provider accounts.
+Run `npm test` and `npx tsc --noEmit`. OAuth regression tests cover all 21 exchanges, PKCE, replay/admin/workspace rejection, webhook grants, malformed authorization responses, expiration handling, task destination verification/concurrency, refresh and Bearer-vs-personal-token compatibility. Deployment tests verify that all 42 provider secrets are forwarded while unconfigured integrations stay optional. Provider API responses are simulated; live consent and account acceptance require registered apps and provider accounts.

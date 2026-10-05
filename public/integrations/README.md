@@ -31,5 +31,6 @@ Added October 2, 2026. Simple Icons SVGs are CC0 and use the brand color; remain
 | outlook-calendar.svg | [Source](https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/brand-icons/product/svg/outlook_48x1.svg) |
 | gmail.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Google or Simple Icons asset. |
 | outlook.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Microsoft or Simple Icons asset. |
+| teams.svg | Original geometric mark drawn for this app on October 5, 2026. It is not a copy of a Microsoft or Simple Icons asset. |
 
 Brand refresh on October 2, 2026: Zapier now uses [its official favicon](https://zapier.com/favicon.ico) instead of the earlier monochrome asset; Aircall uses [its official SVG favicon](https://aircall.io/favicon.svg). HubSpot and Make SVG fills use their catalog brand colors.

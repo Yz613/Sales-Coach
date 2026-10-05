@@ -233,6 +233,19 @@
     "refreshRequired": false,
     "docs": "https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/"
   },
+  "microsoft-teams": {
+    "label": "Microsoft",
+    "prefix": "MICROSOFT_TEAMS",
+    "authorize": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "tokenOrigin": "https://login.microsoftonline.com",
+    "tokenPath": "/common/oauth2/v2.0/token",
+    "scope": "offline_access User.Read Calendars.Read OnlineMeetings.Read OnlineMeetingTranscript.Read.All OnlineMeetingRecording.Read.All",
+    "pkce": true,
+    "encoding": "form",
+    "authentication": "body",
+    "refreshRequired": true,
+    "docs": "https://learn.microsoft.com/en-us/graph/auth-v2-user"
+  },
   "zoom": {
     "label": "Zoom",
     "prefix": "ZOOM",

@@ -1,6 +1,6 @@
 # Integration API and cost roadmap
 
-Research checked October 5, 2026. The current library contains twenty-nine implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+Research checked October 5, 2026. The current library contains thirty implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
 
 ## Current library
 
@@ -26,6 +26,7 @@ Research checked October 5, 2026. The current library contains twenty-nine imple
 | Outlook | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
 | Aircall | Completed transcripts, summaries, speaker timing, recording links | Authenticated live events; 15-minute fallback |
 | Zoom | Completed cloud recordings, transcripts, speaker timestamps, playback | OAuth; 15-minute sync |
+| Microsoft Teams | Meetings the signed-in user organized, speaker timestamps, and a short recording when one is available | OAuth; 15-minute sync. 30-day window. |
 
 Each card opens a dedicated setup page. Credentials are encrypted, jobs are durable and retryable, calls are deduplicated, and source filters include all call connectors. [Setup instructions](REVENUE_WORKSPACE.md).
 
@@ -64,7 +65,7 @@ Effort estimates are engineering estimates for one experienced developer using t
 | 23 | Salesloft | People/accounts, activity/call history and entitled conversation assets; OAuth and cost-aware paging. | Sales subscription / quote; **600 API cost units/minute/team**. Cost units are a throughput budget, not a dollar tariff. No separate request tariff found. [Rate budgets](https://developers.salesloft.com/docs/platform/api-basics/rate-limits/). | Medium–hard: **3–5 weeks**. |
 | 24 | Google Meet / Drive | Existing conference records, participants, transcripts and recording artifact references; OAuth and authorized Drive access. | Standard Meet API use is currently no-cost; higher quota charges are planned for late 2026. Eligible Workspace recording/transcription plan needed. Transcript entries expire from Meet API after **30 days**; Drive artifacts have their own retention. [Quotas](https://developers.google.com/workspace/meet/api/guides/limits), [artifacts](https://developers.google.com/workspace/meet/api/guides/artifacts). | Hard: **3–5 weeks**, plus verification if applicable. |
 | 25 | Salesforce | Accounts, contacts, opportunities, activities, associations and configurable fields; OAuth, incremental sync and bulk backfill. | API included with Enterprise/Unlimited/Developer/Performance. Professional requires the Web Services API add-on; quote needed. API-request capacity depends on edition/licenses. [API editions](https://help.salesforce.com/s/articleView?id=000005140&language=en_US&type=1). | Hard: **3–6 weeks**, longer for writeback/custom mappings. |
-| 26 | Microsoft Teams | Existing meeting transcripts/recordings through Graph; admin consent, access policies, notifications and renewals. | Teams APIs have been **unmetered since August 25, 2025**. M365/Teams licenses still apply; meeting AI insights have separate Copilot requirements. [Current billing](https://learn.microsoft.com/en-us/graph/metered-api-list), [transcript access](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts). | Hard: **3–6 weeks**, plus tenant administrator setup. |
+| 26 | **Microsoft Teams — implemented** | Delegated import of online meetings the signed-in user organized, with VTT transcripts and a short recording. Calendar lookup, then JoinWebUrl. | Teams meeting APIs have been **unmetered since August 25, 2025**. A Microsoft 365 license and admin consent for the transcript and recording permissions still apply. [Current billing](https://learn.microsoft.com/en-us/graph/metered-api-list), [transcript access](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts). | Implemented for the organizer’s own meetings. Application-only access, channel meetings, and live notifications remain later work. |
 | 27 | **Gmail — implemented** | Per-user mailbox metadata and a short snippet for threads that match a deal contact or account domain. Scope gmail.metadata. Reuses GOOGLE_CLIENT_ID or the existing Google Calendar OAuth client. Full bodies are not requested or stored. | No ordinary per-request tariff confirmed. The metadata scope is restricted; a public server-side app can require independent security assessment, priced by the assessor. [Scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). | Implemented for matching snippets on deal timelines. Gmail history watches and full-body storage remain later work. |
 | 28 | LinkedIn Sales Navigator | Authorized SNAP profile/CRM matching only, after partnership approval. | Sales Navigator subscription does **not** grant unrestricted API access. SNAP access/terms require LinkedIn approval; price not publicly confirmed. [Access](https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access), [sales sync](https://learn.microsoft.com/en-us/linkedin/sales/sync-services/getting-started). | Very hard: **6+ weeks** of engineering after access; approval has no reliable ETA. |
 
@@ -132,13 +133,40 @@ The same Zoom account that owns the app can install the development build and co
 
 [OAuth](https://developers.zoom.us/docs/integrations/oauth/), [granular scopes](https://developers.zoom.us/docs/integrations/oauth-scopes-granular/), [list recordings](https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/recordingsList).
 
+## Microsoft Teams meetings
+
+The connector uses delegated Microsoft Graph access for the signed-in user. It does not use application permissions, so a Teams application access policy is not required. It imports online meetings that user organized. It does not join live meetings and it does not read channel messages or files.
+
+Sign-in uses the **common** authority (`https://login.microsoftonline.com/common`), the same endpoint as Outlook mail. The Outlook mail app is registered for multiple organizations and personal Microsoft accounts. Azure AD rejects that app on the `/organizations` endpoint. Transcripts and recordings still require a **work or school** account. Personal `outlook.com`, `hotmail.com`, `live.com`, and `msn.com` accounts can finish common-endpoint sign-in, and the connector then refuses them with a setup error instead of importing an empty library.
+
+Meeting discovery probes `getAllTranscripts` and `getAllRecordings` delta once. Microsoft Graph documents those list functions as application-only. A 400 or 403 is remembered on the connection so later 15-minute syncs do not repeat the refusal. The fallback reads `calendarView` for the window, keeps timed online meetings with a Teams join link that the user organized, and resolves each meeting with `GET /me/onlineMeetings?$filter=JoinWebUrl eq '…'`. The call id is the Graph online meeting id.
+
+The first sync and **Import history** use the last 30 days. A later sync overlaps one day before the previous success. A meeting with an empty transcript list is skipped and can arrive on a later sync. A 403 on the transcript list is shown on the connection so a missing admin grant is visible. Speaker names and cue times are read from the WebVTT file. Participant emails match CRM contacts, and a deal links when it is associated with that contact. A recording up to 20 MB is copied into the encrypted recording store. Larger or missing recordings still leave the transcript.
+
+Production prefers `MICROSOFT_TEAMS_CLIENT_ID` and `MICROSOFT_TEAMS_CLIENT_SECRET`. When those are unset, the connector reuses `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. The Outlook calendar variables do not enable Teams. The redirect URL is `{PUBLIC_APP_URL}/app/api/integrations/oauth/microsoft-teams/callback`. Add the Teams callback and the delegated permissions below to that Entra app. Use the secret value, not its ID. If neither pair is set, the sign-in button stays disabled and starting sign-in returns a configuration error.
+
+Delegated permissions:
+
+- `offline_access` — user consent, used to refresh access in the background
+- `User.Read` — user consent, identifies the mailbox
+- `Calendars.Read` — user consent, lists calendar meetings
+- `OnlineMeetings.Read` — user consent, resolves a meeting from its join link. This is not `OnlineMeetings.ReadWrite` or `OnlineMeetings.Read.All`
+- `OnlineMeetingTranscript.Read.All` — **admin consent required**
+- `OnlineMeetingRecording.Read.All` — **admin consent required**
+
+`User.Read`, `Calendars.Read`, `OnlineMeetings.Read`, and `offline_access` can be granted by the user unless the tenant disables user consent. A Microsoft 365 administrator must grant the two `.Read.All` permissions. Do not add `Chat.Read`, `Files.Read`, `Sites.Read`, call records, or application permissions for this connector.
+
+OAuth and Graph failures log the provider status and response body on the worker with tokens removed. The connection banner includes the safe reason, including an admin-consent refusal.
+
+[Delegated auth](https://learn.microsoft.com/en-us/graph/auth-v2-user), [list transcripts](https://learn.microsoft.com/en-us/graph/api/onlinemeeting-list-transcripts), [get transcript content](https://learn.microsoft.com/en-us/graph/api/calltranscript-get), [list recordings](https://learn.microsoft.com/en-us/graph/api/onlinemeeting-list-recordings).
+
 ## Further integration work
 
 1. Extend Close with CRM objects. Slack alerts, Fireflies call ingestion and Pipedrive CRM reads are implemented.
 2. Zoom host cloud-recording ingestion is implemented. Calendly, Google and Outlook scheduling context is implemented. Account-wide Zoom admin ingestion and recording-completed webhooks are still open.
 3. Add Dialpad/RingCentral based on customers' existing phone systems. Aircall transcript ingestion is implemented.
 4. Add Apollo and Avoma/Otter only where entitlement and credit budgets make sense.
-5. Microsoft and Google mail timelines are implemented as metadata plus a short snippet. Salesforce and enterprise engagement suites remain later work, when a customer is ready to test their schema and permissions.
+5. Microsoft and Google mail timelines are implemented as metadata plus a short snippet. Microsoft Teams organizer transcripts are implemented. Salesforce and enterprise engagement suites remain later work, when a customer is ready to test their schema and permissions.
 6. Treat LinkedIn as a partner-access project; do not substitute scraping for the authorized API.
 
 This order is an engineering recommendation based on API shape, access friction and reuse of the current code.
@@ -169,6 +197,7 @@ Configure operator application credentials before users can use calendar sign-in
 | Outlook Calendar | MICROSOFT_CALENDAR_CLIENT_ID, MICROSOFT_CALENDAR_CLIENT_SECRET | /app/api/integrations/oauth/outlook-calendar/callback | Register a Web application in Microsoft Entra. Choose account types compatible with the common endpoint (multiple organizational tenants, optionally personal accounts). Delegated User.Read, Calendars.Read and offline_access. Use the secret value, not its ID. |
 | Calendly | CALENDLY_CLIENT_ID, CALENDLY_CLIENT_SECRET | /app/api/integrations/oauth/calendly/callback | Create a public OAuth application with users:read and scheduled_events:read. A personal access token remains available for private/account-owner connections. |
 | Zoom | ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET | /app/api/integrations/oauth/zoom/callback | Create a user-managed General App. Scopes: user:read:user, cloud_recording:read:list_user_recordings, cloud_recording:read:list_recording_files, cloud_recording:read:meeting_transcript, meeting:read:list_past_participants. Do not add meeting-bot or :admin scopes for this connector. |
+| Microsoft Teams | MICROSOFT_TEAMS_CLIENT_ID, MICROSOFT_TEAMS_CLIENT_SECRET. Falls back to MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET when the Teams pair is unset. | /app/api/integrations/oauth/microsoft-teams/callback | Entra web app on the common endpoint (the Outlook mail app is multitenant plus personal accounts, which `/organizations` rejects). Delegated offline_access, User.Read, Calendars.Read, OnlineMeetings.Read, OnlineMeetingTranscript.Read.All, and OnlineMeetingRecording.Read.All. A Microsoft 365 admin must consent to the two .Read.All permissions. Work or school accounts only for transcripts. |
 
 Prefix each callback path with the exact PUBLIC_APP_URL origin. For example, https://coach.example.com/app/api/integrations/oauth/google-calendar/callback. For local testing, use http://localhost:3000 consistently and register that exact callback origin and port. Calendly Sandbox specifically permits HTTP on localhost. Leave PUBLIC_APP_URL blank locally to use the request origin. Sign-in initiates from an authenticated workspace admin; callback completion requires the same admin, active workspace and browser within ten minutes. Token refresh needs the same operator application credentials used to connect. All three providers use PKCE; database leases serialize token refresh across workers to preserve single-use rotated tokens.
 
