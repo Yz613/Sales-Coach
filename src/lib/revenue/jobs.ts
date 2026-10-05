@@ -18,6 +18,7 @@ import { integrationTool, isCallTool, isCalendarTool, isTaskTool } from "../inte
 import { taskProviderPage } from "../integrations/tasks";
 import { storeExternalTask, executeTaskExport, TaskDeliveryError } from "./tasks";
 import { executeCallExport, ExportDeliveryError } from "./exports";
+import { executePropertyWrite, PropertyWriteError } from "./property-writes";
 import type { TaskProvider } from "./types";
 import { calendarProviderPage, fetchCalendlyMeeting, normalizeCalendlyEvent } from "../integrations/calendars";
 import { authorizedSecrets, OAuthReconnectError } from "../integrations/oauth";
@@ -29,7 +30,7 @@ import { relinkConversations } from "./crm";
 import { stableId, RevenueError } from "./security";
 import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider } from "./types";
 
-type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call";
+type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "write-crm-properties";
 export async function enqueueJob(input: { kind: JobKind; connectionId?: string; callId?: string; payload?: unknown; key: string }) {
   await ensureRevenueSchema();
   const orgId = currentTenantId(); const id = stableId("job", orgId, input.kind, input.key); const now = new Date().toISOString();
@@ -80,6 +81,7 @@ async function executeJob(job: any) {
   if (job.kind === "notify-slack") return sendSlackJob(connection, job);
   if (job.kind === "export-task") return executeTaskExport(connection, parseJson<{ exportId: string }>(job.payload, {} as any).exportId);
   if (job.kind === "export-call") return executeCallExport(connection, parseJson<{ exportId: string }>(job.payload, {} as any).exportId);
+  if (job.kind === "write-crm-properties") return executePropertyWrite(connection, parseJson<{ writeId: string }>(job.payload, {} as any).writeId);
   if (job.kind === "calendar-event") {
     if (connection.provider !== "calendly") throw new RevenueError("Invitee import needs a Calendly connection.");
     const meeting = await fetchCalendlyMeeting(connection.secrets.token, parseJson<any>(job.payload, {}));
@@ -231,7 +233,7 @@ export async function processJobs(orgId?: string, limit = 2, jobIds?: string[]) 
       await db.update(processingJobs).set({ status: "completed", result: JSON.stringify(result), payload: "{}", leaseToken: null, leaseUntil: null, lastError: null, updatedAt: new Date().toISOString() }).where(and(eq(processingJobs.id, job.id), eq(processingJobs.leaseToken, token))).run();
       outcomes.push({ id: job.id, status: "completed" });
     } catch (err) {
-      const permanent = err instanceof OAuthReconnectError || err instanceof TaskDeliveryError || err instanceof ExportDeliveryError || (err instanceof ProviderError && [400, 401, 403, 404, 422].includes(err.providerStatus) && !(job.kind === "fetch-call" && err.providerStatus === 404)) || (err as any)?.status === 402;
+      const permanent = err instanceof OAuthReconnectError || err instanceof TaskDeliveryError || err instanceof ExportDeliveryError || err instanceof PropertyWriteError || (err instanceof ProviderError && [400, 401, 403, 404, 422].includes(err.providerStatus) && !(job.kind === "fetch-call" && err.providerStatus === 404)) || (err as any)?.status === 402;
       const failed = permanent || job.attempts >= 5;
       const message = err instanceof RevenueError || (err as any)?.code === "QUOTA_EXCEEDED" || (err as any)?.code === "PAYMENT_REQUIRED" ? (err as Error).message : "Processing failed. Retry the job or check server diagnostics.";
       const delay = err instanceof ProviderError ? Math.max(err.retryAfterSeconds, 30 * 2 ** job.attempts) : 30 * 2 ** job.attempts;

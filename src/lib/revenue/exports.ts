@@ -47,6 +47,10 @@ export async function queueIntegrationEvents(event: "call.imported" | "call.revi
     const config = parseJson<ConnectionConfig>(row.config, {} as ConnectionConfig);
     if (isAutomation(row.provider) && config.outboundConfigured && (event === "call.imported" ? config.outboundOnImported : config.outboundOnReviewed))
       await queueCallExport(row.id, callId, "integration-worker", undefined, event, `${event}:${eventKey}`);
+    if (row.provider === "hubspot" && event === "call.reviewed") {
+      const { queueReviewedCallProperties } = await import("./property-writes");
+      await queueReviewedCallProperties(row.id, callId);
+    }
     if (isCrm(row.provider) && event === "call.reviewed" && config.exportReviewed) {
       const targets = await db.select().from(crmRecords).where(and(eq(crmRecords.orgId, currentTenantId()), eq(crmRecords.connectionId, row.id), inArray(crmRecords.id, parseJson<string[]>(meta?.crmRecordIds, [])))).all();
       // Prefer the deal timeline; one note per linked record and call prevents duplicate reviews.

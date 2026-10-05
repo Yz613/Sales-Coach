@@ -23,10 +23,14 @@ export interface ProviderInsights {
   metrics: { name: string; value: number }[]; speakers: { name: string; seconds: number }[]; outcome: string;
 }
 export interface SyncCursor { kind?: number; after?: string; pageCount?: number; createdAfter?: string; syncStartedAt?: string; windowStart?: string; windowEnd?: string; hostEmail?: string; hostName?: string; stages?: Record<string, { label: string; closed: boolean }>; complete?: boolean; full?: boolean }
+export const HUBSPOT_PROPERTY_FIELDS = ["summary", "score", "nextSteps", "forecastCategory"] as const;
+export type HubspotPropertyField = typeof HUBSPOT_PROPERTY_FIELDS[number];
+export interface HubspotPropertyMapping { source: HubspotPropertyField; object: "deal" | "contact"; property: string }
 export interface ConnectionConfig { autoSync: boolean; autoEvaluate: boolean; defaultStage: string; webhookId?: string; webhookUrl?: string; webhookError?: string; lastWebhookAt?: string; portalId?: string;
   calendarId?: string; userUri?: string; accountEmail?: string; accountName?: string; notifyReviewed?: boolean; notifyClips?: boolean; notifyLowScore?: boolean; lowScoreThreshold?: number; lastNotifiedAt?: string;
   targetLabel?: string; titleProperty?: string; pendingSetup?: boolean; pendingAutoSync?: boolean; authMethod?: "oauth";
   exportReviewed?: boolean; outboundConfigured?: boolean; outboundOnImported?: boolean; outboundOnReviewed?: boolean;
+  propertyMappings?: HubspotPropertyMapping[]; writePropertiesOnReview?: boolean;
 }
 export interface CrmRecord {
   id: string; connectionId: string; provider: string; externalId: string; kind: string; name: string;

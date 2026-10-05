@@ -6,7 +6,7 @@ Connect and sync tools as a workspace admin under **Admin → Integrations**. Op
 
 1. Connect the CRM using its in-app guide and click **Sync now**. Confirm a known contact, company, and deal appear under **Deals**.
 2. Grant note creation permission before exporting:
-   - **HubSpot:** add `crm.objects.contacts.write` to your app/service-key permissions alongside the existing companies, contacts, and deals read scopes. Ensure the integration identity can access the destination records. [HubSpot's create-note example and permission](https://developers.hubspot.com/blog/how-to-write-cron-jobs-in-hubspot-to-take-time-based-action-on-crm-data).
+   - **HubSpot notes:** add `crm.objects.contacts.write` to your app/service-key permissions alongside the existing companies, contacts, and deals read scopes. Ensure the integration identity can access the destination records. [HubSpot's create-note example and permission](https://developers.hubspot.com/blog/how-to-write-cron-jobs-in-hubspot-to-take-time-based-action-on-crm-data).
    - **Pipedrive:** use an API token for a user who can add notes to the intended deals/people/organizations. The export uses the Notes API. [Pipedrive Notes](https://developers.pipedrive.com/docs/api/v1/Notes).
    - **Attio:** grant `note:read-write`, `object_configuration:read`, and `record_permission:read`, and make the destination record accessible to the token. [Attio create-note permissions](https://docs.attio.com/rest-api/endpoint-reference/notes/create-a-note).
 3. Open a call. Under **CRM context**, verify the correct matched record; link the intended deal if needed.
@@ -14,6 +14,22 @@ Connect and sync tools as a workspace admin under **Admin → Integrations**. Op
 5. For automatic delivery, enable **Export when a manager marks a call reviewed** on the CRM integration page. Future manager reviews export to linked deals, or linked contacts/companies when no deal is linked. Enabling it does not backfill older reviews.
 
 Each connection/call/target combination exports one note. Subsequent sends reuse that delivery; they do not create a fresh note or edit the existing note. An export with `uncertain` status may have reached the CRM. Inspect the record before clicking **Check destination and retry**, and confirm only if the note is absent. `failed` usually means missing write permissions or an inaccessible destination; fix that before retrying. Disconnecting or deleting a call cancels pending work; already-created remote notes are retained.
+
+## HubSpot property updates
+
+1. In HubSpot, create the deal or contact properties you want Sales Coach to fill. Copy each internal name (lowercase letters, numbers, and underscores).
+2. Grant write scopes in addition to the read scopes used for import:
+   - Deal properties: `crm.objects.deals.write`
+   - Contact properties: `crm.objects.contacts.write`
+   - Notes, if you also export timelines: `crm.objects.contacts.write`
+3. For OAuth, add `crm.objects.deals.write` to the HubSpot app, set `HUBSPOT_CLIENT_ID` and `HUBSPOT_CLIENT_SECRET` on the installation, and reconnect the workspace so the new scope is granted. No new environment variable is required. Service keys and private-app tokens need the write scopes selected in HubSpot; reconnect if the token was issued without them.
+4. Open **Admin → Integrations → HubSpot**. Under **Update HubSpot properties**, map one or more of coaching summary, coaching score, next steps, and forecast category to a deal or contact. Forecast category maps only to deals. Save the mapping. Members cannot save mappings or send updates.
+5. Enable **Update mapped properties when a manager marks a call reviewed or saves a deal forecast**, or leave it off and use **Update HubSpot properties** on a call's **Send to your tools** card.
+6. Mark a linked call reviewed, or save the deal's forecast category. Open **HubSpot property updates** and wait for `completed`. The same coaching values are not sent again. Changing the score, summary, next steps, or category sends one new update.
+
+Score is written as a number from 0 to 10. Summary and next steps are plain text. Forecast category is written as Pipeline, Best case, Commit, or Omitted. Mapping `hs_manual_forecast_category` writes HubSpot's values PIPELINE, BEST_CASE, COMMIT, and OMIT. Deal name, stage, amount, close date, owner, and contact email cannot be selected. Close dates, amounts, and probabilities are not sent.
+
+An `uncertain` update may already have changed HubSpot. Compare the record before **Check HubSpot and retry**, and confirm only when the values were not updated. `failed` usually means the scope, property name, or allowed values need a fix. Disconnecting, deleting the call, unlinking the record, removing the review, or turning the opt-in off cancels pending work. Values already stored in HubSpot remain. Pipedrive, Attio, and Salesforce are not updated by this mapping.
 
 ## Slack and Discord
 

@@ -346,7 +346,7 @@ export default function MarketingLanding() {
             })}
           </div>
           <p className="mt-6 max-w-3xl text-sm text-[#6e6e73] leading-relaxed">
-            There is no meeting bot in this release. HubSpot is an import, and Sales Coach does not write notes or scores back.
+            There is no meeting bot in this release. HubSpot can import your CRM and, when an admin maps them, update a call note or selected deal and contact properties after review.
             Risk flags are rules, not a win forecast. Speaker stats are transcript word share, not measured talk-time.
           </p>
           <p className="mt-3 text-sm text-[#6e6e73]">
