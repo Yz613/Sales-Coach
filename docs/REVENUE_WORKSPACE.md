@@ -10,6 +10,7 @@
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
 - Deal execution: manager forecast categories and probabilities, due next steps, evidence-linked MEDDICC qualification, buyer engagement, and conflict-safe reviews.
 - Ask: natural-language questions on a call or a deal, answered from that transcript set with timestamped quotes that seek playback.
+- Structured scorecards: reusable ordered questions with optional weights, pass/fail or 1–5 scales, a stored weighted overall score, manual or filtered auto-apply, and manager visibility. Linked questions follow the coaching rubric and manager corrections.
 - Forecast: calendar month/quarter and CRM owner filters, currency-separated won/committed/upside/weighted totals, targets, immutable submissions, and historical comparison. [Details and limitations](DEAL_FORECASTING.md).
 - Integrations: twenty-seven tool cards with individual connection guides; seven native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
@@ -130,6 +131,24 @@ Retention is disabled by default. When enabled it uses the call date, including 
 
 Human corrections appear on the reviewed call's scorecard. The original AI evaluation, dashboard ranks and historical analytics are preserved. Corrections are not yet recalculated into aggregate coaching statistics.
 
+## Structured scorecards
+
+Managers build reusable scorecards in Admin → Scorecards. The coaching library links there as well. A scorecard is an ordered list of questions. Each question is pass/fail or a 1–5 rating and can carry an optional weight. A blank weight counts as 1. The overall score is the weighted average of answered questions, from 0 to 100, and it is stored on the call. Pass is 100, fail is 0, and a 1–5 rating contributes that number divided by 5, scaled to 100. Unanswered questions stay out of the average until a manager scores them.
+
+Apply a scorecard to one call from the call review, or turn on auto-apply. Auto-apply runs when a call is uploaded or imported, and again for recent calls when the scorecard is saved. A call matches when each filter that has a selection matches: goal team, script stage, and source. A blank filter matches every value of that kind. Archived scorecards stop auto-apply. Calls that already have the scorecard are left in place.
+
+Who can see the scores is set on the scorecard:
+
+- Managers: workspace admins.
+- Managers and the rep: admins and the rep on that call.
+- Anyone who can open the call: the same people who can already open the conversation.
+
+Other people do not receive the scores. Scoring and submitting stay with managers.
+
+A question can link to a coaching rubric metric such as pain, budget, decision, or script adherence. Applying the scorecard copies the current rubric result, including a manager correction when one exists. The original evaluation is not replaced. Later corrections on that coaching metric update the linked answer and the stored overall score. A score entered on the structured scorecard is also recorded as a manager correction on the linked coaching metric, using the existing correction history. Removing that correction restores the rubric suggestion on the structured question.
+
+The tables are additive: `scorecard_templates`, `scorecard_questions`, `scorecard_applications`, and `scorecard_answers`. They are created with the other revenue migrations. `migrations/0004_scorecards.sql` is the explicit file.
+
 ## Scope of this release
 
 Risk flags are visible rules: absent conversations, no recent conversation, a passed close date or missing open next steps. They are not trained win-probability forecasts. Currency totals are kept separate.
@@ -146,7 +165,7 @@ Remaining major Gong capabilities include independent meeting recording bots, un
 
 ## Verification
 
-The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, and Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance). Existing regression tests and production/type builds should be run before release:
+The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance), and structured scorecards (weighted overall scores, team/script/source auto-apply, rubric and correction sync, visibility, and tenant isolation). Existing regression tests and production/type builds should be run before release:
 
     npm test
     npx tsc --noEmit

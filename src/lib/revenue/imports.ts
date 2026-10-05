@@ -38,5 +38,7 @@ export async function importMeeting(connection: { id: string; provider?: string;
     const { queueIntegrationEvents } = await import("./exports");
     await queueIntegrationEvents("call.imported", callId, callId);
   }
+  const { autoApplyScorecardsForCall } = await import("../scorecards");
+  await autoApplyScorecardsForCall(callId);
   return { callId, inserted: inserted.length > 0, deleted: false };
 }

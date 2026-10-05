@@ -1153,6 +1153,8 @@ export async function insertCall(values: {
     ...values,
     orgId: tenantId(),
   }).run();
+  const { autoApplyScorecardsForCall } = await import("../scorecards");
+  await autoApplyScorecardsForCall(values.id);
 }
 
 const BACKFILL_KEY = "tenant_backfill_org_id";

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Plug,
   Briefcase,
+  ClipboardList,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import TeamSwitcher from "./TeamSwitcher";
@@ -87,6 +88,7 @@ export default function Navigation() {
     { label: "Forecast", href: "/forecast", icon: BarChart3 },
     { label: "Call scorecards", href: "/calls", icon: PhoneCall },
     { label: "Coaching library", href: "/library", icon: BookOpen },
+    { label: "Scorecards", href: "/admin/scorecards", icon: ClipboardList },
     { label: "Integrations", href: "/admin/integrations", icon: Plug },
     { label: "Data & privacy", href: "/admin/privacy", icon: ShieldCheck },
     { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },

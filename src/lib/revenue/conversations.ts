@@ -176,11 +176,18 @@ export async function updateConversation(auth: AuthUser, call: Call, body: any) 
         rubricVersion,
         metadata: metadataStr,
       };
-      await db.insert(scoreOverrides).values(values).onConflictDoUpdate({ target: scoreOverrides.id, set: values }).run(); break;
+      await db.insert(scoreOverrides).values(values).onConflictDoUpdate({ target: scoreOverrides.id, set: values }).run();
+      const { applyCorrectionToScorecards } = await import("../scorecards");
+      await applyCorrectionToScorecards(call.id, metricKey, score, actorName(auth));
+      break;
     }
-    case "removeOverride":
+    case "removeOverride": {
       if (!auth.isAdmin) throw new RevenueError("Only an admin can correct a score.", 403);
-      await db.delete(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id), eq(scoreOverrides.metricKey, String(body.metricKey)))).run(); break;
+      await db.delete(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id), eq(scoreOverrides.metricKey, String(body.metricKey)))).run();
+      const { resyncScorecardAfterCorrectionRemoved } = await import("../scorecards");
+      await resyncScorecardAfterCorrectionRemoved(call.id, String(body.metricKey));
+      break;
+    }
     case "addAction": {
       const items = parseJson<ActionItem[]>(meta.actionItems, []); if (items.length >= 100) throw new RevenueError("This call already has 100 action items.");
       items.push({ id: randomUUID(), description: textInput(body.description, "Action item", 1000), completed: false, assignee: textInput(body.assignee || "", "Assignee", 200, false) });
