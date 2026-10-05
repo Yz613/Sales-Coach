@@ -6,7 +6,8 @@
 - Call review: imported summaries, participants, action items and CRM context; timestamped comments; reviewed status; manager score corrections with reasons.
 - Playback: protected uploaded audio with byte ranges; on-demand Fathom video/audio downloads with short-lived URLs; timestamp seeking and bounded clip playback.
 - Coaching library: saved call ranges organized into named collections, with the same access rules as their source calls.
-- Topics: configurable keyword/phrase trackers, speaker filters and timestamped matches. Speaker activity reports transcript word share and questions.
+- Topics: configurable keyword/phrase trackers and concept trackers. Concept trackers describe an idea, such as a pricing objection, and the workspace model marks matching moments with timestamps. Speaker activity reports transcript word share and questions.
+- Alert streams: subscriptions for a tracker hit, keyword, low script score, or linked deal stage. Delivery uses connected Slack or Discord channels and an in-app list. No email mailbox is required.
 - Deals: HubSpot companies, contacts, deals, pipeline stages, associations and currency totals; conversation timelines, next steps and explainable risk flags.
 - Deal execution: manager forecast categories and probabilities, due next steps, evidence-linked MEDDICC qualification, buyer engagement, and conflict-safe reviews.
 - Ask: natural-language questions on a call or a deal, answered from that transcript set with timestamped quotes that seek playback.
@@ -80,7 +81,7 @@ Native call periodic sync uses a 24-hour overlap around the last successful sync
 
 ### Scheduling and coaching alerts
 
-- **Slack:** connect a customer-provided incoming webhook URL for a fixed channel. No message is sent on connect. Enable reviewed-call summaries, coaching clips, or low script adherence scores in the connection settings; the threshold defaults to below 5/10. Send test message is an explicit action. Alerts use durable jobs, respect disabled preferences and disconnection, and retry failures. Messages contain summaries and links rather than transcripts; shared Slack channels can see the summaries. Delivery is at least once: a crash after Slack accepts a message may cause a retry. Set PUBLIC_APP_URL to include links to calls.
+- **Slack:** connect a customer-provided incoming webhook URL for a fixed channel. No message is sent on connect. Enable reviewed-call summaries, coaching clips, or low script adherence scores in the connection settings; the threshold defaults to below 5/10. Alert streams on Conversations are a separate subscription and can also post to this channel when a tracker, keyword, score, or deal stage matches. Send test message is an explicit action. Alerts use durable jobs, respect disabled preferences and disconnection, and retry failures. Stream delivery follows the stream's own channel choice rather than the reviewed/clip/score checkboxes. Messages contain summaries and links rather than transcripts; shared Slack channels can see the summaries. Delivery is at least once: a crash after Slack accepts a message may cause a retry. Set PUBLIC_APP_URL to include links to calls.
 - **Calendly:** personal access token for a customer's own account, or OAuth for public distribution. Imports scheduled events, active invitees, and event cancellations from the authenticated user's schedule. User and scheduled-event read scopes are required. Polls every 15 minutes; Calendly webhook registration is not part of this release.
 - **Google Calendar:** sign in with Google and allow calendar read access. Imports the authenticated account's primary calendar, including recurring instances. The operator must first configure a Google OAuth application and enable the Calendar API.
 - **Outlook Calendar:** sign in with Microsoft and allow delegated User.Read, Calendars.Read and offline_access permissions. Imports the default calendar, including recurring instances, using calendarView in UTC. Tenant administrator consent may apply. The registered Microsoft application must support the intended account types.
@@ -115,6 +116,8 @@ For a new installation initialize schema.sql first. New revenue tables are addit
 
     npx wrangler d1 execute sales-coach-db --remote --file=./schema.sql
     npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0001_revenue.sql
+    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0004_hubspot_property_writes.sql
+    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0005_concept_trackers.sql
 
 Set INTEGRATION_ENCRYPTION_KEY and INTEGRATION_CRON_SECRET with wrangler secret put. Set PUBLIC_APP_URL to the public HTTPS origin in the worker's environment. The cron in wrangler.jsonc fires every five minutes and invokes the protected job runner internally. It requires both PUBLIC_APP_URL and INTEGRATION_CRON_SECRET. Do not expose the cron secret in client configuration.
 
@@ -134,7 +137,7 @@ Human corrections appear on the reviewed call's scorecard. The original AI evalu
 
 Risk flags are visible rules: absent conversations, no recent conversation, a passed close date or missing open next steps. They are not trained win-probability forecasts. Currency totals are kept separate.
 
-Trackers perform literal keyword/phrase matching. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
+Keyword trackers perform literal keyword/phrase matching. Concept trackers send the timestamped transcript and the manager's description to the model configured in Settings. A hit is stored only when the quoted words appear in that turn, with the turn's timestamp. Creating a tracker or stream queues scans for the 40 most recent calls; the background worker finishes the rest. Each concept scan of a call uses one evaluation credit and records the estimated model cost on the job. Streams that only check keywords, scores, stages, or hits already stored do not call the model. Transcript word share is not actual talk time. Untimed uploads have estimated timestamps. Clips save bounded references to a recording or transcript; they are not newly rendered media files or public share links.
 
 ## Ask
 
@@ -142,11 +145,11 @@ On a call, Ask answers from that call's transcript. Each quote seeks playback at
 
 Empty transcripts and calls that are too short to quote return an explanation and do not call the provider. Each question uses the workspace AI provider key already saved for coaching and one credit from the evaluation allowance. Members can ask about calls they can already open. Deal questions require workspace admin access and stay inside that team's linked conversations.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, email timelines, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Call and deal questions with transcript citations, manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, email timelines, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Concept trackers, filter-based alert streams, call and deal questions with transcript citations, manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 
-The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, and Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance). Existing regression tests and production/type builds should be run before release:
+The automated suite covers OAuth state replay/tenant/browser binding and refresh rotation, calendar cancellation reconciliation and attendee matching, Slack opt-in/retry/revocation, concept-tracker hits, alert-stream delivery, Aircall transcript events, provider pagination, duplicate imports, CRM relinking, webhook signatures and freshness, encrypted credential binding, tenant access, search, clips, corrections, action items, recording download status, retry backoff, expired leases, retention, deletion, and Ask questions (call visibility, deal linkage, empty and short transcripts, and the evaluation allowance). Existing regression tests and production/type builds should be run before release:
 
     npm test
     npx tsc --noEmit
@@ -158,6 +161,6 @@ The main test command uses a fresh temporary SQLite database and removes it afte
 
 Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub and GitLab import tasks from one selected destination. Administrators can select an open coaching action item in the connection screen and explicitly send it as a new task. Delivery records and source-call links remain visible there. Status refreshes from the source; it does not complete the local coaching action. Failed snapshots preserve existing data. Uncertain create outcomes require checking the destination before retrying.
 
-Discord uses a channel webhook for opt-in reviewed-call, clip and low-score alerts, with mentions disabled. Its test button sends a real message.
+Discord uses a channel webhook for opt-in reviewed-call, clip and low-score alerts, with mentions disabled. Its test button sends a real message. Alert streams can also post to that webhook when the stream includes Discord.
 
 [Full setup and verification](TASK_INTEGRATIONS.md). [Stress test coverage](INTEGRATION_TESTING.md).

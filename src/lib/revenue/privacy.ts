@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "../db";
-import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents, taskExports, externalTasks, integrationExports, crmPropertyWrites, callProviderInsights } from "../db/schema";
+import { calls, callMetadata, conversationClips, conversationComments, scoreOverrides, evaluations, processingJobs, repSnapshots, deletedImports, auditEvents, taskExports, externalTasks, integrationExports, crmPropertyWrites, callProviderInsights, aiTrackerHits, streamNotifications } from "../db/schema";
 import { currentTenantId, runWithTenant } from "../tenant";
 import { getSetting, setSetting, getCoachLessons, deleteCoachLesson } from "../db/service";
 import { deleteCallAudio } from "../callAudioStore";
@@ -19,7 +19,7 @@ export async function deleteConversation(id: string, actor: string) {
   await db.update(processingJobs).set({ status: "cancelled", payload: "{}", result: null, leaseToken: null, leaseUntil: null }).where(and(eq(processingJobs.orgId, orgId), eq(processingJobs.callId, id))).run();
   // Storage deletion happens first: a storage outage leaves a retryable call instead of orphaned media.
   if (row.audioUrl) await deleteCallAudio(id);
-  for (const table of [conversationClips, conversationComments, scoreOverrides, callMetadata, evaluations, callProviderInsights, integrationExports, crmPropertyWrites]) await db.delete(table).where(and(eq(table.orgId, orgId), eq(table.callId, id))).run();
+  for (const table of [conversationClips, conversationComments, scoreOverrides, callMetadata, evaluations, callProviderInsights, integrationExports, crmPropertyWrites, aiTrackerHits, streamNotifications]) await db.delete(table).where(and(eq(table.orgId, orgId), eq(table.callId, id))).run();
   await db.delete(taskExports).where(and(eq(taskExports.orgId, orgId), eq(taskExports.callId, id))).run();
   await db.update(externalTasks).set({ callId: null }).where(and(eq(externalTasks.orgId, orgId), eq(externalTasks.callId, id))).run();
   for (const lesson of await getCoachLessons()) if (lesson.sourceCallId === id) await deleteCoachLesson(lesson.id);

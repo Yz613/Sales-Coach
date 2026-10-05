@@ -295,7 +295,7 @@ export default function MarketingLanding() {
               {
                 icon: Library,
                 title: "Coaching clips and topics",
-                body: "Save a time range into a named collection. Track phrases, and see word share and questions from the transcript.",
+                body: "Save a time range into a named collection. Track phrases or a concept such as a pricing objection, and alert Slack, Discord, or the app when a saved filter matches.",
               },
               {
                 icon: Building2,

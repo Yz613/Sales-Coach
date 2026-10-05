@@ -51,8 +51,8 @@ const BLURBS: Record<IntegrationTool["id"], string> = {
   airtable: "Coaching follow-ups in a selected table.",
   github: "Coaching follow-ups as issues in a selected repository.",
   gitlab: "Coaching follow-ups as issues in a selected project.",
-  slack: "Opt-in alerts for reviewed calls, coaching clips, and low scores.",
-  discord: "Opt-in alerts for reviewed calls, coaching clips, and low scores.",
+  slack: "Opt-in alerts for reviewed calls, clips, low scores, and saved streams.",
+  discord: "Opt-in alerts for reviewed calls, clips, low scores, and saved streams.",
   zapier: "Bring in completed call transcripts, or send summaries and next steps to a Zap.",
   make: "Bring in completed call transcripts, or send coaching events to a scenario.",
 };

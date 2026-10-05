@@ -180,6 +180,32 @@ export const conversationTrackers = sqliteTable("conversation_trackers", {
   keywords: text("keywords").notNull(), speaker: text("speaker").notNull().default("any"), createdAt: text("created_at").notNull(),
 });
 
+export const aiTrackers = sqliteTable("ai_trackers", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), name: text("name").notNull(),
+  concept: text("concept").notNull(), speaker: text("speaker").notNull().default("any"),
+  enabled: integer("enabled").notNull().default(1), createdAt: text("created_at").notNull(),
+});
+
+export const aiTrackerHits = sqliteTable("ai_tracker_hits", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), trackerId: text("tracker_id").notNull(),
+  callId: text("call_id").notNull(), startSeconds: integer("start_seconds").notNull(),
+  speaker: text("speaker").notNull(), quote: text("quote").notNull(), reason: text("reason").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+});
+
+export const alertStreams = sqliteTable("alert_streams", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), name: text("name").notNull(),
+  filter: text("filter").notNull(), notifySlack: integer("notify_slack").notNull().default(0),
+  notifyDiscord: integer("notify_discord").notNull().default(0), notifyInApp: integer("notify_in_app").notNull().default(1),
+  enabled: integer("enabled").notNull().default(1), createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull(),
+});
+
+export const streamNotifications = sqliteTable("stream_notifications", {
+  id: text("id").primaryKey(), orgId: text("org_id").notNull(), streamId: text("stream_id").notNull(),
+  callId: text("call_id").notNull(), title: text("title").notNull(), body: text("body").notNull(),
+  startSeconds: integer("start_seconds"), readAt: text("read_at"), createdAt: text("created_at").notNull(),
+});
+
 export const savedSearches = sqliteTable("saved_searches", {
   id: text("id").primaryKey(), orgId: text("org_id").notNull(), userId: text("user_id").notNull(),
   name: text("name").notNull(), filters: text("filters").notNull(), createdAt: text("created_at").notNull(),

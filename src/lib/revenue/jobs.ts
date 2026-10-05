@@ -23,6 +23,7 @@ import type { TaskProvider } from "./types";
 import { calendarProviderPage, fetchCalendlyMeeting, normalizeCalendlyEvent } from "../integrations/calendars";
 import { authorizedSecrets, OAuthReconnectError } from "../integrations/oauth";
 import { sendSlackJob } from "../integrations/slack";
+import { scanAlertJob } from "./alerts";
 import { storeScheduledMeeting } from "./meetings";
 import { getConnection } from "./connections";
 import { importMeeting, importedCallId } from "./imports";
@@ -30,7 +31,7 @@ import { relinkConversations } from "./crm";
 import { stableId, RevenueError } from "./security";
 import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider } from "./types";
 
-type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "write-crm-properties";
+type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "scan-alerts" | "write-crm-properties";
 export async function enqueueJob(input: { kind: JobKind; connectionId?: string; callId?: string; payload?: unknown; key: string }) {
   await ensureRevenueSchema();
   const orgId = currentTenantId(); const id = stableId("job", orgId, input.kind, input.key); const now = new Date().toISOString();
@@ -75,6 +76,7 @@ async function executeJob(job: any) {
     await recordEvaluationUsage(auth, credits);
     return { evaluated: call.id };
   }
+  if (job.kind === "scan-alerts") return scanAlertJob(job);
   const connection = await getConnection(job.connectionId);
   if (connection.config.pendingSetup) throw new RevenueError("Choose a task destination before using this integration.", 409);
   connection.secrets = await authorizedSecrets(connection);
