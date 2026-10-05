@@ -26,11 +26,11 @@ const hooks = { slack: "https://hooks.slack.com/services/T1/B1/secret", discord:
 const permanent = new Set(["clickup", "attio", "github"]);
 const jsonProviders = new Set(["clickup", "notion", "monday"]);
 const basicProviders = new Set(["calendly", "pipedrive", "notion", "airtable", "slack", "discord", "zoom"]);
-test("all 18 account sign-ins exchange codes using each provider's contract and reject replay", async () => {
+test("all 20 account sign-ins exchange codes using each provider's contract and reject replay", async () => {
   const { startOAuth, finishOAuth, oauthAvailability, authorizedSecrets } = await import("./oauth");
   const { runWithTenant } = await import("../tenant");
-  assert.equal(Object.keys(OAUTH_APPS).length, 18);
-  assert.equal(INTEGRATION_TOOLS.filter(tool => tool.oauth).length, 18);
+  assert.equal(Object.keys(OAUTH_APPS).length, 20);
+  assert.equal(INTEGRATION_TOOLS.filter(tool => tool.oauth).length, 20);
   for (const ready of Object.values(oauthAvailability())) assert.equal(ready, true);
   await runWithTenant("org-sign-in", async () => {
     for (const [provider, app] of Object.entries(OAUTH_APPS) as [OAuthProvider, typeof OAUTH_APPS[OAuthProvider]][]) {
@@ -46,6 +46,9 @@ test("all 18 account sign-ins exchange codes using each provider's contract and 
         assert.match(authorize.searchParams.get("scope") || "", /cloud_recording:read:meeting_transcript/);
         assert.equal(authorize.searchParams.get("code_challenge_method"), "S256");
       }
+      if (provider === "google-calendar" || provider === "gmail") assert.equal(authorize.searchParams.get("access_type"), "offline");
+      if (provider === "gmail") assert.match(authorize.searchParams.get("scope") || "", /gmail\.metadata/);
+      if (provider === "outlook") assert.match(authorize.searchParams.get("scope") || "", /Mail\.Read/);
       const previous = global.fetch;
       global.fetch = async (input, init) => {
         assert.equal(String(input), app.tokenOrigin + app.tokenPath);

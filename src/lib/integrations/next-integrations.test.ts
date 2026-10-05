@@ -5,7 +5,7 @@ import { fork } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { INTEGRATION_TOOLS, isCallTool, isCalendarTool } from "./catalog";
+import { INTEGRATION_TOOLS, isCallTool, isCalendarTool, isEmailTool } from "./catalog";
 import { graphPagePath, normalizeGoogleEvent, normalizeOutlookEvent } from "./calendars";
 import { slackWebhook } from "./slack";
 
@@ -74,9 +74,10 @@ async function vendorFetch(input: any, init?: RequestInit) {
 }
 async function withVendors(fn: () => Promise<void>) { const original = global.fetch; global.fetch = vendorFetch; try { await fn(); } finally { global.fetch = original; } }
 
-test("twenty-seven providers classify schedules and alerts separately from transcript ingestion", () => {
-  assert.equal(INTEGRATION_TOOLS.length, 27);
-  for (const provider of ["calendly", "google-calendar", "outlook-calendar"]) { assert.ok(isCalendarTool(provider)); assert.ok(!isCallTool(provider)); }
+test("twenty-nine providers classify schedules, mail, and alerts separately from transcript ingestion", () => {
+  assert.equal(INTEGRATION_TOOLS.length, 29);
+  for (const provider of ["calendly", "google-calendar", "outlook-calendar"]) { assert.ok(isCalendarTool(provider)); assert.ok(!isCallTool(provider)); assert.ok(!isEmailTool(provider)); }
+  for (const provider of ["gmail", "outlook"]) { assert.ok(isEmailTool(provider)); assert.ok(!isCallTool(provider)); assert.ok(!isCalendarTool(provider)); }
   assert.ok(!isCallTool("slack")); assert.ok(isCallTool("aircall")); assert.ok(isCallTool("zoom")); assert.ok(isCallTool("zapier"));
   for (const url of ["https://example.com/services/T1/B1/secret", "https://hooks.slack.com/services/T1/B1/secret?token=x", "http://hooks.slack.com/services/T1/B1/secret", "https://user:pass@hooks.slack.com/services/T1/B1/secret"]) assert.throws(() => slackWebhook(url));
   assert.equal(slackWebhook("https://hooks.slack.com/services/T1/B1/secret").hostname, "hooks.slack.com");

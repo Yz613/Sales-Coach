@@ -13,7 +13,7 @@
 - Ask: natural-language questions on a call or a deal, answered from that transcript set with timestamped quotes that seek playback.
 - Structured scorecards: reusable ordered questions with optional weights, pass/fail or 1–5 scales, a stored weighted overall score, manual or filtered auto-apply, and manager visibility. Linked questions follow the coaching rubric and manager corrections.
 - Forecast: calendar month/quarter and CRM owner filters, currency-separated won/committed/upside/weighted totals, targets, immutable submissions, and historical comparison. [Details and limitations](DEAL_FORECASTING.md).
-- Integrations: twenty-seven tool cards with individual connection guides; seven native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
+- Integrations: twenty-nine tool cards with individual connection guides; seven native call connectors (Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Zoom), three CRM connectors (HubSpot, Pipedrive, Attio), three scheduling connectors (Calendly, Google Calendar, Outlook Calendar), two mailbox connectors (Gmail, Outlook), Slack/Discord coaching alerts, ten task connectors, and two incoming transcript feeds (Zapier, Make). Credentials are verified where applicable and encrypted at rest. Signed live feeds, history imports, connection controls, source filters, and job activity are included.
 - Background work: persistent jobs, atomic leases, pagination, expired-lease recovery, backoff, failed-job retries and opt-in automatic coaching.
 - Data management: workspace retention settings, manual purge, permanent local deletion, import tombstones, JSON/VTT/SRT exports and an audit log.
 - Storage: tenant-scoped local recordings or Cloudflare R2. Existing uploads and evaluations remain available.
@@ -120,6 +120,7 @@ For a new installation initialize schema.sql first. New revenue tables are addit
     npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0004_hubspot_property_writes.sql
     npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0005_concept_trackers.sql
     npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0006_scorecards.sql
+    npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0007_email_messages.sql
 
 Set INTEGRATION_ENCRYPTION_KEY and INTEGRATION_CRON_SECRET with wrangler secret put. Set PUBLIC_APP_URL to the public HTTPS origin in the worker's environment. The cron in wrangler.jsonc fires every five minutes and invokes the protected job runner internally. It requires both PUBLIC_APP_URL and INTEGRATION_CRON_SECRET. Do not expose the cron secret in client configuration.
 
@@ -153,6 +154,8 @@ A question can link to a coaching rubric metric such as pain, budget, decision, 
 
 The tables are additive: `scorecard_templates`, `scorecard_questions`, `scorecard_applications`, and `scorecard_answers`. They are created with the other revenue migrations. `migrations/0006_scorecards.sql` is the explicit file.
 
+Mailbox snippets use `email_messages` (`migrations/0007_email_messages.sql`). The same statement is in the automatic revenue migrations. The table stores direction, participants, subject, a short snippet, and time. It does not store message bodies.
+
 ## Scope of this release
 
 Risk flags are visible rules: absent conversations, no recent conversation, a passed close date or missing open next steps. They are not trained win-probability forecasts. Currency totals are kept separate.
@@ -161,11 +164,11 @@ Keyword trackers perform literal keyword/phrase matching. Concept trackers send 
 
 ## Ask
 
-On a call, Ask answers from that call's transcript. Each quote seeks playback at that timestamp. On a deal, Ask uses only conversations linked to that deal. When the linked set is too long for one question, the newest conversations that fit are used and the rest are reported as omitted. There is no separate search index.
+On a call, Ask answers from that call's transcript. Each quote seeks playback at that timestamp. On a deal, Ask uses conversations linked to that deal and, when email capture is on, matching mailbox snippets. Email citations open the message on the deal timeline. When the linked set is too long for one question, the newest conversations that fit are used and the rest are reported as omitted. There is no separate search index.
 
 Empty transcripts and calls that are too short to quote return an explanation and do not call the provider. Each question uses the workspace AI provider key already saved for coaching and one credit from the evaluation allowance. Members can ask about calls they can already open. Deal questions require workspace admin access and stay inside that team's linked conversations.
 
-Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, email timelines, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Concept trackers, filter-based alert streams, call and deal questions with transcript citations, manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
+Remaining major Gong capabilities include independent meeting recording bots, universal OAuth installs, arbitrary CRM field writeback for Pipedrive, Attio, and Salesforce, library-wide semantic search, calibrated predictive forecasting, true acoustic talk-time/diarization, coaching programs, richer activity analytics and enterprise provisioning. Matching Gmail and Outlook snippets on deal timelines are available now. Concept trackers, filter-based alert streams, call and deal questions with transcript citations, manager-led forecasting, manually reviewed deal playbooks, and mapped HubSpot property updates are available now. See INTEGRATIONS.md for the researched connector roadmap.
 
 ## Verification
 

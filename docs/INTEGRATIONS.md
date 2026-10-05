@@ -1,6 +1,6 @@
 # Integration API and cost roadmap
 
-Research checked October 5, 2026. The current library contains twenty-seven implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
+Research checked October 5, 2026. The current library contains twenty-nine implemented connection paths. Automated checks use provider fixtures; customer credentials and account entitlements are required for live-account acceptance.
 
 ## Current library
 
@@ -22,6 +22,8 @@ Research checked October 5, 2026. The current library contains twenty-seven impl
 | Calendly | Scheduled meetings, active invitees, cancellations | PAT or OAuth; 15-minute snapshots |
 | Google Calendar | Primary calendar events, recurring instances, attendees | OAuth/refresh; 15-minute snapshots |
 | Outlook Calendar | Default calendar events, recurring instances, attendees | OAuth/refresh; 15-minute snapshots |
+| Gmail | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
+| Outlook | Matching mailbox metadata and a short snippet on deal timelines | OAuth; 15-minute sync. Bodies are not stored. |
 | Aircall | Completed transcripts, summaries, speaker timing, recording links | Authenticated live events; 15-minute fallback |
 | Zoom | Completed cloud recordings, transcripts, speaker timestamps, playback | OAuth; 15-minute sync |
 
@@ -57,13 +59,13 @@ Effort estimates are engineering estimates for one experienced developer using t
 | 18 | Otter | Enterprise conversation/transcript/audio export; user bearer API keys and cursor pagination. | Public API is **Enterprise only**, with vendor quote. **10 requests/sec**; no separate request tariff found. [API access](https://help.otter.ai/hc/en-us/articles/36130822688279-Otter-ai-Public-API). | Medium: **2–3 weeks**, with a substantial commercial gate. |
 | 19 | Apollo | CRM account/contact matching first; optional conversation info/export. Scoped API keys and entitlement checks. | Credit billing is endpoint-specific: org search **1 credit/page**, conversation info/export **1 credit with AI insights**, **0 otherwise** in current docs. Dollar value and throughput depend on plan; enrichment adds costs. [Credit pricing](https://docs.apollo.io/docs/api-pricing), [limits](https://docs.apollo.io/reference/rate-limits), [keys](https://docs.apollo.io/docs/create-api-key). | Medium: **2–4 weeks**. |
 | 20 | Gong migration | Import customer-authorized call/transcript history into the normalized conversation model. | Requires customer's Gong API access and contract; no public per-request price confirmed. Transcript scope api:calls:read:transcript. Recording rights must be checked separately. [Transcript API](https://help.gong.io/apidocs/retrieve-transcripts-of-calls-by-date-or-callids-v2callstranscript-2). | Medium: **2–4 weeks**, plus account access. |
-| 21 | Outlook Mail | Read-only customer email timeline with Mail.Read, incremental queries, consent and subscription renewal. | Standard Graph mail endpoints are not listed as metered; account licenses and hosting separate. [Graph](https://learn.microsoft.com/en-us/graph/overview), [metered APIs](https://learn.microsoft.com/en-us/graph/metered-api-list). | Medium–hard: **3–5 weeks**. |
+| 21 | **Outlook Mail — implemented** | Per-user mailbox metadata and a short snippet for threads that match a deal contact or account domain. Delegated Mail.Read, User.Read, and offline_access. Workspace on/off switch and domain exclusions. Full bodies are not requested or stored. | Standard Graph mail endpoints are not listed as metered; account licenses and hosting separate. [Graph](https://learn.microsoft.com/en-us/graph/overview), [metered APIs](https://learn.microsoft.com/en-us/graph/metered-api-list). | Implemented for matching snippets on deal timelines. Push subscriptions and full-body storage remain later work. |
 | 22 | Outreach | Prospects/accounts, sales activities and eligible Kaia recordings/transcripts; OAuth refresh and ownership mapping. | Sales subscription / vendor quote. General API limit **10,000 requests/hour/user**; Kaia reads **3/sec and 6,000/day/org**. No separate request tariff found. [Official limits and setup](https://developers.outreach.io/api/getting-started). | Medium–hard: **3–5 weeks**. |
 | 23 | Salesloft | People/accounts, activity/call history and entitled conversation assets; OAuth and cost-aware paging. | Sales subscription / quote; **600 API cost units/minute/team**. Cost units are a throughput budget, not a dollar tariff. No separate request tariff found. [Rate budgets](https://developers.salesloft.com/docs/platform/api-basics/rate-limits/). | Medium–hard: **3–5 weeks**. |
 | 24 | Google Meet / Drive | Existing conference records, participants, transcripts and recording artifact references; OAuth and authorized Drive access. | Standard Meet API use is currently no-cost; higher quota charges are planned for late 2026. Eligible Workspace recording/transcription plan needed. Transcript entries expire from Meet API after **30 days**; Drive artifacts have their own retention. [Quotas](https://developers.google.com/workspace/meet/api/guides/limits), [artifacts](https://developers.google.com/workspace/meet/api/guides/artifacts). | Hard: **3–5 weeks**, plus verification if applicable. |
 | 25 | Salesforce | Accounts, contacts, opportunities, activities, associations and configurable fields; OAuth, incremental sync and bulk backfill. | API included with Enterprise/Unlimited/Developer/Performance. Professional requires the Web Services API add-on; quote needed. API-request capacity depends on edition/licenses. [API editions](https://help.salesforce.com/s/articleView?id=000005140&language=en_US&type=1). | Hard: **3–6 weeks**, longer for writeback/custom mappings. |
 | 26 | Microsoft Teams | Existing meeting transcripts/recordings through Graph; admin consent, access policies, notifications and renewals. | Teams APIs have been **unmetered since August 25, 2025**. M365/Teams licenses still apply; meeting AI insights have separate Copilot requirements. [Current billing](https://learn.microsoft.com/en-us/graph/metered-api-list), [transcript access](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts). | Hard: **3–6 weeks**, plus tenant administrator setup. |
-| 27 | Gmail | Read-only customer email timeline and account/deal matching; OAuth, incremental history and watch renewal. | No ordinary per-request tariff confirmed. Mail read scopes are restricted; a public server-side app handling that data can require independent security assessment, priced by the assessor. [Scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). | Hard: **3–6 weeks**, plus approval/assessment time. |
+| 27 | **Gmail — implemented** | Per-user mailbox metadata and a short snippet for threads that match a deal contact or account domain. Scope gmail.metadata. Reuses GOOGLE_CLIENT_ID or the existing Google Calendar OAuth client. Full bodies are not requested or stored. | No ordinary per-request tariff confirmed. The metadata scope is restricted; a public server-side app can require independent security assessment, priced by the assessor. [Scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). | Implemented for matching snippets on deal timelines. Gmail history watches and full-body storage remain later work. |
 | 28 | LinkedIn Sales Navigator | Authorized SNAP profile/CRM matching only, after partnership approval. | Sales Navigator subscription does **not** grant unrestricted API access. SNAP access/terms require LinkedIn approval; price not publicly confirmed. [Access](https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access), [sales sync](https://learn.microsoft.com/en-us/linkedin/sales/sync-services/getting-started). | Very hard: **6+ weeks** of engineering after access; approval has no reliable ETA. |
 
 ## HubSpot details
@@ -136,7 +138,7 @@ The same Zoom account that owns the app can install the development build and co
 2. Zoom host cloud-recording ingestion is implemented. Calendly, Google and Outlook scheduling context is implemented. Account-wide Zoom admin ingestion and recording-completed webhooks are still open.
 3. Add Dialpad/RingCentral based on customers' existing phone systems. Aircall transcript ingestion is implemented.
 4. Add Apollo and Avoma/Otter only where entitlement and credit budgets make sense.
-5. Add Microsoft/Google mail, Salesforce and enterprise engagement suites when there is a customer ready to test their specific schema and permissions.
+5. Microsoft and Google mail timelines are implemented as metadata plus a short snippet. Salesforce and enterprise engagement suites remain later work, when a customer is ready to test their schema and permissions.
 6. Treat LinkedIn as a partner-access project; do not substitute scraping for the authorized API.
 
 This order is an engineering recommendation based on API shape, access friction and reuse of the current code.
@@ -173,6 +175,31 @@ Prefix each callback path with the exact PUBLIC_APP_URL origin. For example, htt
 These integrations use the existing background worker / Cloudflare cron. Run npm run worker locally or use the configured hosted scheduler. GitHub Actions forwards configured optional OAuth credentials into Worker secrets. Calendar polling imports bounded snapshots rather than push subscriptions, so it does not require webhook channels to be renewed. The added scheduling, OAuth-state and refresh-lease tables are additive SQLite/D1 migrations and initialize automatically. Google/Outlook import timed meetings; all-day entries are excluded.
 
 Automated coverage uses simulated provider responses. Live acceptance still requires customer credentials, OAuth application configuration, consent and provider account entitlements. Slack alerts remain off by default and are sent only after configuration or an explicit test action. Slack currently supports a fixed channel via incoming webhook; public Slack OAuth installs and interactive bot actions are separate scope.
+
+## Email capture setup
+
+Gmail and Outlook add a merged call and email timeline on each deal. Sync stores message metadata and a short snippet (at most 280 characters) when a participant matches a deal contact email or a company domain linked to that deal. Full message bodies are not requested and are not written to D1. Consumer mailbox domains such as gmail.com and outlook.com never match an account by themselves; an exact contact address still can.
+
+Capture is off until a workspace admin turns it on under Admin → Settings. The same card holds a domain exclusion list (one domain per line, or separated by spaces or commas, at most 50). Excluded domains are skipped for both contact and company matches. Turning capture off hides stored snippets and stops new syncs. Disconnecting a mailbox deletes the snippets from that connection.
+
+Privacy follows the mailbox owner. Managers and admins see every connected mailbox. A rep sees only messages from the mailbox they connected. Each connection records that user as the owner.
+
+The sign-in button stays disabled when the operator credentials are missing. Starting OAuth in that state returns a configuration error and does not crash the page. Gmail uses `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. When those are unset, it reuses the Google Calendar OAuth client (`GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET`). Add the Gmail callback and the `gmail.metadata` scope to that Google app. Outlook uses its own app: `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`. The Outlook Calendar variables do not enable mail.
+
+| Provider | Operator variables | Registered callback path | Permissions / setup |
+| --- | --- | --- | --- |
+| Gmail | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET. Falls back to GOOGLE_CALENDAR_CLIENT_ID and GOOGLE_CALENDAR_CLIENT_SECRET. | /app/api/integrations/oauth/gmail/callback | Enable the Gmail API. Web application OAuth client. Scope `https://www.googleapis.com/auth/gmail.metadata` only, so bodies cannot be authorized. Request offline access. The metadata scope is restricted; a public app may need Google verification. |
+| Outlook | MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET | /app/api/integrations/oauth/outlook/callback | Microsoft Entra web app on the common endpoint. Delegated `Mail.Read`, `User.Read`, and `offline_access`. `User.Read` supplies the mailbox address used for sent versus received. Use the secret value, not its ID. |
+
+Prefix each callback with the exact `PUBLIC_APP_URL` origin. Sign-in starts from an authenticated workspace admin, same as the calendar connectors. Both providers use PKCE. The background worker syncs a connected mailbox every 15 minutes while capture is on. The first window is 30 days; Import history uses 180 days. An admin can also choose Sync now. Pages that no longer match, or that disappear inside the window, are removed at the end of that sync.
+
+`migrations/0007_email_messages.sql` creates `email_messages`. The same statements run with the other revenue migrations on local SQLite and D1. Apply the file explicitly on an existing remote database:
+
+```bash
+npx wrangler d1 execute sales-coach-db --remote --file=./migrations/0007_email_messages.sql
+```
+
+Deal Ask Anything includes those snippets when capture is on. A citation links to `/deals/<id>#email-<message id>` and quotes the stored snippet. Gmail and Outlook also appear on Admin → Integrations and the public `/integrations` page.
 
 Sources: [Google OAuth](https://developers.google.com/identity/protocols/oauth2/web-server), [Google event listing](https://developers.google.com/workspace/calendar/api/v3/reference/events/list), [Microsoft authorization](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow), [Microsoft calendar view](https://learn.microsoft.com/en-us/graph/api/user-list-calendarview?view=graph-rest-1.0), [Calendly authentication](https://developer.calendly.com/how-to-authenticate-with-personal-access-tokens), [Calendly invitees](https://developer.calendly.com/api-docs/calendly-api/scheduled-events/list-event-invitees), [Aircall reference](https://developers.aircall.io/api-references), [Slack webhooks](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
 

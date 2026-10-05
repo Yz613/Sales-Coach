@@ -12,6 +12,8 @@ import {
 import { maskSecret } from "@/lib/inviteMail";
 import { loadBillingAccount, saveBillingSettings, summarizeBilling } from "@/lib/billingQuota";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
+import { emailCaptureSettings, saveEmailCaptureSettings } from "@/lib/integrations/email";
+import { RevenueError } from "@/lib/revenue/security";
 
 async function GETHandler() {
   try {
@@ -21,6 +23,7 @@ async function GETHandler() {
     const resendKey = (await getSetting("resend_api_key"))?.trim() || "";
     const envResend = Boolean(process.env.RESEND_API_KEY?.trim());
     const billing = summarizeBilling(await loadBillingAccount(auth));
+    const emailCapture = await emailCaptureSettings();
 
     return NextResponse.json({
       hasKey: ai.hasKey,
@@ -35,6 +38,7 @@ async function GETHandler() {
       maskedResendKey: resendKey ? maskSecret(resendKey) : envResend ? "env RESEND_API_KEY" : "",
       resendFromEnv: envResend,
       billing,
+      emailCapture,
     });
   } catch (err: any) {
     const gated = workspaceErrorResponse(err);
@@ -78,6 +82,10 @@ async function POSTHandler(req: Request) {
       await setSetting("active_model", modelForProvider(providerId, current));
     }
 
+    if (body.emailCaptureEnabled !== undefined || body.emailExcludedDomains !== undefined) {
+      await saveEmailCaptureSettings({ enabled: body.emailCaptureEnabled, domains: body.emailExcludedDomains });
+    }
+
     if (body.overageOptIn !== undefined) {
       await saveBillingSettings(auth, {
         overageOptIn: typeof body.overageOptIn === "boolean" ? body.overageOptIn : undefined,
@@ -86,6 +94,7 @@ async function POSTHandler(req: Request) {
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });
   } catch (err: any) {
+    if (err instanceof RevenueError) return NextResponse.json({ error: err.message }, { status: err.status });
     const gated = workspaceErrorResponse(err);
     if (gated.status !== 500) return gated;
     return NextResponse.json({ error: err.message }, { status: 500 });
