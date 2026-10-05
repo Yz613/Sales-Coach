@@ -50,7 +50,7 @@ async function seedConnection(provider: string, orgId: string, config = {}) {
   const { db, ensureRevenueSchema } = await import("../db"); const { integrationConnections } = await import("../db/schema"); const { encryptCredentials } = await import("../revenue/security");
   await ensureRevenueSchema(); const id = `${orgId}-${provider}`;
   const secrets = { token: provider === "gong" ? "key" : "token", apiSecret: "secret", webhookUrl: provider === "discord" ? "https://discord.com/api/webhooks/123/token" : "https://hooks.slack.com/services/T1/B1/token", outboundWebhookUrl: provider === "zapier" ? "https://hooks.zapier.com/hooks/catch/123/token/" : "https://hook.eu1.make.com/token" };
-  await db.insert(integrationConnections).values({ id, orgId, provider, name: provider, credentials: encryptCredentials(secrets, `${orgId}:${id}`), config: JSON.stringify({ autoSync: false, autoEvaluate: false, defaultStage: "First Discovery", ...config }), createdAt: now, updatedAt: now }).run();
+  await db.insert(integrationConnections).values({ id, orgId, provider, name: provider, credentials: encryptCredentials(secrets, `${orgId}:${id}`), config: JSON.stringify({ writeEnabled: true, autoSync: false, autoEvaluate: false, defaultStage: "First Discovery", ...config }), createdAt: now, updatedAt: now }).run();
   return id;
 }
 async function seedCall(label: string) {

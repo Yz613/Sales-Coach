@@ -1,3 +1,4 @@
+import { untrustedEvidence, EVIDENCE_POLICY } from "./evidence";
 import type {
   CallEvaluation,
   MissedOpportunity,
@@ -108,10 +109,11 @@ export function buildClefDecisionState(input: ClefEvaluationStateInput): string 
   });
 
   const parts: string[] = [
+    EVIDENCE_POLICY,
     `=== CALL CONTEXT ===`,
     `Pipeline Stage: ${input.callStage}`,
-    `Sales Representative: ${input.repName || "Rep"}`,
-    prospectCtx ? `Prospect: ${prospectCtx}` : "",
+    untrustedEvidence("Sales representative", input.repName || "Rep"),
+    prospectCtx ? untrustedEvidence("Prospect", prospectCtx) : "",
     `Call Duration: ${duration} seconds`,
     "",
     `=== CONFIGURED METHODOLOGY: ${input.methodology.name} ===`,
@@ -151,9 +153,7 @@ export function buildClefDecisionState(input: ClefEvaluationStateInput): string 
   }
 
   parts.push(
-    `=== TRANSCRIPT ===`,
-    formattedTranscript,
-    `=== END TRANSCRIPT ===`
+    untrustedEvidence("Call transcript", formattedTranscript)
   );
 
   return parts.filter(Boolean).join("\n");
@@ -583,6 +583,7 @@ export async function explainClefScorecardWithLlm(input: {
     : stateInput.transcriptText;
 
   const explanationPrompt = `
+${EVIDENCE_POLICY}
 You are the AI Sales Coach explanation layer.
 The primary decision model (Cloudflare Clef) has ALREADY evaluated this call and returned the AUTHORITATIVE scores below.
 
@@ -605,9 +606,7 @@ NON-NEGOTIABLE INSTRUCTIONS:
    - Detail scriptDivergence and a sequential walkthrough citing the transcript.
 
 Call Transcript:
-"""
-${formattedTranscript}
-"""
+${untrustedEvidence("Call transcript", formattedTranscript)}
 
 Return valid JSON adhering to this schema:
 ${JSON.stringify({

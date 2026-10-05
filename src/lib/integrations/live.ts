@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { eq, and, sql } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "../db";
 import { integrationConnections } from "../db/schema";
@@ -73,7 +73,7 @@ export async function enableLiveFeed(id: string, actor: string, origin?: string,
   return { url, ...(provider === "fireflies" || provider === "zapier" || provider === "make" ? { token: secrets.webhookSecret } : {}) };
 }
 
-/** HubSpot app subscriptions use v1; modern deliveries use v3 with freshness checks. */
+/** Only v3 signatures authenticate both the payload and its delivery timestamp. */
 export function verifyHubspotWebhook(secret: string, headers: Headers, body: string, url: string, method = "POST", now = Date.now()): boolean {
   if (!secret) return false;
   const signature = headers.get("x-hubspot-signature-v3");
@@ -84,8 +84,7 @@ export function verifyHubspotWebhook(secret: string, headers: Headers, body: str
     const expected = createHmac("sha256", secret).update(`${method}${decoded}${body}${timestamp}`).digest("base64");
     return secureEqual(expected, signature);
   }
-  if (headers.get("x-hubspot-signature-version") !== "v1") return false;
-  return secureEqual(createHash("sha256").update(secret + body).digest("hex"), headers.get("x-hubspot-signature") || "");
+  return false;
 }
 
 export function verifyFirefliesWebhook(secret: string, headers: Headers, body: string): boolean {

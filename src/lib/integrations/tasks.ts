@@ -1,9 +1,14 @@
+import { readOnlyGitlabScope, restrictedGithubInstallation } from "./oauth-config";
 import { providerRequest, ProviderError } from "./http";
 import { RevenueError, safeExternalUrl } from "../revenue/security";
 import type { ConnectionConfig, ExternalTask, SyncCursor, TaskProvider } from "../revenue/types";
 
 const ORIGINS: Record<TaskProvider, string> = { asana: "https://app.asana.com/api/1.0", notion: "https://api.notion.com/v1", trello: "https://api.trello.com/1", clickup: "https://api.clickup.com/api/v2", monday: "https://api.monday.com/v2", linear: "https://api.linear.app", todoist: "https://api.todoist.com/api/v1", airtable: "https://api.airtable.com/v0", github: "https://api.github.com", gitlab: "https://gitlab.com/api/v4" };
 type Secrets = Record<string, string>;
+function assertTaskCredentials(provider: TaskProvider, secrets: Secrets) {
+  if (provider === "github" && (secrets.authType === "oauth" ? secrets.githubApp !== "true" : !secrets.token?.startsWith("github_pat_"))) throw new RevenueError("Reconnect with a GitHub App or fine-grained repository token.", 409);
+  if (provider === "gitlab" && (secrets.authType === "oauth" ? !readOnlyGitlabScope(secrets.grantedScope) : !secrets.projectScoped)) throw new RevenueError("Reconnect with read-only GitLab sign-in or a project access token.", 409);
+}
 const enc = encodeURIComponent;
 function headers(provider: TaskProvider, secrets: Secrets) {
   const result: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${secrets.token}` };
@@ -71,6 +76,14 @@ function targetPath(provider: TaskProvider, value: string) {
   return enc(value);
 }
 export async function verifyTaskProvider(provider: TaskProvider, secrets: Secrets): Promise<Partial<ConnectionConfig>> {
+  if (provider === "github") {
+    if (secrets.authType === "oauth") {
+      if (secrets.githubApp !== "true") throw new RevenueError("Reconnect using a GitHub App.", 409);
+      const installations = await request(provider, secrets, "/user/installations?per_page=100");
+      const allowed = list(installations.installations, provider);
+      if (!allowed.length || allowed.some(app => !restrictedGithubInstallation(app))) throw new RevenueError("The GitHub App must have only Metadata read and Issues read/write permissions.");
+    } else if (!secrets.token?.startsWith("github_pat_")) throw new RevenueError("Use a fine-grained GitHub token limited to the selected repository and Issues. Classic tokens are unsupported.");
+  }
   const target = targetPath(provider, secrets.targetId); let result: any;
   if (provider === "notion") {
     try {
@@ -98,11 +111,18 @@ export async function verifyTaskProvider(provider: TaskProvider, secrets: Secret
     const page = await request(provider, secrets, `/${enc(secrets.baseId)}/${target}?maxRecords=1`);
     list(page.records, provider); return { targetLabel: secrets.targetId };
   } else if (provider === "github") { result = await request(provider, secrets, `/repos/${target}`); if (result.has_issues === false) throw new RevenueError("Enable Issues in the selected GitHub repository."); }
-  else { result = await request(provider, secrets, `/projects/${target}`); if (result.issues_enabled === false) throw new RevenueError("Enable Issues in the selected GitLab project."); }
+  else { result = await request(provider, secrets, `/projects/${target}`);
+    if (secrets.authType !== "oauth") {
+      const user = await request(provider, secrets, "/user");
+      if (user.bot !== true || !new RegExp(`^project_${result.id}_bot_[a-zA-Z0-9]+$`).test(user.username || "")) throw new RevenueError("Use a project access token for this project. Personal and group tokens are unsupported.");
+      secrets.projectScoped = String(result.id);
+    }
+    if (result.issues_enabled === false) throw new RevenueError("Enable Issues in the selected GitLab project."); }
   if (!result || !(result.id || result.gid)) throw new RevenueError("The destination could not be verified. Check its ID and access permissions.");
   return { targetLabel: String(result.name || result.full_name || result.path_with_namespace || secrets.targetId).slice(0, 500) };
 }
 export async function taskProviderPage(provider: TaskProvider, secrets: Secrets, state: SyncCursor) {
+  assertTaskCredentials(provider, secrets);
   const target = targetPath(provider, secrets.targetId); let rows: any[]; let after: string | undefined;
   const query = new URLSearchParams(); let result: any;
   if (provider === "asana") {
@@ -140,6 +160,9 @@ export async function taskProviderPage(provider: TaskProvider, secrets: Secrets,
   return { tasks: rows.filter(raw => provider !== "github" || !raw.pull_request).map(raw => normalizeTask(provider, raw, secrets)), next: { ...state, after, pageCount: (state.pageCount || 0) + 1, complete: !after } };
 }
 export async function createProviderTask(provider: TaskProvider, secrets: Secrets, config: ConnectionConfig, title: string, description: string) {
+  assertTaskCredentials(provider, secrets);
+  if (config.writeEnabled !== true) throw new RevenueError("Enable writes for this connection before sending tasks.", 409);
+  if (provider === "gitlab" && (secrets.authType === "oauth" || !secrets.projectScoped)) throw new RevenueError("GitLab writes require a verified project access token.", 409);
   const target = targetPath(provider, secrets.targetId); let raw: any;
   if (provider === "asana") raw = (await request(provider, secrets, "/tasks?opt_fields=name,notes,completed,permalink_url", { data: { name: title, notes: description, projects: [secrets.targetId] } })).data;
   else if (provider === "notion") raw = await request(provider, secrets, "/pages", { parent: { type: "data_source_id", data_source_id: secrets.targetId }, properties: { [config.titleProperty || "Name"]: { title: [{ text: { content: title } }] } }, children: (description.match(/[\s\S]{1,2000}/g) || [""]).map(content => ({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content } }] } })) });
@@ -156,6 +179,7 @@ export async function createProviderTask(provider: TaskProvider, secrets: Secret
 export interface TaskDestination { id: string; label: string; group?: string; fields?: Record<string, string> }
 /** Browse only fixed provider endpoints. Each page is bounded; IDs never become URLs. */
 export async function taskDestinations(provider: TaskProvider, secrets: Secrets, group = "", groupId = "", cursor = "") {
+  assertTaskCredentials(provider, secrets);
   if (groupId.length > 200 || cursor.length > 1024) throw new RevenueError("Invalid destination page.");
   const encId = enc(groupId); const encCursor = enc(cursor);
   const result = (items: TaskDestination[], nextCursor?: string): { items: TaskDestination[]; nextCursor?: string } => ({ items, ...(nextCursor ? { nextCursor } : {}) });
@@ -201,6 +225,19 @@ export async function taskDestinations(provider: TaskProvider, secrets: Secrets,
     const folders = await request(provider, secrets, `/space/${encId}/folder?archived=false`);
     const lists = await request(provider, secrets, `/space/${encId}/list?archived=false`);
     return result([...choices(folders.folders, "id", "name", "folder"), ...choices(lists.lists, "id", "name")]);
+  }
+  if (provider === "github" && secrets.authType === "oauth") {
+    const page = cursor ? Number(cursor) : 1;
+    if (!Number.isInteger(page) || page < 1 || page > 1000) throw new RevenueError("Invalid repository page.");
+    if (!group) {
+      const response = await request(provider, secrets, `/user/installations?per_page=100&page=${page}`);
+      const installations = list(response.installations, provider);
+      return result(installations.map(app => ({ id: String(app.id), label: String(app.account?.login || app.id), group: "installation" })), installations.length === 100 ? String(page + 1) : undefined);
+    }
+    if (group !== "installation" || !/^\d+$/.test(groupId)) throw new RevenueError("Choose an installed GitHub account.");
+    const response = await request(provider, secrets, `/user/installations/${encId}/repositories?per_page=100&page=${page}`);
+    const repositories = list(response.repositories, provider);
+    return result(choices(repositories.filter(repo => repo.has_issues !== false && !repo.archived), "full_name", "full_name"), repositories.length === 100 ? String(page + 1) : undefined);
   }
   if (provider === "github" || provider === "gitlab") {
     const page = cursor ? Number(cursor) : 1;

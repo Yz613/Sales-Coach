@@ -1,3 +1,5 @@
+import { validateModelOutput } from "./output-validation";
+import { EVIDENCE_POLICY } from "./evidence";
 import { geminiGenerationConfig, geminiTextFromResponse, type GeminiSchemaMode } from "./gemini";
 import { extractJson } from "./json";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
@@ -46,6 +48,7 @@ async function callGemini(
         method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
+          systemInstruction: { parts: [{ text: EVIDENCE_POLICY }] },
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: geminiGenerationConfig(model, {
             responseMimeType: "application/json",
@@ -108,7 +111,7 @@ async function callOpenAiCompatible(
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "You are a sales coach. Return only valid JSON that matches the requested schema." },
+        { role: "system", content: `You are a sales coach. Return only valid JSON that matches the requested schema. ${EVIDENCE_POLICY}` },
         { role: "user", content: prompt },
       ],
       temperature: 0.2,
@@ -140,7 +143,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
     body: JSON.stringify({
       model,
       max_tokens: 8192,
-      system: "You are a sales coach. Return only valid JSON that matches the requested schema.",
+      system: `You are a sales coach. Return only valid JSON that matches the requested schema. ${EVIDENCE_POLICY}`,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -205,6 +208,7 @@ export async function completeJson(opts: {
     }
     throw new Error(parseMessage);
   }
+  validateModelOutput(parsed, responseSchema);
   const catalogModel = getModel(providerId, model) || { inputPerMTok: 0, outputPerMTok: 0 };
   const estimatedCostUsd = usage
     ? estimateCostUsd(catalogModel, usage.inputTokens, usage.outputTokens)

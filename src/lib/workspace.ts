@@ -7,7 +7,7 @@ import { TenantRequiredError, runWithTenant, resolveTenantId } from "@/lib/tenan
 import { toAppPath, stripAppBasePath } from "@/lib/public-path";
 import { hasClerkServerAuth } from "@/lib/clerk-env";
 import { assertSecureDeployment, assertMutationOrigin, assertLocalRequest, boundedRequest, privateResponse, localDevelopmentAllowed, mfaRequired, SecurityPolicyError } from "@/lib/security-policy";
-import { consumeLimit, consumeRequestLimit } from "@/lib/security-rate-limit";
+import { consumeLimit, consumeRequestLimit, assertFailureBudget, publicWebhookBudget } from "@/lib/security-rate-limit";
 import { audit } from "@/lib/revenue/connections";
 
 export class WorkspaceUnauthorizedError extends Error {
@@ -126,8 +126,15 @@ export function withPublicApi<H extends RouteHandler>(handler: H, options: { web
         assertSecureDeployment();
         await consumeLimit("public:checkout", 30);
       }
-      const bounded = ["GET", "HEAD"].includes(request.method) ? request : await boundedRequest(request, options.limit || 2 * 1024 * 1024);
+      const budget = options.webhook ? publicWebhookBudget(request) : undefined;
+      if (budget) {
+        await consumeLimit(budget.identity, budget.requests);
+        await consumeLimit(`${budget.connection}:requests`, 120);
+        await assertFailureBudget(`${budget.connection}:failures`);
+      }
+      const bounded = ["GET", "HEAD"].includes(request.method) ? request : await boundedRequest(request, Math.min(options.limit || 2 * 1024 * 1024, budget?.bodyLimit || Infinity));
       const response = await handler(bounded, ...args);
+      if (budget && response.status >= 400 && response.status !== 429) await consumeLimit(`${budget.connection}:failures`, 20);
       return privateResponse(response.status >= 500 ? workspaceErrorResponse({ status: response.status }) : response);
     } catch (error) { return privateResponse(workspaceErrorResponse(error)); }
   }) as H;

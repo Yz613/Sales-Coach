@@ -32,10 +32,12 @@ import { storeScheduledMeeting } from "./meetings";
 import { getConnection } from "./connections";
 import { importMeeting, importedCallId } from "./imports";
 import { relinkConversations } from "./crm";
+import { revokeProviderGrant } from "../integrations/revocation";
+import { decryptCredentials } from "./security";
 import { stableId, RevenueError } from "./security";
 import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider, type MailboxProvider } from "./types";
 
-type JobKind = "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "scan-alerts" | "write-crm-properties";
+type JobKind = "revoke-integration" | "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "scan-alerts" | "write-crm-properties";
 export async function enqueueJob(input: { kind: JobKind; connectionId?: string; callId?: string; payload?: unknown; key: string }) {
   await ensureRevenueSchema();
   const orgId = currentTenantId(); const id = stableId("job", orgId, input.kind, input.key); const now = new Date().toISOString();
@@ -85,6 +87,13 @@ export async function retryJob(id: string) {
 }
 
 async function executeJob(job: any) {
+  if (job.kind === "revoke-integration") {
+    const row = await db.select().from(integrationConnections).where(and(eq(integrationConnections.id, job.connectionId), eq(integrationConnections.orgId, currentTenantId()), eq(integrationConnections.status, "disconnected"))).get();
+    if (!row?.credentials) return { revoked: true };
+    await revokeProviderGrant(row.provider, decryptCredentials(row.credentials, `${row.orgId}:${row.id}`));
+    await db.update(integrationConnections).set({ credentials: "", config: "{}", lastError: null, updatedAt: new Date().toISOString() }).where(and(eq(integrationConnections.id, row.id), eq(integrationConnections.orgId, row.orgId), eq(integrationConnections.status, "disconnected"))).run();
+    return { revoked: true };
+  }
   if (job.kind === "evaluate") {
     const call = await getCallById(job.callId);
     if (!call) return { skipped: "Call was deleted." };
@@ -289,6 +298,9 @@ export async function processJobs(orgId?: string, limit = 2, jobIds?: string[]) 
 
 export async function scheduleSyncs() {
   await ensureRevenueSchema();
+  // Recover a disconnect interrupted between disabling access and enqueueing revocation.
+  const pending = await db.select().from(integrationConnections).where(and(eq(integrationConnections.status, "disconnected"), ne(integrationConnections.credentials, ""))).all();
+  for (const row of pending) await runWithTenant(row.orgId, () => enqueueJob({ kind: "revoke-integration", connectionId: row.id, key: row.id }));
   const connections = await db.select().from(integrationConnections).where(inArray(integrationConnections.status, ["connected", "error"])).all();
   for (const row of connections) {
     const config = parseJson<{ autoSync?: boolean }>(row.config, {});

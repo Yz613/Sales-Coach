@@ -211,7 +211,7 @@ export function evaluateAnswerConfidence(
 /**
  * Normalizes raw Clef answer objects into typed ClefAnswer records.
  */
-export function normalizeClefAnswer(questionId: string, raw: unknown, question?: ClefQuestion): ClefAnswer {
+function normalizeRawClefAnswer(questionId: string, raw: unknown, question?: ClefQuestion): ClefAnswer {
   if (!raw || typeof raw !== "object") {
     if (typeof raw === "number") {
       if (question?.type === "noul") {
@@ -267,7 +267,8 @@ export function normalizeClefAnswer(questionId: string, raw: unknown, question?:
 
   // Infer from question type if fields are present
   if (question?.type === "score") {
-    const scoreVal = typeof obj.value === "number" ? obj.value : 0;
+    if (typeof obj.value !== "number") throw new ClefMalformedResponseError(`Missing score for question '${questionId}'`);
+    const scoreVal = obj.value;
     return {
       type: "score",
       score: scoreVal,
@@ -277,6 +278,19 @@ export function normalizeClefAnswer(questionId: string, raw: unknown, question?:
   }
 
   throw new ClefMalformedResponseError(`Unrecognized answer structure for question '${questionId}'`, raw);
+}
+
+export function normalizeClefAnswer(questionId: string, raw: unknown, question?: ClefQuestion): ClefAnswer {
+  const answer = normalizeRawClefAnswer(questionId, raw, question);
+  const probability = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  const malformed = () => { throw new ClefMalformedResponseError(`Invalid bounded answer for question '${questionId}'`); };
+  if (question && answer.type !== question.type) malformed();
+  if (answer.confidence !== undefined && !probability(answer.confidence)) malformed();
+  if ("noul" in answer && !probability(answer.noul)) malformed();
+  if ("score" in answer && (!Number.isFinite(answer.score) || answer.score < 0 || answer.score > 10)) malformed();
+  if ("probabilities" in answer && Object.values(answer.probabilities).some(value => !probability(value))) malformed();
+  if ("choice" in answer && question?.type === "choice" && !Object.hasOwn(question.criteria, answer.choice)) malformed();
+  return answer;
 }
 
 /**

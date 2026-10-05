@@ -11,7 +11,8 @@ const SCORECARD_KEY_ENUM = [...SCORECARD_KEYS, ...MICRO_SKILL_KEYS];
  * the API emit syntactically valid JSON.
  */
 const str = { type: "string" };
-const num = { type: "number" };
+const num = { type: "number", minimum: 0 };
+const score = { type: "number", minimum: 0, maximum: 10 };
 
 const sandlerMetric = {
   type: "object",
@@ -71,7 +72,7 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
           additionalProperties: false,
           required: ["score", "feedback"],
           properties: {
-            score: num,
+            score,
             feedback: str,
           },
         },
@@ -87,7 +88,7 @@ export const EVALUATION_RESPONSE_SCHEMA: Record<string, unknown> = {
           key: { type: "string", enum: SCORECARD_KEY_ENUM },
           label: str,
           status: { type: "string", enum: ["Pass", "Incomplete", "Fail"] },
-          score: num,
+          score,
           evidence: str,
           cite: {
             type: "object",
