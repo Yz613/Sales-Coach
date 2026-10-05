@@ -135,8 +135,8 @@ function ClerkInviteTeammatesForm({
           tone: "ok",
           text:
             sent.length === 1
-              ? `Invite emailed to ${sent[0].email} from Refresh Queue. A copyable link is in Pending invites.`
-              : `Invites emailed to ${sent.length} people from Refresh Queue. Copy a link from Pending invites if someone still doesn't see it.`,
+              ? `Invite emailed to ${sent[0].email} as Sales Coach. A copyable link is in Pending invites.`
+              : `Invites emailed to ${sent.length} people as Sales Coach. Copy a link from Pending invites if someone still doesn't see it.`,
         });
         return;
       }
@@ -317,8 +317,8 @@ function ClerkInviteTeammatesForm({
       )}
       <p className="text-xs text-[#6e6e73]">
         {emailConfigured
-          ? "Invites are emailed from Refresh Queue. If that send fails, the site’s own invite mail is used. A copyable join link is also saved under Pending invites."
-          : "Invites are emailed by Refresh Queue. A copyable join link is also saved under Pending invites."}
+          ? "Invites are emailed as Sales Coach. If that send fails, the site’s own invite mail is used. A copyable join link is also saved under Pending invites."
+          : "Invites are emailed as Sales Coach. A copyable join link is also saved under Pending invites."}
       </p>
       <label className="block">
         <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[#6e6e73]">

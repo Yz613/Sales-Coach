@@ -53,6 +53,8 @@ graph TD
 
 ## Quickstart
 
+Strangers who only want Docker: [SELF-HOST.md](SELF-HOST.md) (`docker compose up --build`, Local Admin Mode, keys later, optional Clerk with `BILLING_REQUIRED=false`).
+
 ### Option 1: Local Node.js (Fastest)
 
 ```bash
@@ -84,7 +86,19 @@ If you have Docker installed, you can start Sales Coach with a single command:
 docker compose up --build
 ```
 
-Then visit [http://localhost:3000](http://localhost:3000) (marketing) or [http://localhost:3000/app](http://localhost:3000/app) (product).
+Then visit [http://localhost:3000](http://localhost:3000) (marketing; local Next redirects `/` to `/app/marketing`) or [http://localhost:3000/app](http://localhost:3000/app) (product). Step-by-step for that path: [SELF-HOST.md](SELF-HOST.md).
+
+---
+
+## Demo
+
+No GIF or screenshots are in the repo yet. Add them under `docs/` (they are not created here) and link them from this section. Suggested alt text when you do:
+
+- `Sales Coach marketing landing`
+- `Call Bank with seeded sample calls`
+- `Call evaluation with transcript and scorecard`
+
+Until those files exist, run the app and open the Call Bank. `docker compose up --build` and `npm run setup` both seed four sample calls — Marcus Vance (Apex Logistics), David Kim (Meridian BioTech), Chloe Bennett (Titan Heavy Supply), and Sarah Jenkins (Veritas Health Tech) — with transcripts and scorecards. No API key is required to read them. Pasted transcripts can be graded by the built-in rubric from Upload.
 
 ---
 
@@ -215,10 +229,12 @@ To send teammate invitations via transactional email, add a [Resend](https://res
 
 ```bash
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL="Refresh Queue <invites@refreshqueue.com>"
-INVITE_PRODUCT_NAME="Refresh Queue"
+# Leave blank until the address is on a domain you verified. example.com is ignored.
+# RESEND_FROM_EMAIL="Sales Coach <invites@example.com>"
+INVITE_PRODUCT_NAME="Sales Coach"
 ```
-*(You can also configure this anytime in Admin → Settings.)*
+
+The product name in invite mail defaults to **Sales Coach**. `invites@refreshqueue.com` is the hosted site’s sender only — do not copy it into a self-hosted `.env`. *(You can also paste a Resend key in Admin → Settings.)*
 
 ---
 

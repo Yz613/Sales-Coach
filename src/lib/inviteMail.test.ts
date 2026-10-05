@@ -1,26 +1,34 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildInviteEmail, maskSecret, resolveInviteFrom, sendInviteMail } from "./inviteMail";
+import { buildInviteEmail, inviteProductName, maskSecret, resolveInviteFrom, sendInviteMail } from "./inviteMail";
 
 describe("invite email content", () => {
   it("includes the org name, role, and accept URL", () => {
-    const email = buildInviteEmail({
-      organizationName: "Acme <Sales>",
-      acceptUrl: "https://example.com/app/accept-invite?ticket=1",
-      roleLabel: "Member",
-    });
-    assert.match(email.subject, /Acme/);
-    assert.match(email.text, /https:\/\/example.com\/app\/accept-invite\?ticket=1/);
-    assert.match(email.html, /Join Acme &lt;Sales&gt;/);
-    assert.match(email.html, /Accept invite/);
-    assert.match(email.subject, /Refresh Queue/);
-    assert.match(email.html, /Refresh Queue/);
-    assert.equal(email.html.includes(`<html lang="en">`), true);
+    const previous = process.env.INVITE_PRODUCT_NAME;
+    delete process.env.INVITE_PRODUCT_NAME;
+    try {
+      assert.equal(inviteProductName(), "Sales Coach");
+      const email = buildInviteEmail({
+        organizationName: "Acme <Sales>",
+        acceptUrl: "https://example.com/app/accept-invite?ticket=1",
+        roleLabel: "Member",
+      });
+      assert.match(email.subject, /Acme/);
+      assert.match(email.text, /https:\/\/example.com\/app\/accept-invite\?ticket=1/);
+      assert.match(email.html, /Join Acme &lt;Sales&gt;/);
+      assert.match(email.html, /Accept invite/);
+      assert.match(email.subject, /Sales Coach/);
+      assert.match(email.html, /Sales Coach/);
+      assert.equal(email.html.includes(`<html lang="en">`), true);
+    } finally {
+      if (previous === undefined) delete process.env.INVITE_PRODUCT_NAME;
+      else process.env.INVITE_PRODUCT_NAME = previous;
+    }
   });
 
   it("refuses placeholder from addresses", () => {
     assert.equal(resolveInviteFrom("Sales Coach <invites@example.com>"), null);
-    assert.equal(resolveInviteFrom("Refresh Queue <invites@refreshqueue.com>"), "Refresh Queue <invites@refreshqueue.com>");
+    assert.equal(resolveInviteFrom("Sales Coach <invites@refreshqueue.com>"), "Sales Coach <invites@refreshqueue.com>");
   });
 
   it("masks stored keys", () => {
@@ -39,7 +47,7 @@ describe("sendInviteMail", () => {
       {
         apiKey: "re_test",
         to: "alex@team.com",
-        from: "Refresh Queue <invites@refreshqueue.com>",
+        from: "Sales Coach <invites@refreshqueue.com>",
         idempotencyKey: "org-invite/inv_1",
         content: buildInviteEmail({
           organizationName: "Acme",
@@ -63,7 +71,7 @@ describe("sendInviteMail", () => {
       {
         apiKey: "re_test",
         to: "alex@team.com",
-        from: "Refresh Queue <invites@refreshqueue.com>",
+        from: "Sales Coach <invites@refreshqueue.com>",
         idempotencyKey: "org-invite/inv_2",
         content: buildInviteEmail({
           organizationName: "Acme",

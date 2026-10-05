@@ -36,8 +36,8 @@
 		"NEXT_PUBLIC_CLERK_UI_URL": "/app/__auth/assets/interface@1/ui.js",
 		"NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED": "true",
 		"BILLING_REQUIRED": "true",
-		"INVITE_PRODUCT_NAME": "Refresh Queue",
-		"RESEND_FROM_EMAIL": "Refresh Queue <invites@refreshqueue.com>"
+		"INVITE_PRODUCT_NAME": "Sales Coach",
+		"RESEND_FROM_EMAIL": "Sales Coach <invites@refreshqueue.com>"
 	},
 	"assets": {
 		"directory": ".open-next/assets",

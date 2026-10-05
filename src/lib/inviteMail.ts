@@ -6,7 +6,7 @@ export function resolveInviteFrom(fromEmail?: string | null): string | null {
 }
 
 export function inviteProductName(): string {
-  return process.env.INVITE_PRODUCT_NAME?.trim() || "Refresh Queue";
+  return process.env.INVITE_PRODUCT_NAME?.trim() || "Sales Coach";
 }
 
 export type InviteEmailContent = {
