@@ -15,6 +15,7 @@ import {
   isMarketingAppPath,
   isCheckoutPath,
   getApexAliasRedirect,
+  getApexIntegrationsRewrite,
   getApexMarketingRewrite,
 } from "./public-path";
 
@@ -113,6 +114,10 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/__clerk/npm/@clerk/clerk-js@6/dist/sdk.js", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/auth/clerk-proxy", "POST"), true);
     assert.equal(isPublicApiRoute("/app/api/calls/upload", "POST"), false);
+    assert.equal(isPublicApiRoute("/app/api/marketing/integration-request", "POST"), true);
+    assert.equal(isPublicApiRoute("/api/marketing/integration-request", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/marketing/integration-request", "GET"), false);
+    assert.equal(isPublicApiRoute("/app/api/integrations", "POST"), false);
   });
 
   it("detects API routes after stripping the base path", () => {
@@ -144,6 +149,13 @@ describe("route classifiers", () => {
     assert.equal(isMarketingAppPath("/marketing"), true);
     assert.equal(isMarketingAppPath("/app/marketing"), true);
     assert.equal(isMarketingAppPath("/"), false);
+    assert.equal(isPublicMarketingPath("/integrations"), true);
+    assert.equal(isPublicMarketingPath("/integrations/"), true);
+    assert.equal(isPublicMarketingPath("/app/integrations"), true);
+    assert.equal(isPublicMarketingPath("/app/integrations/"), true);
+    assert.equal(isMarketingAppPath("/integrations"), true);
+    assert.equal(isMarketingAppPath("/app/integrations"), true);
+    assert.equal(isPublicMarketingPath("/app/api/marketing/integration-request"), false);
   });
 
   it("redirects apex /calls, /favicon.ico, and /pricing", () => {
@@ -187,5 +199,20 @@ describe("route classifiers", () => {
     assert.equal(getApexMarketingRewrite("https://example.com/app"), null);
     assert.equal(getApexMarketingRewrite("https://example.com/app/marketing"), null);
     assert.equal(getApexMarketingRewrite("https://example.com/pricing"), null);
+    assert.equal(getApexMarketingRewrite("https://example.com/integrations"), null);
+  });
+
+  it("rewrites apex /integrations to /app/integrations", () => {
+    assert.equal(
+      getApexIntegrationsRewrite("https://refreshqueue.com/integrations?from=nav"),
+      "https://refreshqueue.com/app/integrations?from=nav"
+    );
+    assert.equal(
+      getApexIntegrationsRewrite("https://refreshqueue.com/integrations/"),
+      "https://refreshqueue.com/app/integrations"
+    );
+    assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/"), null);
+    assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/app/integrations"), null);
+    assert.equal(getApexIntegrationsRewrite("https://refreshqueue.com/integrations/fathom.png"), null);
   });
 });
