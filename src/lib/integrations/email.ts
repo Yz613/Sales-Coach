@@ -345,21 +345,31 @@ export async function mailboxProviderPage(provider: MailboxProvider, token: stri
   const index = buildMailIndex(await mailRecords(), settings.excludedDomains);
   const ownerEmail = config.accountEmail || "";
   if (provider === "gmail") {
-    const query = new URLSearchParams({ maxResults: "20", q: `after:${Math.floor(Date.parse(windowStart) / 1000)} -in:spam -in:trash -in:drafts` });
+    // gmail.metadata rejects the q search parameter. List without it and keep messages inside the window.
+    const query = new URLSearchParams({ maxResults: "20" });
     if (state.after) query.set("pageToken", gmailPageToken(state.after));
     const list = await providerRequest<any>("Gmail", GMAIL_ORIGIN, `/gmail/v1/users/me/messages?${query}`, { Authorization: `Bearer ${token}` });
     const ids = Array.isArray(list.messages) ? list.messages : [];
     const messages: { message: Omit<EmailActivity, "id" | "connectionId" | "ownerUserId" | "dealIds" | "accountIds" | "accountNames">; match: MailMatch }[] = [];
+    const windowMs = Date.parse(windowStart);
+    let sawInWindow = false;
+    let sawOlder = false;
     for (const item of ids) {
       const id = String(item?.id || "");
       if (!/^[A-Za-z0-9]+$/.test(id)) continue;
       const raw = await providerRequest<any>("Gmail", GMAIL_ORIGIN, `/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`, { Authorization: `Bearer ${token}` });
+      const labels = Array.isArray(raw?.labelIds) ? raw.labelIds.map(String) : [];
+      if (labels.includes("DRAFT") || labels.includes("SPAM") || labels.includes("TRASH")) continue;
       const message = normalizeGmailMessage(raw, ownerEmail);
       if (!message) continue;
+      const sentMs = Date.parse(message.sentAt);
+      if (!Number.isFinite(sentMs) || sentMs < windowMs) { sawOlder = true; continue; }
+      sawInWindow = true;
       const match = index.match(message.participants);
       if (match) messages.push({ message, match });
     }
-    const after = list.nextPageToken ? gmailPageToken(String(list.nextPageToken)) : undefined;
+    // Pages come back newest first. A page that is entirely older than the window ends the import.
+    const after = list.nextPageToken && !(sawOlder && !sawInWindow) ? gmailPageToken(String(list.nextPageToken)) : undefined;
     return { messages, next: { ...nextState, after, complete: !after } };
   }
   const select = "id,conversationId,subject,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isDraft";

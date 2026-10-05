@@ -110,8 +110,11 @@ test("mocked Gmail and Outlook sync stores matching snippets and respects privac
     const url = new URL(String(input));
     if (url.pathname === "/gmail/v1/users/me/profile") return Response.json({ emailAddress: "alex@example.com" });
     if (url.pathname === "/gmail/v1/users/me/messages" && !url.pathname.includes("/messages/")) {
-      return Response.json({ messages: [{ id: "match1" }, { id: "noise1" }, { id: "excluded1" }] });
+      if (url.searchParams.has("q")) throw new Error("gmail.metadata cannot use q");
+      return Response.json({ messages: [{ id: "match1" }, { id: "noise1" }, { id: "excluded1" }, { id: "draft1" }, { id: "oldmsg" }] });
     }
+    if (url.pathname.endsWith("/draft1")) return Response.json({ ...gmailMessage("draft1", "pat@acme.com", "alex@example.com", "Draft snippet that must stay out."), labelIds: ["DRAFT"] });
+    if (url.pathname.endsWith("/oldmsg")) return Response.json({ ...gmailMessage("oldmsg", "pat@acme.com", "alex@example.com", "Ancient snippet that is outside the window."), internalDate: String(Date.now() - 400 * 86400000) });
     if (url.pathname.endsWith("/match1")) return Response.json(gmailMessage("match1", "pat@acme.com", "alex@example.com", "Can we review the proposal snippet?"));
     if (url.pathname.endsWith("/noise1")) return Response.json(gmailMessage("noise1", "news@newsletter.test", "alex@example.com", "Unrelated newsletter snippet."));
     if (url.pathname.endsWith("/excluded1")) return Response.json(gmailMessage("excluded1", "boss@internal.example", "alex@example.com", "Internal only snippet."));
@@ -164,6 +167,8 @@ test("mocked Gmail and Outlook sync stores matching snippets and respects privac
       assert.equal(JSON.stringify(rows).includes("FULL BODY"), false);
       assert.equal(JSON.stringify(rows).includes("Unrelated newsletter"), false);
       assert.equal(JSON.stringify(rows).includes("Internal only"), false);
+      assert.equal(JSON.stringify(rows).includes("Draft snippet"), false);
+      assert.equal(JSON.stringify(rows).includes("Ancient snippet"), false);
       const managerView = await visibleDealEmails(admin, "deal-a");
       assert.equal(managerView.length, 2);
       assert.ok(managerView.some(email => email.direction === "inbound" && email.subject === "Hello match1"));
@@ -181,6 +186,139 @@ test("mocked Gmail and Outlook sync stores matching snippets and respects privac
     });
   } finally {
     global.fetch = original;
+  }
+});
+
+test("email capture save is not a nested form and the settings API persists it", async () => {
+  const source = fs.readFileSync(path.join(process.cwd(), "src/app/admin/settings/page.tsx"), "utf8");
+  const forms = source.match(/<\/?form\b/g) || [];
+  assert.deepEqual(forms, ["<form", "</form"]);
+  const email = source.slice(source.indexOf(">Email capture<"), source.indexOf(">Invite emails<"));
+  assert.equal(email.includes("<form"), false);
+  assert.match(email, /type="button"/);
+  assert.match(email, /saveEmailCapture/);
+
+  const { runWithAuth } = await import("../auth");
+  const { runWithTenant } = await import("../tenant");
+  const route = await import("../../app/api/admin/settings/route");
+  const save = (body: Record<string, unknown>) => runWithAuth(admin, () => route.POST(new Request("http://127.0.0.1/app/api/admin/settings", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  })));
+  const saved = await save({ emailCaptureEnabled: true, emailExcludedDomains: "internal.example" });
+  assert.equal(saved.status, 200);
+  const reload = await runWithAuth(admin, () => (route.GET as (request: Request) => Promise<Response>)(new Request("http://127.0.0.1/app/api/admin/settings")));
+  assert.equal(reload.status, 200);
+  const data = await reload.json();
+  assert.equal(data.emailCapture.enabled, true);
+  assert.deepEqual(data.emailCapture.excludedDomains, ["internal.example"]);
+  await runWithTenant("local", async () => {
+    const { getSetting } = await import("../db/service");
+    assert.equal(await getSetting("email_capture_enabled"), "1");
+  });
+  assert.equal((await save({ emailCaptureEnabled: false, emailExcludedDomains: "internal.example" })).status, 200);
+  const off = await runWithAuth(admin, () => (route.GET as (request: Request) => Promise<Response>)(new Request("http://127.0.0.1/app/api/admin/settings")));
+  assert.equal((await off.json()).emailCapture.enabled, false);
+});
+
+test("gmail consent accepts the metadata scope URL in any order and capture off does not block connect", async () => {
+  process.env.GOOGLE_CLIENT_ID = "gmail-web-client";
+  process.env.GOOGLE_CLIENT_SECRET = "gmail-web-secret";
+  const { scopeGrantIncludes, startOAuth, OAUTH_COOKIE } = await import("./oauth");
+  assert.equal(scopeGrantIncludes("https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.metadata", "https://www.googleapis.com/auth/gmail.metadata"), true);
+  assert.equal(scopeGrantIncludes("gmail.metadata", "https://www.googleapis.com/auth/gmail.metadata"), true);
+  assert.equal(scopeGrantIncludes("https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.metadata"), false);
+  const { runWithTenant } = await import("../tenant");
+  const { runWithAuth } = await import("../auth");
+  const started = await runWithTenant("local", () => startOAuth("gmail", "manager", { name: "Gmail", autoSync: true }, "https://coach.example.com"));
+  const authorize = new URL(started.url);
+  assert.equal(authorize.searchParams.get("client_id"), "gmail-web-client");
+  const redirectUri = authorize.searchParams.get("redirect_uri");
+  const logged: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { logged.push(args); };
+  const original = global.fetch;
+  let profileCalls = 0;
+  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (url.origin === "https://oauth2.googleapis.com") {
+      const params = Object.fromEntries(new URLSearchParams(String(init?.body)));
+      assert.equal(params.client_id, "gmail-web-client");
+      assert.equal(params.client_secret, "gmail-web-secret");
+      assert.equal(params.redirect_uri, redirectUri);
+      const scope = url.searchParams.get("scope-fixture") || "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.metadata";
+      return Response.json({ access_token: "gmail-access", refresh_token: "gmail-refresh", expires_in: 3600, token_type: "Bearer", scope });
+    }
+    if (url.pathname === "/gmail/v1/users/me/profile") {
+      profileCalls += 1;
+      return Response.json({ emailAddress: "yehuda@gmail.com" });
+    }
+    throw new Error(`Unexpected ${url.href}`);
+  }) as typeof fetch;
+  try {
+    const { saveEmailCaptureSettings } = await import("./email");
+    await runWithTenant("local", () => saveEmailCaptureSettings({ enabled: false, domains: "" }));
+    const { GET } = await import("../../app/api/integrations/oauth/[provider]/callback/route");
+    const { listConnections } = await import("../revenue/connections");
+    const { enqueueSync } = await import("../revenue/jobs");
+    const callback = (state: string) => runWithAuth(admin, () => GET(new Request(`http://127.0.0.1/app/api/integrations/oauth/gmail/callback?code=one-use-code&state=${state}`, {
+      headers: { cookie: `${OAUTH_COOKIE}=${state}` },
+    }), { params: Promise.resolve({ provider: "gmail" }) }));
+    const response = await callback(started.state);
+    assert.equal(response.status, 303);
+    const location = new URL(response.headers.get("location") || "");
+    assert.equal(location.pathname, "/app/admin/integrations/gmail");
+    assert.equal(location.searchParams.get("connected"), "1");
+    assert.equal(location.searchParams.get("sync"), "held");
+    assert.equal(location.searchParams.get("connectionError"), null);
+    const connections = await runWithTenant("local", () => listConnections());
+    const gmail = connections.find((row: { provider: string; id: string; config: { accountEmail?: string } }) => row.provider === "gmail");
+    assert.ok(gmail);
+    assert.equal(gmail.config.accountEmail, "yehuda@gmail.com");
+    await assert.rejects(runWithTenant("local", () => enqueueSync(gmail.id)), /email capture/i);
+
+    const denied = await runWithTenant("local", () => startOAuth("gmail", "manager", { name: "Gmail" }, "https://coach.example.com"));
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.origin === "https://oauth2.googleapis.com") {
+        return Response.json({ access_token: "gmail-access", refresh_token: "gmail-refresh", expires_in: 3600, token_type: "Bearer", scope: "https://www.googleapis.com/auth/calendar.readonly" });
+      }
+      profileCalls += 1;
+      return Response.json({ emailAddress: "should-not-run@gmail.com" });
+    }) as typeof fetch;
+    const beforeProfile = profileCalls;
+    const missing = await callback(denied.state);
+    const missingLocation = new URL(missing.headers.get("location") || "");
+    assert.match(missingLocation.searchParams.get("connectionError") || "", /did not grant Gmail metadata/);
+    assert.equal(profileCalls, beforeProfile);
+
+    const blocked = await runWithTenant("local", () => startOAuth("gmail", "manager", { name: "Gmail" }, "https://coach.example.com"));
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.origin === "https://oauth2.googleapis.com") {
+        return Response.json({ access_token: "gmail-access", refresh_token: "gmail-refresh", expires_in: 3600, token_type: "Bearer", scope: "https://www.googleapis.com/auth/gmail.metadata" });
+      }
+      return Response.json({
+        error: { code: 403, message: "Gmail API has not been used in project 999 before or it is disabled.", errors: [{ reason: "accessNotConfigured" }], status: "PERMISSION_DENIED" },
+        access_token: "ya29.super-secret-token", refresh_token: "1//refresh-secret",
+      }, { status: 403 });
+    }) as typeof fetch;
+    const failed = await callback(blocked.state);
+    const failedLocation = new URL(failed.headers.get("location") || "");
+    assert.match(failedLocation.searchParams.get("connectionError") || "", /Gmail: check the credential and required permissions/);
+    assert.match(failedLocation.searchParams.get("connectionError") || "", /Gmail API is not enabled/);
+    assert.equal((await runWithTenant("local", () => listConnections())).some((row: { name: string; status: string; config: { accountEmail?: string } }) => row.name === "Gmail" && row.status === "connected" && !row.config.accountEmail), false);
+    const diagnostic = logged.find(entry => String(entry[0]).includes("Gmail request failed"));
+    assert.ok(diagnostic);
+    assert.equal(diagnostic?.[1], 403);
+    const body = JSON.stringify(diagnostic);
+    assert.match(body, /accessNotConfigured|not been used/);
+    assert.equal(body.includes("ya29.super-secret-token"), false);
+    assert.equal(body.includes("1//refresh-secret"), false);
+  } finally {
+    console.error = originalError;
+    global.fetch = original;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
   }
 });
 

@@ -22,14 +22,39 @@ function credentialPrefixes(provider: OAuthProvider): string[] {
   if (provider === "gmail") return ["GOOGLE", "GOOGLE_CALENDAR"];
   return [APPS[provider].prefix];
 }
-function appCredentials(provider: OAuthProvider) {
-  const app = APPS[provider];
+function credentialChoices(provider: OAuthProvider) {
+  const seen = new Set<string>();
+  const choices: { clientId: string; clientSecret: string }[] = [];
   for (const prefix of credentialPrefixes(provider)) {
     const clientId = runtimeSecret(`${prefix}_CLIENT_ID`);
     const clientSecret = runtimeSecret(`${prefix}_CLIENT_SECRET`);
-    if (clientId && clientSecret) return { app, clientId, clientSecret };
+    if (!clientId || !clientSecret || seen.has(clientId)) continue;
+    seen.add(clientId);
+    choices.push({ clientId, clientSecret });
   }
-  throw new RevenueError(`Ask your app administrator to configure ${app.label} sign-in credentials.`, 503);
+  return choices;
+}
+function appCredentials(provider: OAuthProvider, clientId?: string) {
+  const app = APPS[provider];
+  const choices = credentialChoices(provider);
+  // A code issued to the Gmail web client must not be exchanged with the calendar client.
+  if (clientId) {
+    const match = choices.find(choice => choice.clientId === clientId);
+    if (!match) throw new RevenueError(`The ${app.label} sign-in client changed. Start sign-in again.`, 409);
+    return { app, clientId: match.clientId, clientSecret: match.clientSecret };
+  }
+  const selected = choices[0];
+  if (!selected) throw new RevenueError(`Ask your app administrator to configure ${app.label} sign-in credentials.`, 503);
+  return { app, ...selected };
+}
+/** Google returns full scope URLs, extra scopes, and any order, separated by spaces. */
+export function scopeGrantIncludes(granted: string, required: string): boolean {
+  const tokens = granted.split(/[\s,]+/).map(scope => scope.trim().toLowerCase().replace(/\/+$/, "")).filter(Boolean);
+  const needed = required.split(/[\s,]+/).map(scope => scope.trim().toLowerCase().replace(/\/+$/, "")).filter(Boolean);
+  return needed.every(scope => {
+    const tail = scope.split("/").pop() || scope;
+    return tokens.some(token => token === scope || token === tail || token.endsWith(`/${tail}`));
+  });
 }
 export function oauthAvailability() {
   return Object.fromEntries((Object.keys(APPS) as OAuthProvider[]).map(id => [id, credentialPrefixes(id).some(prefix => Boolean(runtimeSecret(`${prefix}_CLIENT_ID`) && runtimeSecret(`${prefix}_CLIENT_SECRET`)))]));
@@ -47,7 +72,7 @@ export async function startOAuth(provider: OAuthProvider, actor: string, body: a
   const verifier = randomBytes(32).toString("base64url"); const redirectUri = oauthRedirectUri(provider, origin);
   await db.delete(integrationOAuthStates).where(lt(integrationOAuthStates.expiresAt, Date.now())).run();
   await db.insert(integrationOAuthStates).values({ id, orgId, actor, provider, expiresAt: Date.now() + 600000,
-    credentials: encryptCredentials({ verifier, redirectUri, body: JSON.stringify({ name: body.name, autoSync: body.autoSync !== false }) }, `oauth:${orgId}:${id}`) }).run();
+    credentials: encryptCredentials({ verifier, redirectUri, clientId, body: JSON.stringify({ name: body.name, autoSync: body.autoSync !== false }) }, `oauth:${orgId}:${id}`) }).run();
   const url = new URL(app.authorize);
   url.search = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, ...(app.scope ? { scope: app.scope } : {}),
     ...(app.pkce ? { code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" } : {}),
@@ -55,9 +80,9 @@ export async function startOAuth(provider: OAuthProvider, actor: string, body: a
     ...(provider === "notion" ? { owner: "user" } : {}) }).toString();
   return { url: url.toString(), state };
 }
-interface Tokens { api_domain?: string; access_token: string; refresh_token?: string; expires_in?: number; token_type?: string; ok?: boolean; error?: string; incoming_webhook?: { url?: string }; webhook?: { url?: string } }
-async function exchange(provider: OAuthProvider, params: Record<string, string>): Promise<Tokens> {
-  const { app, clientId, clientSecret } = appCredentials(provider);
+interface Tokens { api_domain?: string; access_token: string; refresh_token?: string; expires_in?: number; token_type?: string; scope?: string; ok?: boolean; error?: string; incoming_webhook?: { url?: string }; webhook?: { url?: string } }
+async function exchange(provider: OAuthProvider, params: Record<string, string>, issuedClientId?: string): Promise<Tokens> {
+  const { app, clientId, clientSecret } = appCredentials(provider, issuedClientId);
   const headers: Record<string, string> = { "Content-Type": app.encoding === "json" ? "application/json" : "application/x-www-form-urlencoded" };
   const basic = app.authentication.startsWith("basic");
   if (basic) headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString(app.authentication === "basic-url" ? "base64url" : "base64")}`;
@@ -96,8 +121,11 @@ export async function finishOAuth(provider: OAuthProvider, actor: string, state:
   const rows = await db.delete(integrationOAuthStates).where(and(eq(integrationOAuthStates.id, id), eq(integrationOAuthStates.orgId, orgId), eq(integrationOAuthStates.actor, actor), eq(integrationOAuthStates.provider, provider), gt(integrationOAuthStates.expiresAt, Date.now()))).returning().all();
   if (!rows.length) throw new RevenueError("Sign-in expired or belongs to another workspace. Start again.");
   const saved = decryptCredentials(rows[0].credentials, `oauth:${orgId}:${id}`);
-  const tokens = await exchange(provider, { grant_type: "authorization_code", code, redirect_uri: saved.redirectUri, ...(APPS[provider].pkce ? { code_verifier: saved.verifier } : {}) });
-  const secrets: Record<string, string> = { ...tokenSecrets(provider, tokens), redirectUri: saved.redirectUri };
+  const tokens = await exchange(provider, { grant_type: "authorization_code", code, redirect_uri: saved.redirectUri, ...(APPS[provider].pkce ? { code_verifier: saved.verifier } : {}) }, saved.clientId);
+  if (provider === "gmail" && typeof tokens.scope === "string" && tokens.scope.trim() && !scopeGrantIncludes(tokens.scope, APPS.gmail.scope)) {
+    throw new RevenueError("Google did not grant Gmail metadata access. Reconnect and allow View your email message metadata.");
+  }
+  const secrets: Record<string, string> = { ...tokenSecrets(provider, tokens), redirectUri: saved.redirectUri, ...(saved.clientId ? { oauthClientId: saved.clientId } : {}) };
   return { body: JSON.parse(saved.body), secrets };
 }
 
@@ -123,9 +151,10 @@ export async function authorizedSecrets(connection: { id: string; provider: stri
         if (!latest.secrets.expiresAt || Number(latest.secrets.expiresAt) > Date.now() + 120000) return latest.secrets;
         if (!latest.secrets.refreshToken) throw new OAuthReconnectError();
         let tokens: Tokens;
-        try { tokens = await exchange(oauthProvider(latest.provider), { grant_type: "refresh_token", refresh_token: latest.secrets.refreshToken, ...(latest.provider === "gitlab" ? { redirect_uri: latest.secrets.redirectUri } : {}) }); }
+        try { tokens = await exchange(oauthProvider(latest.provider), { grant_type: "refresh_token", refresh_token: latest.secrets.refreshToken, ...(latest.provider === "gitlab" ? { redirect_uri: latest.secrets.redirectUri } : {}) }, latest.secrets.oauthClientId); }
         catch (error) {
           if (error instanceof ProviderError && [400, 401, 403].includes(error.providerStatus)) throw new OAuthReconnectError();
+          if (error instanceof RevenueError && /sign-in client changed/.test(error.message)) throw new OAuthReconnectError();
           throw error;
         }
         if (latest.provider === "calendly" && !tokens.refresh_token) throw new OAuthReconnectError();

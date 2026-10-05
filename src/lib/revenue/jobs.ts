@@ -52,6 +52,16 @@ export async function enqueueSync(connectionId: string, full = false) {
   return enqueueJob({ kind: "sync", connectionId, payload: state, key: `${connectionId}:${Math.floor(Date.now() / 60000)}:${full}` });
 }
 
+/** OAuth connect saves the mailbox even when capture is off. Only the import waits. */
+export async function queueConnectionSync(connectionId: string): Promise<{ jobId?: string; held: boolean }> {
+  try {
+    return { jobId: await enqueueSync(connectionId), held: false };
+  } catch (error) {
+    if (error instanceof RevenueError && error.message.includes("Turn on email capture")) return { held: true };
+    throw error;
+  }
+}
+
 export async function listJobs() {
   return db.select({ id: processingJobs.id, kind: processingJobs.kind, connectionId: processingJobs.connectionId, callId: processingJobs.callId,
     status: processingJobs.status, attempts: processingJobs.attempts, result: processingJobs.result, lastError: processingJobs.lastError,
