@@ -32,6 +32,7 @@ import { conversationDetail } from "@/lib/revenue/conversations";
 import { crmOverview } from "@/lib/revenue/crm";
 import ConversationWorkspace from "@/components/revenue/ConversationWorkspace";
 import FathomRecording from "@/components/revenue/FathomRecording";
+import AskAnything from "@/components/revenue/AskAnything";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,8 @@ async function CallReviewPage({
           )}
         </div>
       </div>
+
+      <AskAnything scope="call" id={call.id} />
 
       <CallReviewSwitcher methodName={methodology.name} pillars={quickPillars} highlights={quickHighlights} defaultFull={!ev}>
       {conversation.source === "fathom" ? <FathomRecording callId={call.id} transcript={call.transcriptText} duration={call.durationSeconds} /> : <CallRecording
