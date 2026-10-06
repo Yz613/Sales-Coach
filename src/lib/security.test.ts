@@ -327,6 +327,7 @@ test("batch upload preserves successful calls and reports failures separately", 
   const previousBilling = process.env.BILLING_REQUIRED;
   process.env.BILLING_REQUIRED = "false";
   try {
+    assert.ok(admin.tenantId);
     const repId = await runWithTenant(admin.tenantId, () => getOrCreateRep(undefined, "Batch regression", "AE", "batch@example.com"));
     const response = await runWithAuth(admin, () => POST(request("/api/calls/batch-upload", {
       method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
