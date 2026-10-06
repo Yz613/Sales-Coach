@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { resolveInviteFrom, sendInviteMail, type SendInviteMailInput } from "./inviteMail";
 import { INTEGRATION_REQUEST_EMAIL } from "./marketing";
 import { SecurityPolicyError } from "./security-policy";
+import { notifyIntegrationRequest } from "./visitorFollowUp";
 
 export const INTEGRATION_REQUEST_TO = INTEGRATION_REQUEST_EMAIL;
 
@@ -160,6 +161,11 @@ export async function submitIntegrationRequest(
   };
   const result = await send(mail);
   if (!result.ok) return { status: 422, body: { error: DELIVERY_ERROR } };
+  try {
+    notifyIntegrationRequest(parsed, env);
+  } catch (err) {
+    console.error("visitor follow-up identify failed", err instanceof Error ? err.name : "Error");
+  }
   return { status: 200, body: { ok: true } };
 }
 

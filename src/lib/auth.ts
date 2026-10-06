@@ -8,6 +8,7 @@ import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/bi
 import type { HostedPlanId } from "@/lib/billing";
 import { LOCAL_TENANT_ID, runWithTenant } from "@/lib/tenant";
 import { toAppPath, stripAppBasePath } from "@/lib/public-path";
+import { identifySignupVisitor } from "@/lib/visitorFollowUp";
 
 export type { UserRole } from "@/lib/roles";
 
@@ -170,6 +171,13 @@ async function loadServerAuth(): Promise<AuthUser> {
         billingPaid = account.paid;
       } catch { console.warn("Billing authorization is unavailable."); }
     });
+  }
+  if (email) {
+    try {
+      identifySignupVisitor({ email, name: name || null });
+    } catch (err) {
+      console.error("visitor follow-up signup identify failed", err instanceof Error ? err.name : "Error");
+    }
   }
   return {
     userId, email, name, orgId, orgRole, hasOrgAdmin, role,

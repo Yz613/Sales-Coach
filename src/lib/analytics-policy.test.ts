@@ -16,6 +16,12 @@ import {
   submissionSucceeded,
 } from "./analytics-policy";
 import { POSTHOG_API_HOST, POSTHOG_PROJECT_ID, POSTHOG_PROJECT_TOKEN, productAnalyticsInitOptions } from "./analytics-public";
+import {
+  VISITOR_FOLLOW_UP_SITE_ID,
+  visitorFollowUpBrowserScriptSrc,
+  visitorFollowUpConnectHosts,
+  visitorFollowUpScriptHosts,
+} from "./visitorFollowUpPublic";
 
 describe("product analytics policy", () => {
   it("uses the public US project token and ingest host", () => {
@@ -214,5 +220,34 @@ describe("product analytics policy", () => {
     assert.match(contract, /visitor_followup_tracker/);
     assert.doesNotMatch(contract, /phc_/);
     assert.doesNotMatch(contract, /phx_/);
+  });
+
+  it("keeps the follow-up snippet off until its public endpoint is configured", () => {
+    const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+    const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+    assert.equal(VISITOR_FOLLOW_UP_SITE_ID, "sales-coach");
+    assert.match(layout, /visitorFollowUpBrowserScriptSrc\(\)/);
+    assert.match(layout, /followUpScriptSrc \?/);
+    assert.match(layout, /data-site=\{VISITOR_FOLLOW_UP_SITE_ID\}/);
+    assert.match(layout, /nonce=\{nonce\}/);
+    assert.match(middleware, /visitorFollowUpScriptHosts\(\)/);
+    assert.match(middleware, /visitorFollowUpConnectHosts\(\)/);
+    const previous = process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    try {
+      assert.equal(visitorFollowUpBrowserScriptSrc(), null);
+      assert.deepEqual(visitorFollowUpScriptHosts(), []);
+      assert.deepEqual(visitorFollowUpConnectHosts(), []);
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+      else process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = previous;
+    }
+    assert.equal(
+      visitorFollowUpBrowserScriptSrc({ NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT: "https://followup.refreshqueue.com" }),
+      "https://followup.refreshqueue.com/vf.js"
+    );
+    assert.deepEqual(visitorFollowUpScriptHosts({ NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT: "https://followup.refreshqueue.com" }), [
+      "https://followup.refreshqueue.com",
+    ]);
   });
 });

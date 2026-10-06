@@ -2,6 +2,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 import { publicTeamError, type PendingInvite, type TeamInfo, type TeamInviteRole } from "@/lib/team-copy";
 import { ensureTeamSeatLimits, UNLIMITED_TEAM_SEATS } from "@/lib/teamCapacity";
+import { notifyWorkspaceCreated } from "@/lib/visitorFollowUp";
 
 export type { TeamInviteRole, TeamInfo, PendingInvite } from "@/lib/team-copy";
 export { parseInviteRole, publicTeamError } from "@/lib/team-copy";
@@ -62,7 +63,19 @@ export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
     createdBy: userId,
     maxAllowedMemberships: UNLIMITED_TEAM_SEATS,
   });
+  try {
+    notifyWorkspaceCreated(clerkUserEmail(user));
+  } catch (err) {
+    console.error("visitor follow-up workspace conversion failed", err instanceof Error ? err.name : "Error");
+  }
   return { id: created.id, name: created.name, role: "org:admin" };
+}
+
+function clerkUserEmail(user: {
+  primaryEmailAddress?: { emailAddress?: string | null } | null;
+  emailAddresses?: { emailAddress?: string | null }[];
+}): string | null {
+  return user.primaryEmailAddress?.emailAddress || user.emailAddresses?.find((entry) => entry.emailAddress)?.emailAddress || null;
 }
 
 export async function listPendingInvites(organizationId: string): Promise<PendingInvite[]> {
@@ -79,6 +92,7 @@ export async function listPendingInvites(organizationId: string): Promise<Pendin
   }));
 }
 
+// Teammate invite addresses are not visitor follow-up leads.
 export async function sendTeamInvites(input: {
   organizationId: string;
   userId: string;
