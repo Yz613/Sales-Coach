@@ -176,6 +176,9 @@ test("settings are encrypted at rest, isolated by authenticated context, and leg
     assert.equal(await getSetting("ai_api_key"), "secret-provider-credential");
     assert.equal((await getAllSettings()).ai_api_key, "secret-provider-credential");
     await db.insert(appSettings).values({ key: "t:org_secure:resend_api_key", value: "legacy-secret", updatedAt: new Date().toISOString() }).run();
+    assert.equal((await getAllSettings()).resend_api_key, "legacy-secret");
+    const bulkUpgraded = await db.select().from(appSettings).where(eq(appSettings.key, "t:org_secure:resend_api_key")).get();
+    assert.ok(bulkUpgraded.value.startsWith("v1."));
     assert.equal(await getSetting("resend_api_key"), "legacy-secret");
     const upgraded = await db.select().from(appSettings).where(eq(appSettings.key, "t:org_secure:resend_api_key")).get();
     assert.ok(upgraded.value.startsWith("v1."));
@@ -344,6 +347,31 @@ test("batch upload preserves successful calls and reports failures separately", 
     assert.match(body.results[0].error, /Failed to process call/);
     const saved = await db.select().from(calls).where(eq(calls.id, body.results[1].callId)).get();
     assert.equal(saved.status, "completed");
+  } finally {
+    if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
+  }
+});
+
+test("JSON batches reject aggregate quota exhaustion before creating evaluations", async () => {
+  const { POST } = await import("../app/api/calls/batch-upload/route");
+  const quotaAdmin = { ...admin, orgId: "org_batch_quota", tenantId: "org_batch_quota", clerkPlanId: "coach" as const };
+  const previousBilling = process.env.BILLING_REQUIRED;
+  process.env.BILLING_REQUIRED = "true";
+  try {
+    const repId = await runWithTenant(quotaAdmin.tenantId, async () => {
+      await setSetting("billing:plan", "coach");
+      await setSetting("billing:eval_limit", "1");
+      await setSetting("billing:overage_opt_in", "false");
+      return getOrCreateRep(undefined, "Quota regression", "AE", "quota@example.com");
+    });
+    const item = { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", callStage: "Cold Call" };
+    const response = await runWithAuth(quotaAdmin, () => POST(request("/api/calls/batch-upload", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ calls: [item, item] }),
+    })));
+    assert.equal(response.status, 402);
+    assert.equal((await response.json()).code, "QUOTA_EXCEEDED");
+    assert.equal((await db.select().from(calls).where(eq(calls.orgId, quotaAdmin.tenantId)).all()).length, 0);
   } finally {
     if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
   }

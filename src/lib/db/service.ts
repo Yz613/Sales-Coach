@@ -51,11 +51,15 @@ function forTenant(column: { orgId?: unknown } | any) {
 async function readRawSetting(key: string): Promise<string | null> {
   const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   if (!row) return null;
-  const value = openSetting(key, row.value);
+  return openAndUpgradeSetting(key, row.value);
+}
+
+async function openAndUpgradeSetting(key: string, stored: string): Promise<string> {
+  const value = openSetting(key, stored);
   // Upgrade legacy plaintext atomically, so a concurrent credential change is not overwritten.
-  if (isSecretSetting(key) && value && !row.value.startsWith("v1.")) {
+  if (isSecretSetting(key) && value && !stored.startsWith("v1.")) {
     await db.update(appSettings).set({ value: sealSetting(key, value), updatedAt: new Date().toISOString() })
-      .where(and(eq(appSettings.key, key), eq(appSettings.value, row.value))).run();
+      .where(and(eq(appSettings.key, key), eq(appSettings.value, stored))).run();
   }
   return value;
 }
@@ -140,11 +144,11 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     if (isGlobalSettingKey(r.key)) continue;
     const scopedKey = parseTenantSettingKey(r.key, org);
     if (scopedKey) {
-      res[scopedKey] = openSetting(r.key, r.value) || "";
+      res[scopedKey] = await openAndUpgradeSetting(r.key, r.value) || "";
       continue;
     }
     if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
-      res[r.key] = openSetting(r.key, r.value) || "";
+      res[r.key] = await openAndUpgradeSetting(r.key, r.value) || "";
     }
   }
   return res;

@@ -187,12 +187,17 @@ async function POSTHandler(req: Request) {
     for (const item of itemsToProcess) {
       requireUsableTranscript(item.transcriptText);
     }
+    await assertEvaluationAllowed(auth, itemsToProcess.reduce(
+      (credits, item) => credits + evaluationCreditsForDuration(item.durationSeconds || 300), 0
+    ));
 
     const results = [];
     for (const item of itemsToProcess) {
       const callId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const now = new Date().toISOString();
+      let evaluated = false;
       try {
+        await assertEvaluationAllowed(auth, evaluationCreditsForDuration(item.durationSeconds || 300));
         const audioUrl = item.audioBytes?.byteLength
           ? await saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
           : undefined;
@@ -220,12 +225,20 @@ async function POSTHandler(req: Request) {
           durationSeconds: item.durationSeconds || 300,
         });
 
+        evaluated = true;
         await recordEvaluationUsage(auth, evaluationCreditsForDuration(item.durationSeconds || 300));
 
         results.push({ callId, evaluation });
       } catch (callErr: any) {
+        if (callErr instanceof PaymentRequiredError || callErr instanceof QuotaExceededError) {
+          return NextResponse.json({
+            error: callErr.message, code: callErr.code,
+            processedCount: results.filter((result) => "evaluation" in result).length,
+            results,
+          }, { status: callErr.status });
+        }
         console.error(`Batch call ${callId} evaluation failed:`, callErr);
-        await updateCallStatus(callId, "failed", "Evaluation failed").catch(() => {});
+        if (!evaluated) await updateCallStatus(callId, "failed", "Evaluation failed").catch(() => {});
         results.push({ callId, error: "Failed to process call. Retry it or check server diagnostics." });
       }
     }
