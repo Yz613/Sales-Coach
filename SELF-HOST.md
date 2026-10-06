@@ -94,6 +94,27 @@ Hosted mail from `invites@refreshqueue.com` is only for [refreshqueue.com](https
 
 The hosted site caches company lookups in Workers KV. Docker and `npm run dev` do not have that binding, and they do not need it. When `VISITOR_COMPANY_KV` is missing, the app keeps an in-memory cache for the life of the process. Do not paste the hosted namespace id into a self-hosted install. If you deploy your own worker, create a separate namespace and add that id under `kv_namespaces` in `wrangler.jsonc`.
 
+## Returning visitor follow-up
+
+Optional. Leave the variables unset and Sales Coach does not call the service, and the browser snippet is not added. Marketing pages do not mention it.
+
+The server uses `VISITOR_FOLLOW_UP_ENDPOINT` and `VISITOR_FOLLOW_UP_API_KEY`. The site id in each JSON body is `sales-coach`. Requests send `Authorization: Bearer` plus that key. The browser snippet uses `NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT`, which Next reads when the image or app is built. A hosted example is `https://followup.refreshqueue.com`.
+
+Only addresses someone typed into an integration request, or used to create an account, are sent. Teammate invites and the footer mail link are not. Paying customers are marked so they are left out of follow-up.
+
+For `wrangler dev` and other local Cloudflare runs, put the same names in `.dev.vars` at the project root. That file is gitignored. Do not commit it.
+
+```yaml
+environment:
+  - VISITOR_FOLLOW_UP_ENDPOINT=https://followup.example.com
+  - VISITOR_FOLLOW_UP_API_KEY=your_site_key
+  - NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT=https://followup.example.com
+```
+
+`NEXT_PUBLIC_*` is read at image build. After you add the public endpoint, run `docker compose up --build` again (do not only restart).
+
+In production, set the endpoint in the build environment and the Worker environment, and store the key with `npx wrangler secret put VISITOR_FOLLOW_UP_API_KEY`. Do not commit the key.
+
 ## Stop
 
 ```bash

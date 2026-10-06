@@ -84,6 +84,72 @@ describe("integration request delivery", () => {
     assert.equal(limits[0].includes("203.0.113.8"), false);
   });
 
+  it("identifies a successful request and skips honeypots, failures, and the inbox address", async () => {
+    const original = globalThis.fetch;
+    const calls: { url: string; init?: RequestInit }[] = [];
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response("{}", { status: 200 });
+    };
+    const followUpEnv = {
+      ...env,
+      VISITOR_FOLLOW_UP_ENDPOINT: "https://followup.refreshqueue.com",
+      VISITOR_FOLLOW_UP_API_KEY: "vfu_live_test",
+    };
+    try {
+      const result = await submitIntegrationRequest(
+        { ...valid, email: "Ada@Example.com" },
+        {
+          ip: "203.0.113.20",
+          env: followUpEnv,
+          consumeLimit: async () => {},
+          send: async () => ({ ok: true, id: "email_vf" }),
+        }
+      );
+      assert.deepEqual(result, { status: 200, body: { ok: true } });
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].url, "https://followup.refreshqueue.com/v1/identify");
+      assert.equal(calls[0].init?.method, "POST");
+      const headers = new Headers(calls[0].init?.headers);
+      assert.equal(headers.get("authorization"), "Bearer vfu_live_test");
+      assert.equal(headers.get("content-type"), "application/json");
+      assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+        site_id: "sales-coach",
+        email: "ada@example.com",
+        traits: {
+          name: "Ada",
+          integration: "Zoom",
+          useCase: "We already record calls there and want them in coaching.",
+        },
+        email_source: "form:integration-request",
+      });
+
+      calls.length = 0;
+      const honeypot = await submitIntegrationRequest(
+        { ...valid, companyWebsite: "http://bot.example" },
+        {
+          ip: "203.0.113.21",
+          env: followUpEnv,
+          consumeLimit: async () => {},
+          send: async () => ({ ok: true, id: "nope" }),
+        }
+      );
+      assert.equal(honeypot.status, 200);
+      assert.equal(calls.length, 0);
+
+      const failed = await submitIntegrationRequest(valid, {
+        ip: "203.0.113.22",
+        env: followUpEnv,
+        consumeLimit: async () => {},
+        send: async () => ({ ok: false, error: "nope" }),
+      });
+      assert.equal(failed.status, 422);
+      assert.equal(calls.length, 0);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   it("drops honeypot submissions without sending", async () => {
     let sent = 0;
     const result = await submitIntegrationRequest(

@@ -8,6 +8,7 @@ import AuthProvider from "@/components/AuthProvider";
 import PageViewTracker from "@/components/PageViewTracker";
 import ProductAnalytics from "@/components/ProductAnalytics";
 import { TAG_SCRIPT_SRC, pageViewBootstrap } from "@/lib/page-views";
+import { VISITOR_FOLLOW_UP_SITE_ID, visitorFollowUpBrowserScriptSrc } from "@/lib/visitorFollowUpPublic";
 import { authRedirectPath, getServerAuth, publicGuestAuth } from "@/lib/auth";
 import {
   isApiRoute,
@@ -32,6 +33,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+  const followUpScriptSrc = visitorFollowUpBrowserScriptSrc();
   const requestHeaders = await headers();
   const nonce = requestHeaders.get("x-nonce") || undefined;
   const path = requestHeaders.get("x-salescoach-path") || "";
@@ -56,6 +58,9 @@ export default async function RootLayout({
       <body className="ambient-field min-h-screen text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
         <script async nonce={nonce} src={TAG_SCRIPT_SRC} />
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: pageViewBootstrap() }} />
+        {followUpScriptSrc ? (
+          <script async nonce={nonce} src={followUpScriptSrc} data-site={VISITOR_FOLLOW_UP_SITE_ID} />
+        ) : null}
         <Suspense fallback={null}>
           <PageViewTracker />
         </Suspense>

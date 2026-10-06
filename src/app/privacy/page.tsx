@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-14">
         <h1 className="text-3xl font-semibold tracking-tight text-[#1d1d1f]">Privacy policy</h1>
         <p className="mt-3 text-sm text-[#6e6e73]">
-          Effective <time dateTime="2026-10-04">October 4, 2026</time>.
+          Effective <time dateTime="2026-10-06">October 6, 2026</time>.
         </p>
         <div className="mt-8 space-y-8 text-sm leading-relaxed text-[#3a3a3c]">
           <p>
@@ -56,6 +56,19 @@ export default function PrivacyPage() {
             <h2 className="text-base font-semibold text-[#1d1d1f]">Emails you send</h2>
             <p>
               If you submit an integration request or join the waitlist, we use that email to reply to you.
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold text-[#1d1d1f]">Returning Visitor Communications</h2>
+            <p>
+              Returning visitors who submitted an integration request or created an account may get a follow-up email from Yehuda.
+            </p>
+            <p>
+              Each of those emails has a one-click unsubscribe. You get at most one of these emails every 7 days. Paying customers are excluded.
+            </p>
+            <p>
+              We do not email people who never gave us their address.
             </p>
           </section>
 

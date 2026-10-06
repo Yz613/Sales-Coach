@@ -151,7 +151,14 @@ describe("privacy policy", () => {
     assert.match(page, /IPINFO_ATTRIBUTION_URL/);
     assert.match(attribution, /export const IPINFO_ATTRIBUTION = "IP address data is powered by IPinfo"/);
     assert.match(attribution, /export const IPINFO_ATTRIBUTION_URL = "https:\/\/ipinfo.io"/);
-    assert.match(page, /October 4, 2026/);
+    assert.match(page, /October 6, 2026/);
+    assert.match(page, /Returning Visitor Communications/);
+    assert.match(page, /follow-up email from Yehuda/);
+    assert.match(page, /one-click unsubscribe/);
+    assert.match(page, /at most one of these emails every 7 days/);
+    assert.match(page, /Paying customers are excluded/);
+    assert.match(page, /created an account/);
+    assert.match(page, /never gave us their address/);
     assert.match(page, /CONTACT_EMAIL/);
     assert.match(page, /page views, clicks, and form submissions/);
     assert.match(page, /masked/);

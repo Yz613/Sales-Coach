@@ -15,6 +15,7 @@ import {
 import { getInviteTicketRedirect } from "@/lib/inviteRedirect";
 import { analyticsConnectHosts, analyticsScriptHosts } from "@/lib/analytics-policy";
 import { fallbackContentSecurityPolicy, tagConnectHosts, tagImgHosts, tagScriptHosts } from "@/lib/page-views";
+import { visitorFollowUpConnectHosts, visitorFollowUpScriptHosts } from "@/lib/visitorFollowUpPublic";
 import { assertSecureDeployment, assertMutationOrigin, privateResponse } from "@/lib/security-policy";
 
 const isAdminRoute = createRouteMatcher([
@@ -118,8 +119,8 @@ function clerkHandlerImpl() {
         directives: {
           "object-src": ["'none'"], "base-uri": ["'self'"], "frame-ancestors": ["'none'"],
           "media-src": ["'self'", "https:", "blob:"],
-          "script-src": [...tagScriptHosts, ...analyticsScriptHosts],
-          "connect-src": [...tagConnectHosts, ...analyticsConnectHosts],
+          "script-src": [...tagScriptHosts, ...analyticsScriptHosts, ...visitorFollowUpScriptHosts()],
+          "connect-src": [...tagConnectHosts, ...analyticsConnectHosts, ...visitorFollowUpConnectHosts()],
           "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
         },
       },
