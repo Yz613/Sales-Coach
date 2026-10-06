@@ -8,7 +8,7 @@ import { planFromClerkHas, hostedBillingRequired, type ClerkHas } from "@/lib/bi
 import type { HostedPlanId } from "@/lib/billing";
 import { LOCAL_TENANT_ID, runWithTenant } from "@/lib/tenant";
 import { toAppPath, stripAppBasePath } from "@/lib/public-path";
-import { identifySignupVisitor } from "@/lib/visitorFollowUp";
+import { identifySignupVisitor, loadTeammateInviteLeadSignals, signupIdentifyPending } from "@/lib/visitorFollowUp";
 
 export type { UserRole } from "@/lib/roles";
 
@@ -172,9 +172,15 @@ async function loadServerAuth(): Promise<AuthUser> {
       } catch { console.warn("Billing authorization is unavailable."); }
     });
   }
-  if (email) {
+  if (email && userId && signupIdentifyPending(email)) {
     try {
-      identifySignupVisitor({ email, name: name || null });
+      const signals = await loadTeammateInviteLeadSignals({ userId, orgId, email });
+      identifySignupVisitor({
+        email,
+        name: name || null,
+        invites: signals.invites,
+        memberships: signals.memberships,
+      });
     } catch (err) {
       console.error("visitor follow-up signup identify failed", err instanceof Error ? err.name : "Error");
     }

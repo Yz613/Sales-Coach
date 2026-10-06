@@ -182,13 +182,143 @@ export function notifyWorkspaceCreated(email: string | null | undefined, env: Vi
   scheduleVisitorFollowUp(task);
 }
 
+/** Clerk organization or instance invitation that can prove a teammate join. */
+export type InviteLeadRecord = {
+  email?: string | null;
+  status?: string | null;
+};
+
+/** Signals that a Clerk organization membership was created from an invitation. */
+export type MembershipLeadSignal = {
+  createdViaInvitation?: boolean | null;
+  invitationId?: string | null;
+  source?: string | null;
+};
+
+const INVITE_LEAD_STATUSES = new Set(["pending", "accepted"]);
+const INVITE_MEMBERSHIP_SOURCES = new Set(["invitation", "organization_invitation", "invite"]);
+
+/** Pending and accepted invites match. Revoked and expired invites do not. A missing status still matches. */
+export function emailMatchesInviteRecord(
+  email: string | null | undefined,
+  invites: InviteLeadRecord[] | null | undefined
+): boolean {
+  const normalized = normalizeVisitorEmail(email);
+  if (!normalized || !invites?.length) return false;
+  return invites.some((invite) => {
+    if (normalizeVisitorEmail(invite.email) !== normalized) return false;
+    const status = invite.status?.trim().toLowerCase();
+    if (!status) return true;
+    return INVITE_LEAD_STATUSES.has(status);
+  });
+}
+
+export function membershipCameFromInvitation(membership: MembershipLeadSignal | null | undefined): boolean {
+  if (!membership) return false;
+  if (membership.createdViaInvitation === true) return true;
+  if (typeof membership.invitationId === "string" && membership.invitationId.trim().length > 0) return true;
+  const source = membership.source?.trim().toLowerCase();
+  return Boolean(source && INVITE_MEMBERSHIP_SOURCES.has(source));
+}
+
+export function teammateInviteBlocksLead(
+  email: string | null | undefined,
+  invites: InviteLeadRecord[] | null | undefined,
+  memberships: MembershipLeadSignal[] | null | undefined
+): boolean {
+  if (emailMatchesInviteRecord(email, invites)) return true;
+  return Boolean(memberships?.some((membership) => membershipCameFromInvitation(membership)));
+}
+
+/** True only when a signup identify would call the service. Keeps Clerk lookups off the no-op path. */
+export function signupIdentifyPending(email: string | null | undefined, env: VisitorFollowUpEnv = process.env): boolean {
+  const normalized = normalizeVisitorEmail(email);
+  if (!normalized || !visitorFollowUpServerConfig(env) || seenSignupEmails.has(normalized)) return false;
+  return true;
+}
+
+function firstNonEmptyString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+export function membershipLeadSignalFromRaw(raw: object | null | undefined): MembershipLeadSignal {
+  if (!raw) return {};
+  const record = raw as Record<string, unknown>;
+  const nested = record.organization_invitation;
+  const nestedId =
+    nested && typeof nested === "object" ? (nested as { id?: unknown }).id : undefined;
+  return {
+    createdViaInvitation: record.created_via_invitation === true || record.from_invitation === true,
+    invitationId: firstNonEmptyString(record.invitation_id, record.organization_invitation_id, nestedId),
+    source: firstNonEmptyString(record.source, record.created_from),
+  };
+}
+
+/**
+ * Clerk stores teammate invites. There is no local invites table.
+ * A lookup failure must reject the caller so sign-in does not identify the address.
+ */
+export async function loadTeammateInviteLeadSignals(input: {
+  userId: string;
+  orgId?: string | null;
+  email: string;
+}): Promise<{ invites: InviteLeadRecord[]; memberships: MembershipLeadSignal[] }> {
+  const { clerkClient } = await import("@clerk/nextjs/server");
+  const client = await clerkClient();
+  const invites: InviteLeadRecord[] = [];
+  const memberships: MembershipLeadSignal[] = [];
+  const [accepted, pending, membershipPage] = await Promise.all([
+    client.users.getOrganizationInvitationList({ userId: input.userId, status: "accepted", limit: 100 }),
+    client.users.getOrganizationInvitationList({ userId: input.userId, status: "pending", limit: 100 }),
+    client.users.getOrganizationMembershipList({ userId: input.userId, limit: 100 }),
+  ]);
+  for (const invitation of [...accepted.data, ...pending.data]) {
+    invites.push({ email: invitation.emailAddress, status: invitation.status ?? null });
+  }
+  for (const membership of membershipPage.data) {
+    memberships.push(membershipLeadSignalFromRaw(membership.raw));
+  }
+  if (input.orgId) {
+    const orgInvites = await client.organizations.getOrganizationInvitationList({
+      organizationId: input.orgId,
+      status: ["accepted", "pending"],
+      limit: 100,
+    });
+    for (const invitation of orgInvites.data) {
+      invites.push({ email: invitation.emailAddress, status: invitation.status ?? null });
+    }
+  }
+  try {
+    const instanceInvites = await client.invitations.getInvitationList({
+      query: input.email,
+      status: "accepted",
+      limit: 100,
+    });
+    for (const invitation of instanceInvites.data) {
+      invites.push({ email: invitation.emailAddress, status: invitation.status });
+    }
+  } catch {
+    // Organization invitations already cover teammate invites. Instance invitations are extra.
+  }
+  return { invites, memberships };
+}
+
 export function identifySignupVisitor(
-  input: { email?: string | null; name?: string | null },
+  input: {
+    email?: string | null;
+    name?: string | null;
+    invites?: InviteLeadRecord[] | null;
+    memberships?: MembershipLeadSignal[] | null;
+  },
   env: VisitorFollowUpEnv = process.env
 ): void {
   const email = normalizeVisitorEmail(input.email);
   if (!email || !visitorFollowUpServerConfig(env) || seenSignupEmails.has(email)) return;
   seenSignupEmails.add(email);
+  if (teammateInviteBlocksLead(email, input.invites, input.memberships)) return;
   const name = input.name?.trim() || "";
   const body: VisitorIdentifyBody = {
     site_id: VISITOR_FOLLOW_UP_SITE_ID,

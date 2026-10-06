@@ -189,7 +189,62 @@ describe("visitor follow-up client", () => {
       traits: { name: "Ada Lovelace" },
     });
     const auth = readFileSync(new URL("./auth.ts", import.meta.url), "utf8");
-    assert.match(auth, /identifySignupVisitor\(\{ email, name: name \|\| null \}\)/);
+    assert.match(auth, /signupIdentifyPending\(email\)/);
+    assert.match(auth, /loadTeammateInviteLeadSignals\(\{ userId, orgId, email \}\)/);
+    assert.match(auth, /invites: signals\.invites/);
+    assert.match(auth, /memberships: signals\.memberships/);
+    const identifyCall = auth.slice(auth.indexOf("signupIdentifyPending(email)"));
+    assert.equal(identifyCall.indexOf("identifySignupVisitor(") < identifyCall.indexOf("} catch"), true);
+  });
+
+  it("does not identify people who joined through a teammate invite", async () => {
+    identifySignupVisitor({
+      email: "Teammate@Example.com",
+      name: "Invited",
+      invites: [{ email: "teammate@example.com", status: "accepted" }],
+    }, env);
+    identifySignupVisitor({
+      email: "pending@example.com",
+      invites: [{ email: "Pending@Example.com", status: "pending" }],
+    }, env);
+    identifySignupVisitor({
+      email: "recorded@example.com",
+      invites: [{ email: "recorded@example.com" }],
+    }, env);
+    identifySignupVisitor({
+      email: "member@example.com",
+      memberships: [{ invitationId: "orginv_123" }],
+    }, env);
+    identifySignupVisitor({
+      email: "sourced@example.com",
+      memberships: [{ source: "organization_invitation" }],
+    }, env);
+    identifySignupVisitor({
+      email: "flagged@example.com",
+      memberships: [{ createdViaInvitation: true }],
+    }, env);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(calls.length, 0);
+
+    identifySignupVisitor({
+      email: "revoked@example.com",
+      invites: [{ email: "revoked@example.com", status: "revoked" }],
+    }, env);
+    identifySignupVisitor({
+      email: "expired@example.com",
+      invites: [{ email: "expired@example.com", status: "expired" }],
+    }, env);
+    identifySignupVisitor({
+      email: "direct@example.com",
+      invites: [{ email: "someone-else@example.com", status: "accepted" }],
+      memberships: [{ invitationId: "  ", source: "email" }],
+    }, env);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls.map((call) => jsonBody(call.init).email), [
+      "revoked@example.com",
+      "expired@example.com",
+      "direct@example.com",
+    ]);
   });
 
   it("hands the request to waitUntil when the worker context has it", async () => {
@@ -218,8 +273,9 @@ describe("visitor follow-up client", () => {
       assert.equal(source.includes("/v1/conversions"), false);
     }
     assert.match(shell, /mailto:\$\{CONTACT_EMAIL\}/);
-    assert.match(form, /data-vf-auto-hook=/);
-    assert.match(form, /data-vf-source="integration-request"/);
+    assert.equal(form.includes("data-vf-"), false);
+    const integrationRequest = readFileSync(new URL("./integrationRequest.ts", import.meta.url), "utf8");
+    assert.match(integrationRequest, /notifyIntegrationRequest\(parsed, env\)/);
     assert.doesNotMatch(inviteMail, /notifyIntegrationRequest|notifyPaidSubscription|notifyWorkspaceCreated|identifySignupVisitor/);
   });
 });
