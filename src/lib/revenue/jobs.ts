@@ -288,7 +288,7 @@ export async function processJobs(orgId?: string, limit = 2, jobIds?: string[]) 
       const message = err instanceof RevenueError || (err as any)?.code === "QUOTA_EXCEEDED" || (err as any)?.code === "PAYMENT_REQUIRED" ? (err as Error).message : "Processing failed. Retry the job or check server diagnostics.";
       const delay = err instanceof ProviderError ? Math.max(err.retryAfterSeconds, 30 * 2 ** job.attempts) : 30 * 2 ** job.attempts;
       await db.update(processingJobs).set({ status: failed ? "failed" : "queued", lastError: message, leaseToken: null, leaseUntil: null, availableAt: new Date(Date.now() + Math.min(3600, delay) * 1000).toISOString(), updatedAt: new Date().toISOString() }).where(and(eq(processingJobs.id, job.id), eq(processingJobs.leaseToken, token))).run();
-      if (job.kind === "evaluate") await db.update(calls).set({ status: "failed" }).where(and(eq(calls.id, job.callId), eq(calls.orgId, job.orgId))).run();
+      if (job.kind === "evaluate" && failed) await db.update(calls).set({ status: "failed" }).where(and(eq(calls.id, job.callId), eq(calls.orgId, job.orgId))).run();
       if (job.connectionId) await db.update(integrationConnections).set({ status: "error", lastError: message }).where(and(eq(integrationConnections.id, job.connectionId), eq(integrationConnections.orgId, job.orgId), ne(integrationConnections.status, "disconnected"))).run();
       outcomes.push({ id: job.id, status: failed ? "failed" : "queued" });
     }

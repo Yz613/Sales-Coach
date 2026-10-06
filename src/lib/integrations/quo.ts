@@ -1,6 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { ProviderError, providerList, providerRequest } from "./http";
+import { downloadFetch } from "./download-fetch";
 import { normalizedMeeting } from "./meeting";
 import { rememberCallAudioParts, saveCallAudio } from "../callAudioStore";
 import { db } from "../db";
@@ -61,7 +62,7 @@ async function quoDownload(token: string, start: string, maxBytes: number): Prom
   for (let hop = 0; hop < 3; hop++) {
     const url = new URL(current);
     if (!publicHttps(url)) throw new RevenueError("Quo returned an invalid recording address.", 502);
-    const response = await fetch(url, {
+    const response = await downloadFetch(url, {
       headers: url.hostname === "api.quo.com" ? { Authorization: token } : {},
       redirect: "manual", signal: AbortSignal.timeout(25000), cache: "no-store",
     });

@@ -1,6 +1,28 @@
 import { handleVisitorCompany } from "@/lib/visitor-company";
+import { consumeLimit } from "@/lib/security-rate-limit";
+import { SecurityPolicyError } from "@/lib/security-policy";
 
 export const dynamic = "force-dynamic";
+
+async function rateLimitedVisitorCompany(request: Request): Promise<Response> {
+  const ip =
+    request.headers.get("CF-Connecting-IP") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "anon";
+  try {
+    await consumeLimit(`visitor-company:${ip}`, 60);
+    await consumeLimit("visitor-company:global", 1200);
+  } catch (error) {
+    if (error instanceof SecurityPolicyError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+    throw error;
+  }
+  return handleVisitorCompany(request);
+}
 
 /**
  * Public company lookup for the current visitor.
@@ -10,9 +32,9 @@ export const dynamic = "force-dynamic";
  * framework request does not carry it.
  */
 export function GET(request: Request): Promise<Response> {
-  return handleVisitorCompany(request);
+  return rateLimitedVisitorCompany(request);
 }
 
 export function HEAD(request: Request): Promise<Response> {
-  return handleVisitorCompany(request);
+  return rateLimitedVisitorCompany(request);
 }

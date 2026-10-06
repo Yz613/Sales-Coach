@@ -127,7 +127,7 @@ test("encrypted recordings reject tampering and swapping across workspaces or ca
 });
 
 test("server admin guards protect actual settings, rep, coach, and job routes without middleware", async () => {
-  const routes = [await import("../app/api/admin/settings/route"), await import("../app/api/reps/route"), await import("../app/api/coach/route"), await import("../app/api/jobs/route")];
+  const routes = [await import("../app/api/admin/settings/route"), await import("../app/api/reps/[id]/route"), await import("../app/api/coach/route"), await import("../app/api/jobs/route")];
   for (const route of routes) {
     const response = await runWithAuth(member, () => (route.GET as any)(request("/api/probe")));
     assert.equal(response.status, 403);
@@ -138,6 +138,9 @@ test("server admin guards protect actual settings, rep, coach, and job routes wi
     const response = await endpoint(request("/api/probe"));
     assert.equal((await response.json()).tenant, org);
   })));
+  const repsRoute = await import("../app/api/reps/route");
+  const repsResponse = await runWithAuth(member, () => (repsRoute.GET as any)(request("/api/reps")));
+  assert.equal(repsResponse.status, 200);
 });
 
 test("cross-origin writes and chunked oversized bodies are rejected before business logic", async () => {

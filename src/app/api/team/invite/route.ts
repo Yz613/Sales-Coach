@@ -34,7 +34,7 @@ async function POSTHandler(req: NextRequest) {
   }
 
   try {
-    const team = await ensureActiveTeam(auth.userId);
+    const team = await ensureActiveTeam(auth.userId, auth.orgId);
     const result = await sendTeamInvites({
       organizationId: team.id,
       userId: auth.userId,

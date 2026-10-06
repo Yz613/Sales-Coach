@@ -1,7 +1,7 @@
 import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
+import { addCallStage, insertCall, setRepFocus, updateCallStatus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
 import { isAudioFile } from "@/lib/audio";
@@ -210,19 +210,25 @@ async function POSTHandler(req: Request) {
         createdAt: now,
       });
 
-      const evaluation = await evaluateCall({
-        callId,
-        repId: item.repId,
-        transcriptText: item.transcriptText,
-        callStage: item.callStage,
-        prospectCompany: item.prospectCompany,
-        prospectName: item.prospectName,
-        durationSeconds: item.durationSeconds || 300,
-      });
+      try {
+        const evaluation = await evaluateCall({
+          callId,
+          repId: item.repId,
+          transcriptText: item.transcriptText,
+          callStage: item.callStage,
+          prospectCompany: item.prospectCompany,
+          prospectName: item.prospectName,
+          durationSeconds: item.durationSeconds || 300,
+        });
 
-      await recordEvaluationUsage(auth, evaluationCreditsForDuration(item.durationSeconds || 300));
+        await recordEvaluationUsage(auth, evaluationCreditsForDuration(item.durationSeconds || 300));
 
-      results.push({ callId, evaluation });
+        results.push({ callId, evaluation });
+      } catch (callErr: any) {
+        console.error(`Batch call ${callId} evaluation failed:`, callErr);
+        await updateCallStatus(callId, "failed", "Evaluation failed").catch(() => {});
+        results.push({ callId, error: callErr?.message || "Failed to evaluate call" });
+      }
     }
 
     return NextResponse.json({

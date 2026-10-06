@@ -123,11 +123,11 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     if (isGlobalSettingKey(r.key)) continue;
     const scopedKey = parseTenantSettingKey(r.key, org);
     if (scopedKey) {
-      res[scopedKey] = (await readRawSetting(r.key)) || "";
+      res[scopedKey] = openSetting(r.key, r.value) || "";
       continue;
     }
     if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
-      res[r.key] = (await readRawSetting(r.key)) || "";
+      res[r.key] = openSetting(r.key, r.value) || "";
     }
   }
   return res;
@@ -333,10 +333,11 @@ export async function getCallStages(): Promise<string[]> {
 }
 
 export async function addCallStage(name: string): Promise<string[]> {
-  const stage = normalizeStageName(name);
+  const stage = normalizeStageName(name).slice(0, 60).trim();
   if (!stage) throw new Error("Call Stage Target is required.");
   const current = await getCallStages();
   if (current.some((s) => stagesEqual(s, stage))) return current;
+  if (current.length >= 50) return current;
   const next = [...current, stage];
   await persistCallStages(next);
   return next;
@@ -900,11 +901,6 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
 export async function getCallById(id: string): Promise<Call | null> {
   const c = await db.select().from(calls).where(and(eq(calls.id, id), forTenant(calls.orgId))).get();
   if (!c) return null;
-  if (isUnusableTranscript(c.transcriptText)) {
-    await db.delete(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).run();
-    await db.delete(calls).where(and(eq(calls.id, c.id), forTenant(calls.orgId))).run();
-    return null;
-  }
 
   const [rep, evalRows] = await Promise.all([
     db.select().from(reps).where(and(eq(reps.id, c.repId), forTenant(reps.orgId))).get(),
@@ -1155,6 +1151,20 @@ export async function insertCall(values: {
   }).run();
   const { autoApplyScorecardsForCall } = await import("../scorecards");
   await autoApplyScorecardsForCall(values.id);
+}
+
+export async function updateCallStatus(
+  id: string,
+  status: "completed" | "failed" | "analyzing",
+  coreOutcome?: string
+): Promise<void> {
+  const patch: Record<string, any> = { status };
+  if (coreOutcome !== undefined) patch.coreOutcome = coreOutcome;
+  await db
+    .update(calls)
+    .set(patch)
+    .where(and(eq(calls.id, id), forTenant(calls.orgId)))
+    .run();
 }
 
 const BACKFILL_KEY = "tenant_backfill_org_id";

@@ -17,13 +17,18 @@ function membershipToTeam(membership: {
   };
 }
 
-export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
+export async function ensureActiveTeam(userId: string, targetOrgId?: string): Promise<TeamInfo> {
   const client = await clerkClient();
   const existing = await client.users.getOrganizationMembershipList({
     userId,
     limit: 20,
   });
-  if (existing.data.length > 0) {
+  if (targetOrgId) {
+    const match = existing.data.find((m) => m.organization.id === targetOrgId);
+    if (match) {
+      return membershipToTeam(match);
+    }
+  } else if (existing.data.length > 0) {
     return membershipToTeam(existing.data[0]);
   }
 
@@ -31,14 +36,15 @@ export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
     limit: 20,
     includeMembersCount: true,
   });
-  const owned = orgs.data.find((org) => org.createdBy === userId);
-  const target = owned ?? orgs.data[0];
+  const owned = targetOrgId
+    ? orgs.data.find((org) => org.id === targetOrgId && org.createdBy === userId)
+    : orgs.data.find((org) => org.createdBy === userId);
 
-  if (target) {
+  if (owned) {
     try {
-      await ensureTeamSeatLimits(client, target.id);
+      await ensureTeamSeatLimits(client, owned.id);
       const membership = await client.organizations.createOrganizationMembership({
-        organizationId: target.id,
+        organizationId: owned.id,
         userId,
         role: "org:admin",
       });
@@ -48,8 +54,11 @@ export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
         userId,
         limit: 20,
       });
-      if (retry.data.length > 0) {
-        return membershipToTeam(retry.data[0]);
+      const retryMatch = targetOrgId
+        ? retry.data.find((m) => m.organization.id === targetOrgId)
+        : retry.data[0];
+      if (retryMatch) {
+        return membershipToTeam(retryMatch);
       }
       throw err;
     }
