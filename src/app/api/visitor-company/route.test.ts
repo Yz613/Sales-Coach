@@ -178,4 +178,21 @@ describe("visitor company route", () => {
     assert.equal(body.source, "asn");
     assert.equal(JSON.stringify(body).includes("203.0.113.10"), false);
   });
+
+  it("rate limits excessive requests with 429", async () => {
+    const burstIp = "198.51.100.99";
+    const req = () => visitorRequest(COMPANY_CF, { "CF-Connecting-IP": burstIp });
+    let limited = false;
+    for (let i = 0; i < 65; i++) {
+      const res = await GET(req());
+      if (res.status === 429) {
+        limited = true;
+        assert.equal(res.headers.get("cache-control"), "no-store");
+        const body = await jsonBody(res);
+        assert.match(String(body.error), /Too many requests/i);
+        break;
+      }
+    }
+    assert.ok(limited, "expected rate limit 429 response after burst");
+  });
 });

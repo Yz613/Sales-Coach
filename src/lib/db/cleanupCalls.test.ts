@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { db } from "./index";
 import { calls, evaluations, reps } from "./schema";
-import { deleteCallsWithoutTranscript, getOrCreateRep } from "./service";
+import { deleteCallsWithoutTranscript, getCallById, getOrCreateRep } from "./service";
 import { LOCAL_TENANT_ID, runWithTenant } from "../tenant";
 import { eq } from "drizzle-orm";
 
@@ -69,6 +69,8 @@ async function run(): Promise<void> {
       createdAt: now,
     }).run();
 
+    assert.ok(await getCallById(badId), "reading an unusable call must preserve its data");
+    assert.ok(await db.select().from(evaluations).where(eq(evaluations.callId, badId)).get());
     const removed = await deleteCallsWithoutTranscript();
     assert.ok(removed.includes(badId), `expected ${badId} to be removed, got ${removed.join(",")}`);
 

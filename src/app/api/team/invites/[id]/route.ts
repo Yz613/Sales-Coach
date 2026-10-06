@@ -20,7 +20,7 @@ async function DELETEHandler(
       return NextResponse.json({ error: "Missing invite" }, { status: 400 });
     }
 
-    const team = await ensureActiveTeam(auth.userId);
+    const team = await ensureActiveTeam(auth.userId, auth.orgId);
     await revokeTeamInvite({
       organizationId: team.id,
       invitationId: id,

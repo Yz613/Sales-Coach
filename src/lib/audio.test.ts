@@ -120,4 +120,15 @@ assert.match(merged, /\[1:32\] Prospect: Second clip/);
 
 assert.equal(durationFromTranscript("[1:12] Rep: folded\n[2:05] Prospect: bye"), 125);
 
+// Malicious/corrupt WAV chunk with byte 3 >= 0x80 (signed negative integer in standard 32-bit shift)
+const malformedWav = new Uint8Array(64);
+malformedWav.set([0x52, 0x49, 0x46, 0x46], 0); // RIFF
+malformedWav.set([0x57, 0x41, 0x56, 0x45], 8); // WAVE
+malformedWav.set([0x66, 0x61, 0x6b, 0x65], 12); // 'fake' chunk
+malformedWav[16] = 0x00;
+malformedWav[17] = 0x00;
+malformedWav[18] = 0x00;
+malformedWav[19] = 0x80; // size = 0x80000000 (negative if signed)
+assert.equal(parseWav(malformedWav), null);
+
 console.log("audio checks passed");

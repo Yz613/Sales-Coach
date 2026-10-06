@@ -11,7 +11,7 @@ async function GETHandler() {
     if (!auth.userId) {
       return NextResponse.json({ error: "Sign in first, then you can invite teammates." }, { status: 401 });
     }
-    const team = await ensureActiveTeam(auth.userId);
+    const team = await ensureActiveTeam(auth.userId, auth.orgId);
     const invitations = await listPendingInvites(team.id);
     return NextResponse.json({ team, invitations });
   } catch (err) {

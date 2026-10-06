@@ -63,6 +63,7 @@ export default function UploadModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [batchSuccessCount, setBatchSuccessCount] = useState<number | null>(null);
+  const [batchFailedCount, setBatchFailedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [canTranscribe, setCanTranscribe] = useState(true);
   const [transcribeReason, setTranscribeReason] = useState<string | null>(null);
@@ -298,7 +299,8 @@ export default function UploadModal({
       }
 
       setIsSubmitting(false);
-      setBatchSuccessCount(data.processedCount || batchFiles.length);
+      setBatchSuccessCount(data.processedCount ?? batchFiles.length);
+      setBatchFailedCount(data.failedCount ?? 0);
       router.refresh();
     } catch (err: any) {
       setIsSubmitting(false);
@@ -379,6 +381,7 @@ export default function UploadModal({
             <h3 className="text-lg font-bold text-[#1d1d1f]">Batch Upload Completed!</h3>
             <p className="text-xs text-[#3a3a3c] max-w-md mx-auto">
               Successfully ingested and coached <strong>{batchSuccessCount} sales calls</strong> across your prescribed scripts and Sandler dimensions.
+              {batchFailedCount > 0 && <span className="block mt-2">{batchFailedCount} calls failed. Retry them from the Call Bank, or upload them again if they were not saved.</span>}
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button

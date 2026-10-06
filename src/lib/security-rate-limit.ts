@@ -39,7 +39,7 @@ export async function assertFailureBudget(identity: string, limit = 20, now = Da
 export function publicWebhookBudget(request: Request) {
   const url = new URL(request.url);
   const provider = url.pathname.endsWith("/jobs/run") ? "jobs" : url.pathname.split("/").pop() || "unknown";
-  const limits: Record<string, number> = { fathom: 2 * 1024 * 1024, hubspot: 128 * 1024, fireflies: 128 * 1024, aircall: 256 * 1024, zapier: 1024 * 1024, make: 1024 * 1024, stripe: 256 * 1024, jobs: 8 * 1024 };
+  const limits: Record<string, number> = { fathom: 2 * 1024 * 1024, quo: 2 * 1024 * 1024, hubspot: 128 * 1024, fireflies: 128 * 1024, aircall: 256 * 1024, zapier: 1024 * 1024, make: 1024 * 1024, stripe: 256 * 1024, jobs: 8 * 1024 };
   const key = Object.hasOwn(limits, provider) ? provider : "unknown";
   const connection = url.searchParams.get("connection") || "";
   // Opaque IDs are bounded; endpoint budgets cap cardinality even for random UUIDs.

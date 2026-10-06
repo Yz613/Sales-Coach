@@ -103,7 +103,13 @@ function readAscii(bytes: Uint8Array, offset: number, length: number): string {
 }
 
 function readU32le(bytes: Uint8Array, offset: number): number {
-  return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24);
+  return (
+    (bytes[offset] |
+      (bytes[offset + 1] << 8) |
+      (bytes[offset + 2] << 16) |
+      (bytes[offset + 3] << 24)) >>>
+    0
+  );
 }
 
 function writeU32le(view: Uint8Array, offset: number, value: number) {
@@ -138,16 +144,21 @@ export function parseWav(bytes: Uint8Array): WavInfo | null {
     const id = readAscii(bytes, offset, 4);
     const size = readU32le(bytes, offset + 4);
     const start = offset + 8;
+    if (size < 0 || start > bytes.length) break;
     if (id === "fmt " && size >= 16 && start + 16 <= bytes.length) {
       channels = bytes[start + 2] | (bytes[start + 3] << 8);
       sampleRate = readU32le(bytes, start + 4);
       bitsPerSample = bytes[start + 14] | (bytes[start + 15] << 8);
     } else if (id === "data") {
       dataOffset = start;
-      dataSize = Math.min(size, bytes.length - start);
+      dataSize = Math.max(0, Math.min(size, bytes.length - start));
       break;
     }
-    offset = start + size + (size % 2);
+    const nextOffset = start + size + (size % 2);
+    if (nextOffset <= offset) {
+      break;
+    }
+    offset = nextOffset;
   }
 
   if (!sampleRate || !channels || !bitsPerSample || dataOffset < 0) return null;

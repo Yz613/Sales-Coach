@@ -18,6 +18,6 @@ async function GETHandler() {
   }
 }
 
-export const GET = withWorkspaceApi(GETHandler, { admin: true });
+export const GET = withWorkspaceApi(GETHandler, {});
 
 export const dynamic = "force-dynamic";

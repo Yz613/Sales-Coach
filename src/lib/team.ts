@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { parseInviteEmails } from "@/lib/inviteEmails";
 import { publicTeamError, type PendingInvite, type TeamInfo, type TeamInviteRole } from "@/lib/team-copy";
+import { SecurityPolicyError } from "@/lib/security-policy";
 import { ensureTeamSeatLimits, UNLIMITED_TEAM_SEATS } from "@/lib/teamCapacity";
 import { notifyWorkspaceCreated } from "@/lib/visitorFollowUp";
 
@@ -18,43 +19,23 @@ function membershipToTeam(membership: {
   };
 }
 
-export async function ensureActiveTeam(userId: string): Promise<TeamInfo> {
-  const client = await clerkClient();
-  const existing = await client.users.getOrganizationMembershipList({
-    userId,
-    limit: 20,
-  });
-  if (existing.data.length > 0) {
-    return membershipToTeam(existing.data[0]);
+export async function ensureActiveTeam(
+  userId: string,
+  targetOrgId?: string | null,
+  providedClient?: Awaited<ReturnType<typeof clerkClient>>
+): Promise<TeamInfo> {
+  const client = providedClient ?? await clerkClient();
+  const limit = 100;
+  for (let offset = 0; ; offset += limit) {
+    const existing = await client.users.getOrganizationMembershipList({ userId, limit, offset });
+    const match = targetOrgId
+      ? existing.data.find((membership) => membership.organization.id === targetOrgId)
+      : existing.data[0];
+    if (match) return membershipToTeam(match);
+    if (existing.data.length < limit) break;
   }
-
-  const orgs = await client.organizations.getOrganizationList({
-    limit: 20,
-    includeMembersCount: true,
-  });
-  const owned = orgs.data.find((org) => org.createdBy === userId);
-  const target = owned ?? orgs.data[0];
-
-  if (target) {
-    try {
-      await ensureTeamSeatLimits(client, target.id);
-      const membership = await client.organizations.createOrganizationMembership({
-        organizationId: target.id,
-        userId,
-        role: "org:admin",
-      });
-      return membershipToTeam(membership);
-    } catch (err) {
-      const retry = await client.users.getOrganizationMembershipList({
-        userId,
-        limit: 20,
-      });
-      if (retry.data.length > 0) {
-        return membershipToTeam(retry.data[0]);
-      }
-      throw err;
-    }
-  }
+  // An explicitly selected workspace must never provision or restore privileges elsewhere.
+  if (targetOrgId) throw new SecurityPolicyError("You are not a member of this team.", 403, "FORBIDDEN");
 
   const user = await client.users.getUser(userId);
   const name = user.firstName ? `${user.firstName}'s team` : "Team";

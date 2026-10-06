@@ -127,7 +127,7 @@ test("encrypted recordings reject tampering and swapping across workspaces or ca
 });
 
 test("server admin guards protect actual settings, rep, coach, and job routes without middleware", async () => {
-  const routes = [await import("../app/api/admin/settings/route"), await import("../app/api/reps/route"), await import("../app/api/coach/route"), await import("../app/api/jobs/route")];
+  const routes = [await import("../app/api/admin/settings/route"), await import("../app/api/reps/[id]/route"), await import("../app/api/coach/route"), await import("../app/api/jobs/route")];
   for (const route of routes) {
     const response = await runWithAuth(member, () => (route.GET as any)(request("/api/probe")));
     assert.equal(response.status, 403);
@@ -138,6 +138,9 @@ test("server admin guards protect actual settings, rep, coach, and job routes wi
     const response = await endpoint(request("/api/probe"));
     assert.equal((await response.json()).tenant, org);
   })));
+  const repsRoute = await import("../app/api/reps/route");
+  const repsResponse = await runWithAuth(member, () => (repsRoute.GET as any)(request("/api/reps")));
+  assert.equal(repsResponse.status, 200);
 });
 
 test("cross-origin writes and chunked oversized bodies are rejected before business logic", async () => {
@@ -173,6 +176,9 @@ test("settings are encrypted at rest, isolated by authenticated context, and leg
     assert.equal(await getSetting("ai_api_key"), "secret-provider-credential");
     assert.equal((await getAllSettings()).ai_api_key, "secret-provider-credential");
     await db.insert(appSettings).values({ key: "t:org_secure:resend_api_key", value: "legacy-secret", updatedAt: new Date().toISOString() }).run();
+    assert.equal((await getAllSettings()).resend_api_key, "legacy-secret");
+    const bulkUpgraded = await db.select().from(appSettings).where(eq(appSettings.key, "t:org_secure:resend_api_key")).get();
+    assert.ok(bulkUpgraded.value.startsWith("v1."));
     assert.equal(await getSetting("resend_api_key"), "legacy-secret");
     const upgraded = await db.select().from(appSettings).where(eq(appSettings.key, "t:org_secure:resend_api_key")).get();
     assert.ok(upgraded.value.startsWith("v1."));
@@ -317,4 +323,56 @@ test("the operator migration encrypts legacy media/settings and removes the old 
     assert.ok(row.value.startsWith("v1."));
     assert.equal(await getSetting("gemini_api_key"), "legacy-provider-secret");
   });
+});
+
+test("batch upload preserves successful calls and reports failures separately", async () => {
+  const { POST } = await import("../app/api/calls/batch-upload/route");
+  const previousBilling = process.env.BILLING_REQUIRED;
+  process.env.BILLING_REQUIRED = "false";
+  try {
+    assert.ok(admin.tenantId);
+    const repId = await runWithTenant(admin.tenantId, () => getOrCreateRep(undefined, "Batch regression", "AE", "batch@example.com"));
+    const response = await runWithAuth(admin, () => POST(request("/api/calls/batch-upload", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ calls: [
+        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: 42 },
+        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: "Batch Co", callStage: "Cold Call" },
+      ] }),
+    })));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.processedCount, 1);
+    assert.equal(body.failedCount, 1);
+    assert.equal(body.results.length, 2);
+    assert.match(body.results[0].error, /Failed to process call/);
+    const saved = await db.select().from(calls).where(eq(calls.id, body.results[1].callId)).get();
+    assert.equal(saved.status, "completed");
+  } finally {
+    if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
+  }
+});
+
+test("JSON batches reject aggregate quota exhaustion before creating evaluations", async () => {
+  const { POST } = await import("../app/api/calls/batch-upload/route");
+  const quotaAdmin = { ...admin, orgId: "org_batch_quota", tenantId: "org_batch_quota", clerkPlanId: "coach" as const };
+  const previousBilling = process.env.BILLING_REQUIRED;
+  process.env.BILLING_REQUIRED = "true";
+  try {
+    const repId = await runWithTenant(quotaAdmin.tenantId, async () => {
+      await setSetting("billing:plan", "coach");
+      await setSetting("billing:eval_limit", "1");
+      await setSetting("billing:overage_opt_in", "false");
+      return getOrCreateRep(undefined, "Quota regression", "AE", "quota@example.com");
+    });
+    const item = { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", callStage: "Cold Call" };
+    const response = await runWithAuth(quotaAdmin, () => POST(request("/api/calls/batch-upload", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ calls: [item, item] }),
+    })));
+    assert.equal(response.status, 402);
+    assert.equal((await response.json()).code, "QUOTA_EXCEEDED");
+    assert.equal((await db.select().from(calls).where(eq(calls.orgId, quotaAdmin.tenantId)).all()).length, 0);
+  } finally {
+    if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
+  }
 });

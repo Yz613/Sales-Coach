@@ -34,6 +34,9 @@ assert.equal(isUnusableTranscript(""), true);
 assert.equal(isUnusableTranscript("[Audio file ingested: demo.mp3 (12 KB). Automatic transcription is not configured, so paste the transcript for a full evaluation.]"), true);
 assert.equal(isUnusableTranscript("No speech could be transcribed from call.mp3"), true);
 assert.equal(isUnusableTranscript("David: Hi Dr. Thorne, my name is David Kim with LabSync."), false);
+assert.equal(isUnusableTranscript("David: We noted that transcription is not available for this legacy system.\nDr. Thorne: Understood, thanks."), false);
+assert.equal(isUnusableTranscript("David: Transcription is not available for this legacy system."), false);
+assert.equal(isUnusableTranscript(`[Audio file ingested: ${"long filename ".repeat(30)}. Automatic transcription is not configured.]`), true);
 assert.throws(
   () => requireUsableTranscript("[Audio file ingested: x.mp3. Automatic transcription is not configured.]"),
   /no usable transcript/i

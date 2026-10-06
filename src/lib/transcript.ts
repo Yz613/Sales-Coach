@@ -94,8 +94,16 @@ function looksLikeBinaryGarbage(text: string): boolean {
 export function isUnusableTranscript(text: string | null | undefined): boolean {
   const raw = (text || "").trim();
   if (!raw) return true;
-  if (MISSING_TRANSCRIPT_RE.test(raw)) return true;
   if (looksLikeBinaryGarbage(raw)) return true;
+
+  const turns = parseTranscript(raw);
+  const identifiedTurns = turns.filter((t) => t.speaker !== "Unknown");
+  // A spoken mention of transcription is dialogue even in a single speaker turn.
+  if (identifiedTurns.length > 0 && !/^\[?Audio file ingested:/i.test(raw)) {
+    return false;
+  }
+
+  if (MISSING_TRANSCRIPT_RE.test(raw)) return true;
   return false;
 }
 

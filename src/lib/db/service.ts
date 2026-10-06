@@ -51,11 +51,15 @@ function forTenant(column: { orgId?: unknown } | any) {
 async function readRawSetting(key: string): Promise<string | null> {
   const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   if (!row) return null;
-  const value = openSetting(key, row.value);
+  return openAndUpgradeSetting(key, row.value);
+}
+
+async function openAndUpgradeSetting(key: string, stored: string): Promise<string> {
+  const value = openSetting(key, stored);
   // Upgrade legacy plaintext atomically, so a concurrent credential change is not overwritten.
-  if (isSecretSetting(key) && value && !row.value.startsWith("v1.")) {
+  if (isSecretSetting(key) && value && !stored.startsWith("v1.")) {
     await db.update(appSettings).set({ value: sealSetting(key, value), updatedAt: new Date().toISOString() })
-      .where(and(eq(appSettings.key, key), eq(appSettings.value, row.value))).run();
+      .where(and(eq(appSettings.key, key), eq(appSettings.value, stored))).run();
   }
   return value;
 }
@@ -101,6 +105,23 @@ export async function setSetting(key: string, value: string): Promise<void> {
   await writeRawSetting(settingStorageKey(tenantId(), key), value);
 }
 
+/** Compare-and-swap public settings in the database, shared by every Worker. */
+export async function compareAndSetSetting(key: string, expected: string | null, value: string): Promise<boolean> {
+  if (isSecretSetting(key) || isGlobalSettingKey(key)) throw new Error("Only public tenant settings support compare-and-swap.");
+  const storageKey = settingStorageKey(tenantId(), key);
+  const scoped = await db.select().from(appSettings).where(eq(appSettings.key, storageKey)).get();
+  const current = scoped ? scoped.value : await getSetting(key);
+  if (current !== expected) return false;
+  const updatedAt = new Date().toISOString();
+  const row = scoped
+    ? await db.update(appSettings).set({ value, updatedAt })
+      .where(and(eq(appSettings.key, storageKey), eq(appSettings.value, expected!)))
+      .returning({ key: appSettings.key }).get()
+    : await db.insert(appSettings).values({ key: storageKey, value, updatedAt })
+      .onConflictDoNothing().returning({ key: appSettings.key }).get();
+  return Boolean(row);
+}
+
 export async function getGlobalSetting(key: string): Promise<string | null> {
   if (!isGlobalSettingKey(key)) {
     throw new Error(`Refusing to read non-global setting ${key}`);
@@ -123,11 +144,11 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     if (isGlobalSettingKey(r.key)) continue;
     const scopedKey = parseTenantSettingKey(r.key, org);
     if (scopedKey) {
-      res[scopedKey] = (await readRawSetting(r.key)) || "";
+      res[scopedKey] = await openAndUpgradeSetting(r.key, r.value) || "";
       continue;
     }
     if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
-      res[r.key] = (await readRawSetting(r.key)) || "";
+      res[r.key] = await openAndUpgradeSetting(r.key, r.value) || "";
     }
   }
   return res;
@@ -333,10 +354,11 @@ export async function getCallStages(): Promise<string[]> {
 }
 
 export async function addCallStage(name: string): Promise<string[]> {
-  const stage = normalizeStageName(name);
+  const stage = normalizeStageName(name).slice(0, 60).trim();
   if (!stage) throw new Error("Call Stage Target is required.");
   const current = await getCallStages();
   if (current.some((s) => stagesEqual(s, stage))) return current;
+  if (current.length >= 50) return current;
   const next = [...current, stage];
   await persistCallStages(next);
   return next;
@@ -900,11 +922,6 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
 export async function getCallById(id: string): Promise<Call | null> {
   const c = await db.select().from(calls).where(and(eq(calls.id, id), forTenant(calls.orgId))).get();
   if (!c) return null;
-  if (isUnusableTranscript(c.transcriptText)) {
-    await db.delete(evaluations).where(and(eq(evaluations.callId, c.id), forTenant(evaluations.orgId))).run();
-    await db.delete(calls).where(and(eq(calls.id, c.id), forTenant(calls.orgId))).run();
-    return null;
-  }
 
   const [rep, evalRows] = await Promise.all([
     db.select().from(reps).where(and(eq(reps.id, c.repId), forTenant(reps.orgId))).get(),
@@ -1155,6 +1172,20 @@ export async function insertCall(values: {
   }).run();
   const { autoApplyScorecardsForCall } = await import("../scorecards");
   await autoApplyScorecardsForCall(values.id);
+}
+
+export async function updateCallStatus(
+  id: string,
+  status: "completed" | "failed" | "analyzing",
+  coreOutcome?: string
+): Promise<void> {
+  const patch: Record<string, any> = { status };
+  if (coreOutcome !== undefined) patch.coreOutcome = coreOutcome;
+  await db
+    .update(calls)
+    .set(patch)
+    .where(and(eq(calls.id, id), forTenant(calls.orgId)))
+    .run();
 }
 
 const BACKFILL_KEY = "tenant_backfill_org_id";

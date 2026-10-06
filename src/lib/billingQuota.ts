@@ -13,7 +13,7 @@ import {
   planFromClerkHas,
   type ClerkHas,
 } from "@/lib/billingAccess";
-import { getSetting, setSetting } from "@/lib/db/service";
+import { compareAndSetSetting, getSetting, setSetting } from "@/lib/db/service";
 import { LOCAL_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 
 export class QuotaExceededError extends Error {
@@ -220,22 +220,45 @@ export async function assertEvaluationAllowed(
   return { account, decision };
 }
 
+const usageLocks = new Map<string, Promise<unknown>>();
+
+async function withUsageLock<T>(scope: string, fn: () => Promise<T>): Promise<T> {
+  const prev = (usageLocks.get(scope) || Promise.resolve()).catch(() => {});
+  const next = prev.then(() => fn());
+  usageLocks.set(scope, next);
+  try {
+    return await next;
+  } finally {
+    if (usageLocks.get(scope) === next) {
+      usageLocks.delete(scope);
+    }
+  }
+}
+
 export async function recordEvaluationUsage(
   auth: BillingAuth,
   requestedCredits: number
 ): Promise<BillingUsage> {
-  const { account, decision } = await assertEvaluationAllowed(auth, requestedCredits);
-  const month = utcMonthKey();
-  const next: BillingUsage = {
-    month,
-    creditsUsed: decision.creditsAfter,
-    overageCredits: account.usage.overageCredits + decision.overageCredits,
-    overageAmountUsd: Number(
-      (account.usage.overageAmountUsd + decision.overageAmountUsd).toFixed(2)
-    ),
-  };
-  await setSetting(usageKey(month), JSON.stringify(next));
-  return next;
+  const scope = auth.isClerkConfigured ? billingScope(auth) : LOCAL_TENANT_ID;
+  return withUsageLock(scope, async () => {
+    // A process-local lock reduces contention; database CAS prevents cross-worker loss.
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const month = utcMonthKey();
+      const expected = await getSetting(usageKey(month));
+      const { account, decision } = await assertEvaluationAllowed(auth, requestedCredits);
+      if (utcMonthKey() !== month || JSON.stringify(account.usage) !== JSON.stringify(parseUsage(expected, month))) continue;
+      const next: BillingUsage = {
+        month,
+        creditsUsed: decision.creditsAfter,
+        overageCredits: account.usage.overageCredits + decision.overageCredits,
+        overageAmountUsd: Number(
+          (account.usage.overageAmountUsd + decision.overageAmountUsd).toFixed(2)
+        ),
+      };
+      if (await compareAndSetSetting(usageKey(month), expected, JSON.stringify(next))) return next;
+    }
+    throw new Error("Usage accounting is busy. Please retry.");
+  });
 }
 
 export function quotaHttpStatus(err: unknown): number {

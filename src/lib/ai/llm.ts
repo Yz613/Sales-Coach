@@ -118,8 +118,13 @@ async function callOpenAiCompatible(
       response_format: { type: "json_object" },
     }),
   });
-  const data = await res.json();
-  if (!res.ok || data.error) {
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Provider request failed (${res.status}). Check the provider configuration.`);
+  }
+  if (!res.ok || data?.error) {
     throw new Error(`Provider request failed (${res.status}). Check the provider configuration.`);
   }
   const text = data?.choices?.[0]?.message?.content || "";
@@ -147,8 +152,13 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  const data = await res.json();
-  if (!res.ok || data.error) {
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Anthropic request failed (${res.status}). Check the provider configuration.`);
+  }
+  if (!res.ok || data?.error) {
     throw new Error(`Anthropic request failed (${res.status}). Check the provider configuration.`);
   }
   const text = (data?.content || [])
