@@ -18,6 +18,7 @@ import {
   type StripeEvent,
   type StripeSubscription,
 } from "@/lib/stripeSession";
+import { notifyPaidSubscription } from "@/lib/visitorFollowUp";
 
 export const CHECKOUT_COOKIE = "sc_checkout_session";
 export const CHECKOUT_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -209,7 +210,24 @@ export async function persistStripeSession(
     record.claimedOrgId = existing.claimedOrgId;
   }
   await writeCheckoutRecord(record);
+  reportPaidCheckoutTransition(existing, record);
   return record;
+}
+
+/** Report a visitor as a paying customer once, when a session first becomes paid. */
+export function reportPaidCheckoutTransition(
+  existing: { status?: string | null; email?: string | null } | null | undefined,
+  record: { status?: string | null; email?: string | null } | null | undefined
+): void {
+  if (!record || record.status !== "paid") return;
+  const email = record.email?.trim() || "";
+  if (!email) return;
+  if (existing?.status === "paid" && existing.email?.trim()) return;
+  try {
+    notifyPaidSubscription(email);
+  } catch (err) {
+    console.error("visitor follow-up paid checkout failed", err instanceof Error ? err.name : "Error");
+  }
 }
 
 export async function finalizeCheckoutSession(sessionId: string): Promise<StripeCheckoutRecord | null> {
@@ -289,6 +307,11 @@ export async function claimPendingCheckout(input: {
   record.claimedOrgId = orgId;
   record.updatedAt = new Date().toISOString();
   await writeCheckoutRecord(record);
+  try {
+    notifyPaidSubscription(record.email || input.email);
+  } catch (err) {
+    console.error("visitor follow-up paid checkout failed", err instanceof Error ? err.name : "Error");
+  }
   return record.planId;
 }
 

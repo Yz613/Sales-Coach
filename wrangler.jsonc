@@ -24,6 +24,9 @@
 	// `wrangler secret put STRIPE_WEBHOOK_SECRET`. Optional price ids can be vars.
 	// Optional invite mailer: `wrangler secret put RESEND_API_KEY` (or paste it in
 	// Admin → Settings).
+	// Optional visitor follow-up: `wrangler secret put VISITOR_FOLLOW_UP_API_KEY`.
+	// Set VISITOR_FOLLOW_UP_ENDPOINT and NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT
+	// in the build and Worker environment. See .env.example. Do not commit the key.
 	"vars": {
 		"REQUIRE_MFA": "true",
 		"NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/app/sign-in",

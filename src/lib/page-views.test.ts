@@ -4,6 +4,7 @@ import vm from "node:vm";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { analyticsConnectHosts, analyticsScriptHosts } from "./analytics-policy";
+import { visitorFollowUpConnectHosts, visitorFollowUpScriptHosts } from "./visitorFollowUpPublic";
 import {
   MEASUREMENT_ID,
   TAG_SCRIPT_SRC,
@@ -76,6 +77,8 @@ describe("page view tag", () => {
   });
 
   it("allows the tag in the fallback content security policy", () => {
+    const previous = process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
     const policy = fallbackContentSecurityPolicy("abc+/=", false);
     assert.ok(
       policy.includes(
@@ -89,9 +92,34 @@ describe("page view tag", () => {
     assert.ok(policy.includes("connect-src 'self' https://www.googletagmanager.com"));
     assert.equal(policy.includes("unsafe-eval"), false);
     assert.equal(policy.includes(" ws:"), false);
+    assert.equal(policy.includes("followup.refreshqueue.com"), false);
     const dev = fallbackContentSecurityPolicy("n", true);
     assert.match(dev, /'unsafe-eval'/);
     assert.match(dev, /connect-src 'self' ws:/);
+    assert.equal(dev.includes("followup.refreshqueue.com"), false);
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    else process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = previous;
+  });
+
+  it("adds the follow-up origin to script-src and connect-src only when the public endpoint is set", () => {
+    const previous = process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    try {
+      assert.deepEqual(visitorFollowUpScriptHosts(), []);
+      assert.deepEqual(visitorFollowUpConnectHosts(), []);
+      assert.equal(fallbackContentSecurityPolicy("n", false).includes("followup.refreshqueue.com"), false);
+      process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = "https://followup.refreshqueue.com/";
+      const policy = fallbackContentSecurityPolicy("nonce", false);
+      assert.match(policy, /script-src [^;]*https:\/\/followup\.refreshqueue\.com/);
+      assert.match(policy, /connect-src [^;]*https:\/\/followup\.refreshqueue\.com/);
+      assert.deepEqual(visitorFollowUpScriptHosts(), ["https://followup.refreshqueue.com"]);
+      assert.deepEqual(visitorFollowUpConnectHosts(), ["https://followup.refreshqueue.com"]);
+      process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = "not a url";
+      assert.equal(fallbackContentSecurityPolicy("n", false).includes("not a url"), false);
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+      else process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = previous;
+    }
   });
 
   it("renders the measurement id from the root layout", () => {
@@ -100,13 +128,20 @@ describe("page view tag", () => {
     assert.match(layout, /src=\{TAG_SCRIPT_SRC\}/);
     assert.match(layout, /pageViewBootstrap\(\)/);
     assert.match(layout, /<PageViewTracker \/>/);
+    assert.match(layout, /visitorFollowUpBrowserScriptSrc\(\)/);
+    assert.match(layout, /nonce=\{nonce\}/);
+    assert.match(layout, /data-site=\{VISITOR_FOLLOW_UP_SITE_ID\}/);
     assert.match(middleware, /fallbackContentSecurityPolicy/);
     assert.match(middleware, /tagScriptHosts/);
     assert.match(middleware, /tagConnectHosts/);
     assert.match(middleware, /tagImgHosts/);
+    assert.match(middleware, /visitorFollowUpScriptHosts\(\)/);
+    assert.match(middleware, /visitorFollowUpConnectHosts\(\)/);
   });
 
   it("merges the tag hosts into Clerk's strict content security policy", () => {
+    const previous = process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
     const require = createRequire(import.meta.url);
     const { createContentSecurityPolicyHeaders } = require(
       "../../node_modules/@clerk/nextjs/dist/cjs/server/content-security-policy.js"
@@ -123,8 +158,8 @@ describe("page view tag", () => {
         "base-uri": ["'self'"],
         "frame-ancestors": ["'none'"],
         "media-src": ["'self'", "https:", "blob:"],
-        "script-src": [...tagScriptHosts, ...analyticsScriptHosts],
-        "connect-src": [...tagConnectHosts, ...analyticsConnectHosts],
+        "script-src": [...tagScriptHosts, ...analyticsScriptHosts, ...visitorFollowUpScriptHosts()],
+        "connect-src": [...tagConnectHosts, ...analyticsConnectHosts, ...visitorFollowUpConnectHosts()],
         "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
       },
     });
@@ -135,7 +170,27 @@ describe("page view tag", () => {
       assert.ok(policy.includes(host), host);
     }
     assert.equal(policy.includes("eu.i.posthog.com"), false);
+    assert.equal(policy.includes("followup.refreshqueue.com"), false);
     assert.match(policy, /https:\/\/img\.clerk\.com/);
     assert.match(policy, /frame-ancestors 'none'/);
+
+    process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = "https://followup.refreshqueue.com";
+    const configured = createContentSecurityPolicyHeaders("clerk.example.com", {
+      strict: true,
+      directives: {
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "frame-ancestors": ["'none'"],
+        "media-src": ["'self'", "https:", "blob:"],
+        "script-src": [...tagScriptHosts, ...analyticsScriptHosts, ...visitorFollowUpScriptHosts()],
+        "connect-src": [...tagConnectHosts, ...analyticsConnectHosts, ...visitorFollowUpConnectHosts()],
+        "img-src": ["'self'", "https://img.clerk.com", "data:", ...tagImgHosts],
+      },
+    });
+    const configuredPolicy = configured.headers.find(([name]) => name.toLowerCase() === "content-security-policy")?.[1] || "";
+    assert.match(configuredPolicy, /script-src [^;]*https:\/\/followup\.refreshqueue\.com/);
+    assert.match(configuredPolicy, /connect-src [^;]*https:\/\/followup\.refreshqueue\.com/);
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT;
+    else process.env.NEXT_PUBLIC_VISITOR_FOLLOW_UP_ENDPOINT = previous;
   });
 });
