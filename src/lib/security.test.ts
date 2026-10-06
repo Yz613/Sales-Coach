@@ -321,3 +321,29 @@ test("the operator migration encrypts legacy media/settings and removes the old 
     assert.equal(await getSetting("gemini_api_key"), "legacy-provider-secret");
   });
 });
+
+test("batch upload preserves successful calls and reports failures separately", async () => {
+  const { POST } = await import("../app/api/calls/batch-upload/route");
+  const previousBilling = process.env.BILLING_REQUIRED;
+  process.env.BILLING_REQUIRED = "false";
+  try {
+    const repId = await runWithTenant(admin.tenantId, () => getOrCreateRep(undefined, "Batch regression", "AE", "batch@example.com"));
+    const response = await runWithAuth(admin, () => POST(request("/api/calls/batch-upload", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ calls: [
+        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: 42 },
+        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: "Batch Co", callStage: "Cold Call" },
+      ] }),
+    })));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.processedCount, 1);
+    assert.equal(body.failedCount, 1);
+    assert.equal(body.results.length, 2);
+    assert.match(body.results[0].error, /Failed to process call/);
+    const saved = await db.select().from(calls).where(eq(calls.id, body.results[1].callId)).get();
+    assert.equal(saved.status, "completed");
+  } finally {
+    if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
+  }
+});

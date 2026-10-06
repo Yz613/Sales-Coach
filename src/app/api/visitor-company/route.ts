@@ -14,7 +14,7 @@ async function rateLimitedVisitorCompany(request: Request): Promise<Response> {
     await consumeLimit("visitor-company:global", 1200);
   } catch (error) {
     if (error instanceof SecurityPolicyError) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      return new Response(request.method === "HEAD" ? null : JSON.stringify({ error: error.message }), {
         status: error.status,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       });

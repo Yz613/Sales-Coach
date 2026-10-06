@@ -101,6 +101,23 @@ export async function setSetting(key: string, value: string): Promise<void> {
   await writeRawSetting(settingStorageKey(tenantId(), key), value);
 }
 
+/** Compare-and-swap public settings in the database, shared by every Worker. */
+export async function compareAndSetSetting(key: string, expected: string | null, value: string): Promise<boolean> {
+  if (isSecretSetting(key) || isGlobalSettingKey(key)) throw new Error("Only public tenant settings support compare-and-swap.");
+  const storageKey = settingStorageKey(tenantId(), key);
+  const scoped = await db.select().from(appSettings).where(eq(appSettings.key, storageKey)).get();
+  const current = scoped ? scoped.value : await getSetting(key);
+  if (current !== expected) return false;
+  const updatedAt = new Date().toISOString();
+  const row = scoped
+    ? await db.update(appSettings).set({ value, updatedAt })
+      .where(and(eq(appSettings.key, storageKey), eq(appSettings.value, expected!)))
+      .returning({ key: appSettings.key }).get()
+    : await db.insert(appSettings).values({ key: storageKey, value, updatedAt })
+      .onConflictDoNothing().returning({ key: appSettings.key }).get();
+  return Boolean(row);
+}
+
 export async function getGlobalSetting(key: string): Promise<string | null> {
   if (!isGlobalSettingKey(key)) {
     throw new Error(`Refusing to read non-global setting ${key}`);

@@ -192,25 +192,24 @@ async function POSTHandler(req: Request) {
     for (const item of itemsToProcess) {
       const callId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const now = new Date().toISOString();
-      const audioUrl = item.audioBytes?.byteLength
-        ? await saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
-        : undefined;
-
-      await insertCall({
-        id: callId,
-        repId: item.repId,
-        prospectCompany: (item.prospectCompany || "").trim(),
-        prospectName: (item.prospectName || "").trim() || "Lead",
-        callStage: item.callStage || "Cold Call",
-        coreOutcome: "Analyzing...",
-        durationSeconds: item.durationSeconds || 300,
-        transcriptText: item.transcriptText,
-        audioUrl,
-        status: "analyzing",
-        createdAt: now,
-      });
-
       try {
+        const audioUrl = item.audioBytes?.byteLength
+          ? await saveCallAudio(callId, item.audioBytes, item.audioMimeType, item.audioFileName)
+          : undefined;
+
+        await insertCall({
+          id: callId,
+          repId: item.repId,
+          prospectCompany: (item.prospectCompany || "").trim(),
+          prospectName: (item.prospectName || "").trim() || "Lead",
+          callStage: item.callStage || "Cold Call",
+          coreOutcome: "Analyzing...",
+          durationSeconds: item.durationSeconds || 300,
+          transcriptText: item.transcriptText,
+          audioUrl,
+          status: "analyzing",
+          createdAt: now,
+        });
         const evaluation = await evaluateCall({
           callId,
           repId: item.repId,
@@ -227,13 +226,14 @@ async function POSTHandler(req: Request) {
       } catch (callErr: any) {
         console.error(`Batch call ${callId} evaluation failed:`, callErr);
         await updateCallStatus(callId, "failed", "Evaluation failed").catch(() => {});
-        results.push({ callId, error: callErr?.message || "Failed to evaluate call" });
+        results.push({ callId, error: "Failed to process call. Retry it or check server diagnostics." });
       }
     }
 
     return NextResponse.json({
       success: true,
-      processedCount: results.length,
+      processedCount: results.filter((result) => "evaluation" in result).length,
+      failedCount: results.filter((result) => "error" in result).length,
       results,
     });
   } catch (err: any) {

@@ -98,10 +98,8 @@ export function isUnusableTranscript(text: string | null | undefined): boolean {
 
   const turns = parseTranscript(raw);
   const identifiedTurns = turns.filter((t) => t.speaker !== "Unknown");
-  const words = raw.split(/\s+/).filter(Boolean);
-
-  // Real dialogue turns or substantial transcript text should never be treated as unusable stubs
-  if (identifiedTurns.length >= 2 || words.length >= 40) {
+  // A spoken mention of transcription is dialogue even in a single speaker turn.
+  if (identifiedTurns.length > 0 && !/^\[?Audio file ingested:/i.test(raw)) {
     return false;
   }
 
