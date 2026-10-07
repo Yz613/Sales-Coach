@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI Status](https://github.com/Yz613/Sales-Coach/actions/workflows/ci.yml/badge.svg)](https://github.com/Yz613/Sales-Coach/actions)
+
+See [GitHub Actions reliability](docs/CI_RELIABILITY.md) for failure causes, deployment checks, and local verification.
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)

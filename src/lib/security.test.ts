@@ -376,3 +376,31 @@ test("JSON batches reject aggregate quota exhaustion before creating evaluations
     if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
   }
 });
+
+test("authenticated deployment health checks validate the database without processing queued work", async () => {
+  const previous = process.env.INTEGRATION_CRON_SECRET;
+  const secret = "deployment-health-fixture".padEnd(32, "x");
+  const { processingJobs } = await import("./db/schema");
+  const { POST } = await import("../app/api/jobs/run/route");
+  const id = "job_deployment_health_fixture";
+  const now = new Date().toISOString();
+  try {
+    process.env.INTEGRATION_CRON_SECRET = secret;
+    await db.insert(processingJobs).values({ id, orgId: "org_health", kind: "evaluate", callId: "nonexistent", payload: "{}", status: "queued", availableAt: now, createdAt: now, updatedAt: now }).run();
+    for (const token of [undefined, "incorrect"]) {
+      const response = await POST(request("/api/jobs/run?check=health", { method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {} }));
+      assert.equal(response.status, 401);
+    }
+    const response = await POST(request("/api/jobs/run?check=health", { method: "POST", headers: { authorization: `Bearer ${secret}` } }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { healthy: true });
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    const job = await db.select().from(processingJobs).where(eq(processingJobs.id, id)).get();
+    assert.equal(job.status, "queued");
+    assert.equal(job.attempts, 0);
+    assert.equal(job.leaseToken, null);
+  } finally {
+    await db.delete(processingJobs).where(eq(processingJobs.id, id)).run();
+    if (previous === undefined) delete process.env.INTEGRATION_CRON_SECRET; else process.env.INTEGRATION_CRON_SECRET = previous;
+  }
+});

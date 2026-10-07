@@ -8,7 +8,6 @@ concurrency:
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -58,8 +57,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - run: npm ci
-      - run: npm audit --audit-level=moderate --omit=dev
+      - run: npm ci --no-audit --no-fund
+      - name: Check dependency advisories
+        run: node scripts/ci-audit.cjs
       - run: npm test
       - run: npx tsc --noEmit
       - name: Resolve D1 database id
