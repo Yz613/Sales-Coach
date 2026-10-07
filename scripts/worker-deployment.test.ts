@@ -9,7 +9,7 @@ const env = { PUBLIC_APP_URL: "https://example.com", INTEGRATION_CRON_SECRET: "x
 function deploymentFetch(failure?: "auth" | "configuration" | "checkout") {
   return async (input: string) => {
     const url = new URL(input);
-    if (url.pathname.endsWith("/jobs/run")) return Response.json({ jobs: [] });
+    if (url.pathname.endsWith("/jobs/run")) return Response.json({ healthy: true });
     if (url.pathname.endsWith("/auth/role")) return Response.json({ userId: null, isClerkConfigured: true, ...(failure === "auth" ? { authenticationIssue: "unavailable" } : {}) });
     if (url.pathname.endsWith("/billing/checkout")) {
       if (failure === "configuration") return Response.json({ code: "SECURITY_CONFIGURATION" }, { status: 503 });
@@ -47,34 +47,37 @@ test("deployment verification rejects broken payment links even when an invalid 
   assert.deepEqual(checkoutPlans, ["coach", "team"]);
 });
 
-function syncFixture(publicKey?: string, optionalSecrets: Record<string, string> = {}) {
+async function syncFixture(publicKey?: string, optionalSecrets: Record<string, string> = {}) {
   const uploaded: string[] = [];
-  const processFixture = { cwd: () => "/fixture", env: { ...optionalSecrets, ...(publicKey ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publicKey } : {}) }, exitCode: 0, exit: () => { throw new Error("Unexpected process exit"); } };
-  vm.runInNewContext(fs.readFileSync(require.resolve("./sync-worker-secrets.cjs"), "utf8"), {
-    process: processFixture,
-    console: { log() {}, warn() {}, error() {} },
-    require: (name: string) => name.endsWith("oauth-providers.json") ? require("../src/lib/integrations/oauth-providers.json") : ({ execFileSync: (_command: string, args: string[]) => {
-      if (args[2] === "list") return JSON.stringify(["CLERK_SECRET_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].map(name => ({ name })));
-      uploaded.push(args[3]);
-      return "";
-    } }),
-  });
-  return { uploaded, exitCode: processFixture.exitCode };
+  try {
+    await require("./sync-worker-secrets.cjs").main({
+      env: { ...optionalSecrets, ...(publicKey ? { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publicKey } : {}) },
+      console: { log() {}, warn() {} },
+      exec: (_command: string, args: string[], options: { input?: string }) => {
+        if (args.includes("list")) return JSON.stringify(["CLERK_SECRET_KEY", "INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_CRON_SECRET", "PUBLIC_APP_URL"].map(name => ({ name })));
+        assert.ok(args.includes("bulk"));
+        uploaded.push(...Object.keys(JSON.parse(options.input || "{}")));
+        return "";
+      },
+    });
+    return { uploaded, exitCode: 0 };
+  } catch { return { uploaded, exitCode: 1 }; }
 }
 
-test("deployment requires the public key without uploading a conflicting secret", () => {
-  assert.equal(syncFixture("pk_live_fixture").uploaded.includes("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"), false);
-  assert.equal(syncFixture("pk_live_fixture").exitCode, 0);
-  assert.equal(syncFixture().exitCode, 1);
+test("deployment requires the public key without uploading a conflicting secret", async () => {
+  const valid = await syncFixture("pk_live_fixture");
+  assert.equal(valid.uploaded.includes("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"), false);
+  assert.equal(valid.exitCode, 0);
+  assert.equal((await syncFixture()).exitCode, 1);
 });
 
-test("deployment forwards configured OAuth credentials and keeps unused providers optional", () => {
+test("deployment forwards configured OAuth credentials and keeps unused providers optional", async () => {
   const credentials = Object.fromEntries(Object.values(require("../src/lib/integrations/oauth-providers.json")).flatMap((app: any) =>
     ["CLIENT_ID", "CLIENT_SECRET"].map(suffix => [`${app.prefix}_${suffix}`, "fixture-value"])));
-  const result = syncFixture("pk_live_fixture", credentials);
+  const result = await syncFixture("pk_live_fixture", credentials);
   assert.equal(result.exitCode, 0);
   assert.deepEqual(result.uploaded.sort(), Object.keys(credentials).sort());
-  assert.equal(syncFixture("pk_live_fixture").exitCode, 0);
+  assert.equal((await syncFixture("pk_live_fixture")).exitCode, 0);
   const workflow = fs.readFileSync(require.resolve("../.github/workflows/deploy.yml"), "utf8");
   for (const name of Object.keys(credentials)) assert.ok(workflow.includes(name + ": ${{ secrets." + name + " }}"));
 });
@@ -220,4 +223,28 @@ test("production secret migration uses stdin and preserves repository copies whe
   const verified = successful.calls.findIndex(call => call.args[0] === "secret" && call.args[1] === "list");
   const removed = successful.calls.findIndex(call => call.args[0] === "secret" && call.args[1] === "delete");
   assert.ok(verified >= 0 && removed > verified);
+});
+
+test("deployment uses only the authenticated health probe and retries rollout network failures", async () => {
+  let attempts = 0;
+  const fixture = deploymentFetch();
+  await verify({ env, delay: async () => {}, fetch: async (input: string, options: RequestInit) => {
+    if (new URL(input).pathname.endsWith("/jobs/run")) {
+      assert.equal(new URL(input).searchParams.get("check"), "health");
+      assert.equal(options.method, "POST");
+      assert.equal((options.headers as Record<string, string>).Authorization, `Bearer ${env.INTEGRATION_CRON_SECRET}`);
+      if (++attempts === 1) throw new DOMException("Timed out", "TimeoutError");
+      if (attempts === 2) return Response.json({ error: "rolling out" }, { status: 503 });
+    }
+    return fixture(input);
+  } });
+  assert.equal(attempts, 3);
+});
+
+test("an exhausted or malformed database health probe still fails deployment", async () => {
+  for (const health of [() => Response.json({ jobs: [] }), () => Response.json({ error: "failed" }, { status: 500 }), () => { throw new Error("connection reset"); }]) {
+    let calls = 0;
+    await assert.rejects(verify({ env, delay: async () => {}, fetch: async () => { calls++; return health(); } }), /after 5 attempts/);
+    assert.equal(calls, 5);
+  }
 });
