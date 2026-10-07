@@ -54,7 +54,7 @@
     "esbuild": "^0.25.12",
     "miniflare": "5.20260930.0-alpha",
     "postcss": "^8.5.28",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5",
     "wrangler": "^4.145.0"
