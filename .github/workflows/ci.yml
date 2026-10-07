@@ -13,7 +13,8 @@ on:
     - cron: '17 10 * * *'
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # PRs share a group; every other event keeps its own pending run.
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
