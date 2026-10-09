@@ -4,6 +4,8 @@ import { after, before, test } from "node:test";
 import { build } from "esbuild";
 import { Miniflare, Response as WorkerResponse, convertV4MiniflareOptions } from "miniflare";
 
+const coreSchema = await readFile(new URL("../schema.sql", import.meta.url), "utf8");
+
 // Use workerd's native fetch/Request/crypto, so Node-only mocks cannot hide hosting failures.
 const workerSource = `
 import { boundedRequest } from './src/lib/security-policy';
@@ -13,12 +15,31 @@ import { encryptCredentials, decryptCredentials } from './src/lib/revenue/securi
 import { pingProvider } from './src/lib/ai/llm';
 import { transcribeAudio } from './src/lib/ai/transcribe';
 import { REVENUE_MIGRATIONS } from './src/lib/db/revenueMigrations';
-import { externalTasks, taskExports, integrationExports, callProviderInsights, dealReviews, forecastSubmissions } from './src/lib/db/schema';
+import { replaceCallEvaluation } from './src/lib/db/evaluation-write';
+import { evaluations, externalTasks, taskExports, integrationExports, callProviderInsights, dealReviews, forecastSubmissions } from './src/lib/db/schema';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
 export default { async fetch(request, env) {
   const url = new URL(request.url);
   try {
+    if (url.pathname === '/evaluation-storage') {
+      const storage = env.EVALUATION_DB;
+      await storage.batch(${JSON.stringify(coreSchema)}.split(';').filter(statement => statement.trim()).map(statement => storage.prepare(statement)));
+      await storage.prepare("INSERT INTO reps (id,name,email,role,created_at) VALUES ('rep','Fixture Rep','rep@example.com','AE','2026-10-09')").run();
+      await storage.prepare("INSERT INTO calls (id,rep_id,prospect_company,prospect_name,call_stage,core_outcome,duration_seconds,transcript_text,created_at) VALUES ('call','rep','Fixture','Alex','Cold Call','Dropped',60,'Rep: Hello','2026-10-09')").run();
+      const database = drizzle(storage);
+      const value = { id:'original', orgId:'org_a', callId:'call', repId:'rep', bottomLine:'Original review', painStatus:'Pass', painEvidence:'Fixture', budgetStatus:'Pass', budgetEvidence:'Fixture', decisionStatus:'Pass', decisionEvidence:'Fixture', scriptAdherenceScore:8, scriptFeedback:'Fixture', missedOpportunities:'[]', topFixes:'[]', createdAt:new Date().toISOString() };
+      await replaceCallEvaluation(database, value);
+      await database.insert(evaluations).values({ ...value, id:'foreign', orgId:'org_b' }).run();
+      await storage.exec("CREATE TRIGGER replacement_failure BEFORE INSERT ON evaluations WHEN NEW.id = 'rejected' BEGIN SELECT RAISE(ABORT, 'simulated replacement failure'); END");
+      let rejected = false;
+      try { await replaceCallEvaluation(database, { ...value, id:'rejected' }); } catch { rejected = true; }
+      const preserved = await database.select().from(evaluations).where(eq(evaluations.orgId,'org_a')).all();
+      await Promise.all(Array.from({ length:24 }, (_, index) => replaceCallEvaluation(database, { ...value, id:'review-' + index })));
+      const saved = await database.select().from(evaluations).where(eq(evaluations.orgId,'org_a')).all();
+      const foreign = await database.select().from(evaluations).where(eq(evaluations.orgId,'org_b')).all();
+      return Response.json({ rejected, preserved:preserved.map(row=>row.id), count:saved.length, replaced:saved[0].id.startsWith('review-'), foreign:foreign.map(row=>row.id) });
+    }
     if (url.pathname === '/forecast-storage') {
       await env.DB.prepare('CREATE TABLE IF NOT EXISTS calls (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, created_at TEXT NOT NULL)').run();
       await env.DB.batch(REVENUE_MIGRATIONS.map(statement => env.DB.prepare(statement)));
@@ -98,7 +119,7 @@ before(async () => {
   });
   runtime = new Miniflare(convertV4MiniflareOptions({
     modules: true, script: bundle.outputFiles[0].text, compatibilityDate, compatibilityFlags,
-    d1Databases: ['DB'],
+    d1Databases: ['DB', 'EVALUATION_DB'],
     bindings: { NODE_ENV: "production", INTEGRATION_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64") },
     outboundService: async request => {
       const url = new URL(request.url);
@@ -175,6 +196,12 @@ test("D1 deal reviews reject concurrent writes and forecast snapshots survive re
   const response = await runtime.dispatchFetch("http://localhost/forecast-storage");
   assert.equal(response.status, 200, await response.clone().text());
   assert.deepEqual(await response.json(), { inserts:1, updates:1, foreign:0, committed:10000, target:'20000', other:0 });
+});
+
+test("D1 evaluation replacement preserves the old review on failure and serializes concurrent replacements", async () => {
+  const response = await runtime.dispatchFetch("http://localhost/evaluation-storage");
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(await response.json(), { rejected:true, preserved:['original'], count:1, replaced:true, foreign:['foreign'] });
 });
 
 test("CRM notes and outbound automation events work with native Workers fetch", async () => {

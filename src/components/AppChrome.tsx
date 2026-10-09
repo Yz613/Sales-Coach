@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import {
@@ -11,11 +11,13 @@ import {
   isSubscribePath,
 } from "@/lib/public-path";
 
-export default function AppChrome({ children }: { children: React.ReactNode }) {
+export default function AppChrome({ children, initialPublicPath }: { children: React.ReactNode; initialPublicPath: string }) {
   const pathname = usePathname();
   // Full public path from the browser (`/app/...`). `usePathname()` is stripped
   // of `basePath`, so `/` means the dashboard — never treat that as marketing.
-  const [browserPath, setBrowserPath] = useState<string | null>(null);
+  // Hosted apex pages are rewritten onto /app/* while the browser keeps the
+  // apex URL. Keep the first client render identical to the server's route.
+  const [browserPath, setBrowserPath] = useState<string | null>(initialPublicPath || null);
 
   useEffect(() => {
     const sync = () => setBrowserPath(window.location.pathname);

@@ -45,7 +45,9 @@ import { EVALUATION_RESPONSE_SCHEMA } from "./evaluationSchema";
 import { formatProspectContext } from "../callLabel";
 import { revenueRuntime } from "../revenue/runtime";
 
-export const CLEF_SCORE_CRITERIA_0_TO_10: string[] = [
+// Clef accepts at most ten ordered criteria. It returns their zero-based index;
+// the UI's 0-10 score is derived from the resulting 0-9 expected score below.
+export const CLEF_SCORE_CRITERIA_0_TO_9: string[] = [
   "0: Completely absent, counter-productive, or harmful to the deal",
   "1: Extremely poor; critical breakdowns, no technique",
   "2: Poor execution; severe gaps with only token attempt",
@@ -55,8 +57,7 @@ export const CLEF_SCORE_CRITERIA_0_TO_10: string[] = [
   "6: Reasonable execution; meets basic requirements with minor gaps",
   "7: Good execution; solid technique evidenced throughout",
   "8: Strong execution; proactive, disciplined, and clearly proficient",
-  "9: Very strong execution; high conviction with textbook adherence",
-  "10: Exceptional and clearly evidenced masterclass execution",
+  "9: Exceptional and clearly evidenced masterclass execution",
 ];
 
 export type ClefEvaluationMode = "shadow" | "primary" | "off";
@@ -170,13 +171,13 @@ export function buildClefQuestionsForRubric(
 ): Record<string, ClefQuestion> {
   const questions: Record<string, ClefQuestion> = {};
 
-  // 1. Methodology Pillars (ordered 0-10 score)
+  // 1. Methodology Pillars (ordered 0-9 score)
   for (const pillar of methodology.pillars) {
     const managerNote = coachContext?.trim() ? ` Incorporate manager directives: ${coachContext.trim()}` : "";
     questions[pillar.key] = {
       type: "score",
-      instructions: `Score the representative's qualification on '${pillar.label}' using the 0-10 scale. Criteria: ${pillar.rubric}.${managerNote}`,
-      criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+      instructions: `Score the representative's qualification on '${pillar.label}' using the 0-9 scale. Criteria: ${pillar.rubric}.${managerNote}`,
+      criteria: CLEF_SCORE_CRITERIA_0_TO_9,
     };
   }
 
@@ -184,54 +185,54 @@ export function buildClefQuestionsForRubric(
   if (script) {
     questions.scriptAdherence = {
       type: "score",
-      instructions: `Score adherence to the prescribed talk track '${script.title}' (Milestones: ${script.keyMilestones.join("; ")}) using the 0-10 rubric. 0 means completely ignored or abandoned, 10 means all milestones hit cleanly.`,
-      criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+      instructions: `Score adherence to the prescribed talk track '${script.title}' (Milestones: ${script.keyMilestones.join("; ")}) using the 0-9 rubric. 0 means completely ignored or abandoned, 9 means all milestones hit cleanly.`,
+      criteria: CLEF_SCORE_CRITERIA_0_TO_9,
     };
   } else {
     questions.scriptAdherence = {
       type: "score",
-      instructions: `Score overall call flow, structure, and pacing adherence using the 0-10 rubric.`,
-      criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+      instructions: `Score overall call flow, structure, and pacing adherence using the 0-9 rubric.`,
+      criteria: CLEF_SCORE_CRITERIA_0_TO_9,
     };
   }
 
-  // 3. Core Scorecard Dimensions (0-10 scores)
+  // 3. Core Scorecard Dimensions (0-9 scores)
   questions.fightForTheWin = {
     type: "score",
-    instructions: `Score 'Fight for the Win' / objection resistance on the 0-10 rubric. 0 means folded immediately on soft brush-offs ('send an email'), 10 means held frame respectfully and bought the next minute.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Score 'Fight for the Win' / objection resistance on the 0-9 rubric. 0 means folded immediately on soft brush-offs ('send an email'), 9 means held frame respectfully and bought the next minute.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.nextStep = {
     type: "score",
-    instructions: `Score 'Next-step firmness' on the 0-10 rubric. 0 means vague or no follow-up, 5 means soft demo interest with no calendar lock, 8-10 means locked calendar date and time.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Score 'Next-step firmness' on the 0-9 rubric. 0 means vague or no follow-up, 5 means soft demo interest with no calendar lock, 7-9 means locked calendar date and time.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.discoveryDepth = {
     type: "score",
-    instructions: `Score 'Discovery depth' on the 0-10 rubric. Rate diagnostic probing and open questions vs premature pitching.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Score 'Discovery depth' on the 0-9 rubric. Rate diagnostic probing and open questions vs premature pitching.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.controlAndPacing = {
     type: "score",
-    instructions: `Score 'Control & pacing' on the 0-10 rubric. Rate who drove the conversation agenda and timeframe.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Score 'Control & pacing' on the 0-9 rubric. Rate who drove the conversation agenda and timeframe.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.peerAuthority = {
     type: "score",
-    instructions: `Score 'Peer authority' on the 0-10 rubric. 0-3 means subservient/vendor order-taker tone, 8-10 means trusted peer advisor posture.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Score 'Peer authority' on the 0-9 rubric. 0-3 means subservient/vendor order-taker tone, 7-9 means trusted peer advisor posture.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   // 4. Configured Methodology Micro-Skills
   for (const skill of methodology.microSkills || []) {
     questions[skill.key] = {
       type: "score",
-      instructions: `Score execution of '${skill.label}' on the 0-10 rubric. Rubric: ${skill.rubric}`,
-      criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+      instructions: `Score execution of '${skill.label}' on the 0-9 rubric. Rubric: ${skill.rubric}`,
+      criteria: CLEF_SCORE_CRITERIA_0_TO_9,
     };
   }
 
@@ -248,38 +249,38 @@ export function buildClefQuestionsForRubric(
 
   questions.buyer_engaged = {
     type: "score",
-    instructions: `Rate the buyer's level of engagement, responsiveness, and openness to dialogue on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate the buyer's level of engagement, responsiveness, and openness to dialogue on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.qualification_pain = {
     type: "score",
-    instructions: `Rate customer pain qualification on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate customer pain qualification on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.qualification_budget = {
     type: "score",
-    instructions: `Rate customer budget/resource qualification on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate customer budget/resource qualification on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.qualification_decision = {
     type: "score",
-    instructions: `Rate decision process/authority qualification on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate decision process/authority qualification on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.objection_handling = {
     type: "score",
-    instructions: `Rate the representative's objection handling and pushback resilience on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate the representative's objection handling and pushback resilience on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   questions.discovery_depth = {
     type: "score",
-    instructions: `Rate diagnostic discovery depth and problem exploration on the 0-10 rubric.`,
-    criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+    instructions: `Rate diagnostic discovery depth and problem exploration on the 0-9 rubric.`,
+    criteria: CLEF_SCORE_CRITERIA_0_TO_9,
   };
 
   return questions;
@@ -320,7 +321,7 @@ export function mapClefAnswersToScorecard(
     metricCount++;
 
     if ("score" in ans && typeof ans.score === "number") {
-      const clampedScore = Math.max(0, Math.min(10, Math.round(ans.score * 10) / 10));
+      const clampedScore = Math.max(0, Math.min(10, Math.round((ans.score / 9) * 100) / 10));
       return {
         score: clampedScore,
         probs: ans.probabilities || {},

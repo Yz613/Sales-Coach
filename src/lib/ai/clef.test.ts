@@ -18,7 +18,7 @@ import {
   mapClefAnswersToScorecard,
   statusFromClefScore,
   evaluateCallWithClef,
-  CLEF_SCORE_CRITERIA_0_TO_10,
+  CLEF_SCORE_CRITERIA_0_TO_9,
 } from "./clefEvaluator";
 import {
   buildShadowComparison,
@@ -74,7 +74,7 @@ async function runTests() {
 
   // Check typed questions and 0-10 criteria
   assert.equal(questions.pain?.type, "score");
-  assert.deepEqual((questions.pain as any).criteria, CLEF_SCORE_CRITERIA_0_TO_10);
+  assert.deepEqual((questions.pain as any).criteria, CLEF_SCORE_CRITERIA_0_TO_9);
   assert.equal(questions.budget?.type, "score");
   assert.equal(questions.decision?.type, "score");
   assert.equal(questions.scriptAdherence?.type, "score");
@@ -83,6 +83,11 @@ async function runTests() {
   assert.equal(questions.discoveryDepth?.type, "score");
   assert.equal(questions.controlAndPacing?.type, "score");
   assert.equal(questions.peerAuthority?.type, "score");
+  for (const question of Object.values(questions)) {
+    if (question.type === "score") {
+      assert.ok(question.criteria.length >= 2 && question.criteria.length <= 10, "Cloudflare score rubrics accept 2–10 levels");
+    }
+  }
 
   // Check bounded questions
   assert.equal(questions.early_fold?.type, "noul");
@@ -186,12 +191,12 @@ async function runTests() {
   const output = mapClefAnswersToScorecard(mockResult.answers, sandler, mockResult);
 
   const painMetric = output.scorecard.find((m) => m.key === "pain");
-  assert.equal(painMetric?.score, 8);
+  assert.equal(painMetric?.score, 9);
   assert.equal(painMetric?.status, "Pass");
   assert.deepEqual(painMetric?.probabilities, { "7": 0.1, "8": 0.8, "9": 0.1 });
 
   const budgetMetric = output.scorecard.find((m) => m.key === "budget");
-  assert.equal(budgetMetric?.score, 4);
+  assert.equal(budgetMetric?.score, 5);
   assert.equal(budgetMetric?.status, "Incomplete");
 
   const decisionMetric = output.scorecard.find((m) => m.key === "decision");
@@ -295,6 +300,13 @@ async function runTests() {
 
   const scoreNorm = normalizeClefAnswer("metric", { score: 7.2, probabilities: { "7": 0.8 } });
   assert.equal((scoreNorm as any).score, 7.2);
+  assert.throws(() => normalizeClefAnswer("metric", { score: 9.1 }, { type: "score", instructions: "Fixture", criteria: CLEF_SCORE_CRITERIA_0_TO_9 }), ClefMalformedResponseError);
+  for (const [rawScore, expectedScore] of [[0, 0], [4.5, 5], [9, 10]]) {
+    const result = { model: CLEF_PRIMARY_MODEL, schemaVersion: "1.1", timestamp: "2026-10-09", latencyMs: 0, batchesExecuted: 1, answers: { pain: { type: "score" as const, score: rawScore, probabilities: { [String(rawScore)]: 1 } } } };
+    const mapped = mapClefAnswersToScorecard(result.answers, methodById("sandler"), result);
+    assert.equal(mapped.scorecard.find(metric => metric.key === "pain")?.score, expectedScore, "Map provider's 0–9 expected score to the app's 0–10 scale");
+    assert.deepEqual(mapped.rawAnswers, result.answers, "Preserve the original provider result for review");
+  }
 
   const noulNorm = normalizeClefAnswer("fold", { noul: 0.88 });
   assert.equal((noulNorm as any).noul, 0.88);
@@ -332,7 +344,7 @@ async function runTests() {
     manyQuestions[`q_${i}`] = {
       type: "score",
       instructions: `Question ${i}`,
-      criteria: CLEF_SCORE_CRITERIA_0_TO_10,
+      criteria: CLEF_SCORE_CRITERIA_0_TO_9,
     };
   }
 
@@ -349,6 +361,9 @@ async function runTests() {
       );
 
       const answers: Record<string, any> = {};
+      for (const question of Object.values(payload.questions) as ClefQuestion[]) {
+        if (question.type === "score") assert.ok(question.criteria.length <= 10, "Reject rubrics that the real service rejects");
+      }
       for (const k of Object.keys(payload.questions)) {
         answers[k] = { score: 7.0, probabilities: { "7": 1.0 } };
       }
@@ -407,7 +422,7 @@ async function runTests() {
   assert.equal(evalResult.evaluatedWith?.provider, "clef");
   assert.equal(evalResult.evaluatedWith?.model, CLEF_PRIMARY_MODEL);
   assert.equal(evalResult.sandlerBreakdown.pain.status, "Pass");
-  assert.equal(evalResult.sandlerBreakdown.scriptAdherence.score, 8);
+  assert.equal(evalResult.sandlerBreakdown.scriptAdherence.score, 9);
   assert.ok(evalResult.scorecard?.length! >= 8);
 
   console.log("✔ Primary mode Clef evaluation passed");
