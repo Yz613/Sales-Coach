@@ -106,6 +106,7 @@ async function callGeminiGenerate(
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts }],
+        store: false,
         generationConfig: geminiGenerationConfig(model, {
           thinkingLevel: "low",
           temperature: 0.1,

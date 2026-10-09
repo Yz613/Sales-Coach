@@ -19,6 +19,7 @@ const navLinks: NavLink[] = [
   { label: "How it works", hash: "how-it-works" },
   { label: "vs Gong", hash: "compare-gong" },
   { label: "Pricing", hash: "pricing" },
+  { label: "Demo", href: "/demo" },
   { label: "Integrations", href: "/integrations" },
   { label: "GitHub", href: GITHUB_REPO_URL, external: true },
 ];
@@ -50,12 +51,14 @@ export default function MarketingShell({
 }: {
   children: React.ReactNode;
   onLanding?: boolean;
-  current?: "integrations" | "privacy";
+  current?: "integrations" | "privacy" | "demo";
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const itemClass = (link: NavLink, mobile: boolean) => {
-    const active = current === "integrations" && link.href === "/integrations";
+    const active =
+      (current === "integrations" && link.href === "/integrations") ||
+      (current === "demo" && link.href === "/demo");
     if (mobile) {
       return active
         ? "block rounded-xl px-3 py-2 text-sm font-semibold text-[#1d1d1f] bg-black/[0.04]"
@@ -87,7 +90,12 @@ export default function MarketingShell({
                 <a
                   key={link.label}
                   href={linkHref(link, onLanding)}
-                  aria-current={current === "integrations" && link.href === "/integrations" ? "page" : undefined}
+                  aria-current={
+                    (current === "integrations" && link.href === "/integrations") ||
+                    (current === "demo" && link.href === "/demo")
+                      ? "page"
+                      : undefined
+                  }
                   className={itemClass(link, false)}
                 >
                   {link.label}
@@ -96,6 +104,12 @@ export default function MarketingShell({
             )}
           </nav>
           <div className="hidden md:flex items-center gap-2">
+            <a
+              href="/demo"
+              className="px-3 py-1.5 rounded-xl text-xs font-medium text-[#3a3a3c] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+            >
+              Try demo
+            </a>
             <a
               href="/app/sign-in"
               className="px-3 py-1.5 rounded-xl text-xs font-medium text-[#3a3a3c] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
@@ -145,6 +159,9 @@ export default function MarketingShell({
                 </a>
               )
             )}
+            <a href="/demo" className="block rounded-xl px-3 py-2 text-sm font-semibold text-[#1d1d1f] hover:bg-black/[0.05]" onClick={() => setMenuOpen(false)}>
+              Try demo
+            </a>
             <a href="/app/sign-in" className="block rounded-xl px-3 py-2 text-sm text-[#3a3a3c] hover:bg-black/[0.05]" onClick={() => setMenuOpen(false)}>
               Sign in
             </a>
@@ -167,6 +184,9 @@ export default function MarketingShell({
             © 2026 Refresh Queue. MIT License.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-[#6e6e73]">
+            <a href="/demo" className="hover:text-[#1d1d1f] transition" aria-current={current === "demo" ? "page" : undefined}>
+              Demo
+            </a>
             <a href="/integrations" className="hover:text-[#1d1d1f] transition" aria-current={current === "integrations" ? "page" : undefined}>
               Integrations
             </a>

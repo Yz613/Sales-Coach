@@ -73,6 +73,16 @@ export default function PrivacyPage() {
           </section>
 
           <section className="space-y-3">
+            <h2 className="text-base font-semibold text-[#1d1d1f]">We never train on your data</h2>
+            <p>
+              Customer content is never used to train models, by us or by the model providers we use. That includes call recordings, transcripts, scorecards, and coaching notes.
+            </p>
+            <p>
+              If you connect your own provider key, that provider's terms also apply.
+            </p>
+          </section>
+
+          <section className="space-y-3">
             <h2 className="text-base font-semibold text-[#1d1d1f]">Data in the app</h2>
             <p>
               Call recordings and other customer data stored in Sales Coach are covered by the customer agreement and by the retention settings in the app.

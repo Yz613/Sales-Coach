@@ -101,6 +101,7 @@ async function run(): Promise<void> {
     const geminiCall = calls.find((c) => c.url.includes("generateContent"));
     assert.ok(geminiCall, "Gemini generateContent should be called");
     assert.match(geminiCall.url, /models\/gemini-3\.8-flash:generateContent/);
+    assert.equal(geminiCall.body?.store, false);
     assert.deepEqual(geminiCall.body?.generationConfig?.thinkingConfig, { thinkingLevel: "low" });
     assert.equal(geminiCall.body?.generationConfig?.temperature, undefined);
     assert.equal(calls.some((c) => c.url.includes("gemini-2.5")), false);

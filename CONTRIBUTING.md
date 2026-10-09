@@ -1,75 +1,51 @@
-# Contributing to Sales Coach AI
+# Contributing to Sales Coach
 
-Thank you for your interest in contributing to Sales Coach AI! We welcome contributions from the community.
+Thanks for helping. Sales Coach is the open-source Gong alternative for call coaching and rubrics.
 
-## Getting Started
+## Good first issues
 
-### Prerequisites
-- **Node.js**: v20 or v22 LTS
-- **npm**: v10+
-- **Git**
+Starter tasks are listed in [docs/good-first-issues.md](docs/good-first-issues.md). Issue forms live in `.github/ISSUE_TEMPLATE/`.
 
-### Local Development Setup
+## Local setup
 
-1. **Fork and Clone:**
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/Sales-Coach.git
-   cd Sales-Coach
-   ```
-
-2. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Run One-Step Setup:**
-   ```bash
-   npm run setup
-   ```
-   *This automatically sets up `.env.local` and seeds the local SQLite database.*
-
-4. **Start the Development Server:**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) for the marketing landing (`next dev` redirects `/` to `/app/marketing`; Cloudflare keeps the URL at `/`), or [http://localhost:3000/app](http://localhost:3000/app) for the product.
-
----
-
-## Code Quality & Verification
-
-Before opening a pull request, ensure all checks pass:
+- Node.js 20 or 22
+- npm 10+
+- Git
 
 ```bash
-# 1. Run all unit and integration tests
+git clone https://github.com/YOUR-USERNAME/Sales-Coach.git
+cd Sales-Coach
+npm install
+npm run setup
+npm run dev
+```
+
+[http://localhost:3000](http://localhost:3000) is the marketing page (`next dev` redirects `/` to `/app/marketing`). The product is at [http://localhost:3000/app](http://localhost:3000/app). The public sample is at [http://localhost:3000/demo](http://localhost:3000/demo) and is a static fixture: it does not write, and it does not call a model.
+
+Self-hosters without Cloudflare credentials should set `CLEF_EVALUATION_MODE=off` in `.env.local` so their own model key does the scoring. See [SELF-HOST.md](SELF-HOST.md).
+
+## Before a pull request
+
+```bash
 npm test
-
-# 2. Check TypeScript type definitions
+npm run lint
 npx tsc --noEmit
-
-# 3. Verify production Next.js build
 npm run build
 ```
 
----
+`npm run lint` uses the Next.js ESLint baseline in `.eslintrc.json`. Rules the tree already violates (`no-explicit-any`, unused vars, `prefer-const`, raw `<img>`, and raw `<a>` for apex URLs such as `/demo`) are off so the command can finish. Apex links stay as `<a>` so the public URL is `/demo`, not `/app/demo`.
 
-## Pull Request Guidelines
+## Pull requests
 
-1. **Branch Naming:** Use clear branch prefixes:
-   - `feat/feature-name` for new features
-   - `fix/bug-description` for fixes
-   - `docs/update-description` for documentation
-2. **Commit Messages:** Follow conventional commits (e.g. `feat: add support for Claude 3.7`, `fix: resolve transcript auto-scroll on safari`).
-3. **Keep PRs Focused:** Small, single-purpose pull requests are much easier to review and merge quickly.
-4. **Include Tests:** If you add new functionality, please add corresponding unit tests in `src/lib/*.test.ts`.
+- Branches: `feat/…`, `fix/…`, or `docs/…`
+- Commits: conventional style, for example `fix: keep the call list filter on the current stage`
+- One purpose per pull request
+- New behavior needs a test next to the code, usually `src/lib/*.test.ts`
 
----
+## Where code lives
 
-## Architecture Overview
-
-- **`src/app/`**: Next.js App Router pages and API route handlers (under `/app` basePath).
-- **`src/components/`**: Reusable React UI components (Tailwind CSS, Glassmorphic design).
-- **`src/lib/ai/`**: Multi-provider LLM integrations (Gemini, OpenAI, Groq, Anthropic, DeepSeek, OpenRouter), transcription, and rubric parsing.
-- **`src/lib/db/`**: Database services supporting both local SQLite (`better-sqlite3`) and Cloudflare D1 (`drizzle-orm`).
-
-Thank you for helping make Sales Coach better!
+- `src/app/` — pages and route handlers. The product base path is `/app`.
+- `src/app/demo/` — public read-only sample. Do not add database or model calls here.
+- `src/components/` — UI
+- `src/lib/ai/` — model calls (Gemini, OpenAI, Groq, Anthropic, OpenRouter), transcription, and rubric parsing
+- `src/lib/db/` — SQLite and Cloudflare D1

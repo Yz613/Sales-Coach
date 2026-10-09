@@ -85,6 +85,9 @@ export const INTEGRATIONS_PAGE_PATH = "/integrations";
 /** Public privacy policy. Apex `/privacy` rewrites here on the hosted site. */
 export const PRIVACY_PAGE_PATH = "/privacy";
 
+/** Public read-only sample workspace. Apex `/demo` rewrites here on the hosted site. */
+export const DEMO_PAGE_PATH = "/demo";
+
 /** Metadata routes. Apex `/robots.txt` and `/sitemap.xml` rewrite onto the app base path. */
 export const ROBOTS_PATH = "/robots.txt";
 export const SITEMAP_PATH = "/sitemap.xml";
@@ -96,7 +99,7 @@ export const SITEMAP_PATH = "/sitemap.xml";
 export const NOT_FOUND_PAGE_PATH = "/site-missing";
 
 /** Absolute paths listed in `src/app/sitemap.ts`. `/pricing` is a redirect, not a page. */
-export const PUBLIC_SITEMAP_PATHS = ["/", INTEGRATIONS_PAGE_PATH, PRIVACY_PAGE_PATH] as const;
+export const PUBLIC_SITEMAP_PATHS = ["/", INTEGRATIONS_PAGE_PATH, DEMO_PAGE_PATH, PRIVACY_PAGE_PATH] as const;
 
 /** Unauthenticated POST target for the public integration request form. */
 export const INTEGRATION_REQUEST_API_PATH = "/api/marketing/integration-request";
@@ -133,6 +136,13 @@ export function isApexPrivacyPath(pathname: string): boolean {
   return pathname === PRIVACY_PAGE_PATH || pathname === `${PRIVACY_PAGE_PATH}/`;
 }
 
+/** Apex or app path for the public sample workspace, including a single call. */
+export function isDemoPath(pathname: string): boolean {
+  const normalized = stripAppBasePath(pathname);
+  const trimmed = normalized.length > 1 && normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+  return trimmed === DEMO_PAGE_PATH || trimmed.startsWith(`${DEMO_PAGE_PATH}/`);
+}
+
 export function isApexRobotsPath(pathname: string): boolean {
   return pathname === ROBOTS_PATH;
 }
@@ -158,13 +168,14 @@ export function isMarketingAppPath(pathname: string): boolean {
     normalized.startsWith(`${MARKETING_PAGE_PATH}/`) ||
     isApexIntegrationsPath(normalized) ||
     isApexPrivacyPath(normalized) ||
+    isDemoPath(normalized) ||
     isNotFoundPath(normalized)
   );
 }
 
 /**
  * Public site paths that skip sign-in: apex `/`, marketing, integrations,
- * privacy, the not-found page, robots.txt, and sitemap.xml.
+ * the read-only demo, privacy, the not-found page, robots.txt, and sitemap.xml.
  * Pass the full public URL pathname (`getPublicPath`), not `usePathname()`.
  * `/app` (the admin dashboard) must stay authenticated.
  */
@@ -256,6 +267,18 @@ export function getApexPrivacyRewrite(requestUrl: string): string | null {
   return rewriteExactApex(requestUrl, isApexPrivacyPath, PRIVACY_PAGE_PATH);
 }
 
+/** Internal rewrite so apex `/demo` and `/demo/:id` stay on that URL. */
+export function getApexDemoRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (url.pathname === APP_BASE_PATH || url.pathname.startsWith(`${APP_BASE_PATH}/`)) return null;
+  if (!isDemoPath(url.pathname)) return null;
+  let target = url.pathname;
+  if (target.length > 1 && target.endsWith("/")) target = target.slice(0, -1);
+  const dest = new URL(toAppPath(target), url.origin);
+  dest.search = url.search;
+  return dest.href;
+}
+
 export function getApexRobotsRewrite(requestUrl: string): string | null {
   return rewriteExactApex(requestUrl, isApexRobotsPath, ROBOTS_PATH);
 }
@@ -270,6 +293,7 @@ export function getApexContentRewrite(requestUrl: string): string | null {
     getApexMarketingRewrite(requestUrl) ||
     getApexIntegrationsRewrite(requestUrl) ||
     getApexPrivacyRewrite(requestUrl) ||
+    getApexDemoRewrite(requestUrl) ||
     getApexRobotsRewrite(requestUrl) ||
     getApexSitemapRewrite(requestUrl)
   );
