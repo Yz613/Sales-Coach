@@ -115,7 +115,21 @@ export interface Rep {
   budgetPassRate?: number;
   decisionPassRate?: number;
   earlyFoldCount?: number;
+  /** Close rate: closed-won / every dial. */
   bookedRate?: number;
+  connectRate?: number;
+  closeRate?: number;
+  closePerConnect?: number;
+  funnel?: {
+    dials: number;
+    connects: number;
+    conversations: number;
+    meetings: number;
+    closes: number;
+    connectRate: number;
+    closeRate: number;
+    closePerConnect: number;
+  };
   persona?: RepPersona;
 }
 
@@ -127,6 +141,8 @@ export interface Call {
   prospectName: string;
   callStage: CallStage;
   coreOutcome: string;
+  /** Explicit dial result. Absent on older coaching calls; those are classified from coreOutcome. */
+  dialOutcome?: string | null;
   durationSeconds: number;
   transcriptText: string;
   audioUrl?: string;
@@ -174,7 +190,12 @@ export interface SuperAdminReport {
 
 export interface ExecutiveAnalytics {
   totalCalls: number;
+  /** Close rate per dial (closed won / every dial), rounded for the headline. */
   winRate: number;
+  connectRate: number;
+  closeRate: number;
+  /** Closes / connects. Not the close rate. */
+  closePerConnect: number;
   avgCallDuration: number;
   outcomesBreakdown: {
     booked: number;
@@ -201,6 +222,14 @@ export interface ExecutiveAnalytics {
     rateFromStart: number;
     rateFromPrevious: number;
   }[];
+  dialFunnel: {
+    key: string;
+    label: string;
+    count: number;
+    rateFromStart: number;
+    rateFromPrevious: number;
+  }[];
+  dialOutcomeCounts: { key: string; label: string; count: number }[];
   topObjectionsCausingSurrender: {
     objection: string;
     surrenderCount: number;
@@ -215,6 +244,9 @@ export interface ExecutiveAnalytics {
     totalCalls: number;
     meetingsBooked: number;
     bookedRate: number;
+    connectRate: number;
+    closeRate: number;
+    closePerConnect: number;
     avgScriptScore: number;
     painPassRate: number;
     budgetPassRate: number;

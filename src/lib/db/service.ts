@@ -27,10 +27,21 @@ import {
 } from "@/lib/scoreWeights";
 import type { SalesMethodology } from "@/lib/methodology";
 import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
+import {
+  dialLogTranscript,
+  dialOutcomeLabel,
+  isDialAttempt,
+  isQuickDialLog,
+  isDialOutcome,
+  resolveDialOutcome,
+  tallyDialFunnel,
+  type DialFact,
+  type DialOutcome,
+} from "@/lib/dialFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall, type EvaluationRow } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
-import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
+import { normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
 import {
@@ -582,6 +593,87 @@ function latestEvalByCall(rows: EvaluationRow[]): Map<string, EvaluationRow> {
   return latest;
 }
 
+function dialFactFromRow(row: {
+  coreOutcome?: string | null;
+  dialOutcome?: string | null;
+  transcriptText?: string | null;
+  transcriptProbe?: string | null;
+  callStage?: string | null;
+}): DialFact {
+  const probe = row.transcriptText ?? row.transcriptProbe ?? "";
+  return {
+    dialOutcome: row.dialOutcome,
+    coreOutcome: row.coreOutcome,
+    callStage: row.callStage,
+    hasConversation: !isUnusableTranscript(probe),
+  };
+}
+
+function funnelFields(facts: DialFact[]) {
+  const summary = tallyDialFunnel(facts);
+  return {
+    totalCalls: summary.dials,
+    connectRate: summary.connectRate,
+    closeRate: summary.closeRate,
+    closePerConnect: summary.closePerConnect,
+    bookedRate: Math.round(summary.closeRate),
+    funnel: {
+      dials: summary.dials,
+      connects: summary.connects,
+      conversations: summary.conversations,
+      meetings: summary.meetings,
+      closes: summary.closes,
+      connectRate: summary.connectRate,
+      closeRate: summary.closeRate,
+      closePerConnect: summary.closePerConnect,
+    },
+  };
+}
+
+export async function listDialFacts(): Promise<({ repId: string; outcome: DialOutcome } & DialFact)[]> {
+  const rows = await db
+    .select({
+      repId: calls.repId,
+      callStage: calls.callStage,
+      coreOutcome: calls.coreOutcome,
+      dialOutcome: calls.dialOutcome,
+      transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
+    })
+    .from(calls)
+    .where(forTenant(calls.orgId))
+    .all();
+  return (rows as { repId: string; callStage: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[])
+    .map((row) => {
+      const fact = dialFactFromRow(row);
+      return { repId: row.repId, ...fact, outcome: resolveDialOutcome(fact) };
+    })
+    .filter((fact) => isDialAttempt(fact));
+}
+
+export async function insertDialLog(values: {
+  id: string;
+  repId: string;
+  prospectCompany: string;
+  prospectName: string;
+  outcome: DialOutcome;
+  createdAt: string;
+}): Promise<void> {
+  await db.insert(calls).values({
+    id: values.id,
+    orgId: tenantId(),
+    repId: values.repId,
+    prospectCompany: values.prospectCompany,
+    prospectName: values.prospectName,
+    callStage: "Cold Call",
+    coreOutcome: dialOutcomeLabel(values.outcome),
+    dialOutcome: values.outcome,
+    durationSeconds: 0,
+    transcriptText: dialLogTranscript(),
+    status: "completed",
+    createdAt: values.createdAt,
+  }).run();
+}
+
 function missedCount(raw: string | null | undefined): number {
   if (!raw) return 0;
   try {
@@ -599,7 +691,9 @@ export async function getAllReps(): Promise<Rep[]> {
       .select({
         id: calls.id,
         repId: calls.repId,
+        callStage: calls.callStage,
         coreOutcome: calls.coreOutcome,
+        dialOutcome: calls.dialOutcome,
         transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
       })
       .from(calls)
@@ -624,15 +718,15 @@ export async function getAllReps(): Promise<Rep[]> {
   ]);
 
   const usableIds = new Set<string>();
-  for (const row of callRows as { id: string; transcriptProbe: string }[]) {
-    if (!isUnusableTranscript(row.transcriptProbe)) usableIds.add(row.id);
-  }
-  const callsByRep = new Map<string, { coreOutcome: string }[]>();
-  for (const row of callRows as { id: string; repId: string; coreOutcome: string }[]) {
-    if (!usableIds.has(row.id)) continue;
-    const list = callsByRep.get(row.repId);
-    if (list) list.push(row);
-    else callsByRep.set(row.repId, [row]);
+  const factsByRep = new Map<string, DialFact[]>();
+  for (const row of callRows as { id: string; repId: string; callStage: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[]) {
+    const fact = dialFactFromRow(row);
+    if (isDialAttempt(fact)) {
+      const list = factsByRep.get(row.repId);
+      if (list) list.push(fact);
+      else factsByRep.set(row.repId, [fact]);
+    }
+    if (!isUnusableTranscript(row.transcriptProbe) && !isQuickDialLog({ dialOutcome: row.dialOutcome, transcriptText: row.transcriptProbe })) usableIds.add(row.id);
   }
 
   type RepMetricEval = {
@@ -663,7 +757,6 @@ export async function getAllReps(): Promise<Rep[]> {
   }
 
   return allReps.map((r: any) => {
-    const repCalls = callsByRep.get(r.id) || [];
     const repEvals = latestEvaluationsByCall<RepMetricEval>(evalsByRep.get(r.id) || []);
     const snapshot = snapshotByRep.get(r.id);
 
@@ -672,11 +765,8 @@ export async function getAllReps(): Promise<Rep[]> {
     let decisionPassCount = 0;
     let totalScore = 0;
     let earlyFoldCount = 0;
-    let bookedCount = 0;
+    const rates = funnelFields(factsByRep.get(r.id) || []);
 
-    for (const call of repCalls) {
-      if (isMeetingBooked(call.coreOutcome)) bookedCount++;
-    }
     for (const ev of repEvals) {
       if (ev.painStatus === "Pass") painPassCount++;
       if (ev.budgetStatus === "Pass") budgetPassCount++;
@@ -694,13 +784,17 @@ export async function getAllReps(): Promise<Rep[]> {
       createdAt: r.createdAt,
       trajectory: (snapshot?.overallTrajectory as RepTrajectory) || "stagnant",
       trajectoryReason: snapshot?.managerRationale || "Baseline evaluation in progress.",
-      totalCalls: repCalls.length,
+      totalCalls: rates.totalCalls,
       avgScriptScore: repEvals.length ? Math.round((totalScore / repEvals.length) * 10) / 10 : 0,
       painPassRate: repEvals.length ? Math.round((painPassCount / repEvals.length) * 100) : 0,
       budgetPassRate: repEvals.length ? Math.round((budgetPassCount / repEvals.length) * 100) : 0,
       decisionPassRate: repEvals.length ? Math.round((decisionPassCount / repEvals.length) * 100) : 0,
       earlyFoldCount,
-      bookedRate: repCalls.length ? Math.round((bookedCount / repCalls.length) * 100) : 0,
+      bookedRate: rates.bookedRate,
+      connectRate: rates.connectRate,
+      closeRate: rates.closeRate,
+      closePerConnect: rates.closePerConnect,
+      funnel: rates.funnel,
       persona: personaByRep.get(r.id),
     };
   });
@@ -729,12 +823,13 @@ export async function getRepById(id: string): Promise<{
   let decisionPassCount = 0;
   let totalScore = 0;
   let earlyFoldCount = 0;
-  let bookedCount = 0;
   let evaluated = 0;
+  const dialFacts: DialFact[] = [];
 
   for (const c of repCalls as any[]) {
-    if (isUnusableTranscript(c.transcriptText)) continue;
-    if (isMeetingBooked(c.coreOutcome)) bookedCount++;
+    const fact = dialFactFromRow(c);
+    if (isDialAttempt(fact)) dialFacts.push(fact);
+    if (isUnusableTranscript(c.transcriptText) && !c.dialOutcome) continue;
     const ev = evalByCall.get(c.id);
     let evaluation: CallEvaluation | undefined = undefined;
     if (ev) {
@@ -760,7 +855,8 @@ export async function getRepById(id: string): Promise<{
       prospectCompany: c.prospectCompany,
       prospectName: c.prospectName,
       callStage: c.callStage as any,
-      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+      coreOutcome: isDialOutcome(c.dialOutcome) ? dialOutcomeLabel(c.dialOutcome) : normalizeCoreOutcome(c.coreOutcome),
+      dialOutcome: c.dialOutcome || null,
       durationSeconds: c.durationSeconds,
       transcriptText: c.transcriptText,
       audioUrl: c.audioUrl || undefined,
@@ -770,6 +866,7 @@ export async function getRepById(id: string): Promise<{
     });
   }
 
+  const rates = funnelFields(dialFacts);
   const computedRep: Rep = {
     id: repRecord.id,
     name: repRecord.name,
@@ -778,13 +875,17 @@ export async function getRepById(id: string): Promise<{
     createdAt: repRecord.createdAt,
     trajectory: (snapshot?.overallTrajectory as RepTrajectory) || "stagnant",
     trajectoryReason: snapshot?.managerRationale || "Baseline evaluation in progress.",
-    totalCalls: fullCalls.length,
+    totalCalls: rates.totalCalls,
     avgScriptScore: evaluated ? Math.round((totalScore / evaluated) * 10) / 10 : 0,
     painPassRate: evaluated ? Math.round((painPassCount / evaluated) * 100) : 0,
     budgetPassRate: evaluated ? Math.round((budgetPassCount / evaluated) * 100) : 0,
     decisionPassRate: evaluated ? Math.round((decisionPassCount / evaluated) * 100) : 0,
     earlyFoldCount,
-    bookedRate: fullCalls.length ? Math.round((bookedCount / fullCalls.length) * 100) : 0,
+    bookedRate: rates.bookedRate,
+    connectRate: rates.connectRate,
+    closeRate: rates.closeRate,
+    closePerConnect: rates.closePerConnect,
+    funnel: rates.funnel,
     persona: persona || undefined,
   };
 
@@ -797,9 +898,10 @@ export async function getRepById(id: string): Promise<{
 }
 
 export async function deleteCallsWithoutTranscript(): Promise<string[]> {
-  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText }).from(calls).where(forTenant(calls.orgId)).all();
+  const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText, dialOutcome: calls.dialOutcome }).from(calls).where(forTenant(calls.orgId)).all();
   const removed: string[] = [];
   for (const row of rows) {
+    if (row.dialOutcome) continue;
     if (!isUnusableTranscript(row.transcriptText)) continue;
     await db.delete(evaluations).where(and(eq(evaluations.callId, row.id), forTenant(evaluations.orgId))).run();
     await db.delete(calls).where(and(eq(calls.id, row.id), forTenant(calls.orgId))).run();
@@ -828,6 +930,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
             prospectName: calls.prospectName,
             callStage: calls.callStage,
             coreOutcome: calls.coreOutcome,
+            dialOutcome: calls.dialOutcome,
             durationSeconds: calls.durationSeconds,
             audioUrl: calls.audioUrl,
             status: calls.status,
@@ -880,6 +983,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
     prospectName: string;
     callStage: string;
     coreOutcome: string;
+    dialOutcome?: string | null;
     durationSeconds: number;
     transcriptText?: string;
     transcriptProbe?: string;
@@ -888,7 +992,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
     createdAt: string;
   }[]) {
     const probe = includeTranscript ? c.transcriptText : c.transcriptProbe;
-    if (isUnusableTranscript(probe)) continue;
+    if (isUnusableTranscript(probe) && !c.dialOutcome) continue;
     const repName = repNameById.get(c.repId) || "Unknown Rep";
     const ev = evalByCall.get(c.id);
     result.push({
@@ -898,7 +1002,8 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
       prospectCompany: c.prospectCompany,
       prospectName: c.prospectName,
       callStage: c.callStage as any,
-      coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+      coreOutcome: isDialOutcome(c.dialOutcome) ? dialOutcomeLabel(c.dialOutcome) : normalizeCoreOutcome(c.coreOutcome),
+      dialOutcome: c.dialOutcome || null,
       durationSeconds: c.durationSeconds,
       transcriptText: includeTranscript ? c.transcriptText || "" : "",
       audioUrl: c.audioUrl || undefined,
@@ -908,7 +1013,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
         ? hydrateEvaluation(ev, {
             repName,
             callStage: c.callStage,
-            coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+            coreOutcome: isDialOutcome(c.dialOutcome) ? dialOutcomeLabel(c.dialOutcome) : normalizeCoreOutcome(c.coreOutcome),
             transcriptText: includeTranscript ? c.transcriptText : undefined,
             durationSeconds: c.durationSeconds,
           })
@@ -947,7 +1052,8 @@ export async function getCallById(id: string): Promise<Call | null> {
     prospectCompany: c.prospectCompany,
     prospectName: c.prospectName,
     callStage: c.callStage as any,
-    coreOutcome: normalizeCoreOutcome(c.coreOutcome),
+    coreOutcome: isDialOutcome(c.dialOutcome) ? dialOutcomeLabel(c.dialOutcome) : normalizeCoreOutcome(c.coreOutcome),
+    dialOutcome: c.dialOutcome || null,
     durationSeconds: c.durationSeconds,
     transcriptText: c.transcriptText,
     audioUrl: c.audioUrl || undefined,
@@ -1087,27 +1193,26 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     }
   });
 
+  const dialFacts = await listDialFacts();
+  const dialSummary = tallyDialFunnel(dialFacts);
   const repLeaderboard = allReps.map((r) => {
-    const repCalls = allCalls.filter((c) => c.repId === r.id);
-    let meetingsBooked = 0;
-    repCalls.forEach((c) => {
-      if (isMeetingBooked(c.coreOutcome)) meetingsBooked++;
-    });
-
     return {
       repId: r.id,
       repName: r.name,
       role: r.role,
       trajectory: r.trajectory || "stagnant",
-      totalCalls: r.totalCalls || 0,
-      meetingsBooked,
-      bookedRate: r.totalCalls ? Math.round((meetingsBooked / r.totalCalls) * 100) : 0,
+      totalCalls: r.funnel?.dials || 0,
+      meetingsBooked: r.funnel?.meetings || 0,
+      bookedRate: Math.round(r.closeRate || 0),
+      connectRate: r.connectRate || 0,
+      closeRate: r.closeRate || 0,
+      closePerConnect: r.closePerConnect || 0,
       avgScriptScore: r.avgScriptScore || 0,
       painPassRate: r.painPassRate || 0,
       budgetPassRate: r.budgetPassRate || 0,
       earlyFolds: r.earlyFoldCount || 0,
     };
-  }).sort((a, b) => b.bookedRate - a.bookedRate || b.avgScriptScore - a.avgScriptScore);
+  }).sort((a, b) => b.closeRate - a.closeRate || b.connectRate - a.connectRate || b.avgScriptScore - a.avgScriptScore);
 
   const methodology = methodById(await getSalesMethodId());
   const cookbookFunnel = tallyCookbookFunnel(allCalls.map((call) => ({
@@ -1126,8 +1231,11 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
   })).sort((a, b) => b.surrenderCount - a.surrenderCount).slice(0, 5);
 
   return {
-    totalCalls: allCalls.length,
-    winRate: allCalls.length ? Math.round((booked / allCalls.length) * 100) : 0,
+    totalCalls: dialSummary.dials,
+    winRate: Math.round(dialSummary.closeRate),
+    connectRate: dialSummary.connectRate,
+    closeRate: dialSummary.closeRate,
+    closePerConnect: dialSummary.closePerConnect,
     avgCallDuration: allCalls.length ? Math.round(totalDuration / allCalls.length) : 0,
     outcomesBreakdown: {
       booked,
@@ -1148,6 +1256,8 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
       decision: methodology.pillars.find((pillar) => pillar.key === "decision")?.label || "Decision",
     },
     cookbookFunnel,
+    dialFunnel: dialSummary.steps,
+    dialOutcomeCounts: dialSummary.outcomes,
     topObjectionsCausingSurrender: topObjections,
     repLeaderboard,
   };

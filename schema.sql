@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS calls (
   prospect_name TEXT NOT NULL,
   call_stage TEXT NOT NULL,
   core_outcome TEXT NOT NULL,
+  dial_outcome TEXT,
   duration_seconds INTEGER NOT NULL,
   transcript_text TEXT NOT NULL,
   audio_url TEXT,

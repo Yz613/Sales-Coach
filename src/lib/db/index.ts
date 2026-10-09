@@ -40,6 +40,11 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
       // Index may already exist.
     }
   }
+  try {
+    await d1.prepare("ALTER TABLE calls ADD COLUMN dial_outcome TEXT").run();
+  } catch {
+    // Column may already exist.
+  }
   for (const col of [
     "original_score INTEGER",
     "original_probabilities TEXT",
@@ -104,6 +109,14 @@ function initLocalSqlite() {
     }
   } catch {
     // Table may not exist yet; schema.sql creates it with the column.
+  }
+  try {
+    const callCols = sqlite.prepare("PRAGMA table_info(calls)").all();
+    if (callCols.length > 0 && !callCols.some((c: { name: string }) => c.name === "dial_outcome")) {
+      sqlite.exec("ALTER TABLE calls ADD COLUMN dial_outcome TEXT");
+    }
+  } catch {
+    // Calls table may not exist yet; schema.sql creates it with the column.
   }
   try {
     const oCols = sqlite.prepare("PRAGMA table_info(score_overrides)").all();

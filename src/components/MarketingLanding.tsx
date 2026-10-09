@@ -322,7 +322,7 @@ export default function MarketingLanding() {
               {
                 icon: Flag,
                 title: "Team revenue goals",
-                body: "Plan by quarter, month, or week. Call targets use each rep's close rate from logged meetings.",
+                body: "Plan by quarter, month, or week. Call targets use each rep's close rate: closed won divided by every dial.",
               },
               {
                 icon: ClipboardCheck,

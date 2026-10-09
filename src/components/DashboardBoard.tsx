@@ -31,6 +31,9 @@ import {
 import type { SalesMethodology } from "@/lib/methodology";
 import RevenueGoal from "./RevenueGoal";
 import type { GoalRep, GoalTeam } from "@/lib/goalTeams";
+import type { DialRateSummary } from "@/lib/dialFunnel";
+import { FunnelChart, RateTrio } from "./charts/MetricCharts";
+import DialLogger from "./DialLogger";
 
 export default function DashboardBoard({
   report,
@@ -39,6 +42,7 @@ export default function DashboardBoard({
   methodology,
   goalTeams,
   goalReps,
+  dialSummary,
 }: {
   report: SuperAdminReport;
   recentCalls: Call[];
@@ -46,6 +50,7 @@ export default function DashboardBoard({
   methodology: SalesMethodology;
   goalTeams: GoalTeam[];
   goalReps: GoalRep[];
+  dialSummary: DialRateSummary;
 }) {
   const progressingCount = report.repTrajectories.filter((r) => r.trajectory === "progressing").length;
   const stagnantCount = report.repTrajectories.filter((r) => r.trajectory === "stagnant").length;
@@ -411,6 +416,25 @@ export default function DashboardBoard({
       </div>
 
       <RevenueGoal initialTeams={goalTeams} reps={goalReps} />
+
+      <section className="rounded-2xl glass-card p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-[#1d1d1f]">Call funnel</h2>
+          <p className="text-xs text-[#6e6e73] mt-1">Connect rate is connects divided by every dial. Close rate is closed won divided by every dial. Close per connect is labeled on its own.</p>
+        </div>
+        <RateTrio
+          connectRate={dialSummary.connectRate}
+          closeRate={dialSummary.closeRate}
+          closePerConnect={dialSummary.closePerConnect}
+          dials={dialSummary.dials}
+          connects={dialSummary.connects}
+          closes={dialSummary.closes}
+        />
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <FunnelChart steps={dialSummary.steps} />
+          <DialLogger reps={goalReps.map((rep) => ({ id: rep.id, name: rep.name }))} canChooseRep />
+        </div>
+      </section>
 
       <SortableBoard
         scope="sections"

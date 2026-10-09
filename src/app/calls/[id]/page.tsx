@@ -22,6 +22,7 @@ import { ruleEngineNotice, usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartyLabel, hasKnownCompany } from "@/lib/callLabel";
 import ReanalyzeButton from "@/components/ReanalyzeButton";
+import { isQuickDialLog } from "@/lib/dialFunnel";
 import CoachingBriefCard from "@/components/CoachingBrief";
 import { deriveCoachingBrief, scoreMicroSkills } from "@/lib/methodology";
 import { methodById, scoreMethodDebrief } from "@/lib/salesMethods";
@@ -136,11 +137,13 @@ async function CallReviewPage({
             <Calendar className="h-3.5 w-3.5 text-[#86868b]" />
             {formatDate(call.createdAt)}
           </div>
+          {isQuickDialLog(call) ? null : (
           <ReanalyzeButton
             callId={call.id}
             hasApiKey={ai.hasKey}
             usedLlm={usedLlmReview(ev)}
           />
+          )}
         </div>
       </div>
 
@@ -570,7 +573,7 @@ async function CallReviewPage({
             This conversation has not been evaluated yet. Run an evaluation to add a coaching scorecard.
           </p>
           <div className="flex justify-center">
-            <ReanalyzeButton callId={call.id} hasApiKey={ai.hasKey} usedLlm={false} />
+            {isQuickDialLog(call) ? <p className="text-xs text-[#6e6e73]">This dial is already in the funnel. It does not get a coaching score.</p> : <ReanalyzeButton callId={call.id} hasApiKey={ai.hasKey} usedLlm={false} />}
           </div>
         </div>
       )}
