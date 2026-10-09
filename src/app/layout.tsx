@@ -56,10 +56,11 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="ambient-field min-h-screen text-[#1d1d1f] antialiased relative overflow-x-hidden" suppressHydrationWarning>
-        <script async nonce={nonce} src={TAG_SCRIPT_SRC} />
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: pageViewBootstrap() }} />
+        {/* Browsers conceal CSP nonce attributes before React hydrates them. */}
+        <script async nonce={nonce} src={TAG_SCRIPT_SRC} suppressHydrationWarning />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: pageViewBootstrap() }} suppressHydrationWarning />
         {followUpScriptSrc ? (
-          <script async nonce={nonce} src={followUpScriptSrc} data-site={VISITOR_FOLLOW_UP_SITE_ID} />
+          <script async nonce={nonce} src={followUpScriptSrc} data-site={VISITOR_FOLLOW_UP_SITE_ID} suppressHydrationWarning />
         ) : null}
         <Suspense fallback={null}>
           <PageViewTracker />
@@ -74,7 +75,7 @@ export default async function RootLayout({
           }
         >
           <ProductAnalytics />
-          <AppChrome>{children}</AppChrome>
+          <AppChrome initialPublicPath={path}>{children}</AppChrome>
         </AuthProvider>
       </body>
     </html>

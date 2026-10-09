@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
 import { addCallStage, insertCall, setRepFocus, updateCallStatus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
-import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
-import { isAudioFile } from "@/lib/audio";
+import { ingestPeekedCallFile, peekCallFile, type PeekedCallFile } from "@/lib/ingestCallFile";
+import { batchTranscriptsFromCsv, MAX_BATCH_CALLS } from "@/lib/batchUpload";
+import { SecurityPolicyError } from "@/lib/security-policy";
 import { requireUsableTranscript } from "@/lib/transcript";
 import { resolveTranscriptionBackend } from "@/lib/ai/transcribe";
 import { saveCallAudio } from "@/lib/callAudioStore";
@@ -32,30 +33,6 @@ interface BatchItem {
   audioFileName?: string;
 }
 
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
 async function POSTHandler(req: Request) {
   try {
     const auth = await requireWorkspace();
@@ -66,30 +43,46 @@ async function POSTHandler(req: Request) {
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
-      const files = formData.getAll("files") as File[];
-      if (files.length > 10) return NextResponse.json({ error: "Upload at most 10 files per batch." }, { status: 413 });
-      const defaultRepId = (formData.get("defaultRepId") as string) || "";
-      const defaultRepName = (formData.get("defaultRepName") as string) || "";
-      const defaultRepRole = (formData.get("defaultRepRole") as string) || "";
-      const defaultRepFocus = (formData.get("defaultRepFocus") as string) || "";
-      const defaultStage = normalizeStageName((formData.get("defaultStage") as string) || "") || "Cold Call";
+      const entries = formData.getAll("files");
+      if (entries.some((entry) => typeof entry === "string")) {
+        throw new SecurityPolicyError("Batch uploads require files.", 400);
+      }
+      const files = entries as File[];
+      if (files.length > MAX_BATCH_CALLS) return NextResponse.json({ error: "Upload at most 10 files per batch." }, { status: 413 });
+      const field = (name: string) => {
+        const value = formData.get(name);
+        if (value != null && typeof value !== "string") throw new SecurityPolicyError(`Invalid ${name}.`, 400);
+        return value || "";
+      };
+      const defaultRepId = field("defaultRepId");
+      const defaultRepName = field("defaultRepName");
+      const defaultRepRole = field("defaultRepRole");
+      const defaultRepFocus = field("defaultRepFocus");
+      const defaultStage = normalizeStageName(field("defaultStage")).slice(0, 60).trim() || "Cold Call";
+      const prepared: { peek?: PeekedCallFile; items?: Omit<BatchItem, "repId">[] }[] = [];
       let pendingCredits = 0;
-      for (const f of files) {
-        if (f.name.toLowerCase().endsWith(".csv")) {
-          const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
-          const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-          pendingCredits += Math.max(1, lines.length - (lines.length > 1 ? 1 : 0));
-          continue;
+      let pendingCalls = 0;
+      // Count every CSV record before resolving reps or paying for audio transcription.
+      for (const file of files) {
+        if (file.name.toLowerCase().endsWith(".csv")) {
+          if (file.size > 25 * 1024 * 1024) throw new SecurityPolicyError("Each upload must be 25 MB or smaller.", 413);
+          const content = await file.text();
+          const items = batchTranscriptsFromCsv(content, file.name, defaultStage);
+          prepared.push({ items });
+          pendingCalls += items.length;
+          pendingCredits += items.reduce((sum, item) => sum + evaluationCreditsForDuration(item.durationSeconds), 0);
+        } else {
+          const peek = await peekCallFile(file);
+          if (!peek.isAudio) requireUsableTranscript(peek.transcriptText);
+          prepared.push({ peek });
+          pendingCalls++;
+          pendingCredits += evaluationCreditsForDuration(peek.durationSeconds || 300);
         }
-        const peek = await peekCallFile(f);
-        pendingCredits += evaluationCreditsForDuration(peek.durationSeconds);
+        if (pendingCalls > MAX_BATCH_CALLS) throw new SecurityPolicyError("Import at most 10 calls per batch.", 413);
       }
-      if (pendingCredits > 0) {
-        await assertEvaluationAllowed(auth, pendingCredits);
-      }
-      if (files.some((f) => isAudioFile(f) && !f.name.toLowerCase().endsWith(".csv"))) {
-        await resolveTranscriptionBackend();
-      }
+      if (!pendingCalls) throw new SecurityPolicyError("No calls provided for batch processing", 400);
+      await assertEvaluationAllowed(auth, pendingCredits);
+      if (prepared.some((file) => file.peek?.isAudio)) await resolveTranscriptionBackend();
 
       try {
         await addCallStage(defaultStage);
@@ -106,59 +99,17 @@ async function POSTHandler(req: Request) {
         await setRepFocus(resolvedRepId, defaultRepFocus);
       }
 
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
-        const baseName = f.name.replace(/\.[^/.]+$/, "");
-
-        if (f.name.toLowerCase().endsWith(".csv")) {
-          const content = new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())).replace(/^\uFEFF/, "");
-          const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-          if (lines.length > 11) return NextResponse.json({ error: "Import at most 10 calls per batch." }, { status: 413 });
-          if (lines.length > 1) {
-            const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
-            const transcriptIdx = header.findIndex((h) => h.includes("transcript") || h.includes("text") || h.includes("dialogue") || h.includes("body"));
-            const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("prospect") || h.includes("account"));
-            const contactIdx = header.findIndex((h) => h.includes("contact") || h.includes("lead") || h.includes("name"));
-            const stageIdx = header.findIndex((h) => h.includes("stage"));
-
-            if (transcriptIdx !== -1) {
-              for (let j = 1; j < lines.length; j++) {
-                const row = parseCsvLine(lines[j]);
-                const transcript = row[transcriptIdx]?.trim();
-                if (!transcript) continue;
-                const company = (companyIdx !== -1 && row[companyIdx]?.trim()) || "";
-                const contact = (contactIdx !== -1 && row[contactIdx]?.trim()) || "Lead";
-                const stage = (stageIdx !== -1 && row[stageIdx]?.trim()) || defaultStage;
-                itemsToProcess.push({
-                  repId: resolvedRepId,
-                  prospectCompany: company,
-                  prospectName: contact,
-                  callStage: stage,
-                  transcriptText: requireUsableTranscript(transcript),
-                  durationSeconds: 300,
-                });
-              }
-              continue;
-            }
-          }
-          itemsToProcess.push({
-            repId: resolvedRepId,
-            prospectCompany: "",
-            prospectName: baseName || "Lead",
-            callStage: defaultStage,
-            transcriptText: requireUsableTranscript(content),
-            durationSeconds: 300,
-          });
+      for (const file of prepared) {
+        if (file.items) {
+          itemsToProcess.push(...file.items.map((item) => ({ ...item, repId: resolvedRepId })));
           continue;
         }
-
-        const peek = await peekCallFile(f);
-        await assertEvaluationAllowed(auth, evaluationCreditsForDuration(peek.durationSeconds || 300));
+        const peek = file.peek!;
         const ingested = await ingestPeekedCallFile(peek);
         itemsToProcess.push({
           repId: resolvedRepId,
           prospectCompany: "",
-          prospectName: baseName || "Lead",
+          prospectName: peek.fileName.replace(/\.[^/.]+$/, "") || "Lead",
           callStage: defaultStage,
           transcriptText: requireUsableTranscript(ingested.transcriptText),
           durationSeconds: ingested.durationSeconds || 300,
@@ -168,8 +119,28 @@ async function POSTHandler(req: Request) {
         });
       }
     } else {
-      const body = await req.json();
-      itemsToProcess = body.calls || [];
+      const body = await req.json().catch(() => { throw new SecurityPolicyError("Invalid JSON body.", 400); });
+      if (!body || !Array.isArray(body.calls)) throw new SecurityPolicyError("Provide a calls array for batch processing.", 400);
+      if (body.calls.length > MAX_BATCH_CALLS) throw new SecurityPolicyError("Import at most 10 calls per batch.", 413);
+      itemsToProcess = body.calls.map((item: unknown) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) throw new SecurityPolicyError("Each batch call must be an object.", 400);
+        const value = item as Record<string, unknown>;
+        for (const key of ["repId", "prospectCompany", "prospectName", "callStage", "transcriptText"]) {
+          if (value[key] !== undefined && typeof value[key] !== "string") throw new SecurityPolicyError(`Invalid ${key} in batch call.`, 400);
+        }
+        if (value.durationSeconds !== undefined && (typeof value.durationSeconds !== "number" || !Number.isFinite(value.durationSeconds) || value.durationSeconds < 0)) {
+          throw new SecurityPolicyError("Invalid durationSeconds in batch call.", 400);
+        }
+        // JSON callers supply transcripts; audio bytes are accepted only through file uploads.
+        return {
+          repId: (value.repId as string) || "",
+          prospectCompany: (value.prospectCompany as string) || "",
+          prospectName: (value.prospectName as string) || "Lead",
+          callStage: normalizeStageName((value.callStage as string) || "").slice(0, 60).trim() || "Cold Call",
+          transcriptText: requireUsableTranscript(value.transcriptText as string | undefined),
+          durationSeconds: (value.durationSeconds as number) || 300,
+        };
+      });
     }
 
     const forcedRepId = auth.canViewAllCalls
@@ -190,6 +161,12 @@ async function POSTHandler(req: Request) {
     await assertEvaluationAllowed(auth, itemsToProcess.reduce(
       (credits, item) => credits + evaluationCreditsForDuration(item.durationSeconds || 300), 0
     ));
+
+    const repIds = new Map<string, string>();
+    for (const item of itemsToProcess) {
+      if (!repIds.has(item.repId)) repIds.set(item.repId, await resolveUploadRepId(auth, { repId: item.repId }));
+      item.repId = repIds.get(item.repId)!;
+    }
 
     const results = [];
     for (const item of itemsToProcess) {
@@ -238,7 +215,7 @@ async function POSTHandler(req: Request) {
           }, { status: callErr.status });
         }
         console.error(`Batch call ${callId} evaluation failed:`, callErr);
-        if (!evaluated) await updateCallStatus(callId, "failed", "Evaluation failed").catch(() => {});
+        if (!evaluated) await updateCallStatus(callId, "failed", "Evaluation failed", "analyzing").catch(() => {});
         results.push({ callId, error: "Failed to process call. Retry it or check server diagnostics." });
       }
     }

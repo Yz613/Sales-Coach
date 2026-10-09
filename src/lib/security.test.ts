@@ -332,10 +332,11 @@ test("batch upload preserves successful calls and reports failures separately", 
   try {
     assert.ok(admin.tenantId);
     const repId = await runWithTenant(admin.tenantId, () => getOrCreateRep(undefined, "Batch regression", "AE", "batch@example.com"));
+    db.$client.exec("CREATE TRIGGER security_batch_failure BEFORE INSERT ON evaluations WHEN NEW.call_id IN (SELECT id FROM calls WHERE prospect_company = 'Fail this fixture') BEGIN SELECT RAISE(ABORT, 'simulated evaluation write failure'); END");
     const response = await runWithAuth(admin, () => POST(request("/api/calls/batch-upload", {
       method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
       body: JSON.stringify({ calls: [
-        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: 42 },
+        { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: "Fail this fixture" },
         { repId, transcriptText: "Rep: Hello there.\nBuyer: Please send the proposal.", prospectCompany: "Batch Co", callStage: "Cold Call" },
       ] }),
     })));
@@ -348,6 +349,7 @@ test("batch upload preserves successful calls and reports failures separately", 
     const saved = await db.select().from(calls).where(eq(calls.id, body.results[1].callId)).get();
     assert.equal(saved.status, "completed");
   } finally {
+    db.$client.exec("DROP TRIGGER IF EXISTS security_batch_failure");
     if (previousBilling === undefined) delete process.env.BILLING_REQUIRED; else process.env.BILLING_REQUIRED = previousBilling;
   }
 });

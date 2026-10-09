@@ -1,5 +1,6 @@
 import { untrustedEvidence, EVIDENCE_POLICY } from "./evidence";
 import { db } from "../db";
+import { replaceCallEvaluation } from "../db/evaluation-write";
 import { evaluations, calls, reps, repSnapshots } from "../db/schema";
 import { getActiveScriptForStage, getRepPersona, getCoachContext, getSalesMethodId } from "../db/service";
 import { latestEvaluationsByCall } from "../evaluations";
@@ -302,9 +303,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
   };
 
   const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  // Replace the previous review for this call so reanalyze does not leave stale scores.
-  await db.delete(evaluations).where(and(eq(evaluations.callId, input.callId), eq(evaluations.orgId, orgId))).run();
-  await db.insert(evaluations).values({
+  await replaceCallEvaluation(db, {
     id: evaluationId,
     orgId,
     callId: input.callId,
@@ -326,7 +325,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
     rawMarkdown: evaluationResult.rawMarkdown || "",
     extendedReview: JSON.stringify(extendedReview),
     createdAt: new Date().toISOString(),
-  }).run();
+  });
 
   const { seedScorecardsFromRubric } = await import("../scorecards");
   await seedScorecardsFromRubric(input.callId);
@@ -679,9 +678,9 @@ function generateRuleBasedEvaluation(
   if (text.includes("email") || text.includes("send me some info")) {
     const prospect = stampQuote("send me an email") || stampQuote("email");
     const surrender = stampQuote("i'll send") || stampQuote("absolutely");
-    missedOpportunities.push({
-      prospectOpening: prospect?.text || "Just send me an email with more information and I'll take a look.",
-      repSurrender: surrender?.text || "Sure thing, I'll send that over right now. What's your email?",
+    if (prospect && surrender && prospect.index < surrender.index) missedOpportunities.push({
+      prospectOpening: prospect.text,
+      repSurrender: surrender.text,
       whatToSayInstead: "I can definitely send info, but in my experience, emails like that usually get buried in 30 seconds. If I can take 60 seconds right now to share the one reason companies like yours switch to us, would that be fair?",
       timestamp: (surrender || prospect)?.timestamp,
       timestampSeconds: (surrender || prospect)?.timestampSeconds,
@@ -693,9 +692,9 @@ function generateRuleBasedEvaluation(
   if (text.includes("already have") || text.includes("already using") || text.includes("happy with") || text.includes("freightpulse") || text.includes("hubspot") || text.includes("benchling")) {
     const prospect = stampQuote("already have") || stampQuote("already");
     const surrender = stampQuote("no problem") || stampQuote("no worries") || stampQuote("got it");
-    missedOpportunities.push({
-      prospectOpening: prospect?.text || "We already have a solution in place and we're good for now.",
-      repSurrender: surrender?.text || "Got it, no worries at all! Keep us in mind when your contract expires.",
+    if (prospect && surrender && prospect.index < surrender.index) missedOpportunities.push({
+      prospectOpening: prospect.text,
+      repSurrender: surrender.text,
       whatToSayInstead: "Glad you have that solved. We don't ask anyone to rip and replace what's working. Most leaders we talk with have that in place, but tell us they struggle with [specific gap]. Are you seeing that as well, or has your team managed to avoid that completely?",
       timestamp: (surrender || prospect)?.timestamp,
       timestampSeconds: (surrender || prospect)?.timestampSeconds,
@@ -704,24 +703,19 @@ function generateRuleBasedEvaluation(
     });
   }
 
-  if (missedOpportunities.length === 0) {
-    missedOpportunities.push({
-      prospectOpening: "We're pretty busy right now, check back in Q3.",
-      repSurrender: "Understood, I'll put a task on my calendar to call you in August.",
-      whatToSayInstead: "Totally hear you—everyone is slammed. Just so I don't bother you in Q3 for no reason: is this on the backburner because you already solved [core pain], or is it strictly bandwidth right now?"
-    });
-  }
+  // A fallback review must never present example dialogue as evidence from this call.
 
   if (hasEarlyFold) {
     scriptScore = Math.max(3, scriptScore - 2);
   }
 
-  let scriptFeedback = script
+  const scriptFeedback = missedOpportunities.length ? script
     ? `Benchmarked against "${script.title}": Rep hit milestone 1 (Opening) but veered off track on Milestone 2 (${script.keyMilestones[1] || "Objection Pivot"}) by capitulating too early.`
-    : "Veered off track when handling pushback; rushed through qualification steps to avoid tension.";
+    : "Veered off track when handling pushback; rushed through qualification steps to avoid tension."
+    : "Built-in rule review: see the milestone checks below. No objection surrender was confirmed from the transcript.";
 
   const blindspotNotice = persona?.knownBlindspots?.[0]
-    ? `Noticeable alignment with known blindspot: '${persona.knownBlindspots[0]}'.`
+    ? `Coaching focus for future calls: '${persona.knownBlindspots[0]}'.`
     : "";
 
   const foldTurn = turns.find((t) => /send (me )?an email|i'll send|no problem|absolutely/i.test(t.text));
@@ -730,7 +724,10 @@ function generateRuleBasedEvaluation(
   const coachNote = coachApplied
     ? "Assessed through your custom coaching directives (add an AI API key in Settings for the coach to apply them in full depth). "
     : "";
-  const bottomLine = `${repName} made contact with ${formatProspectContext(input)}. ${coachNote}${blindspotNotice} Fundamental blocking and tackling suffered because the rep treated soft pushback as a dismissal instead of executing the prescribed objection pivot.${foldCite}`;
+  const objectionSummary = missedOpportunities.length
+    ? `The transcript contains an objection followed by an acceptance or exit.${foldCite}`
+    : "No objection surrender was confirmed from the transcript. Review the qualification and milestone checks below.";
+  const bottomLine = `${repName} made contact with ${formatProspectContext(input)}. ${coachNote}${blindspotNotice} ${objectionSummary}`;
 
   const fixes: [PriorityFix, PriorityFix] = [
     {
