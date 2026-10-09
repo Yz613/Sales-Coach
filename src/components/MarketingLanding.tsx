@@ -216,11 +216,17 @@ export default function MarketingLanding() {
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <a
-                  href="#pricing"
+                  href="/demo"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-[17px] font-medium px-6 py-3 transition"
                 >
-                  See hosted plans
+                  Try the live demo
                   <ArrowRight className="h-4 w-4" />
+                </a>
+                <a
+                  href="#pricing"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white text-[#1d1d1f] text-[17px] font-medium px-6 py-3 shadow-[0_0_0_1px_rgba(0,0,0,0.08)] hover:bg-black/[0.03] transition"
+                >
+                  See hosted plans
                 </a>
                 <a
                   href={GITHUB_REPO_URL}
@@ -232,6 +238,7 @@ export default function MarketingLanding() {
                   Self-host free
                 </a>
               </div>
+              <p className="mt-3 text-sm font-medium text-[#6e6e73]">No signup to open the sample workspace.</p>
               <a href="#compare-gong" className="mt-4 inline-flex text-sm font-semibold text-[#0071E3] hover:text-[#0077ED]">
                 Compare cost vs Gong
               </a>

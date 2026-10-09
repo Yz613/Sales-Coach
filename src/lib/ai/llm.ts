@@ -50,6 +50,8 @@ async function callGemini(
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: EVIDENCE_POLICY }] },
           contents: [{ parts: [{ text: prompt }] }],
+          // Disables request logging even when the Google Cloud project has logging on.
+          store: false,
           generationConfig: geminiGenerationConfig(model, {
             responseMimeType: "application/json",
             responseSchema,
@@ -99,7 +101,8 @@ async function callOpenAiCompatible(
   apiKey: string,
   model: string,
   prompt: string,
-  extraHeaders: Record<string, string> = {}
+  extraHeaders: Record<string, string> = {},
+  extraBody: Record<string, unknown> = {}
 ): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch(url, {
     method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
@@ -116,6 +119,7 @@ async function callOpenAiCompatible(
       ],
       temperature: 0.2,
       response_format: { type: "json_object" },
+      ...extraBody,
     }),
   });
   let data: any;
@@ -196,14 +200,36 @@ export async function completeJson(opts: {
   } else if (providerId === "anthropic") {
     ({ text, usage } = await callAnthropic(apiKey, model, prompt));
   } else if (providerId === "openai") {
-    ({ text, usage } = await callOpenAiCompatible("https://api.openai.com/v1/chat/completions", apiKey, model, prompt));
+    ({ text, usage } = await callOpenAiCompatible(
+      "https://api.openai.com/v1/chat/completions",
+      apiKey,
+      model,
+      prompt,
+      {},
+      { store: false }
+    ));
   } else if (providerId === "groq") {
-    ({ text, usage } = await callOpenAiCompatible("https://api.groq.com/openai/v1/chat/completions", apiKey, model, prompt));
+    ({ text, usage } = await callOpenAiCompatible(
+      "https://api.groq.com/openai/v1/chat/completions",
+      apiKey,
+      model,
+      prompt,
+      {},
+      { store: false }
+    ));
   } else if (providerId === "openrouter") {
-    ({ text, usage } = await callOpenAiCompatible("https://openrouter.ai/api/v1/chat/completions", apiKey, model, prompt, {
-      "HTTP-Referer": process.env.APP_URL || "https://github.com/Yz613/Sales-Coach",
-      "X-Title": "Sales Coach",
-    }));
+    // Default is "allow", which routes to providers that may store prompts and train on them.
+    ({ text, usage } = await callOpenAiCompatible(
+      "https://openrouter.ai/api/v1/chat/completions",
+      apiKey,
+      model,
+      prompt,
+      {
+        "HTTP-Referer": process.env.APP_URL || "https://github.com/Yz613/Sales-Coach",
+        "X-Title": "Sales Coach",
+      },
+      { provider: { data_collection: "deny" } }
+    ));
   } else {
     throw new Error(`Unsupported provider: ${providerId}`);
   }
