@@ -1,11 +1,12 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Radio, Search, ShieldCheck } from "lucide-react";
 import { INTEGRATION_TOOLS, integrationTool, isCallTool, isNotificationTool } from "@/lib/integrations/catalog";
 import type { ProviderId, ConnectionConfig } from "@/lib/revenue/types";
 import { integrationCapabilities } from "@/lib/integrations/capabilities";
 import { oauthButtonLabel, type OAuthProvider } from "@/lib/integrations/oauth-config";
+import { closeIntegrationOAuthPopup, deliverIntegrationOAuthUrl, handleIntegrationOAuthReturn, integrationOAuthPopupProgress, integrationOAuthStatus, isIntegrationOAuthPopup, openIntegrationOAuthTab, readStoredIntegrationOAuthSignal, subscribeIntegrationOAuth, type IntegrationOAuthSignal, type OAuthListenerHost } from "@/lib/integrations/oauth-popup";
 import IntegrationDestinationSetup from "./IntegrationDestinationSetup";
 import IntegrationDeliveries from "./IntegrationDeliveries";
 import HubspotPropertyMapping from "./HubspotPropertyMapping";
@@ -41,29 +42,59 @@ function activityResult(value: string | null) {
 export default function IntegrationHub({ initial, providerId }: { initial: IntegrationData; providerId?: ProviderId }) {
   const [data, setData] = useState(initial); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const [query, setQuery] = useState(""); const [category, setCategory] = useState("All tools"); const [feeds, setFeeds] = useState<Record<string, Feed>>({}); const [refreshError, setRefreshError] = useState("");
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("connected")) setMessage(params.get("connected") === "setup" ? "Account connected. Choose a task destination below to finish setup." : params.get("sync") === "held" ? "Connected. Turn on email capture in Admin settings to import messages." : providerId && isNotificationTool(providerId) ? "Channel connected. Enable your preferred alerts below." : "Connected. Your first import is queued.");
-    if (params.get("connectionError")) setError(params.get("connectionError")!);
-    if (params.has("connected") || params.has("connectionError")) window.history.replaceState(null, "", window.location.pathname);
-  }, []);
+  const [popupNotice, setPopupNotice] = useState<{ message?: string; error?: string } | null>(null);
+  const refreshArmed = useRef(false); const awaitingOAuth = useRef(false); const awaitingSince = useRef(0); const seenOAuth = useRef(new Set<string>());
   const refresh = useCallback(async () => setData(await request("/api/integrations")), []);
-  useEffect(() => {
-    const timer = setInterval(() => { if (!document.hidden) refresh().then(() => setRefreshError("")).catch(e => setRefreshError(e.message)); }, 10000);
-    return () => clearInterval(timer);
+  const applyOAuthSignal = useCallback((signal: IntegrationOAuthSignal) => {
+    if (isIntegrationOAuthPopup(window) || seenOAuth.current.has(signal.id)) return;
+    seenOAuth.current.add(signal.id);
+    awaitingOAuth.current = false;
+    const status = integrationOAuthStatus(signal);
+    refresh().then(() => { setError(status.error || ""); setMessage(status.message || ""); setRefreshError(""); }).catch((e: Error) => { setRefreshError(e.message); if (status.error) setError(status.error); if (status.message) setMessage(status.message); });
   }, [refresh]);
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("connected") && !params.has("connectionError")) return;
+    const result = handleIntegrationOAuthReturn(window, params, providerId || "");
+    window.history.replaceState(null, "", window.location.pathname);
+    if (result.popup) { if (result.notice) setPopupNotice(result.notice); return; }
+    if (result.notice?.message) setMessage(result.notice.message);
+    if (result.notice?.error) setError(result.notice.error);
+  }, [providerId]);
+  useEffect(() => {
+    const subscription = subscribeIntegrationOAuth(applyOAuthSignal, {
+      host: window as unknown as OAuthListenerHost,
+      origin: window.location.origin,
+      onFocus: () => {
+        if (!awaitingOAuth.current || isIntegrationOAuthPopup(window)) return;
+        const stored = readStoredIntegrationOAuthSignal();
+        if (stored && stored.at >= awaitingSince.current - 2000) { applyOAuthSignal(stored); return; }
+        refresh().then(() => setRefreshError("")).catch((e: Error) => setRefreshError(e.message));
+      },
+    });
+    refreshArmed.current = subscription.refreshesAutomatically;
+    const timer = setInterval(() => { if (!document.hidden) refresh().then(() => setRefreshError("")).catch((e: Error) => setRefreshError(e.message)); }, 10000);
+    return () => { subscription.stop(); clearInterval(timer); };
+  }, [applyOAuthSignal, refresh]);
   const run = async (fn: () => Promise<any>, success: string) => {
     setBusy(true); setError(""); setMessage("");
     try { const result = await fn(); await refresh(); setMessage(result?.warning ? `${success} ${result.warning}` : success); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   const beginOAuth = async (provider: OAuthProvider, form?: HTMLFormElement, connectionId?: string, mode?: "read" | "write") => {
+    const popup = openIntegrationOAuthTab((url, target) => window.open(url, target));
     setBusy(true); setError(""); setMessage("");
     try {
       const fields = form ? new FormData(form) : undefined;
       const result = await request(`/api/integrations/oauth/${provider}/start`, { name: fields?.get("name") || integrationTool(provider)?.name, autoSync: fields ? fields.get("autoSync") === "on" : true, mode: mode || (fields?.get("writeEnabled") === "on" ? "write" : "read"), connectionId });
-      window.location.assign(result.url);
-    } catch (e) { setError((e as Error).message); setBusy(false); }
+      if (typeof result?.url !== "string" || !result.url) throw new Error("Sign-in could not be started.");
+      const navigation = deliverIntegrationOAuthUrl(popup, result.url, (url) => window.location.assign(url));
+      if (navigation === "popup") {
+        awaitingOAuth.current = true; awaitingSince.current = Date.now();
+        setMessage(integrationOAuthPopupProgress(refreshArmed.current));
+        setBusy(false);
+      }
+    } catch (e) { closeIntegrationOAuthPopup(popup); awaitingOAuth.current = false; setError((e as Error).message); setBusy(false); }
   };
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setMessage("Copied."); } catch { setError("Copy is unavailable in this browser. Select and copy the text instead."); } };
   const tool = providerId ? integrationTool(providerId) : undefined;
@@ -75,6 +106,8 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
     const feed = await request(`/api/integrations/${c.id}`, { action: "webhook", webhookSecret });
     setFeeds(old => ({ ...old, [c.id]: feed }));
   }, registersLiveFeed(c.provider) ? `${integrationTool(c.provider)!.name} live feed is ready.` : "Feed details are ready. Finish setup in your tool to start receiving events.");
+
+  if (popupNotice) return <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-6 text-center" role="status"><h1 className="text-xl font-semibold text-[#1d1d1f]">{popupNotice.message || "Sign-in didn’t finish"}</h1>{popupNotice.error && <p className="mt-3 text-sm leading-6 text-[#6e6e73]">{popupNotice.error}</p>}</div>;
 
   return <div className="space-y-6">
     <Notice error={error || refreshError} message={message} />
