@@ -20,6 +20,8 @@ services:
       - NODE_ENV=production
       - SALES_COACH_DB_PATH=/app/data/sales_coach.db
       - INTEGRATION_KEY_FILE=/app/data/integration.key
+      # No Cloudflare scoring credentials in this Compose file.
+      - CLEF_EVALUATION_MODE=off
       # Add your API keys here or pass them in a .env.local file
       # - GEMINI_API_KEY=
       # - OPENAI_API_KEY=
@@ -45,6 +47,7 @@ services:
       - NODE_ENV=production
       - SALES_COACH_DB_PATH=/app/data/sales_coach.db
       - INTEGRATION_KEY_FILE=/app/data/integration.key
+      - CLEF_EVALUATION_MODE=off
     volumes:
       - sales_coach_data:/app/data
 

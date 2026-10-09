@@ -1,358 +1,159 @@
-# Sales Coach AI 🎙️🧠
+# Sales Coach: the open-source Gong alternative for call coaching and rubrics.
+
+Score a call against your rubric, then coach the rep from the transcript, the scorecard, and the moments that mattered.
+
+![Sample call review with a transcript, rubric scorecard, coaching notes, and trackers](docs/demo-call-review.png)
+
+**[Try the live demo, no signup](https://refreshqueue.com/demo)**
+
+If this helps, [star the repo](https://github.com/Yz613/Sales-Coach).
+
+## Quickstart
+
+```bash
+git clone https://github.com/Yz613/Sales-Coach.git
+cd Sales-Coach
+npm install
+npm run setup
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Local Next redirects `/` to the marketing page. The product is at [http://localhost:3000/app](http://localhost:3000/app). With no keys configured you are in Local Admin Mode: Call Bank, reps, coach, and settings are available, and pasted transcripts can be graded by the built-in rubric.
+
+## Self-host
+
+```bash
+git clone https://github.com/Yz613/Sales-Coach.git
+cd Sales-Coach
+docker compose up --build
+```
+
+Then open [http://localhost:3000/app/calls](http://localhost:3000/app/calls). Step-by-step, including how to score with your own model key, is in [SELF-HOST.md](SELF-HOST.md).
+
+If you do not have Cloudflare credentials, set `CLEF_EVALUATION_MODE=off` so your own model key does the scoring. Compose sets that already. For `npm run dev`, put it in `.env.local`.
+
+## Compared with Gong
+
+|  | Sales Coach | Gong |
+| --- | --- | --- |
+| Open source, MIT, self-host | Yes | No |
+| Rubric scorecards and stage talk-tracks | Yes | Yes |
+| Coaching notes and manager 1:1 talk tracks | Yes | Yes |
+| Transcript, keyword trackers, and concept trackers | Yes | Yes |
+| Call search, clips, and comments | Yes | Yes |
+| Deal review and a manager-entered forecast | Yes. No trained prediction. | Yes |
+| Live meeting bot | No | Yes |
+| Seat license | No seat tax to self-host. Hosted plans are on the site. | Custom quote |
+| Zoom import | Coming soon | Yes |
+
+The public landing page includes a cost comparison you can set to your own quote. Gong does not publish list prices. The defaults are a starting point from third-party buyer data, and every field is editable.
+
+Call import covers completed recordings and transcripts from the tools in the [integrations library](https://refreshqueue.com/integrations). Zoom import is coming soon.
+
+## Tech and self-hosting
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI Status](https://github.com/Yz613/Sales-Coach/actions/workflows/ci.yml/badge.svg)](https://github.com/Yz613/Sales-Coach/actions)
 
 See [GitHub Actions reliability](docs/CI_RELIABILITY.md) for failure causes, deployment checks, and local verification.
+
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8.svg?logo=tailwind-css)](https://tailwindcss.com/)
-
-An open-source, AI-powered Sales Coaching & Call Evaluation platform. Analyze sales calls, grade rep performance against customized talk-tracks and qualification rubrics (e.g. Sandler), transcribe audio recordings with synchronized playback, and deliver targeted rep coaching feedback.
-
----
-
-## Architecture Overview
 
 ```mermaid
 graph TD
     A[Sales Call Audio or Transcript] -->|Upload / Ingest| B[Audio Transcription Engine]
     B -->|Whisper / Gemini / Groq| C[Synchronized Timestamped Transcript]
     C --> D{Evaluation Engine}
-    D -->|Configured Provider| E[LLM Evaluator: Gemini / OpenAI / Groq / Anthropic / DeepSeek]
+    D -->|Configured Provider| E[LLM Evaluator: Gemini / OpenAI / Groq / Anthropic / OpenRouter]
     D -->|Zero-Config Standalone| F[Deterministic Sales Coach Rubric Engine]
     E --> G[Multi-Dimension Scorecard]
     F --> G
-    G --> H[Sandler Qualification: Pain, Budget, Decision]
-    G --> I[Missed Opportunities & Early Folding Check]
-    G --> J[Talk-Track & Script Adherence]
-    G --> K[Manager 1:1 Talk-Track & Coaching Personas]
+    G --> H[Qualification: Pain, Budget, Decision]
+    G --> I[Missed Opportunities and Early Folding Check]
+    G --> J[Talk-Track and Script Adherence]
+    G --> K[Manager 1:1 Talk-Track and Coaching Personas]
 ```
 
----
+- Local mode uses SQLite. No account is required to read seeded calls or grade a pasted transcript.
+- Upload MP3, WAV, or M4A. Transcription uses Gemini, OpenAI, or Groq. Playback stays aligned with the transcript.
+- Model evaluations: Gemini, OpenAI, Groq, Anthropic, or OpenRouter. Or skip keys and use the built-in rubric.
+- Deal stages, talk-tracks, rep personas, and manager 1:1 notes.
+- Optional team sign-in and roles. Hosted sign-up on refreshqueue.com requires a paid plan before workspace data is shown.
+- Docker Compose, and a Cloudflare Workers plus D1 path for the hosted deployment.
 
-## Highlights
+### Model keys
 
-- **⚡ Standalone / Local Mode (Zero-Config):** Run locally out of the box with SQLite. No required external accounts, API keys, or cloud dependencies needed to get started.
-- **🎧 Call Audio & Synchronized Transcript:** Upload MP3, WAV, or M4A call recordings with automatic AI transcription and an audio player with synchronized timestamp highlighting.
-- **🤖 Multi-Provider LLM Evaluations:** Run call evaluations using your choice of provider:
-  - **Google Gemini** (`gemini-2.5-flash`, `gemini-2.5-pro`)
-  - **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o3-mini`)
-  - **Groq** (`llama-3.3-70b-versatile`)
-  - **Anthropic** (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`)
-  - **DeepSeek** (`deepseek-chat`, `deepseek-reasoner`)
-  - **OpenRouter** (any model)
-  - *Or use the built-in deterministic rubric engine for pasted transcripts with zero API keys.*
-- **📋 Deal Stages & Talk-Tracks:** Define customized rubrics, qualification criteria, and talking tracks per pipeline stage.
-- **👥 Rep Coaching Personas:** Track individual rep performance, identify repeat struggles vs. strengths, and auto-generate 1:1 manager talk tracks.
-- **🔗 32 Integrations:** Import completed calls, sync CRM, calendar, and matching mailbox context, create coaching follow-ups, share calls and clips, and send summaries to CRM records or Zapier/Make workflows. Every integration has a local brand logo and its own setup guide.
-- **🔐 Optional Multi-Tenant Auth & RBAC:** Connect [Clerk](https://clerk.com) for team workspaces. Each organization gets an isolated database partition (calls, transcripts, scripts, API keys). Hosted sign-up requires a paid plan before any workspace data is shown.
-- **🐳 Docker Ready:** Includes production-ready `Dockerfile` and `docker-compose.yml`.
-- **☁️ Cloudflare Workers Ready:** Preconfigured for edge deployment via OpenNext and Cloudflare D1.
+In the app: Admin, then Settings, pick a provider, paste the key, Save, then Test Key.
 
----
-
-## Quickstart
-
-Strangers who only want Docker: [SELF-HOST.md](SELF-HOST.md) (`docker compose up --build`, Local Admin Mode, keys later, optional Clerk with `BILLING_REQUIRED=false`).
-
-### Option 1: Local Node.js (Fastest)
-
-```bash
-# 1. Clone repository
-git clone https://github.com/Yz613/Sales-Coach.git
-cd Sales-Coach
-
-# 2. Install dependencies
-npm install
-
-# 3. One-step automated setup (creates .env.local & seeds database)
-npm run setup
-
-# 4. Start development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) for the public marketing landing (pricing at `/#pricing`). Local `next dev` redirects `/` to `/app/marketing`; on Cloudflare the worker keeps the URL at `/`. The product lives at [http://localhost:3000/app](http://localhost:3000/app).
-
-You will immediately be in **Local Admin Mode** with full access to all features: Call Bank, Reps, Coach, Analytics, Scripts, and Settings. The landing is also previewable at `/app/marketing`.
-
----
-
-### Option 2: Docker Compose
-
-If you have Docker installed, you can start Sales Coach with a single command:
-
-```bash
-docker compose up --build
-```
-
-Then visit [http://localhost:3000](http://localhost:3000) (marketing; local Next redirects `/` to `/app/marketing`) or [http://localhost:3000/app](http://localhost:3000/app) (product). Step-by-step for that path: [SELF-HOST.md](SELF-HOST.md).
-
----
-
-## Demo
-
-No GIF or screenshots are in the repo yet. Add them under `docs/` (they are not created here) and link them from this section. Suggested alt text when you do:
-
-- `Sales Coach marketing landing`
-- `Call Bank with seeded sample calls`
-- `Call evaluation with transcript and scorecard`
-
-Until those files exist, run the app and open the Call Bank. `docker compose up --build` and `npm run setup` both seed four sample calls — Marcus Vance (Apex Logistics), David Kim (Meridian BioTech), Chloe Bennett (Titan Heavy Supply), and Sarah Jenkins (Veritas Health Tech) — with transcripts and scorecards. No API key is required to read them. Pasted transcripts can be graded by the built-in rubric from Upload.
-
----
-
-## Conversation Intelligence & Integrations
-
-The revenue workspace adds searchable conversations, keyword and concept topic trackers, alert streams, saved searches, timestamped comments, coaching clip collections, manager score corrections, action items, a CRM deal pipeline, exports, retention and deletion controls.
-
-**Deal execution and forecasting:** Open **Deals** to filter by CRM owner, forecast category, stage, or activity flags. Each deal has a manager review with a next step, due date, estimated win probability, and a MEDDICC qualification checklist. Attach exact transcript moments as supporting evidence and review buyer engagement, open call actions, and the conversation timeline. **Forecast** groups deals by calendar month or quarter, with separate currency totals for won, open, committed, upside, and weighted revenue. Submit a forecast with an optional single-currency target and notes; historical snapshots retain their original deal amounts and categories for comparison. These are manager-led forecasts, with no trained prediction. A HubSpot admin can map the saved forecast category to a deal property. See [deal review and forecasting details](docs/DEAL_FORECASTING.md).
-
-The **Admin → Integrations** library includes 32 tools. Twenty-two support a direct account sign-in button when their deployment credentials are configured. Task tools let you select a destination after sign-in; Slack and Discord select the channel during consent. See [One-click sign-in and deployment credentials](docs/ONE_CLICK_INTEGRATIONS.md). Each card and connection header uses a locally served brand logo, and each tool has a connection guide with permissions, supported capabilities, and setup steps.
-
-| Category | Tools |
-| --- | --- |
-| Call recording | Fathom, Fireflies, tl;dv, Gong, Close, Aircall, Quo (formerly OpenPhone), Zoom, Google Meet, Microsoft Teams |
-| CRM | HubSpot, Pipedrive, Attio |
-| Calendar | Calendly, Google Calendar, Outlook Calendar |
-| Team messaging | Slack, Discord |
-| Automation | Zapier, Make |
-| Tasks and coaching follow-ups | Asana, Notion, Trello, ClickUp, monday.com, Linear, Todoist, Airtable, GitHub, GitLab |
-
-- **Call import:** Import completed transcripts, timestamps, participants, recording links, and available summaries/actions. Fathom registers a signed content-ready feed on public HTTPS deployments; Fireflies supports signed transcript/summary events; Aircall registers authenticated transcript/summary events. Quo (formerly OpenPhone) registers signed call, recording, transcript, and summary events and keeps a 15-minute fallback. Zoom imports completed cloud recordings and transcripts for the connected host. Google Meet imports completed conferences for the connected account. Microsoft Teams imports meetings that account organized. Zapier/Make can also push completed call transcripts.
-- **Gong insights:** Import briefs, key points, highlights, Next Steps, outlines, topics, tracker occurrences, outcomes, speaking time, interaction statistics, and question counts through Gong's current extensive API. Next Steps become timestamped action items. Late insights refresh without refetching transcripts or resetting completed actions and reviews; private calls are excluded.
-- **CRM context and exports:** Sync companies, contacts, deals, and associations. HubSpot supports signed live CRM events with a webhook-capable app; service keys use five-minute sync. Admins can export a call summary, available coaching score, next steps, and protected call link as a note on a linked HubSpot/Pipedrive/Attio record. Automatic export on manager review is opt-in. HubSpot admins can also map coaching summary, score, next steps, and forecast category onto existing deal or contact properties. Those updates run on review or from an explicit action, and unchanged values are not sent again.
-- **Call and clip sharing:** Admins can manually share full calls or saved clips through Slack/Discord channel webhooks. Reviewed-call, clip, and low-score alerts are separate opt-in settings. Alert streams on Conversations can also notify those channels, or an in-app list, when a tracker, keyword, low score, or deal stage matches. Call links follow workspace access permissions.
-- **Outgoing automation:** Send `call.imported`, `call.reviewed`, or manual `call.shared` events to a Zapier Catch Hook or Make Custom webhook. Catch URLs are encrypted. Payloads include summaries, action items, participants, CRM context, and available coaching results; transcript bodies and credentials are excluded. Receiving workflows must deduplicate by `eventId` before creating downstream records.
-- **Meeting context and follow-ups:** Calendars add schedules, invitees, cancellations, and conversation matching; Google/Microsoft use OAuth with automatic token refresh. Task tools sync a selected destination and create individual coaching follow-ups on request. Call, deal, task, and meeting lists refresh automatically.
-
-To send a call, open **Overview → Send to your tools** as an admin and choose a connected destination. CRM and automation delivery status appears under the integration's **Call exports**. CRM exports create one note per connection, call, and linked target. Rate limits retry automatically; uncertain outcomes require checking the destination and confirming absence before resending. Task exports also keep delivery records to prevent automatic duplicate sends after ambiguous outcomes. Credentials are encrypted per workspace.
-
-These connectors provide the workflows above. Automatic meeting recording, mailbox capture, arbitrary CRM field mapping, and Slack comment synchronization are not supported. See the [Gong capability comparison](docs/GONG_INTEGRATION_BENCHMARK.md) for the full scope and remaining differences.
-
-For local background sync, run `npm run worker` in a second terminal. Docker Compose starts both services. Hosted installations need an explicit encryption key; Cloudflare cron also needs its job-runner secret and public origin.
-
-- [Step-by-step Slack, calendar and Aircall setup with verification and troubleshooting](docs/INTEGRATION_SETUP.md)
-- [Task integration and Discord setup, including Asana](docs/TASK_INTEGRATIONS.md)
-- [CRM exports, call/clip sharing, outgoing Zapier/Make events, and Gong insights setup](docs/CALL_EXPORT_SETUP.md)
-- [Gong capability comparison and delivery guarantees](docs/GONG_INTEGRATION_BENCHMARK.md)
-- [Stress tests, regression checks and live-account acceptance](docs/INTEGRATION_TESTING.md)
-- [Setup, features and current limitations](docs/REVENUE_WORKSPACE.md)
-- [Integration library, API access, costs and roadmap](docs/INTEGRATIONS.md)
-
-Integration checks cover provider contracts, all 32 logo assets, permissions and workspace isolation, retries, and duplicate delivery. The CRM stress test queues 3,000 duplicate requests for 300 exports across four workers and verifies exactly 300 notes. Native Workers/D1 tests check migrations, concurrent delivery claims, and outbound requests. Provider tests use simulated responses; live vendor acceptance requires account credentials and the controlled checks in the setup guides.
-
-## Gong Cost Comparison
-
-The public landing page's **vs Gong** calculator (`/#compare-gong`) compares a Gong quote with hosted Sales Coach plans or self-hosted model usage. Adjust reps, call volume, call duration, Gong seats, annual seat price, platform fee, and optional Forecast/Engage add-ons. Hosted mode includes plan allowances and overage, with automatic plan selection and Enterprise fair-use checks; self-hosted mode uses a selectable or custom cost per evaluation. Results show estimated monthly and annual costs and the difference between them.
-
-Gong defaults are editable estimates. Replace them with your actual quote, and set self-hosted usage rates to your provider costs; the calculator estimates product/model costs, not your complete infrastructure and operating budget.
-
-## Team Revenue Goals
-
-Admins can use the dashboard’s **Team goals** card to plan revenue by quarter, month, or week. Use **Manage teams & reps** to name teams and assign existing reps. Each rep belongs to one goal team; unassigned reps do not affect team rates. These goal teams are groups inside the current workspace and share its admin permissions.
-
-Each team has its own revenue goal, average customer revenue, selling days, and planning rep count. The count follows its roster unless manually overridden; **Use assigned count** restores that behavior. Click **Save team goals** to persist goals and assignments for all admins in the current workspace.
-
-Close rates remain read-only and come from logged calls with the **Meeting booked** outcome. The team estimate uses its combined historical rate. Individual targets split revenue equally across the planning rep count and use each rep’s own rate, so a 5% rep needs twice the calls of a 10% rep for the same customer target. The individual total can differ from the combined-rate estimate. Reps without logged calls or booked meetings show no call target until a usable rate exists. Planning assumes 13 weeks per quarter and 4⅓ weeks per month, and call targets round up.
-
----
-
-## Adding Your Own AI API Keys
-
-You can add your API keys either directly in the web UI or via environment variables:
-
-### Option A: In-App UI (Recommended)
-1. Go to **Admin → Settings** in the top navigation.
-2. Select your AI Provider (Gemini, OpenAI, Groq, Anthropic, DeepSeek, or OpenRouter).
-3. Paste your API key and click **Save**.
-4. Test your key immediately using the built-in **Test Key** tool.
-
-### Option B: Environment Variables
-Create a `.env.local` file from the example template:
-
-```bash
-cp .env.example .env.local
-```
-
-Add your key(s):
+Or copy `.env.example` to `.env.local`:
 
 ```bash
 GEMINI_API_KEY=your_gemini_api_key_here
-# or
-OPENAI_API_KEY=your_openai_api_key_here
-# or
-GROQ_API_KEY=your_groq_api_key_here
+# or OPENAI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY
+CLEF_EVALUATION_MODE=off
 ```
 
-> **Audio Uploads Note:** Transcribing uploaded audio files (MP3/WAV/M4A) uses Gemini, OpenAI (Whisper), or Groq (Whisper). Pasted text transcripts work with any configured provider or with the built-in rule engine.
+`CLEF_EVALUATION_MODE=off` is what a self-host without Cloudflare credentials should use. Details are in [SELF-HOST.md](SELF-HOST.md).
 
----
+### Optional team sign-in
 
-## Setting Up User Authentication (Optional)
+Leave it unset for Local Admin Mode. To add organizations and roles, create an application, enable organizations, and set the publishable and secret keys. Self-hosters who only want access control should set `BILLING_REQUIRED=false`. Hosted billing, invite mail, and production secrets are in [SELF-HOST.md](SELF-HOST.md) and [docs/SECURITY.md](docs/SECURITY.md).
 
-By default, Sales Coach runs in **Standalone Mode** without any authentication needed. If you want to host it for a team with user logins, team workspaces, and role-based permissions:
-
-1. Create a free account at [Clerk](https://clerk.com).
-2. Create a new application in your Clerk Dashboard.
-3. In **Organizations → Settings**, enable Organizations so users can create and join teams.
-4. Copy your keys into `.env.local`:
-
-```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-```
-
-5. Restart the development server (`npm run dev`). The app will now enforce authentication:
-   - **Admin (`org:admin`):** Full access to settings, scripts, analytics, rep personas, and team invites.
-   - **Member (`org:member`):** Scoped access to the Call Bank, call uploads, and call evaluations.
-
-An existing active session on `/app/sign-in` opens the workspace automatically; pending team selection opens `/app/select-organization`. Workspace access and billing checks still run on the destination page. Hosted login scripts and their lazy chunks use the first-party `/app/__auth/assets/` proxy. Login, sign-up, invites, and team selection show loading and recovery messages when authentication requests fail or a form cannot mount. `ERR_BLOCKED_BY_CLIENT` can also come from the optional Cloudflare analytics beacon; that request is not required for login. If sign-in fails, use **Reload sign-in** or try a private window to check whether a browser extension is blocking required requests.
-
-Hosted deployments (`BILLING_REQUIRED=true`, the default whenever Clerk keys are present) send new teams through **Stripe Checkout first**. Coach and Team CTAs open Stripe; Clerk sign-up is blocked until that session is paid. Sign-in stays available for existing customers. Invited teammates skip checkout. Self-hosters using Clerk only for RBAC should set `BILLING_REQUIRED=false`.
-
-```bash
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-# Optional: dashboard price ids. If unset, Checkout uses $399 / $1,499 monthly price_data.
-# Enterprise is quoted at $4,997/month (not a self-serve Checkout price). Coach and Team overage is $1.25 per evaluation.
-# STRIPE_PRICE_COACH=price_...
-# STRIPE_PRICE_TEAM=price_...
-```
-
-Webhook URL: `https://your-domain/app/api/webhooks/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`). Put the secrets with `wrangler secret put` — do not commit them. Hosted teams cannot read another team's data, and they cannot pick a plan in Settings to skip checkout.
-
-If you are migrating a production database that already has unscoped rows, set `LEGACY_TENANT_ORG_ID` to the original Clerk organization id. Ownership is never inferred from organization age. New organizations always start empty.
-
-### Email Invites (Optional)
-To send teammate invitations via transactional email, add a [Resend](https://resend.com) API key:
-
-```bash
-RESEND_API_KEY=re_...
-# Leave blank until the address is on a domain you verified. example.com is ignored.
-# RESEND_FROM_EMAIL="Sales Coach <invites@example.com>"
-INVITE_PRODUCT_NAME="Sales Coach"
-```
-
-The product name in invite mail defaults to **Sales Coach**. `invites@refreshqueue.com` is the hosted site’s sender only — do not copy it into a self-hosted `.env`. *(You can also paste a Resend key in Admin → Settings.)*
-
----
-
-## Project Structure
+### Project structure
 
 ```text
-├── src/
-│   ├── app/                      # Next.js App Router (pages & API endpoints under /app)
-│   │   ├── marketing/            # Public landing (also rewritten to apex /)
-│   │   ├── calls/                # Call Bank & Call Evaluation detail views
-│   │   ├── reps/                 # Rep directory, performance trends & 1:1 talk tracks
-│   │   ├── coach/                # Coach Builder & System prompt configuration
-│   │   ├── admin/                # Analytics, Rubric/Script manager & Settings
-│   │   └── api/                  # REST API routes (transcription, scoring, team sync)
-│   ├── components/               # React UI components (Glassmorphism + Tailwind)
-│   └── lib/
-│       ├── ai/                   # Multi-provider LLM callers, JSON extractors, STT
-│       ├── db/                   # Drizzle ORM schemas, SQLite / D1 adapters & seeders
-│       ├── integrations/         # Provider adapters, brand mapping & capability catalog
-│       ├── revenue/              # Conversations, sync jobs, tasks, exports & privacy controls
-│       └── auth.ts               # Local Standalone & Clerk multi-tenant RBAC logic
-├── public/                       # Public static assets, including all 32 integration logos
-├── fixtures/                     # Private demo recordings
-├── scripts/                      # Setup & audio synthesis utilities
-├── schema.sql                    # Cloudflare D1 SQL schema
-├── wrangler.jsonc                # Cloudflare Workers configuration
-└── open-next.config.ts           # OpenNext Cloudflare deployment adapter
+├── src/app/                 # Next.js App Router. Product routes live under /app
+├── src/app/demo/            # Public read-only sample workspace. No database writes
+├── src/components/          # UI
+├── src/lib/ai/              # Model callers, transcription, rubric parsing
+├── src/lib/db/              # SQLite and D1
+├── src/lib/integrations/    # Call, CRM, calendar, and task connectors
+├── public/                  # Static assets, including integration logos
+├── schema.sql               # D1 schema
+└── wrangler.jsonc           # Workers configuration
 ```
 
----
-
-## Scripts & Commands
+### Scripts
 
 | Command | Description |
-| :--- | :--- |
-| `npm run setup` | One-command setup: environment file & database seeding |
-| `npm run dev` | Start the local development server |
-| `npm run build` | Compile Next.js production build |
-| `npm test` | Run the complete automated regression suite, including revenue integrations |
-| `npm run test:revenue` | Run conversation, integration, export, and duplicate-delivery checks |
-| `npm run worker` | Process integration jobs, scheduled sync and retention |
-| `npm run worker:once` | Run one background maintenance/job batch |
-| `npx tsc --noEmit` | Check TypeScript types |
-| `npm run db:seed` | Seed SQLite database with sample reps, stages, and calls |
-| `npm run preview` | Build and preview on local Cloudflare Worker runtime |
+| --- | --- |
+| `npm run setup` | Create `.env.local` and seed SQLite |
+| `npm run dev` | Local development server |
+| `npm run build` | Production Next.js build |
+| `npm test` | Unit and integration tests |
+| `npm run lint` | Lint |
+| `npm run worker` | Integration jobs, sync, and retention |
+| `npm run db:seed` | Seed sample reps, stages, and calls |
+| `npm run preview` | Build and preview the Workers bundle locally |
 | `npm run deploy` | Deploy to Cloudflare Workers |
 
----
+### Cloudflare Workers
 
-## Deploying to Cloudflare Workers
+Hosted deploys run from GitHub Actions on push to `main`. Do not deploy a fork by hand unless you mean to publish your own worker.
 
-Sales Coach is designed to run seamlessly on Cloudflare Workers using OpenNext and Cloudflare D1:
+1. `npx wrangler login`
+2. `npx wrangler d1 create sales-coach-db` and put `database_id` in `wrangler.jsonc`
+3. `npx wrangler d1 execute sales-coach-db --remote --file=./schema.sql`
+4. Set secrets with `npx wrangler secret put` for the Clerk secret, `INTEGRATION_ENCRYPTION_KEY`, `INTEGRATION_CRON_SECRET`, `PUBLIC_APP_URL`, and the Stripe secrets if you bill. Optional: `GEMINI_API_KEY`, `RESEND_API_KEY`.
+5. Create private R2 buckets `sales-coach-recordings` and `sales-coach-opennext-cache`.
+6. `npm run deploy`
 
-1. **Log in to Cloudflare:**
-   ```bash
-   npx wrangler login
-   ```
+Point the zone apex at this worker. `/` is the marketing page, `/demo` is the read-only sample, `/integrations` is the catalog, `/privacy` is the policy, and the product stays at `/app`.
 
-2. **Create a D1 database:**
-   ```bash
-   npx wrangler d1 create sales-coach-db
-   ```
-   Copy the output `database_id` into `wrangler.jsonc` under `d1_databases[0].database_id`.
+The public demo does not use a database migration. It is a static fixture served by the app.
 
-3. **Initialize the database schema:**
-   ```bash
-   npx wrangler d1 execute sales-coach-db --remote --file=./schema.sql
-   ```
+Integration setup, the Gong workflow comparison, deal forecasting, and security notes live under [docs/](docs/).
 
-4. **Set Production Secrets:**
-   ```bash
-   npx wrangler secret put CLERK_SECRET_KEY
-   npx wrangler secret put INTEGRATION_ENCRYPTION_KEY
-   npx wrangler secret put INTEGRATION_CRON_SECRET
-   npx wrangler secret put PUBLIC_APP_URL
-   npx wrangler secret put STRIPE_SECRET_KEY
-   npx wrangler secret put STRIPE_WEBHOOK_SECRET
-   # Optional:
-   npx wrangler secret put GEMINI_API_KEY
-   npx wrangler secret put RESEND_API_KEY
-   ```
-   Use a stable, securely generated 32-byte base64 encryption key, a random scheduler secret of at least 32 characters, and your canonical HTTPS origin. Enable authenticator MFA and backup codes in Clerk before inviting users. See [production security setup](docs/SECURITY.md). Hosted checkout also needs a Stripe webhook on `/app/api/webhooks/stripe`. GitHub Actions deploy resolves the D1 `database_id` from the `sales-coach-db` database in the Cloudflare account, so the placeholder in `wrangler.jsonc` does not have to be committed. The same deploy injects `VISITOR_COMPANY_KV` from the `VISITOR_COMPANY_KV_ID` repository variable when it is set, and otherwise uses the hosted namespace `05bb9e51843e4b26a424ed09dad780f6`. That id is not a secret and is not committed. A self-hosted worker keeps its own config and still runs when the binding is absent.
+## Community
 
-5. **Create private recording and cache buckets:**
-   ```bash
-   npx wrangler r2 bucket create sales-coach-recordings
-   npx wrangler r2 bucket create sales-coach-opennext-cache
-   ```
-   Keep public access disabled on both buckets. Recordings are served through authenticated workspace routes.
-
-6. **Deploy:**
-   ```bash
-   npm run deploy
-   ```
-
-7. **Apex domain:** Point the zone apex (and `/pricing` and `/integrations`) at this worker, not only `/app/*`. The worker internally serves the marketing landing at `GET /`, the integrations catalog at `GET /integrations`, and redirects `/pricing` → `/#pricing`. The product remains at `/app`.
-
-The signed-in main menu at `/app/workspaces` lists only the current user's verified team memberships and shows which teams have access. Checkout includes **Back to main menu**, so selecting an unpaid team does not trap someone who already belongs to a paid team. Each selected team still passes the normal server and API access checks.
-
-For an internal test account, create a separate Clerk user, give it `org:admin` membership in a dedicated test team, and add that exact team ID to the operator's `BILLING_EXEMPT_ORG_IDS` repository variable and Worker secret. This enables all workspace features without checkout, evaluation limits, or overage charges. The test team keeps its own calls and integration credentials; third-party integrations still need their normal credentials. No user metadata, public query parameter, or client setting can grant an exemption.
-
----
-
-## Community & Contributing
-
-We welcome contributions of all kinds! Please see:
-- [Contributing Guide](CONTRIBUTING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Good first issues](docs/good-first-issues.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-
----
+- [Security](SECURITY.md)
 
 ## License
 
-Copyright (c) 2026 Yz613. This project is licensed under the [MIT License](LICENSE). See the `LICENSE` file in the repository root for the full terms.
-
-## Security
-
-Production requires Clerk authentication, an active organization, a verified second factor, an HTTPS `PUBLIC_APP_URL`, and `INTEGRATION_ENCRYPTION_KEY`. Unauthenticated admin access is limited to local development. Read [production security setup](docs/SECURITY.md) and the [threat model](Sales%20Coach-threat-model.md) before deployment.
+Copyright (c) 2026 Yz613. [MIT License](LICENSE).

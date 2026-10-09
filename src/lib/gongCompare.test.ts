@@ -54,8 +54,10 @@ describe("Gong quote", () => {
     assert.equal(GONG_ENGAGE_USD_PER_USER_YEAR, 800);
     assert.equal(GONG_COMPARE_DEFAULTS.includeForecast, false);
     assert.equal(GONG_COMPARE_DEFAULTS.includeEngage, false);
-    assert.match(GONG_COMPARE_DISCLAIMER, /public list pricing/);
+    assert.match(GONG_COMPARE_DISCLAIMER, /third-party buyer data/);
+    assert.match(GONG_COMPARE_DISCLAIMER, /does not publish list prices/);
     assert.match(GONG_COMPARE_DISCLAIMER, /Gong quotes custom/);
+    assert.doesNotMatch(GONG_COMPARE_DISCLAIMER, /Vendr|public list pricing/i);
     assert.match(CALL_CREDIT_RULE_SHORT, /60 minutes/);
     assert.match(CALL_CREDIT_RULE_SHORT, /30 minutes/);
   });

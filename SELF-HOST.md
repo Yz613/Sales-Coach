@@ -49,15 +49,21 @@ You can stay on the rubric until you want model scoring or audio transcription.
 
 ```yaml
 environment:
+  - CLEF_EVALUATION_MODE=off
   - GEMINI_API_KEY=your_key_here
   # - OPENAI_API_KEY=
   # - GROQ_API_KEY=
   # - ANTHROPIC_API_KEY=
-  # - DEEPSEEK_API_KEY=
   # - OPENROUTER_API_KEY=
 ```
 
-Providers: Gemini, OpenAI, Groq, Anthropic, DeepSeek, OpenRouter. Audio transcription uses Gemini, OpenAI (Whisper), or Groq (Whisper). Pasted text works with any of them, or with the built-in rubric.
+Providers: Gemini, OpenAI, Groq, Anthropic, OpenRouter. Audio transcription uses Gemini, OpenAI (Whisper), or Groq (Whisper). Pasted text works with any of them, or with the built-in rubric.
+
+## Score with your own model key
+
+If `CLEF_EVALUATION_MODE` is unset, scoring tries a hosted evaluator that needs Cloudflare credentials. A self-hosted machine does not have those credentials, so the call falls through to the built-in rubric and your provider key is not used.
+
+Set `CLEF_EVALUATION_MODE=off` so the key you saved does the scoring. Compose should pass that variable in `environment` (see the block above). For `npm run dev`, put the same line in `.env.local`. With no key at all, pasted transcripts still use the built-in rubric.
 
 Keys saved only in Settings live in `sales_coach.db` inside the container. The Compose volume mounts `/app/data`, not that file, so a rebuild can drop UI-saved keys. Put keys you care about in `environment`.
 

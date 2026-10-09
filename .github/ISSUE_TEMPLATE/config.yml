@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Good first issues
+    url: https://github.com/Yz613/Sales-Coach/blob/main/docs/good-first-issues.md
+    about: Small tasks that are already scoped.
