@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { apiPath } from "@/lib/utils";
-import { RUBRIC_LINKS, formatOverall } from "@/lib/scorecardModel";
+import { RUBRIC_LINKS, formatOverall, pointsForAnswer } from "@/lib/scorecardModel";
+import { BarChart } from "@/components/charts/MetricCharts";
 
 type Answer = { value: string; note: string; origin: string; authorName: string } | null;
 type Question = {
@@ -124,6 +125,14 @@ export default function CallScorecards({ callId, admin }: { callId: string; admi
               <div className="text-[11px] uppercase tracking-wide text-[#86868b]">Weighted score</div>
             </div>
           </div>
+          <BarChart
+            unit="%"
+            bars={application.questions.map((question) => ({
+              label: question.prompt,
+              value: pointsForAnswer(question.scale, question.answer?.value) ?? 0,
+              hint: question.answer ? undefined : "Not scored yet",
+            }))}
+          />
           {application.questions.map((question) => (
             <QuestionRow key={question.id} question={question} busy={busy} readOnly={application.readOnly} onSave={(value, note) => post({ action: "answer", applicationId: application.id, questionId: question.id, value, note })} />
           ))}

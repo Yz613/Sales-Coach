@@ -8,8 +8,28 @@ import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/
 import type { MethodId } from "@/lib/methodology";
 import { METHOD_CHOICES, checklistSections, methodById } from "@/lib/salesMethods";
 import { MAX_METRIC_WEIGHT, metricsForMethod, weightShare, weightsAreCustom } from "@/lib/scoreWeights";
+import { DIAL_OUTCOMES } from "@/lib/dialFunnel";
+import { BarChart, LiveChartPanel } from "@/components/charts/MetricCharts";
+import { ChipSelect, Segmented, SliderField, joinChoice, splitChoice } from "@/components/forms/ChoiceControls";
 
 type View = "loading" | "onboarding" | "editor";
+
+const GREAT_CALL = ["Uncovers real pain", "Earns a calendar next step", "Controls the conversation", "Quantifies the impact", "Names the economic buyer"];
+const MISTAKES = ["Folds on send-me-an-email", "Pitches before qualifying", "Skips budget", "Talks over the buyer", "Leaves without a next step"];
+const NON_NEGOTIABLES = ["Budget before the demo", "Next step on the calendar", "Pain before the pitch", "Name the decision maker", "Permission to say no"];
+const TONE_OPTIONS = [
+  { value: "Direct and tactical", label: "Direct" },
+  { value: "Analytical and specific", label: "Analytical" },
+  { value: "Encouraging and clear", label: "Encouraging" },
+  { value: "Tough love", label: "Tough love" },
+  { value: "other", label: "Other" },
+];
+const CHOICE_OPTIONS: Record<string, string[]> = {
+  greatCall: GREAT_CALL,
+  mistakes: MISTAKES,
+  nonNegotiables: NON_NEGOTIABLES,
+  outcomes: DIAL_OUTCOMES.map((item) => item.label),
+};
 
 const QUESTIONS: { key: string; label: string; hint: string; placeholder: string; big?: boolean }[] = [
   {
@@ -120,20 +140,12 @@ function MethodologyProfile({
                     {custom ? `${weightShare(weights, method, metric.key)}% of the score` : "Even"}
                   </span>
                 </span>
-                <input
-                  type="number"
+                <SliderField
+                  label={`${metric.label} weight`}
                   min={0}
                   max={MAX_METRIC_WEIGHT}
-                  step={1}
-                  inputMode="numeric"
-                  aria-label={`${metric.label} weight`}
                   value={weight}
-                  onChange={(e) => {
-                    const next = e.target.value === "" ? 0 : Number(e.target.value);
-                    if (!Number.isFinite(next)) return;
-                    onWeight(metric.key, Math.min(MAX_METRIC_WEIGHT, Math.max(0, Math.round(next))));
-                  }}
-                  className="w-16 rounded-lg border border-black/[0.1] bg-[#F2F2F7] px-2 py-1.5 text-right text-sm font-mono text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
+                  onChange={(next) => onWeight(metric.key, next)}
                 />
               </label>
             );
@@ -387,8 +399,13 @@ export default function CoachPage({
   // ---- Onboarding questionnaire ----
   if (view === "onboarding") {
     const canBuild = composeInstructions(answers).trim().length > 0;
+    const coachingBars = QUESTIONS.map((question) => ({
+      label: question.label.replace(/\?$/, ""),
+      value: (answers[question.key] || "").trim() ? Math.max(1, (answers[question.key] || "").split(/[.,]/).filter((part) => part.trim()).length) : 0,
+    }));
     return (
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className="mx-auto grid max-w-6xl items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-8">
         {header}
 
         <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] p-4 text-xs text-[#007AFF]">
@@ -407,17 +424,43 @@ export default function CoachPage({
                 </span>
                 <span className="block text-xs text-[#6e6e73] mt-0.5 ml-7">{q.hint}</span>
               </label>
-              {q.big ? (
-                <textarea
-                  rows={3}
-                  value={answers[q.key] || ""}
-                  onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
-                  placeholder={q.placeholder}
-                  className="w-full rounded-xl glass-inset border border-black/[0.08] p-3 text-xs text-[#1d1d1f] placeholder:text-[#86868b] leading-relaxed focus:border-blue-500/50 focus:outline-none"
+              {q.key === "methodology" ? (
+                <Segmented
+                  label="Framework"
+                  value={METHOD_CHOICES.some((choice) => choice.name === answers.methodology) ? answers.methodology : "other"}
+                  options={[...METHOD_CHOICES.map((choice) => ({ value: choice.name, label: choice.name })), { value: "other", label: "Other" }]}
+                  onChange={(value) => setAnswers((current) => ({ ...current, methodology: value === "other" ? "" : value }))}
+                />
+              ) : q.key === "tone" ? (
+                <Segmented
+                  label="Voice"
+                  value={TONE_OPTIONS.some((option) => option.value === answers.tone) ? answers.tone : "other"}
+                  options={TONE_OPTIONS}
+                  onChange={(value) => setAnswers((current) => ({ ...current, tone: value === "other" ? "" : value }))}
+                />
+              ) : CHOICE_OPTIONS[q.key] ? (
+                <ChipSelect
+                  label={q.label}
+                  options={CHOICE_OPTIONS[q.key]}
+                  selected={splitChoice(answers[q.key] || "", CHOICE_OPTIONS[q.key]).selected}
+                  other={splitChoice(answers[q.key] || "", CHOICE_OPTIONS[q.key]).other}
+                  onChange={(selected) => setAnswers((current) => ({ ...current, [q.key]: joinChoice(selected, splitChoice(current[q.key] || "", CHOICE_OPTIONS[q.key]).other) }))}
+                  onOther={(other) => setAnswers((current) => ({ ...current, [q.key]: joinChoice(splitChoice(current[q.key] || "", CHOICE_OPTIONS[q.key]).selected, other) }))}
+                  otherPlaceholder={q.placeholder}
                 />
               ) : (
                 <input
                   type="text"
+                  value={answers[q.key] || ""}
+                  onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
+                  placeholder={q.placeholder}
+                  className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-blue-500/50 focus:outline-none"
+                />
+              )}
+              {(q.key === "methodology" || q.key === "tone") && !((q.key === "methodology" ? METHOD_CHOICES.some((choice) => choice.name === answers[q.key]) : TONE_OPTIONS.some((option) => option.value === answers[q.key] && option.value !== "other"))) && (
+                <input
+                  type="text"
+                  aria-label={`${q.label} other`}
                   value={answers[q.key] || ""}
                   onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
                   placeholder={q.placeholder}
@@ -445,12 +488,28 @@ export default function CoachPage({
           </button>
         </div>
       </div>
+      <LiveChartPanel title="Coaching mix" subtitle="Updates as you choose standards, before you save.">
+        <BarChart bars={coachingBars} />
+        <BarChart
+          bars={DIAL_OUTCOMES.map((outcome) => ({
+            label: outcome.short,
+            value: (answers.outcomes || "").toLowerCase().includes(outcome.label.toLowerCase()) ? 1 : 0,
+          }))}
+        />
+      </LiveChartPanel>
+      </div>
     );
   }
 
   // ---- Editor ----
+  const method = methodById(methodId);
+  const weightBars = metricsForMethod(method).map((metric) => ({
+    label: metric.label,
+    value: weights[metric.key] ?? 1,
+  }));
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="mx-auto grid max-w-6xl items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="space-y-8">
       {header}
 
       <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] p-4 text-xs text-[#007AFF]">
@@ -610,6 +669,10 @@ export default function CoachPage({
           </div>
         )}
       </div>
+    </div>
+    <LiveChartPanel title="Skill weights" subtitle="The bars follow the sliders before you save.">
+      <BarChart bars={weightBars} />
+    </LiveChartPanel>
     </div>
   );
 }

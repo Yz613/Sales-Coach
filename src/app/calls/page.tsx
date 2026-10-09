@@ -15,11 +15,12 @@ import { getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { methodById } from "@/lib/salesMethods";
 import { hasConnectedIntegrations } from "@/lib/revenue/connections";
 import LiveFeedRefresh from "@/components/revenue/LiveFeedRefresh";
+import DialLogger from "@/components/DialLogger";
 
 export const dynamic = "force-dynamic";
 
 async function CallBankPage() {
-  const { auth, calls } = await getVisibleCalls();
+  const { auth, calls, reps } = await getVisibleCalls();
   const methodology = methodById(await getSalesMethodId());
   const rankedCalls = rankCalls(calls, { weights: await getScoreWeights(methodology), method: methodology });
   const ai = await resolveAiSettings();
@@ -46,6 +47,8 @@ async function CallBankPage() {
 
         <CallBankActions totalCalls={rankedCalls.length} />
       </div>
+
+      <DialLogger reps={reps.flatMap((rep) => rep.id && rep.name ? [{ id: rep.id, name: rep.name }] : [])} canChooseRep={auth.canViewAllCalls} />
 
       <ReanalyzeCallsBar
         calls={rankedCalls.map((call) => ({

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Plus, Target, Users } from "lucide-react";
 import { formatGroupedNumber, parseGroupedNumber, GOAL_PERIODS, type GoalPeriod } from "@/lib/revenueGoal";
 import { createGoalTeam, goalTeamMetrics, validateGoalTeams, type GoalRep, type GoalTeam } from "@/lib/goalTeams";
+import { BarChart, RateTrio } from "@/components/charts/MetricCharts";
 import { useAppAuth } from "@/lib/auth-context";
 import { apiPath } from "@/lib/utils";
 
@@ -24,7 +25,7 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
   const [error, setError] = useState("");
   const team = teams.find((item) => item.id === selectedId) ?? teams[0];
   const metrics = goalTeamMetrics(team, reps);
-  const { plan, repCount, members, closeRate, loggedCalls, repPlans } = metrics;
+  const { plan, repCount, members, closeRate, connectRate, closePerConnect, loggedCalls, connects, closes, repPlans } = metrics;
   const dirty = JSON.stringify(teams) !== savedTeams;
   const periodLabel = GOAL_PERIODS[team.period].label.toLowerCase();
   const allRepTargetsKnown = repPlans.length > 0 && repPlans.every((item) => item.plan);
@@ -134,7 +135,11 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
               </label>
               <NumberField label={`Revenue to add this ${periodLabel}`} value={team.revenue} onChange={(value) => updateTeam(team.id, { revenue: value })} placeholder="500,000" />
               <NumberField label="Avg revenue / customer" value={team.averageRevenue} onChange={(value) => updateTeam(team.id, { averageRevenue: value })} placeholder="10,000" />
-              <div className="space-y-1.5"><Label>Team close rate %</Label><div aria-label="Team close rate" aria-readonly="true" className={`${inputClass} font-mono`}>{loggedCalls ? rate(closeRate) : "—"}</div><p className="text-[10px] text-[#86868b]">{count(loggedCalls)} logged calls · Read-only meeting-booking rate.</p></div>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label>Rates from every dial</Label>
+                <RateTrio connectRate={connectRate} closeRate={closeRate} closePerConnect={closePerConnect} dials={loggedCalls} connects={connects} closes={closes} />
+                <p className="text-[10px] text-[#86868b]">{count(loggedCalls)} dials · Close rate is closed won / every dial. Close per connect is closes / connects.</p>
+              </div>
               <NumberField label="Selling days / week" value={team.sellingDaysPerWeek} onChange={(value) => updateTeam(team.id, { sellingDaysPerWeek: value })} integer placeholder="5" />
               <div className="space-y-1.5">
                 <NumberField label="Number of reps" value={repCount} onChange={(value) => updateTeam(team.id, { repCount: value })} integer placeholder="1" />
@@ -152,17 +157,23 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
                 <Result label="Per selling day" value={count(plan.callsDay)} hint={`${team.sellingDaysPerWeek} selling days / week`} />
                 <Result label="Avg per rep / day" value={count(plan.callsPerRepDay)} hint={`${count(repCount)} planned ${repCount === 1 ? "rep" : "reps"}`} />
               </div>
-            </div> : <p className="text-xs text-[#86868b]">{members.length === 0 ? "Assign reps to this team to calculate its close rate." : loggedCalls === 0 ? "This team has no logged calls yet. Its close rate and call targets will appear after calls are logged." : closeRate === 0 ? "This team has a 0% close rate. Call targets need a booked meeting before they can be calculated." : "Enter revenue and average customer revenue above zero, 1–7 selling days, and a positive whole rep count."}</p>}
+              <BarChart bars={[
+                { label: `Calls this ${periodLabel}`, value: plan.callsPeriod },
+                { label: "Per week", value: plan.callsWeek },
+                { label: "Per selling day", value: plan.callsDay },
+                { label: "Per rep / day", value: plan.callsPerRepDay },
+              ]} />
+            </div> : <p className="text-xs text-[#86868b]">{members.length === 0 ? "Assign reps to this team to calculate its close rate." : loggedCalls === 0 ? "This team has no logged calls yet. Its close rate and call targets will appear after dials are logged." : closeRate === 0 ? "This team has a 0% close rate. Call targets need a closed-won dial before they can be calculated." : "Enter revenue and average customer revenue above zero, 1–7 selling days, and a positive whole rep count."}</p>}
 
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-[#1d1d1f]">{team.name || "Team"} · Individual rep targets</h3>
-              <p className="text-xs text-[#6e6e73]">Team revenue is split equally across {count(repCount)} planned {repCount === 1 ? "rep" : "reps"}. Each assigned rep’s target uses their own logged close rate. All calls round up. Rates measure booked meetings, as on the dashboard.</p>
+              <p className="text-xs text-[#6e6e73]">Team revenue is split equally across {count(repCount)} planned {repCount === 1 ? "rep" : "reps"}. Each assigned rep’s target uses their own close rate: closed won divided by every dial. All calls round up.</p>
               {repCount !== members.length && <p className="text-xs text-[#C45500]">Planning for {count(repCount)} reps with {members.length} assigned. Match the roster and planning count for a complete team breakdown.</p>}
               {members.length > 0 && <div className="overflow-x-auto rounded-xl border border-black/[0.08]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-black/[0.03] text-[#6e6e73]"><tr>{["Rep", "Logged calls", "Close rate", `${GOAL_PERIODS[team.period].label} revenue goal`, `Calls this ${periodLabel}`, "Weekly pace", "Daily pace"].map((label) => <th key={label} scope="col" className="px-4 py-3 whitespace-nowrap font-semibold">{label}</th>)}</tr></thead>
+                  <thead className="bg-black/[0.03] text-[#6e6e73]"><tr>{["Rep", "Dials", "Close rate", `${GOAL_PERIODS[team.period].label} revenue goal`, `Calls this ${periodLabel}`, "Weekly pace", "Daily pace"].map((label) => <th key={label} scope="col" className="px-4 py-3 whitespace-nowrap font-semibold">{label}</th>)}</tr></thead>
                   <tbody>{repPlans.map((item) => <tr key={item.rep.id} className="border-t border-black/[0.06] text-[#3a3a3c]">
-                    <th scope="row" className="px-4 py-3 font-semibold whitespace-nowrap">{item.rep.name}{!item.plan && <div className="font-normal text-[10px] text-[#86868b]">{item.rep.loggedCalls === 0 ? "No logged calls" : item.closeRate === 0 ? "No booked meetings yet" : "Set valid goal inputs"}</div>}</th>
+                    <th scope="row" className="px-4 py-3 font-semibold whitespace-nowrap">{item.rep.name}{!item.plan && <div className="font-normal text-[10px] text-[#86868b]">{item.rep.loggedCalls === 0 ? "No logged dials" : item.closeRate === 0 ? "No closed-won dials yet" : "Set valid goal inputs"}</div>}</th>
                     <td className="px-4 py-3 font-mono">{count(item.rep.loggedCalls)}</td>
                     <td className="px-4 py-3 font-mono" aria-readonly="true">{item.rep.loggedCalls ? rate(item.closeRate) : "—"}</td>
                     <td className="px-4 py-3 font-mono">{repCount > 0 ? money(item.revenue) : "—"}</td>

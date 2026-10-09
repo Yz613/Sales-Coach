@@ -1,4 +1,4 @@
-import { isMeetingBooked } from "./coreOutcome";
+import { percentOf, tallyDialFunnel, type DialFact } from "./dialFunnel";
 import { planRevenueGoal, type GoalPeriod } from "./revenueGoal";
 
 export const GOAL_TEAMS_SETTING_KEY = "revenue_goal_teams";
@@ -18,38 +18,63 @@ export interface GoalTeam {
 export interface GoalRep {
   id: string;
   name: string;
+  /** Every logged dial, including no-answer and voicemail. */
   loggedCalls: number;
+  /** Meetings reached. Kept so older fixtures that only know booked calls still load. */
   bookedCalls: number;
+  connects: number;
+  closes: number;
 }
 
 export function createGoalTeam(id: string, name: string, repIds: string[] = []): GoalTeam {
   return { id, name, repIds, period: "quarter", revenue: 0, averageRevenue: 0, sellingDaysPerWeek: 5, repCount: null };
 }
 
-/** Rates use the same logged-call outcomes as the dashboard, without rounding before planning. */
+/** Close rate is closed-won / every dial. Missed calls stay in the denominator. */
 export function buildGoalReps(
   reps: { id: string; name: string }[],
-  calls: { repId: string; coreOutcome: string }[],
+  calls: ({ repId: string } & DialFact)[],
 ): GoalRep[] {
-  const totals = new Map<string, { loggedCalls: number; bookedCalls: number }>();
+  const totals = new Map<string, { loggedCalls: number; bookedCalls: number; connects: number; closes: number }>();
   for (const call of calls) {
-    const total = totals.get(call.repId) ?? { loggedCalls: 0, bookedCalls: 0 };
-    total.loggedCalls++;
-    if (isMeetingBooked(call.coreOutcome)) total.bookedCalls++;
+    const summary = tallyDialFunnel([call]);
+    const total = totals.get(call.repId) ?? { loggedCalls: 0, bookedCalls: 0, connects: 0, closes: 0 };
+    total.loggedCalls += summary.dials;
+    total.bookedCalls += summary.meetings;
+    total.connects += summary.connects;
+    total.closes += summary.closes;
     totals.set(call.repId, total);
   }
-  return reps.map((rep) => ({ id: rep.id, name: rep.name, ...(totals.get(rep.id) ?? { loggedCalls: 0, bookedCalls: 0 }) }));
+  return reps.map((rep) => ({
+    id: rep.id,
+    name: rep.name,
+    ...(totals.get(rep.id) ?? { loggedCalls: 0, bookedCalls: 0, connects: 0, closes: 0 }),
+  }));
 }
 
-export function goalRepCloseRate(rep: Pick<GoalRep, "loggedCalls" | "bookedCalls">): number {
-  return rep.loggedCalls > 0 ? (rep.bookedCalls / rep.loggedCalls) * 100 : 0;
+export function goalRepCloseRate(rep: Pick<GoalRep, "loggedCalls"> & Partial<Pick<GoalRep, "closes" | "bookedCalls">>): number {
+  const closes = rep.closes ?? rep.bookedCalls ?? 0;
+  return percentOf(closes, rep.loggedCalls);
+}
+
+export function goalRepConnectRate(rep: Pick<GoalRep, "loggedCalls"> & Partial<Pick<GoalRep, "connects">>): number {
+  if (rep.connects == null) return 0;
+  return percentOf(rep.connects, rep.loggedCalls);
+}
+
+export function goalClosePerConnect(rep: Partial<Pick<GoalRep, "closes" | "connects" | "bookedCalls">>): number {
+  return percentOf(rep.closes ?? rep.bookedCalls ?? 0, rep.connects ?? 0);
 }
 
 export function goalTeamMetrics(team: GoalTeam, reps: GoalRep[]) {
   const members = reps.filter((rep) => team.repIds.includes(rep.id));
   const loggedCalls = members.reduce((sum, rep) => sum + rep.loggedCalls, 0);
-  const bookedCalls = members.reduce((sum, rep) => sum + rep.bookedCalls, 0);
-  const closeRate = goalRepCloseRate({ loggedCalls, bookedCalls });
+  const bookedCalls = members.reduce((sum, rep) => sum + (rep.bookedCalls || 0), 0);
+  const connects = members.reduce((sum, rep) => sum + (rep.connects || 0), 0);
+  const closes = members.reduce((sum, rep) => sum + (rep.closes ?? rep.bookedCalls ?? 0), 0);
+  const closeRate = goalRepCloseRate({ loggedCalls, closes, bookedCalls });
+  const connectRate = goalRepConnectRate({ loggedCalls, connects });
+  const closePerConnect = goalClosePerConnect({ closes, connects });
   const repCount = team.repCount ?? members.length;
   const plan = repCount > 0 ? planRevenueGoal({ ...team, closeRatePercent: closeRate, repCount }) : null;
   // Equal revenue shares make the effect of each rep's own close rate explicit.
@@ -57,10 +82,12 @@ export function goalTeamMetrics(team: GoalTeam, reps: GoalRep[]) {
   const repPlans = members.map((rep) => ({
     rep,
     closeRate: goalRepCloseRate(rep),
+    connectRate: goalRepConnectRate(rep),
+    closePerConnect: goalClosePerConnect(rep),
     revenue: repRevenue,
     plan: planRevenueGoal({ ...team, revenue: repRevenue, closeRatePercent: goalRepCloseRate(rep), repCount: 1 }),
   }));
-  return { members, loggedCalls, bookedCalls, closeRate, repCount, plan, repPlans };
+  return { members, loggedCalls, bookedCalls, connects, closes, closeRate, connectRate, closePerConnect, repCount, plan, repPlans };
 }
 
 /** Never accept client-supplied close rates or rep ids outside the current workspace. */
