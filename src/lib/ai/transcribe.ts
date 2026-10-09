@@ -15,7 +15,7 @@ import {
 import { openAiTranscriptionsUrl, privateModelUrlsAllowed } from "./localEndpoint";
 import { DEFAULT_MODEL, detectProviderFromKey, type ProviderId } from "./providers";
 import { geminiGenerationConfig, geminiModelsToTry, geminiTextFromResponse } from "./gemini";
-import { resolveAiSettings } from "./settings";
+import { resolveAiSettings, type ResolvedAiSettings } from "./settings";
 
 export type TranscriptionKind = "gemini" | "openai" | "groq" | "local";
 
@@ -313,14 +313,22 @@ export async function getTranscriptionStatus(): Promise<{
   }
 }
 
-export async function resolveTranscriptionBackend(): Promise<TranscriptionBackend> {
-  const ai = await resolveAiSettings();
-  if (ai.providerId === "local" && ai.whisperBaseUrl && ai.apiKey) {
+function whisperBearer(ai: ResolvedAiSettings): string {
+  if (ai.providerId === "local" && ai.apiKey) return ai.apiKey;
+  return ai.localApiKey || "local";
+}
+
+/** Pick a transcription backend from already-resolved settings. Whisper URL wins over the scoring provider. */
+export function selectTranscriptionBackend(
+  ai: ResolvedAiSettings,
+  env: Record<string, string | undefined> = process.env
+): TranscriptionBackend {
+  if (ai.whisperBaseUrl) {
     return {
       kind: "local",
-      apiKey: ai.apiKey,
-      model: (process.env.LOCAL_WHISPER_MODEL || "").trim() || "whisper-1",
-      endpoint: openAiTranscriptionsUrl(ai.whisperBaseUrl, { allowPrivate: privateModelUrlsAllowed() }),
+      apiKey: whisperBearer(ai),
+      model: (env.LOCAL_WHISPER_MODEL || "").trim() || "whisper-1",
+      endpoint: openAiTranscriptionsUrl(ai.whisperBaseUrl, { allowPrivate: privateModelUrlsAllowed(env) }),
     };
   }
   if (ai.apiKey && isTranscribeCapable(ai.providerId)) {
@@ -337,7 +345,7 @@ export async function resolveTranscriptionBackend(): Promise<TranscriptionBacken
     { kind: "groq", env: "GROQ_API_KEY" },
   ];
   for (const candidate of envOrder) {
-    const value = (process.env[candidate.env] || "").trim();
+    const value = (env[candidate.env] || "").trim();
     if (value) {
       return { kind: candidate.kind, apiKey: value, model: candidate.model };
     }
@@ -355,6 +363,10 @@ export async function resolveTranscriptionBackend(): Promise<TranscriptionBacken
       ? "Audio transcription needs a Whisper-compatible LOCAL_WHISPER_BASE_URL, or a Gemini, OpenAI, or Groq key."
       : "Audio transcription needs a Gemini, OpenAI, or Groq API key. Add one in Admin → Settings, then re-upload the recording."
   );
+}
+
+export async function resolveTranscriptionBackend(): Promise<TranscriptionBackend> {
+  return selectTranscriptionBackend(await resolveAiSettings());
 }
 
 async function transcribeOneChunk(

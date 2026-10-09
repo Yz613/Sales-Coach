@@ -21,6 +21,8 @@ export interface ResolvedAiSettings {
   baseUrl: string | null;
   /** Optional Whisper-compatible base, without /audio/transcriptions. */
   whisperBaseUrl: string | null;
+  /** Bearer saved for the local server. Never a hosted provider key. */
+  localApiKey: string | null;
   /** True when the stored key prefix does not match the saved provider. */
   providerCorrected?: boolean;
 }
@@ -77,12 +79,17 @@ export function resolveAiSettingsFrom(
   overrideKey?: string
 ): ResolvedAiSettings {
   const storedKey = (settings["ai_api_key"] || settings["gemini_api_key"] || "").trim();
+  const storedLocalKey = (settings["local_api_key"] || "").trim();
   const requestedProvider = settings["ai_provider"];
   const savedModel = (settings["active_model"] || "").trim();
   const explicitLocal = requestedProvider === "local";
+  const localApiKey = (storedLocalKey || (env.LOCAL_OPENAI_API_KEY || "")).trim() || null;
 
   let providerId: ProviderId = isProviderId(requestedProvider) ? requestedProvider : DEFAULT_PROVIDER;
-  let apiKey = (overrideKey || storedKey || envKeyFor(providerId, env) || "").trim();
+  // A hosted key must not become the bearer for a local server the admin just selected.
+  let apiKey = explicitLocal
+    ? (overrideKey || localApiKey || "").trim()
+    : (overrideKey || storedKey || envKeyFor(providerId, env) || "").trim();
   let providerCorrected = false;
 
   if (!apiKey && !explicitLocal) {
@@ -119,6 +126,7 @@ export function resolveAiSettingsFrom(
     maskedKey: apiKey && apiKey !== "local" ? maskKey(apiKey) : "",
     baseUrl,
     whisperBaseUrl,
+    localApiKey,
     providerCorrected,
   };
 }

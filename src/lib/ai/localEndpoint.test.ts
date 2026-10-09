@@ -17,6 +17,10 @@ assert.equal(isPrivateOrLocalHost("192.168.1.8"), true);
 assert.equal(isPrivateOrLocalHost("169.254.169.254"), true);
 assert.equal(isPrivateOrLocalHost("metadata.google.internal"), true);
 assert.equal(isPrivateOrLocalHost("::1"), true);
+assert.equal(isPrivateOrLocalHost("::ffff:7f00:1"), true);
+assert.equal(isPrivateOrLocalHost("::ffff:127.0.0.1"), true);
+assert.equal(isPrivateOrLocalHost("::ffff:a9fe:a9fe"), true);
+assert.equal(isPrivateOrLocalHost("::ffff:8.8.8.8"), false);
 assert.equal(isPrivateOrLocalHost("api.example.com"), false);
 
 assert.equal(
@@ -39,6 +43,14 @@ assert.equal(
 assert.throws(
   () => normalizeOpenAiBaseUrl("http://127.0.0.1:11434/v1", locked),
   (err: unknown) => err instanceof LocalModelUrlError && /ALLOW_PRIVATE_MODEL_URLS/.test(err.message)
+);
+assert.throws(
+  () => normalizeOpenAiBaseUrl("http://[::ffff:7f00:1]:11434/v1", locked),
+  LocalModelUrlError
+);
+assert.equal(
+  normalizeOpenAiBaseUrl("http://[::ffff:7f00:1]:11434/v1", open),
+  "http://[::ffff:7f00:1]:11434/v1"
 );
 assert.throws(
   () => normalizeOpenAiBaseUrl("http://169.254.169.254/v1", locked),

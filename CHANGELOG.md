@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Local models: an OpenAI-compatible base URL and model name for scoring and coaching, plus an optional Whisper-compatible transcription URL.
+- Local models: an OpenAI-compatible base URL and model name for scoring and coaching, plus an optional Whisper-compatible transcription URL. The local bearer is stored separately from a hosted provider key. A Whisper URL is used even when scoring uses another provider. IPv4-mapped loopback addresses are treated as private.
 - Public read-only demo at `/demo`: four fictional calls with transcripts, rubric scorecards, coaching notes, and trackers. Writes and model calls stay off.
 - Launch README: live demo link, self-host steps, and a Gong comparison. Infrastructure and model vendor names sit in the Tech section.
 - Contributor guide, issue templates, and [good first issues](docs/good-first-issues.md).

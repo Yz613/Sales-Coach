@@ -69,7 +69,7 @@ Set `CLEF_EVALUATION_MODE=off` so the key you saved does the scoring. Compose sh
 
 You can score and coach with an OpenAI-compatible server on your own machine, such as Ollama or LM Studio. In Admin, then Settings, choose Local, set the base URL (for Ollama that is `http://127.0.0.1:11434/v1`), and set the model name the server is serving. The API key can be any non-empty value, or left blank.
 
-The same base URL is used for call scoring and for coaching notes. Audio is separate. If you run a Whisper-compatible server, set its base URL too (the path is `/v1`, and Sales Coach calls `/v1/audio/transcriptions`). Leave that blank to keep using a Gemini, OpenAI, or Groq key for recordings.
+The same base URL is used for call scoring and for coaching notes. Audio is separate. If you run a Whisper-compatible server, set its base URL (the path is `/v1`, and Sales Coach calls `/v1/audio/transcriptions`). That URL is used for recordings even when scoring uses another provider, and the scoring key is not sent to it. Leave it blank to keep using a Gemini, OpenAI, or Groq key for recordings. A key saved while Local is selected is stored apart from the hosted provider key.
 
 A localhost or LAN address is refused unless the process has `ALLOW_PRIVATE_MODEL_URLS=true`. Compose sets that. For `npm run dev`, add it to `.env.local`. From inside Compose, `127.0.0.1` is the container, not your machine. Point the base URL at the host, for example `http://host.docker.internal:11434/v1`.
 

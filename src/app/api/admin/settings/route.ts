@@ -64,8 +64,10 @@ async function POSTHandler(req: Request) {
     const incomingKey = (body.apiKey ?? body.geminiApiKey ?? "").toString();
     if (incomingKey.trim().length > 0) {
       const key = incomingKey.trim();
-      await setSetting("ai_api_key", key);
-      if (providerId !== "local") {
+      if (providerId === "local") {
+        await setSetting("local_api_key", key);
+      } else {
+        await setSetting("ai_api_key", key);
         const detected = detectProviderFromKey(key);
         if (detected && detected !== providerId) {
           providerId = detected;

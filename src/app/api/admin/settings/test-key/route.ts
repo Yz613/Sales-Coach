@@ -15,7 +15,9 @@ async function POSTHandler(req: Request) {
     const providerId: ProviderId = usingTypedKey && isProviderId(body.provider) ? body.provider : stored.providerId;
     const model = (usingTypedKey && body.model ? String(body.model) : stored.model) || getProvider(providerId).models[0].id;
     const baseUrl = String(body.baseUrl || stored.baseUrl || process.env.LOCAL_OPENAI_BASE_URL || "").trim();
-    const apiKey = incomingKey || stored.apiKey || (providerId === "local" ? "local" : "");
+    const apiKey = providerId === "local"
+      ? (incomingKey || (stored.providerId === "local" ? stored.apiKey : stored.localApiKey) || "local")
+      : (incomingKey || stored.apiKey || "");
 
     if (providerId === "local" && !baseUrl) {
       return NextResponse.json({
