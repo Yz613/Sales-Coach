@@ -1,7 +1,7 @@
 import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { evaluateCall } from "@/lib/ai/coach";
-import { addCallStage, insertCall, setRepFocus } from "@/lib/db/service";
+import { addCallStage, insertCall, setRepFocus, updateCallStatus } from "@/lib/db/service";
 import { normalizeStageName } from "@/lib/callStages";
 import { ingestPeekedCallFile, peekCallFile } from "@/lib/ingestCallFile";
 import { durationFromTranscript } from "@/lib/audio";
@@ -36,6 +36,7 @@ async function GETHandler() {
 export const maxDuration = 300;
 
 async function POSTHandler(req: Request) {
+  let callId: string | undefined;
   try {
     const auth = await requireWorkspace();
     const contentType = req.headers.get("content-type") || "";
@@ -123,7 +124,7 @@ async function POSTHandler(req: Request) {
       await setRepFocus(repId, repFocus);
     }
 
-    const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
     const audioUrl = audioBytes
       ? await saveCallAudio(callId, audioBytes, audioMimeType, audioFileName)
@@ -164,6 +165,7 @@ async function POSTHandler(req: Request) {
       creditsCharged: evalCredits,
     });
   } catch (error: any) {
+    if (callId) await updateCallStatus(callId, "failed", "Evaluation failed", "analyzing").catch(() => {});
     if (error instanceof PaymentRequiredError || error instanceof QuotaExceededError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }

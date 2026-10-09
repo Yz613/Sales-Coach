@@ -3,7 +3,7 @@ import { revenueRuntime } from "../revenue/runtime";
 export const CLEF_PRIMARY_MODEL = "@cf/cloudflare/clef";
 export const CLEF_MODEL_FIELD = "clef";
 export const CLEF_MAX_QUESTIONS_PER_BATCH = 64;
-export const CLEF_DECISION_SCHEMA_VERSION = "1.0";
+export const CLEF_DECISION_SCHEMA_VERSION = "1.1";
 
 export type ClefQuestionType = "noul" | "choice" | "score";
 
@@ -287,7 +287,8 @@ export function normalizeClefAnswer(questionId: string, raw: unknown, question?:
   if (question && answer.type !== question.type) malformed();
   if (answer.confidence !== undefined && !probability(answer.confidence)) malformed();
   if ("noul" in answer && !probability(answer.noul)) malformed();
-  if ("score" in answer && (!Number.isFinite(answer.score) || answer.score < 0 || answer.score > 10)) malformed();
+  const maximumScore = question?.type === "score" ? question.criteria.length - 1 : 10;
+  if ("score" in answer && (!Number.isFinite(answer.score) || answer.score < 0 || answer.score > maximumScore)) malformed();
   if ("probabilities" in answer && Object.values(answer.probabilities).some(value => !probability(value))) malformed();
   if ("choice" in answer && question?.type === "choice" && !Object.hasOwn(question.criteria, answer.choice)) malformed();
   return answer;
@@ -299,13 +300,7 @@ export function normalizeClefAnswer(questionId: string, raw: unknown, question?:
 function resolveWorkersAiBinding(explicitBinding?: any): any {
   if (explicitBinding) return explicitBinding;
   try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare");
-    const ctx = getCloudflareContext();
-    if (ctx?.env?.AI) return ctx.env.AI;
-  } catch {
-    // OpenNext context not present in tests or Node runtime
-  }
-  try {
+    // Explicit SQLite tests must not inherit Next dev's remote AI binding.
     const runtime = revenueRuntime();
     if (runtime?.env?.AI) return runtime.env.AI;
   } catch {

@@ -1177,14 +1177,15 @@ export async function insertCall(values: {
 export async function updateCallStatus(
   id: string,
   status: "completed" | "failed" | "analyzing",
-  coreOutcome?: string
+  coreOutcome?: string,
+  expectedStatus?: "completed" | "failed" | "analyzing"
 ): Promise<void> {
   const patch: Record<string, any> = { status };
   if (coreOutcome !== undefined) patch.coreOutcome = coreOutcome;
   await db
     .update(calls)
     .set(patch)
-    .where(and(eq(calls.id, id), forTenant(calls.orgId)))
+    .where(and(eq(calls.id, id), forTenant(calls.orgId), expectedStatus ? eq(calls.status, expectedStatus) : undefined))
     .run();
 }
 
