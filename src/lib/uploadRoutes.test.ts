@@ -218,12 +218,16 @@ test("fallback reviews never invent prospect objections or rep quotes", async ()
       const body = await response.json();
       assert.deepEqual(body.evaluation.missedOpportunities, []);
       assert.doesNotMatch(body.evaluation.bottomLine, /treated soft pushback|Q3|August/);
+      assert.doesNotMatch(JSON.stringify(body.evaluation.topFixes), /surrender|brush-off|email approvals/i);
+      assert.doesNotMatch(body.evaluation.coachingBrief.remedialDrills, /surrender|brush-off|email approvals/i);
     }
-    const text = "Rep: Hello Alex, what challenges do you face?\nProspect: Just send me an email with more information.\nRep: Absolutely, I'll send that over today.";
+    const text = "Rep: Do email approvals affect your business?\nProspect: Yes, approvals take several hours.\nRep: What challenges do you face?\nProspect: Just send me an email with more information.\nRep: Absolutely, I'll send that over today.";
     const response = await singleUpload(request({ repId, transcriptText: text }));
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.evaluation.missedOpportunities.length, 1);
+    assert.match(body.evaluation.topFixes[0].description, /Absolutely/);
+    assert.doesNotMatch(body.evaluation.topFixes[0].description, /email approvals/);
     for (const moment of body.evaluation.missedOpportunities) {
       assert.ok(text.includes(moment.prospectOpening));
       assert.ok(text.includes(moment.repSurrender));

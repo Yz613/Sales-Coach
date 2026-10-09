@@ -709,17 +709,18 @@ function generateRuleBasedEvaluation(
     scriptScore = Math.max(3, scriptScore - 2);
   }
 
-  const scriptFeedback = missedOpportunities.length ? script
-    ? `Benchmarked against "${script.title}": Rep hit milestone 1 (Opening) but veered off track on Milestone 2 (${script.keyMilestones[1] || "Objection Pivot"}) by capitulating too early.`
-    : "Veered off track when handling pushback; rushed through qualification steps to avoid tension."
+  const confirmedSurrender = missedOpportunities[0];
+  const scriptFeedback = confirmedSurrender
+    ? `Built-in rule review: an objection acceptance was confirmed at ${confirmedSurrender.timestamp}. ${script ? `Review the "${script.title}" milestone checks below.` : "Review the qualification checks below."}`
     : "Built-in rule review: see the milestone checks below. No objection surrender was confirmed from the transcript.";
 
   const blindspotNotice = persona?.knownBlindspots?.[0]
     ? `Coaching focus for future calls: '${persona.knownBlindspots[0]}'.`
     : "";
 
-  const foldTurn = turns.find((t) => /send (me )?an email|i'll send|no problem|absolutely/i.test(t.text));
-  const foldCite = foldTurn ? ` At ${foldTurn.timestamp} they said: "${foldTurn.text}"` : "";
+  const foldCite = confirmedSurrender
+    ? ` At ${confirmedSurrender.timestamp} the representative said: "${confirmedSurrender.repSurrender}"`
+    : "";
 
   const coachNote = coachApplied
     ? "Assessed through your custom coaching directives (add an AI API key in Settings for the coach to apply them in full depth). "
@@ -730,11 +731,12 @@ function generateRuleBasedEvaluation(
   const bottomLine = `${repName} made contact with ${formatProspectContext(input)}. ${coachNote}${blindspotNotice} ${objectionSummary}`;
 
   const fixes: [PriorityFix, PriorityFix] = [
-    {
+    confirmedSurrender ? {
       title: "Disarm and Re-engage Brush-offs Instead of Surrendering",
-      description: foldTurn
-        ? `At ${foldTurn.timestamp} ("${foldTurn.text.slice(0, 80)}"), do not agree to hang up. Acknowledge and ask one provocative calibration question to buy the next 60 seconds.`
-        : "When the prospect offers a soft brush-off ('send info' / 'already have someone'), do not agree to hang up. Acknowledge and ask one provocative calibration question to buy the next 60 seconds."
+      description: `At ${confirmedSurrender.timestamp} ("${confirmedSurrender.repSurrender.slice(0, 80)}"), acknowledge the objection and ask a calibration question before accepting an exit.`,
+    } : {
+      title: "Confirm qualification and the next step",
+      description: "Review the pain, budget, decision, and milestone checks below. Reinforce what the transcript supports and clarify missing details on the next call.",
     },
     {
       title: script?.keyMilestones?.[1] ? `Execute Milestone: ${script.keyMilestones[1]}` : "Direct Budget & Decision Thresholds Early",
