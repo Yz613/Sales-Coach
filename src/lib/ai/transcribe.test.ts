@@ -3,11 +3,54 @@ import { buildWavHeader } from "../audio";
 import {
   bytesToBase64,
   cleanModelTranscript,
+  selectTranscriptionBackend,
   transcribeAudio,
   whisperSegmentsToTranscript,
   type TranscriptionBackend,
 } from "./transcribe";
+import type { ResolvedAiSettings } from "./settings";
 import { extractTranscriptFromJson, decodeTranscriptFile } from "../ingestCallFile";
+
+function aiSettings(partial: Partial<ResolvedAiSettings>): ResolvedAiSettings {
+  return {
+    providerId: "anthropic",
+    model: "claude-sonnet-4-5",
+    apiKey: "sk-ant-hosted-secret",
+    hasKey: true,
+    maskedKey: "sk-ant••••",
+    baseUrl: null,
+    whisperBaseUrl: null,
+    localApiKey: null,
+    ...partial,
+  };
+}
+
+const whisperOnly = selectTranscriptionBackend(
+  aiSettings({ whisperBaseUrl: "https://whisper.example.com/v1" }),
+  {}
+);
+assert.equal(whisperOnly.kind, "local");
+assert.equal(whisperOnly.apiKey, "local");
+assert.equal(whisperOnly.endpoint, "https://whisper.example.com/v1/audio/transcriptions");
+
+const whisperWithOwnKey = selectTranscriptionBackend(
+  aiSettings({
+    providerId: "openai",
+    apiKey: "sk-hosted-openai",
+    whisperBaseUrl: "https://whisper.example.com/v1",
+    localApiKey: "whisper-token",
+  }),
+  {}
+);
+assert.equal(whisperWithOwnKey.kind, "local");
+assert.equal(whisperWithOwnKey.apiKey, "whisper-token");
+
+const hostedAudio = selectTranscriptionBackend(
+  aiSettings({ providerId: "openai", apiKey: "sk-hosted-openai" }),
+  {}
+);
+assert.equal(hostedAudio.kind, "openai");
+assert.equal(hostedAudio.apiKey, "sk-hosted-openai");
 
 assert.equal(
   whisperSegmentsToTranscript([

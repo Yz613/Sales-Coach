@@ -147,6 +147,47 @@ async function run(): Promise<void> {
     const groq = captured.find((call) => call.url.includes("api.groq.com"));
     assert.ok(groq, "Groq request should be sent");
     assert.equal(groq.body.store, false);
+
+    const calls: Array<{ url: string; body: any; auth: string }> = [];
+    globalThis.fetch = (async (input: any, init?: any) => {
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+      calls.push({ url: String(input), body, auth: String(init?.headers?.Authorization || "") });
+      if (body.response_format) {
+        return new Response(
+          JSON.stringify({ error: { message: "response_format is not supported" } }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"ok":true}' } }],
+          usage: { prompt_tokens: 3, completion_tokens: 1 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    const local = await completeJson({
+      providerId: "local",
+      apiKey: "ollama",
+      model: "llama3.1",
+      baseUrl: "https://llm.example.com/v1/",
+      prompt: "score this call",
+    });
+    assert.equal(local.parsed.ok, true);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url, "https://llm.example.com/v1/chat/completions");
+    assert.equal(calls[0].auth, "Bearer ollama");
+    assert.equal(calls[0].body.model, "llama3.1");
+    assert.equal(calls[0].body.response_format.type, "json_object");
+    assert.equal(calls[0].body.store, undefined);
+    assert.equal(calls[0].body.provider, undefined);
+    assert.equal("response_format" in calls[1].body, false);
+    assert.equal(calls[1].body.store, undefined);
+    await assert.rejects(
+      () => completeJson({ providerId: "local", apiKey: "ollama", model: "llama3.1", prompt: "score" }),
+      /OpenAI-compatible base URL/
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

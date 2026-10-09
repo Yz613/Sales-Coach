@@ -1,4 +1,4 @@
-export type ProviderId = "gemini" | "openai" | "anthropic" | "groq" | "openrouter";
+export type ProviderId = "gemini" | "openai" | "anthropic" | "groq" | "openrouter" | "local";
 
 export interface AIModel {
   id: string;
@@ -88,6 +88,23 @@ export const AI_PROVIDERS: AIProvider[] = [
       { id: "google/gemini-3.8-flash", label: "Gemini 3.8 Flash", inputPerMTok: 0.5, outputPerMTok: 3.0 },
       { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", inputPerMTok: 0.3, outputPerMTok: 2.5 },
       { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", inputPerMTok: 0.12, outputPerMTok: 0.3 },
+    ],
+  },
+  {
+    id: "local",
+    name: "Local",
+    keyPlaceholder: "optional",
+    keyHint: "Optional bearer token. Many local servers accept any value.",
+    envKey: "LOCAL_OPENAI_API_KEY",
+    allowsCustomModel: true,
+    models: [
+      {
+        id: "local-model",
+        label: "Model name on your server",
+        inputPerMTok: 0,
+        outputPerMTok: 0,
+        note: "OpenAI-compatible server such as Ollama or LM Studio. Pricing stays on that machine.",
+      },
     ],
   },
 ];

@@ -407,6 +407,7 @@ async function answerFromSources(auth: AuthUser, scope: "call" | "deal", entityI
       providerId: ai.providerId,
       apiKey: ai.apiKey,
       model: ai.model,
+      baseUrl: ai.baseUrl,
       prompt: buildAskPrompt(question, packed),
       responseSchema: ASK_RESPONSE_SCHEMA,
     });
