@@ -6,7 +6,7 @@ import { INTEGRATION_TOOLS, integrationTool, isCallTool, isNotificationTool } fr
 import type { ProviderId, ConnectionConfig } from "@/lib/revenue/types";
 import { integrationCapabilities } from "@/lib/integrations/capabilities";
 import { oauthButtonLabel, type OAuthProvider } from "@/lib/integrations/oauth-config";
-import { closeIntegrationOAuthPopup, deliverIntegrationOAuthUrl, handleIntegrationOAuthReturn, integrationOAuthPopupProgress, integrationOAuthStatus, isIntegrationOAuthPopup, openIntegrationOAuthTab, readStoredIntegrationOAuthSignal, subscribeIntegrationOAuth, type IntegrationOAuthSignal, type OAuthListenerHost } from "@/lib/integrations/oauth-popup";
+import { closeIntegrationOAuthPopup, deliverIntegrationOAuthUrl, handleIntegrationOAuthReturn, integrationOAuthPopupProgress, integrationOAuthStatus, isIntegrationOAuthPopup, oauthPopupCancelled, openIntegrationOAuthTab, readStoredIntegrationOAuthSignal, subscribeIntegrationOAuth, type IntegrationOAuthSignal, type OAuthListenerHost } from "@/lib/integrations/oauth-popup";
 import IntegrationDestinationSetup from "./IntegrationDestinationSetup";
 import IntegrationDeliveries from "./IntegrationDeliveries";
 import HubspotPropertyMapping from "./HubspotPropertyMapping";
@@ -43,15 +43,18 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
   const [data, setData] = useState(initial); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const [query, setQuery] = useState(""); const [category, setCategory] = useState("All tools"); const [feeds, setFeeds] = useState<Record<string, Feed>>({}); const [refreshError, setRefreshError] = useState("");
   const [popupNotice, setPopupNotice] = useState<{ message?: string; error?: string } | null>(null);
+  const [oauthPending, setOauthPending] = useState(false);
   const refreshArmed = useRef(false); const awaitingOAuth = useRef(false); const awaitingSince = useRef(0); const seenOAuth = useRef(new Set<string>());
+  const oauthLock = useRef(false); const oauthPopup = useRef<{ closed: boolean } | null>(null);
   const refresh = useCallback(async () => setData(await request("/api/integrations")), []);
+  const finishOauthPending = useCallback(() => { oauthLock.current = false; oauthPopup.current = null; awaitingOAuth.current = false; setOauthPending(false); }, []);
   const applyOAuthSignal = useCallback((signal: IntegrationOAuthSignal) => {
     if (isIntegrationOAuthPopup(window) || seenOAuth.current.has(signal.id)) return;
     seenOAuth.current.add(signal.id);
-    awaitingOAuth.current = false;
+    finishOauthPending();
     const status = integrationOAuthStatus(signal);
     refresh().then(() => { setError(status.error || ""); setMessage(status.message || ""); setRefreshError(""); }).catch((e: Error) => { setRefreshError(e.message); if (status.error) setError(status.error); if (status.message) setMessage(status.message); });
-  }, [refresh]);
+  }, [finishOauthPending, refresh]);
   useLayoutEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (!params.has("connected") && !params.has("connectionError")) return;
@@ -69,22 +72,27 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
         if (!awaitingOAuth.current || isIntegrationOAuthPopup(window)) return;
         const stored = readStoredIntegrationOAuthSignal();
         if (stored && stored.at >= awaitingSince.current - 2000) { applyOAuthSignal(stored); return; }
+        if (oauthPopupCancelled(oauthPopup.current, awaitingOAuth.current)) { finishOauthPending(); setMessage(""); return; }
         refresh().then(() => setRefreshError("")).catch((e: Error) => setRefreshError(e.message));
       },
     });
     refreshArmed.current = subscription.refreshesAutomatically;
     const timer = setInterval(() => { if (!document.hidden) refresh().then(() => setRefreshError("")).catch((e: Error) => setRefreshError(e.message)); }, 10000);
     return () => { subscription.stop(); clearInterval(timer); };
-  }, [applyOAuthSignal, refresh]);
+  }, [applyOAuthSignal, finishOauthPending, refresh]);
   const run = async (fn: () => Promise<any>, success: string) => {
     setBusy(true); setError(""); setMessage("");
     try { const result = await fn(); await refresh(); setMessage(result?.warning ? `${success} ${result.warning}` : success); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   const beginOAuth = async (provider: OAuthProvider, form?: HTMLFormElement, connectionId?: string, mode?: "read" | "write") => {
-    const popup = openIntegrationOAuthTab((url, target) => window.open(url, target));
+    if (oauthLock.current) return;
+    oauthLock.current = true; setOauthPending(true);
     setBusy(true); setError(""); setMessage("");
+    let popup: ReturnType<typeof openIntegrationOAuthTab> = null;
     try {
+      popup = openIntegrationOAuthTab((url, target) => window.open(url, target));
+      oauthPopup.current = popup;
       const fields = form ? new FormData(form) : undefined;
       const result = await request(`/api/integrations/oauth/${provider}/start`, { name: fields?.get("name") || integrationTool(provider)?.name, autoSync: fields ? fields.get("autoSync") === "on" : true, mode: mode || (fields?.get("writeEnabled") === "on" ? "write" : "read"), connectionId });
       if (typeof result?.url !== "string" || !result.url) throw new Error("Sign-in could not be started.");
@@ -94,7 +102,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
         setMessage(integrationOAuthPopupProgress(refreshArmed.current));
         setBusy(false);
       }
-    } catch (e) { closeIntegrationOAuthPopup(popup); awaitingOAuth.current = false; setError((e as Error).message); setBusy(false); }
+    } catch (e) { closeIntegrationOAuthPopup(popup); finishOauthPending(); setError((e as Error).message); setBusy(false); }
   };
   const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setMessage("Copied."); } catch { setError("Copy is unavailable in this browser. Select and copy the text instead."); } };
   const tool = providerId ? integrationTool(providerId) : undefined;
@@ -123,7 +131,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
           <div className="flex items-center justify-between gap-2"><IntegrationLogo provider={t.id} /><span className="rounded-full bg-[#F5F5F7] px-2 py-1 text-[11px] font-medium text-[#6e6e73]">{t.category}</span></div>
           <h3 className="mt-4 font-semibold text-[#1d1d1f]"><Link href={`/admin/integrations/${t.id}`}>{t.name}</Link></h3><p className="mt-1 flex-1 text-xs leading-5 text-[#6e6e73]">{t.description}</p>
           <div className="mt-4 flex items-center justify-between border-t border-black/[.04] pt-3 text-xs"><span className={attention ? "text-amber-700" : connected.length ? "text-emerald-700" : "text-[#86868b]"}>{attention ? "Needs attention" : connected.length ? <span className="inline-flex items-center gap-1"><Check size={12} /> Connected</span> : t.category === "Notifications" ? "Coaching alerts" : t.live !== "none" ? "Live feed available" : "Automatic sync"}</span><Link href={`/admin/integrations/${t.id}`} className="inline-flex items-center gap-1 font-medium text-[#007AFF]">{connected.length ? "Manage" : t.oauth ? "Details" : "Connect"}<ArrowRight size={13} className="transition group-hover:translate-x-0.5" /></Link></div>
-          {t.oauth && <div className="mt-3 space-y-2"><button type="button" className={buttonClass + " w-full"} disabled={busy || !data.oauth?.[t.oauth]} onClick={() => beginOAuth(t.oauth!)}>{busy ? "Connecting…" : oauthButtonLabel(t.oauth)}</button>{!data.oauth?.[t.oauth] && <p className="text-[11px] leading-4 text-[#86868b]">Account sign-in hasn’t been enabled yet.</p>}</div>}
+          {t.oauth && <div className="mt-3 space-y-2"><button type="button" className={buttonClass + " w-full"} disabled={busy || oauthPending || !data.oauth?.[t.oauth]} onClick={() => beginOAuth(t.oauth!)}>{busy || oauthPending ? "Connecting…" : oauthButtonLabel(t.oauth)}</button>{!data.oauth?.[t.oauth] && <p className="text-[11px] leading-4 text-[#86868b]">Account sign-in hasn’t been enabled yet.</p>}</div>}
         </div>;
       })}</div>
       {!filtered.length && <Card><p className="text-sm text-[#6e6e73]">No tools match your search.</p><button className={secondaryClass} onClick={() => { setQuery(""); setCategory("All tools"); }}>Show all tools</button></Card>}
@@ -139,7 +147,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
       <Card title={connections.length ? "Add another connection" : "Set up your connection"}>
         {tool.oauth && <form className="space-y-4" onSubmit={e => { e.preventDefault(); beginOAuth(tool.oauth!, e.currentTarget); }}>
           <p className="text-sm text-[#6e6e73]">{tool.category === "Tasks" ? "Sign in, approve access, then choose your task destination." : tool.category === "Notifications" ? "Sign in and choose your coaching channel. Alerts start off." : "Sign in and approve access. We’ll connect your account and start your first import."}</p>
-          <div className="flex flex-wrap items-center gap-3"><button className={buttonClass} disabled={busy || !data.oauth?.[tool.oauth]}>{busy ? "Connecting…" : oauthButtonLabel(tool.oauth)}</button><span className="inline-flex items-center gap-1.5 text-xs text-[#86868b]"><ShieldCheck size={14} /> No API key needed</span></div>
+          <div className="flex flex-wrap items-center gap-3"><button className={buttonClass} disabled={busy || oauthPending || !data.oauth?.[tool.oauth]}>{busy || oauthPending ? "Connecting…" : oauthButtonLabel(tool.oauth)}</button><span className="inline-flex items-center gap-1.5 text-xs text-[#86868b]"><ShieldCheck size={14} /> No API key needed</span></div>
           {!data.oauth?.[tool.oauth] && <p className="text-sm text-amber-800">Account sign-in hasn’t been enabled for {tool.name} on this installation. Your app administrator needs to enable it.{tool.fields.length > 0 ? " You can use manual setup below in the meantime." : ""}</p>}
           {["CRM", "Tasks"].includes(tool.category) && tool.id !== "gitlab" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="writeEnabled" />Allow sending tasks or CRM notes (requests additional permissions)</label>}
           <details className="text-sm"><summary className="cursor-pointer text-[#6e6e73]">Connection preferences</summary><div className="mt-3 space-y-3"><label className="block space-y-1">Connection name<input name="name" defaultValue={tool.name} maxLength={200} className={fieldClass} /></label>{tool.syncMinutes > 0 && <label className="flex items-center gap-2"><input type="checkbox" name="autoSync" defaultChecked /> Sync automatically</label>}</div></details>
@@ -167,7 +175,7 @@ export default function IntegrationHub({ initial, providerId }: { initial: Integ
         const t = integrationTool(c.provider)!; const feed = feeds[c.id]; const automation = t.category === "Automation";
         return <div key={c.id} className="space-y-4 border-b border-black/[.08] pb-5 last:border-0 last:pb-0">
           <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><IntegrationLogo provider={c.provider} /><div><Link href={`/admin/integrations/${c.provider}`} className="font-medium hover:text-[#007AFF]">{c.name}</Link><p className="mt-1 text-xs text-[#86868b]">{t.name} · {c.lastSyncedAt ? `Last sync ${new Date(c.lastSyncedAt).toLocaleString()}` : isNotificationTool(c.provider) ? c.config.lastNotifiedAt ? `Last alert ${new Date(c.config.lastNotifiedAt).toLocaleString()}` : "No messages sent yet" : automation ? "Waiting for a completed call" : c.config.pendingSetup ? "Account connected · choose a destination" : "First import pending"}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs ${c.status === "error" ? "bg-red-50 text-red-700" : c.config.lastWebhookAt ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{c.status === "error" ? "Needs attention" : c.status === "syncing" ? "Importing history" : liveStatus(c)}</span></div>
-          {["CRM", "Tasks"].includes(t.category) && <div className="flex items-center gap-3 text-sm"><span>{c.config.writeEnabled ? "Import and send enabled" : "Import only"}</span>{c.config.writeEnabled ? <button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "disable-writes" }), "Sending disabled.")}>Disable sending</button> : c.config.authMethod === "oauth" && t.oauth && c.provider !== "gitlab" ? <button disabled={busy} className={secondaryClass} onClick={() => beginOAuth(t.oauth!, undefined, c.id, "write")}>Authorize sending</button> : <button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "enable-writes" }), "Sending enabled.")}>Enable sending with this token</button>}</div>}
+          {["CRM", "Tasks"].includes(t.category) && <div className="flex items-center gap-3 text-sm"><span>{c.config.writeEnabled ? "Import and send enabled" : "Import only"}</span>{c.config.writeEnabled ? <button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "disable-writes" }), "Sending disabled.")}>Disable sending</button> : c.config.authMethod === "oauth" && t.oauth && c.provider !== "gitlab" ? <button disabled={busy || oauthPending} className={secondaryClass} onClick={() => beginOAuth(t.oauth!, undefined, c.id, "write")}>Authorize sending</button> : <button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "enable-writes" }), "Sending enabled.")}>Enable sending with this token</button>}</div>}
           {c.lastError && <p className="text-sm text-red-700">{c.lastError}</p>}
           {c.config.webhookError && <p className="rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">{c.config.webhookError}</p>}
           <div className="flex flex-wrap gap-2">{t.syncMinutes > 0 && !c.config.pendingSetup && <><button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "sync" }), "Sync queued.")}>Sync now</button><button disabled={busy} className={secondaryClass} onClick={() => run(() => request(`/api/integrations/${c.id}`, { action: "sync", full: true }), t.id === "quo" ? "Quo history import queued. The past 30 days are imported and existing calls are deduplicated." : t.id === "google-meet" || t.id === "microsoft-teams" ? "History import queued for the last 30 days. Existing meetings are deduplicated." : t.category === "Meetings" ? "Meeting history import queued. The past window expands to two years." : "Full history import queued. Existing records are deduplicated.")}>Import history</button></>}{t.live !== "none" && c.provider !== "hubspot" && <button disabled={busy} className={secondaryClass} onClick={() => enableFeed(c)}>{registersLiveFeed(c.provider) ? c.config.webhookId ? "Check live feed" : "Enable live feed" : "Show feed details"}</button>}<button disabled={busy} className="px-2 text-xs text-red-600" onClick={() => { if (confirm(`Disconnect ${c.name}? Imported records will remain.`)) run(() => request(`/api/integrations/${c.id}`, {}, "DELETE"), "Disconnected."); }}>Disconnect</button></div>

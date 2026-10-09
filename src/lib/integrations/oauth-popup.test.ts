@@ -12,6 +12,7 @@ import {
   OAUTH_POPUP_PROGRESS,
   OAUTH_POPUP_WAITING,
   closeIntegrationOAuthPopup,
+  oauthPopupCancelled,
   createIntegrationOAuthSignal,
   deliverIntegrationOAuthUrl,
   handleIntegrationOAuthReturn,
@@ -219,6 +220,11 @@ test("the original page keeps the same connection message when sign-in stays in 
   assert.equal(longError?.connectionError?.includes("tail"), false);
   closeIntegrationOAuthPopup(null);
   closeIntegrationOAuthPopup({ close() { throw new Error("already closed"); } });
+  assert.equal(oauthPopupCancelled({ closed: false }, true), false);
+  assert.equal(oauthPopupCancelled({ closed: true }, true), true);
+  assert.equal(oauthPopupCancelled({ closed: true }, false), false);
+  assert.equal(oauthPopupCancelled(null, true), false);
+  assert.equal(oauthPopupCancelled({ get closed(): boolean { throw new Error("cross-origin"); } }, true), false);
 });
 
 test("BroadcastChannel and focus can refresh the original tab without an opener", () => {

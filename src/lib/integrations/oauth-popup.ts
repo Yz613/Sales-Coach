@@ -130,6 +130,11 @@ export function deliverIntegrationOAuthUrl(popup: OAuthPopupWindow | null, url: 
   return "same-tab";
 }
 
+export function oauthPopupCancelled(popup: { closed: boolean } | null, awaiting: boolean) {
+  if (!awaiting || !popup) return false;
+  try { return popup.closed; } catch { return false; }
+}
+
 export function closeIntegrationOAuthPopup(popup: { close: () => void } | null) {
   if (!popup) return;
   try { popup.close(); } catch { /* A blocked or closed tab does not need another close. */ }
