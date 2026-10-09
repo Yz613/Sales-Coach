@@ -1,4 +1,5 @@
 import { getAllSettings, getSetting } from "../db/service";
+import { LocalModelUrlError, normalizeOpenAiBaseUrl, privateModelUrlsAllowed } from "./localEndpoint";
 import {
   AI_PROVIDERS,
   DEFAULT_PROVIDER,
@@ -16,6 +17,10 @@ export interface ResolvedAiSettings {
   apiKey: string | null;
   hasKey: boolean;
   maskedKey: string;
+  /** OpenAI-compatible base, without /chat/completions. Set for the local provider. */
+  baseUrl: string | null;
+  /** Optional Whisper-compatible base, without /audio/transcriptions. */
+  whisperBaseUrl: string | null;
   /** True when the stored key prefix does not match the saved provider. */
   providerCorrected?: boolean;
 }
@@ -56,6 +61,7 @@ export function providerForKey(
   requestedProvider?: string | null
 ): { providerId: ProviderId; corrected: boolean } {
   const requested = isProviderId(requestedProvider || "") ? (requestedProvider as ProviderId) : undefined;
+  if (requested === "local") return { providerId: "local", corrected: false };
   const detected = detectProviderFromKey(apiKey);
   if (detected && requested && detected !== requested) {
     return { providerId: detected, corrected: true };
@@ -72,34 +78,60 @@ export function resolveAiSettingsFrom(
 ): ResolvedAiSettings {
   const storedKey = (settings["ai_api_key"] || settings["gemini_api_key"] || "").trim();
   const requestedProvider = settings["ai_provider"];
-  const storedModel = (settings["active_model"] || "").trim();
+  const savedModel = (settings["active_model"] || "").trim();
+  const explicitLocal = requestedProvider === "local";
 
   let providerId: ProviderId = isProviderId(requestedProvider) ? requestedProvider : DEFAULT_PROVIDER;
   let apiKey = (overrideKey || storedKey || envKeyFor(providerId, env) || "").trim();
   let providerCorrected = false;
 
-  if (!apiKey) {
+  if (!apiKey && !explicitLocal) {
     const fallback = firstEnvKey(env);
     if (fallback) {
       providerId = fallback.providerId;
       apiKey = fallback.apiKey;
+    } else if ((env.LOCAL_OPENAI_BASE_URL || "").trim()) {
+      providerId = "local";
     }
   }
 
-  if (apiKey) {
+  if (apiKey && !explicitLocal) {
     const matched = providerForKey(apiKey, requestedProvider);
     providerId = matched.providerId;
     providerCorrected = matched.corrected;
   }
 
+  const local = providerId === "local";
+  const baseUrl = local ? optionalLocalBase(settings["local_base_url"] || env.LOCAL_OPENAI_BASE_URL || "", env) : null;
+  const whisperBaseUrl = optionalLocalBase(settings["local_whisper_base_url"] || env.LOCAL_WHISPER_BASE_URL || "", env);
+  if (local && !apiKey && baseUrl) apiKey = (env.LOCAL_OPENAI_API_KEY || "").trim() || "local";
+  const envModel = (env.LOCAL_OPENAI_MODEL || "").trim();
+  const localPlaceholder = defaultModelForProvider("local");
+  const model = local
+    ? ((savedModel && savedModel !== localPlaceholder ? savedModel : envModel) || savedModel || localPlaceholder)
+    : modelForProvider(providerId, savedModel);
+
   return {
     providerId,
-    model: modelForProvider(providerId, storedModel),
+    model,
     apiKey: apiKey || null,
-    hasKey: Boolean(apiKey),
-    maskedKey: apiKey ? maskKey(apiKey) : "",
+    hasKey: local ? Boolean(baseUrl) : Boolean(apiKey),
+    maskedKey: apiKey && apiKey !== "local" ? maskKey(apiKey) : "",
+    baseUrl,
+    whisperBaseUrl,
     providerCorrected,
   };
+}
+
+function optionalLocalBase(raw: string, env: Record<string, string | undefined>): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    return normalizeOpenAiBaseUrl(trimmed, { allowPrivate: privateModelUrlsAllowed(env) });
+  } catch (err) {
+    if (err instanceof LocalModelUrlError) return null;
+    throw err;
+  }
 }
 
 export async function resolveAiSettings(overrideKey?: string): Promise<ResolvedAiSettings> {

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Local models: an OpenAI-compatible base URL and model name for scoring and coaching, plus an optional Whisper-compatible transcription URL.
 - Public read-only demo at `/demo`: four fictional calls with transcripts, rubric scorecards, coaching notes, and trackers. Writes and model calls stay off.
 - Launch README: live demo link, self-host steps, and a Gong comparison. Infrastructure and model vendor names sit in the Tech section.
 - Contributor guide, issue templates, and [good first issues](docs/good-first-issues.md).

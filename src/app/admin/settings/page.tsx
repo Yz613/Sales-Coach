@@ -29,6 +29,8 @@ export default function AdminSettingsPage() {
   const [provider, setProvider] = useState<ProviderId>(DEFAULT_PROVIDER);
   const [activeModel, setActiveModel] = useState(DEFAULT_MODEL);
   const [customModel, setCustomModel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [whisperBaseUrl, setWhisperBaseUrl] = useState("");
 
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [maskedKey, setMaskedKey] = useState("");
@@ -85,6 +87,8 @@ export default function AdminSettingsPage() {
           setActiveModel(known ? data.activeModel : (p.models[0]?.id || DEFAULT_MODEL));
           if (!known && p.allowsCustomModel) setCustomModel(data.activeModel);
         }
+        if (typeof data.baseUrl === "string") setBaseUrl(data.baseUrl);
+        if (typeof data.whisperBaseUrl === "string") setWhisperBaseUrl(data.whisperBaseUrl);
         if (data.billing?.planId) setBillingPlan(data.billing.planId);
         if (typeof data.billing?.paid === "boolean") setBillingPaid(data.billing.paid);
         if (typeof data.billing?.overageOptIn === "boolean") setOverageOptIn(data.billing.overageOptIn);
@@ -118,6 +122,8 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           provider: nextProvider,
           activeModel: nextModel,
+          baseUrl,
+          whisperBaseUrl,
         }),
       });
       if (!res.ok) {
@@ -146,6 +152,7 @@ export default function AdminSettingsPage() {
 
   const handleKeyChange = (value: string) => {
     setApiKey(value);
+    if (provider === "local") return;
     const detected = detectProviderFromKey(value);
     if (detected && detected !== provider) {
       handleProviderChange(detected);
@@ -186,6 +193,8 @@ export default function AdminSettingsPage() {
           provider,
           apiKey,
           activeModel: selectedModelId,
+          baseUrl,
+          whisperBaseUrl,
           resendApiKey,
           overageOptIn,
         }),
@@ -228,6 +237,7 @@ export default function AdminSettingsPage() {
           apiKey: apiKey.trim() || undefined,
           provider,
           model: selectedModelId,
+          baseUrl,
         }),
       });
       const data = await res.json();
@@ -334,9 +344,44 @@ export default function AdminSettingsPage() {
               </div>
             </div>
 
+            {provider === "local" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
+                    OpenAI-compatible base URL
+                  </label>
+                  <input
+                    type="url"
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                    placeholder="http://127.0.0.1:11434/v1"
+                    className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] font-mono focus:border-blue-500/50 focus:outline-none"
+                  />
+                  <p className="text-xs text-[#6e6e73] mt-1.5">
+                    Ollama and LM Studio both speak this API. Scoring and coaching use it. A private host also needs ALLOW_PRIVATE_MODEL_URLS=true on the server.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
+                    Whisper-compatible URL (optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={whisperBaseUrl}
+                    onChange={(e) => setWhisperBaseUrl(e.target.value)}
+                    placeholder="http://127.0.0.1:9000/v1"
+                    className="w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] font-mono focus:border-blue-500/50 focus:outline-none"
+                  />
+                  <p className="text-xs text-[#6e6e73] mt-1.5">
+                    Leave blank to keep using a Gemini, OpenAI, or Groq key for audio. This does not have to be the same server as scoring.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium uppercase tracking-wider text-[#6e6e73] mb-1.5">
-                {providerMeta.name} API Key
+                {provider === "local" ? "API key (optional)" : `${providerMeta.name} API Key`}
               </label>
               <div className="flex gap-3">
                 <input
@@ -349,7 +394,7 @@ export default function AdminSettingsPage() {
                 <button
                   type="button"
                   onClick={handleTestKey}
-                  disabled={testing || (!apiKey && !hasStoredKey)}
+                  disabled={testing || (provider === "local" ? !baseUrl.trim() && !hasStoredKey : !apiKey && !hasStoredKey)}
                   className="flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-black/[0.04] px-4 py-2.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.08] transition disabled:opacity-50"
                 >
                   {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 text-[#007AFF]" />}
@@ -392,7 +437,9 @@ export default function AdminSettingsPage() {
                 ))}
               </select>
               <p className="text-xs text-[#6e6e73] mt-1.5">
-                {provider === "gemini"
+                {provider === "local"
+                  ? "This model name is sent to your server for scoring and coaching. Audio uses the Whisper URL below when it is set."
+                  : provider === "gemini"
                   ? "This model is used immediately for call uploads and scoring — including audio transcription."
                   : "This model is used immediately for call scoring. Audio still needs Gemini, OpenAI, or Groq to transcribe."}
               </p>
@@ -401,7 +448,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
-                  placeholder="Or paste any OpenRouter model id (optional)"
+                  placeholder={provider === "local" ? "Model name, for example llama3.1" : "Or paste any OpenRouter model id (optional)"}
                   className="mt-2.5 w-full rounded-xl glass-inset border border-black/[0.08] px-3.5 py-2 text-xs text-[#1d1d1f] placeholder:text-[#86868b] font-mono focus:border-blue-500/50 focus:outline-none"
                 />
               )}

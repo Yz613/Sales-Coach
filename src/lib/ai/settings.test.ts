@@ -51,5 +51,45 @@ assert.equal(envOnly.hasKey, true);
 const noKey = resolveAiSettingsFrom({}, emptyEnv);
 assert.equal(noKey.hasKey, false);
 assert.equal(noKey.apiKey, null);
+assert.equal(noKey.baseUrl, null);
+
+assert.equal(providerForKey("AIzaSyTESTKEY", "local").providerId, "local");
+assert.equal(providerForKey("AIzaSyTESTKEY", "local").corrected, false);
+
+const local = resolveAiSettingsFrom(
+  {
+    ai_provider: "local",
+    ai_api_key: "AIzaSySHOULDNOTSWITCH",
+    active_model: "llama3.1",
+    local_base_url: "http://127.0.0.1:11434/v1",
+    local_whisper_base_url: "http://127.0.0.1:9000/v1/",
+  },
+  { ...emptyEnv, ALLOW_PRIVATE_MODEL_URLS: "true" }
+);
+assert.equal(local.providerId, "local");
+assert.equal(local.providerCorrected, false);
+assert.equal(local.model, "llama3.1");
+assert.equal(local.baseUrl, "http://127.0.0.1:11434/v1");
+assert.equal(local.whisperBaseUrl, "http://127.0.0.1:9000/v1");
+assert.equal(local.hasKey, true);
+assert.equal(local.apiKey, "AIzaSySHOULDNOTSWITCH");
+
+const blocked = resolveAiSettingsFrom(
+  { ai_provider: "local", local_base_url: "http://127.0.0.1:11434/v1" },
+  emptyEnv
+);
+assert.equal(blocked.providerId, "local");
+assert.equal(blocked.baseUrl, null);
+assert.equal(blocked.hasKey, false);
+
+const fromEnv = resolveAiSettingsFrom(
+  {},
+  { ...emptyEnv, LOCAL_OPENAI_BASE_URL: "https://llm.example.com/v1/", LOCAL_OPENAI_MODEL: "qwen2.5" }
+);
+assert.equal(fromEnv.providerId, "local");
+assert.equal(fromEnv.model, "qwen2.5");
+assert.equal(fromEnv.baseUrl, "https://llm.example.com/v1");
+assert.equal(fromEnv.apiKey, "local");
+assert.equal(fromEnv.hasKey, true);
 
 console.log("settings checks passed");

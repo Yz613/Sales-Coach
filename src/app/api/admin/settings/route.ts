@@ -1,6 +1,7 @@
 import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db/service";
+import { LocalModelUrlError, normalizeOpenAiBaseUrl, privateModelUrlsAllowed } from "@/lib/ai/localEndpoint";
 import { modelForProvider, resolveAiSettings } from "@/lib/ai/settings";
 import { getTranscriptionStatus } from "@/lib/ai/transcribe";
 import {
@@ -30,6 +31,8 @@ async function GETHandler() {
       maskedKey: ai.maskedKey,
       provider: ai.providerId,
       activeModel: ai.model,
+      baseUrl: ai.baseUrl || "",
+      whisperBaseUrl: ai.whisperBaseUrl || "",
       providerCorrected: Boolean(ai.providerCorrected),
       providers: AI_PROVIDERS,
       canTranscribe: transcription.canTranscribe,
@@ -62,11 +65,20 @@ async function POSTHandler(req: Request) {
     if (incomingKey.trim().length > 0) {
       const key = incomingKey.trim();
       await setSetting("ai_api_key", key);
-      const detected = detectProviderFromKey(key);
-      if (detected && detected !== providerId) {
-        providerId = detected;
-        await setSetting("ai_provider", detected);
+      if (providerId !== "local") {
+        const detected = detectProviderFromKey(key);
+        if (detected && detected !== providerId) {
+          providerId = detected;
+          await setSetting("ai_provider", detected);
+        }
       }
+    }
+
+    if (body.baseUrl !== undefined) {
+      await setSetting("local_base_url", storedLocalUrl(body.baseUrl));
+    }
+    if (body.whisperBaseUrl !== undefined) {
+      await setSetting("local_whisper_base_url", storedLocalUrl(body.whisperBaseUrl));
     }
 
     if (body.resendApiKey !== undefined) {
@@ -94,11 +106,18 @@ async function POSTHandler(req: Request) {
 
     return NextResponse.json({ success: true, message: "Settings saved successfully." });
   } catch (err: any) {
+    if (err instanceof LocalModelUrlError) return NextResponse.json({ error: err.message }, { status: 400 });
     if (err instanceof RevenueError) return NextResponse.json({ error: err.message }, { status: err.status });
     const gated = workspaceErrorResponse(err);
     if (gated.status !== 500) return gated;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+function storedLocalUrl(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return normalizeOpenAiBaseUrl(raw, { allowPrivate: privateModelUrlsAllowed() });
 }
 
 export const GET = withWorkspaceApi(GETHandler, { admin: true });

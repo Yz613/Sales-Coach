@@ -554,6 +554,7 @@ export async function explainClefScorecardWithLlm(input: {
   apiKey: string;
   providerId: any;
   model: string;
+  baseUrl?: string | null;
 }): Promise<{
   bottomLine: string;
   topFixes: [PriorityFix, PriorityFix];
@@ -565,7 +566,7 @@ export async function explainClefScorecardWithLlm(input: {
   missedOpportunities: MissedOpportunity[];
   estimatedCostUsd?: number;
 }> {
-  const { stateInput, scorecardOutput, apiKey, providerId, model } = input;
+  const { stateInput, scorecardOutput, apiKey, providerId, model, baseUrl } = input;
   const { scorecard, sandlerBreakdown } = scorecardOutput;
 
   const scoreSummary = scorecard
@@ -665,6 +666,7 @@ ${JSON.stringify({
     providerId,
     apiKey,
     model,
+    baseUrl,
     prompt: explanationPrompt,
     responseSchema: providerId === "gemini" ? EVALUATION_RESPONSE_SCHEMA : undefined,
   });
@@ -736,6 +738,7 @@ export interface EvaluateWithClefOptions {
     apiKey: string | null;
     providerId: any;
     model: string;
+    baseUrl?: string | null;
   };
   clefOptions?: {
     accountId?: string;
@@ -813,6 +816,7 @@ export async function evaluateCallWithClef(
         apiKey: options.aiSettings.apiKey,
         providerId: options.aiSettings.providerId,
         model: options.aiSettings.model,
+        baseUrl: options.aiSettings.baseUrl,
       });
       bottomLine = llmExplanation.bottomLine;
       topFixes = llmExplanation.topFixes;

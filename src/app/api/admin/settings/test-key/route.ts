@@ -14,7 +14,15 @@ async function POSTHandler(req: Request) {
     const usingTypedKey = Boolean(incomingKey);
     const providerId: ProviderId = usingTypedKey && isProviderId(body.provider) ? body.provider : stored.providerId;
     const model = (usingTypedKey && body.model ? String(body.model) : stored.model) || getProvider(providerId).models[0].id;
-    const apiKey = incomingKey || stored.apiKey || "";
+    const baseUrl = String(body.baseUrl || stored.baseUrl || process.env.LOCAL_OPENAI_BASE_URL || "").trim();
+    const apiKey = incomingKey || stored.apiKey || (providerId === "local" ? "local" : "");
+
+    if (providerId === "local" && !baseUrl) {
+      return NextResponse.json({
+        success: false,
+        error: "Set the OpenAI-compatible base URL before testing a local model.",
+      }, { status: 400 });
+    }
 
     if (!apiKey) {
       return NextResponse.json({
@@ -23,7 +31,7 @@ async function POSTHandler(req: Request) {
       }, { status: 400 });
     }
 
-    await pingProvider(providerId, apiKey, model);
+    await pingProvider(providerId, apiKey, model, providerId === "local" ? baseUrl : undefined);
 
     return NextResponse.json({
       success: true,
