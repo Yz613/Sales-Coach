@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import {
   dialFactsFromOutcomes,
+  dialLogTranscript,
   formatRate,
   funnelStepsFromCounts,
+  isDialAttempt,
+  isQuickDialLog,
   resolveDialOutcome,
   tallyDialFunnel,
   type DialOutcome,
@@ -94,5 +97,13 @@ assert.ok(withMisses.closeRate < ignoredMisses.closeRate);
 const steps = funnelStepsFromCounts({ dials: 100, connects: 20, conversations: 10, meetings: 5, closes: 5 });
 assert.equal(steps[4].rateFromPrevious, 100);
 assert.equal(steps[1].rateFromStart, 20);
+
+assert.equal(isDialAttempt({ dialOutcome: "no_answer", callStage: "First Discovery" }), true);
+assert.equal(isDialAttempt({ coreOutcome: "Dropped", callStage: "Cold Call", hasConversation: true }), true);
+assert.equal(isDialAttempt({ coreOutcome: "Meeting booked", callStage: "First Discovery", hasConversation: true }), false);
+assert.equal(isDialAttempt({ coreOutcome: "Meeting booked", callStage: "Follow-up", hasConversation: true }), false);
+assert.equal(isDialAttempt({ coreOutcome: "Dropped", hasConversation: true }), false);
+assert.equal(isQuickDialLog({ dialOutcome: "voicemail", transcriptText: dialLogTranscript() }), true);
+assert.equal(isQuickDialLog({ dialOutcome: "closed_won", transcriptText: "Rep: Hello.\nBuyer: Tell me more." }), false);
 
 console.log("dial funnel checks passed");

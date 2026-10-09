@@ -90,6 +90,7 @@ export function SliderField({
   max,
   onChange,
   suffix = "",
+  valueLabel,
 }: {
   label: string;
   value: number;
@@ -97,12 +98,13 @@ export function SliderField({
   max: number;
   onChange: (value: number) => void;
   suffix?: string;
+  valueLabel?: string;
 }) {
   return (
     <label className="block space-y-1">
       <span className="flex items-center justify-between text-xs text-[#3a3a3c]">
         <span>{label}</span>
-        <span className="font-mono">{value}{suffix}</span>
+        <span className="font-mono">{valueLabel ?? `${value}${suffix}`}</span>
       </span>
       <input
         type="range"

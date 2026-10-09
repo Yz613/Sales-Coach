@@ -63,8 +63,15 @@ export default function ForecastWorkspace({ initial, initialError = "" }: { init
     setBusy(true); setError(""); setMessage("");
     requestId.current ||= crypto.randomUUID();
     try {
-      const saved = await request("/api/forecast", { ...data.filters, currency: data.filters.currency || (target !== "" ? targetCurrency : data.filters.currency), requestId: requestId.current, target: target === "" ? null : Number(target), notes });
-      setData(previous => ({ ...previous, history: [saved, ...previous.history.filter(h => h.id !== saved.id)].slice(0, 20), snapshot: saved.snapshot }));
+      const currency = data.filters.currency || (target !== "" ? targetCurrency : data.filters.currency);
+      const nextFilters = { ...data.filters, currency };
+      if (currency !== data.filters.currency) {
+        setFilters(nextFilters);
+        const params = new URLSearchParams({ ...nextFilters });
+        window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+      }
+      const saved = await request("/api/forecast", { ...nextFilters, requestId: requestId.current, target: target === "" ? null : Number(target), notes });
+      setData(previous => ({ ...previous, filters: nextFilters, history: [saved, ...previous.history.filter(h => h.id !== saved.id)].slice(0, 20), snapshot: saved.snapshot }));
       setSelected(null); requestId.current = null; setMessage("Forecast submitted. The saved snapshot will preserve these totals and deal categories.");
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }

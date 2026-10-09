@@ -11,6 +11,7 @@ import { usedLlmReview } from "@/lib/evaluations";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartySubtitle } from "@/lib/callLabel";
 import { getVisibleCalls } from "@/lib/viewer-calls";
+import { isQuickDialLog } from "@/lib/dialFunnel";
 import { getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { methodById } from "@/lib/salesMethods";
 import { hasConnectedIntegrations } from "@/lib/revenue/connections";
@@ -51,7 +52,7 @@ async function CallBankPage() {
       <DialLogger reps={reps.flatMap((rep) => rep.id && rep.name ? [{ id: rep.id, name: rep.name }] : [])} canChooseRep={auth.canViewAllCalls} />
 
       <ReanalyzeCallsBar
-        calls={rankedCalls.map((call) => ({
+        calls={rankedCalls.filter((call) => !isQuickDialLog(call)).map((call) => ({
           id: call.id,
           usedLlm: usedLlmReview(call.evaluation),
         }))}
@@ -233,12 +234,14 @@ async function CallBankPage() {
 
                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center justify-end gap-2">
+                        {isQuickDialLog(call) ? null : (
                         <ReanalyzeButton
                           callId={call.id}
                           variant="compact"
                           hasApiKey={ai.hasKey}
                           usedLlm={usedLlmReview(ev)}
                         />
+                        )}
                         <Link
                           href={`/calls/${call.id}`}
                           className="rounded-xl bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-[#007AFF] hover:bg-[#0071E3] hover:text-white transition inline-flex items-center gap-1"

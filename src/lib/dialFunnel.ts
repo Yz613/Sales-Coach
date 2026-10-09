@@ -1,3 +1,5 @@
+import { isUnusableTranscript } from "./transcript";
+
 /**
  * Full-funnel dial math.
  * Every logged attempt is a dial. Connect and close rates use that full denominator,
@@ -72,6 +74,8 @@ export interface DialFact {
   coreOutcome?: string | null;
   /** False when the row has no conversation to coach (a miss, a voicemail, or an empty upload). */
   hasConversation?: boolean;
+  /** Stage name when this fact came from a stored call. Discovery and later stages are not dials. */
+  callStage?: string | null;
 }
 
 const QUICK_LOG_NOTE = "No transcript. Dial logged from the one-tap outcome list.";
@@ -105,6 +109,22 @@ function matchDialOutcome(raw: string): DialOutcome | null {
   if (/\bconnected, interested\b|\binterested\b/.test(text) && !/\bnot interested\b/.test(text)) return "connected_interested";
   if (text === "meeting booked" || text === "meeting") return "meeting_booked";
   return null;
+}
+
+/**
+ * A row counts as a dial when it was logged with a dial outcome, or when its stage is a cold call / outbound dial.
+ * Discovery, demo, follow-up, and other scheduled conversations stay out of connect and close rates.
+ */
+export function isDialAttempt(fact: DialFact): boolean {
+  if (isDialOutcome(fact.dialOutcome) || matchDialOutcome(String(fact.dialOutcome || ""))) return true;
+  const stage = String(fact.callStage || "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!stage || /\b(discovery|demo|follow up|negotiation|proposal|presentation|closing)\b/.test(stage)) return false;
+  return /\b(cold call|outbound|dial)\b/.test(stage);
+}
+
+/** One-tap logs have a dial outcome and a placeholder transcript. They are not coaching targets. */
+export function isQuickDialLog(fact: { dialOutcome?: string | null; transcriptText?: string | null }): boolean {
+  return isDialOutcome(fact.dialOutcome) && isUnusableTranscript(fact.transcriptText);
 }
 
 /** Map a stored dial outcome, or an older coaching outcome, onto the funnel. */

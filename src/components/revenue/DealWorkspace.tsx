@@ -71,7 +71,8 @@ export default function DealWorkspace({ initial }: { initial: Detail }) {
     <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-5">
       <form className="space-y-5" onSubmit={e => { e.preventDefault(); void save(); }}>
         <Card title="Manager deal review"><fieldset disabled={busy} className="space-y-4"><Segmented label="Forecast category" value={review.category} options={FORECAST_CATEGORIES.map(category => ({ value: category, label: CATEGORY_LABELS[category] }))} onChange={category => change({ ...review, category: category as DealReview["category"] })} />
-          <SliderField label="Estimated win probability" min={0} max={100} suffix="%" value={review.probability ?? 0} onChange={value => change({ ...review, probability: value })} />
+          <SliderField label="Estimated win probability" min={0} max={100} value={review.probability ?? 0} valueLabel={review.probability === null ? "Not estimated" : `${review.probability}%`} onChange={value => change({ ...review, probability: value })} />
+          <button type="button" className={secondaryClass} onClick={() => change({ ...review, probability: null })}>Not estimated</button>
           <p className="text-xs text-[#86868b]">Manager estimates inform the weighted forecast. Closed results and deal amounts come from your CRM.</p>
           <ChipSelect label="Next step" options={NEXT_STEPS} selected={next.selected} other={next.other} onChange={selected => change({ ...review, nextStep: joinChoice(selected, next.other) })} onOther={other => change({ ...review, nextStep: joinChoice(next.selected, other) })} otherPlaceholder="Other next step" /><label className="block text-sm space-y-1">Next step due date<input className={fieldClass} type="date" value={review.nextStepDate || ""} onChange={e => change({ ...review, nextStepDate: e.target.value || null })} /></label>
           {deal.closed && <p className="text-sm text-[#6e6e73]">This deal is closed. Its CRM outcome takes precedence over forecast categories and probabilities.</p>}
@@ -87,7 +88,7 @@ export default function DealWorkspace({ initial }: { initial: Detail }) {
       </form>
       <aside className="space-y-5">
         <LiveChartPanel title="Deal chart" subtitle="Moves as you set category, probability, and MEDDICC, before you save.">
-          <BarChart bars={FORECAST_CATEGORIES.map(category => ({ label: CATEGORY_LABELS[category], value: review.category === category ? Math.max(amount || 0, 1) : 0, hint: review.category === category ? `${review.probability ?? 0}% probability` : undefined }))} />
+          <BarChart bars={FORECAST_CATEGORIES.map(category => ({ label: CATEGORY_LABELS[category], value: review.category === category ? Math.max(amount || 0, 1) : 0, hint: review.category === category ? (review.probability === null ? "Not estimated" : `${review.probability}% probability`) : undefined }))} />
           <BarChart bars={MEDDICC.map(({ key, label }) => ({ label, value: review.playbook[key].status === "confirmed" ? 2 : review.playbook[key].status === "missing" ? 1 : 0, hint: review.playbook[key].status }))} />
         </LiveChartPanel>
         <Card title="Activity flags">{deal.risks.map(risk => <p key={risk} className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{risk}</p>)}{!deal.risks.length && <p className="text-sm text-[#6e6e73]">No current activity flags.</p>}<p className="text-xs text-[#86868b]">Rule-based signals from conversations, close dates, and saved next steps.</p></Card>

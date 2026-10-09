@@ -30,6 +30,8 @@ import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import {
   dialLogTranscript,
   dialOutcomeLabel,
+  isDialAttempt,
+  isQuickDialLog,
   isDialOutcome,
   resolveDialOutcome,
   tallyDialFunnel,
@@ -596,11 +598,13 @@ function dialFactFromRow(row: {
   dialOutcome?: string | null;
   transcriptText?: string | null;
   transcriptProbe?: string | null;
+  callStage?: string | null;
 }): DialFact {
   const probe = row.transcriptText ?? row.transcriptProbe ?? "";
   return {
     dialOutcome: row.dialOutcome,
     coreOutcome: row.coreOutcome,
+    callStage: row.callStage,
     hasConversation: !isUnusableTranscript(probe),
   };
 }
@@ -630,6 +634,7 @@ export async function listDialFacts(): Promise<({ repId: string; outcome: DialOu
   const rows = await db
     .select({
       repId: calls.repId,
+      callStage: calls.callStage,
       coreOutcome: calls.coreOutcome,
       dialOutcome: calls.dialOutcome,
       transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
@@ -637,10 +642,12 @@ export async function listDialFacts(): Promise<({ repId: string; outcome: DialOu
     .from(calls)
     .where(forTenant(calls.orgId))
     .all();
-  return (rows as { repId: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[]).map((row) => {
-    const fact = dialFactFromRow(row);
-    return { repId: row.repId, ...fact, outcome: resolveDialOutcome(fact) };
-  });
+  return (rows as { repId: string; callStage: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[])
+    .map((row) => {
+      const fact = dialFactFromRow(row);
+      return { repId: row.repId, ...fact, outcome: resolveDialOutcome(fact) };
+    })
+    .filter((fact) => isDialAttempt(fact));
 }
 
 export async function insertDialLog(values: {
@@ -684,6 +691,7 @@ export async function getAllReps(): Promise<Rep[]> {
       .select({
         id: calls.id,
         repId: calls.repId,
+        callStage: calls.callStage,
         coreOutcome: calls.coreOutcome,
         dialOutcome: calls.dialOutcome,
         transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
@@ -711,12 +719,14 @@ export async function getAllReps(): Promise<Rep[]> {
 
   const usableIds = new Set<string>();
   const factsByRep = new Map<string, DialFact[]>();
-  for (const row of callRows as { id: string; repId: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[]) {
-    const list = factsByRep.get(row.repId);
+  for (const row of callRows as { id: string; repId: string; callStage: string; coreOutcome: string; dialOutcome: string | null; transcriptProbe: string }[]) {
     const fact = dialFactFromRow(row);
-    if (list) list.push(fact);
-    else factsByRep.set(row.repId, [fact]);
-    if (!isUnusableTranscript(row.transcriptProbe)) usableIds.add(row.id);
+    if (isDialAttempt(fact)) {
+      const list = factsByRep.get(row.repId);
+      if (list) list.push(fact);
+      else factsByRep.set(row.repId, [fact]);
+    }
+    if (!isUnusableTranscript(row.transcriptProbe) && !isQuickDialLog({ dialOutcome: row.dialOutcome, transcriptText: row.transcriptProbe })) usableIds.add(row.id);
   }
 
   type RepMetricEval = {
@@ -817,7 +827,8 @@ export async function getRepById(id: string): Promise<{
   const dialFacts: DialFact[] = [];
 
   for (const c of repCalls as any[]) {
-    dialFacts.push(dialFactFromRow(c));
+    const fact = dialFactFromRow(c);
+    if (isDialAttempt(fact)) dialFacts.push(fact);
     if (isUnusableTranscript(c.transcriptText) && !c.dialOutcome) continue;
     const ev = evalByCall.get(c.id);
     let evaluation: CallEvaluation | undefined = undefined;

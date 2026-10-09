@@ -7,6 +7,7 @@ import { getVisibleCallById } from "@/lib/viewer-calls";
 import { evaluationCreditsForDuration } from "@/lib/billing";
 import { PaymentRequiredError, QuotaExceededError, assertEvaluationAllowed, recordEvaluationUsage } from "@/lib/billingQuota";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
+import { isQuickDialLog } from "@/lib/dialFunnel";
 
 export const maxDuration = 120;
 
@@ -20,6 +21,9 @@ async function POSTHandler(
     const { call } = await getVisibleCallById(id);
     if (!call) {
       return NextResponse.json({ error: "Call not found" }, { status: 404 });
+    }
+    if (isQuickDialLog(call)) {
+      return NextResponse.json({ error: "Dial logs stay in the funnel. They are not reanalyzed." }, { status: 422 });
     }
 
     const credits = evaluationCreditsForDuration(call.durationSeconds);
