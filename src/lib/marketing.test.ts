@@ -169,6 +169,7 @@ describe("privacy policy", () => {
     assert.match(page, /We do not sell personal data/);
     assert.match(page, /We never train on your data/);
     assert.match(page, /Customer content is never used to train models, by us or by the model providers we use/);
+    assert.match(page, /If you connect your own provider key, that provider's terms also apply/);
     assert.match(page, /call recordings, transcripts, scorecards, and coaching notes/);
     assert.match(page, /company network you are on/);
     assert.match(page, /We do not store the IP address/);

@@ -77,6 +77,9 @@ export default function PrivacyPage() {
             <p>
               Customer content is never used to train models, by us or by the model providers we use. That includes call recordings, transcripts, scorecards, and coaching notes.
             </p>
+            <p>
+              If you connect your own provider key, that provider's terms also apply.
+            </p>
           </section>
 
           <section className="space-y-3">
