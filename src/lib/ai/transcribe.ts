@@ -12,16 +12,18 @@ import {
   mimeTypeForAudio,
   type AudioChunk,
 } from "../audio";
+import { openAiTranscriptionsUrl, privateModelUrlsAllowed } from "./localEndpoint";
 import { DEFAULT_MODEL, detectProviderFromKey, type ProviderId } from "./providers";
 import { geminiGenerationConfig, geminiModelsToTry, geminiTextFromResponse } from "./gemini";
-import { resolveAiSettings } from "./settings";
+import { resolveAiSettings, type ResolvedAiSettings } from "./settings";
 
-export type TranscriptionKind = "gemini" | "openai" | "groq";
+export type TranscriptionKind = "gemini" | "openai" | "groq" | "local";
 
 export interface TranscriptionBackend {
   kind: TranscriptionKind;
   apiKey: string;
   model?: string;
+  endpoint?: string;
 }
 
 export interface TranscribeAudioInput {
@@ -256,13 +258,14 @@ async function transcribeWhisper(
 ): Promise<string> {
   if (chunk.bytes.byteLength > WHISPER_MAX_BYTES) {
     throw new Error(
-      `${fileName} is too large for ${backend.kind === "groq" ? "Groq" : "OpenAI"} Whisper. Convert it to MP3/WAV so it can be split, or use a Gemini key.`
+      `${fileName} is too large for ${backend.kind === "groq" ? "Groq" : backend.kind === "local" ? "the local transcription server" : "OpenAI"} Whisper. Convert it to MP3/WAV so it can be split, or use a Gemini key.`
     );
   }
-  const endpoint = backend.kind === "groq"
-    ? "https://api.groq.com/openai/v1/audio/transcriptions"
-    : "https://api.openai.com/v1/audio/transcriptions";
-  const model = backend.kind === "groq" ? "whisper-large-v3" : "whisper-1";
+  const endpoint = backend.endpoint
+    || (backend.kind === "groq"
+      ? "https://api.groq.com/openai/v1/audio/transcriptions"
+      : "https://api.openai.com/v1/audio/transcriptions");
+  const model = backend.model || (backend.kind === "groq" ? "whisper-large-v3" : "whisper-1");
   const form = new FormData();
   const file = new File([toArrayBuffer(chunk.bytes)], fileName || `chunk.${chunk.mimeType.includes("wav") ? "wav" : "mp3"}`, {
     type: chunk.mimeType,
@@ -310,8 +313,24 @@ export async function getTranscriptionStatus(): Promise<{
   }
 }
 
-export async function resolveTranscriptionBackend(): Promise<TranscriptionBackend> {
-  const ai = await resolveAiSettings();
+function whisperBearer(ai: ResolvedAiSettings): string {
+  if (ai.providerId === "local" && ai.apiKey) return ai.apiKey;
+  return ai.localApiKey || "local";
+}
+
+/** Pick a transcription backend from already-resolved settings. Whisper URL wins over the scoring provider. */
+export function selectTranscriptionBackend(
+  ai: ResolvedAiSettings,
+  env: Record<string, string | undefined> = process.env
+): TranscriptionBackend {
+  if (ai.whisperBaseUrl) {
+    return {
+      kind: "local",
+      apiKey: whisperBearer(ai),
+      model: (env.LOCAL_WHISPER_MODEL || "").trim() || "whisper-1",
+      endpoint: openAiTranscriptionsUrl(ai.whisperBaseUrl, { allowPrivate: privateModelUrlsAllowed(env) }),
+    };
+  }
   if (ai.apiKey && isTranscribeCapable(ai.providerId)) {
     return {
       kind: ai.providerId,
@@ -326,7 +345,7 @@ export async function resolveTranscriptionBackend(): Promise<TranscriptionBacken
     { kind: "groq", env: "GROQ_API_KEY" },
   ];
   for (const candidate of envOrder) {
-    const value = (process.env[candidate.env] || "").trim();
+    const value = (env[candidate.env] || "").trim();
     if (value) {
       return { kind: candidate.kind, apiKey: value, model: candidate.model };
     }
@@ -340,8 +359,14 @@ export async function resolveTranscriptionBackend(): Promise<TranscriptionBacken
   }
 
   throw new Error(
-    "Audio transcription needs a Gemini, OpenAI, or Groq API key. Add one in Admin → Settings, then re-upload the recording."
+    ai.providerId === "local"
+      ? "Audio transcription needs a Whisper-compatible LOCAL_WHISPER_BASE_URL, or a Gemini, OpenAI, or Groq key."
+      : "Audio transcription needs a Gemini, OpenAI, or Groq API key. Add one in Admin → Settings, then re-upload the recording."
   );
+}
+
+export async function resolveTranscriptionBackend(): Promise<TranscriptionBackend> {
+  return selectTranscriptionBackend(await resolveAiSettings());
 }
 
 async function transcribeOneChunk(
@@ -383,7 +408,7 @@ export async function transcribeAudio(
   const needsGeminiFile = resolved.kind === "gemini"
     && !canChunkAudio(mimeType, input.fileName)
     && bytes.byteLength > INLINE_AUDIO_BYTES;
-  const tooBigForWhisper = (resolved.kind === "openai" || resolved.kind === "groq")
+  const tooBigForWhisper = (resolved.kind === "openai" || resolved.kind === "groq" || resolved.kind === "local")
     && bytes.byteLength > WHISPER_MAX_BYTES
     && !canChunkAudio(mimeType, input.fileName);
 

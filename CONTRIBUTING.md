@@ -47,5 +47,5 @@ npm run build
 - `src/app/` — pages and route handlers. The product base path is `/app`.
 - `src/app/demo/` — public read-only sample. Do not add database or model calls here.
 - `src/components/` — UI
-- `src/lib/ai/` — model calls (Gemini, OpenAI, Groq, Anthropic, OpenRouter), transcription, and rubric parsing
+- `src/lib/ai/` — model calls (Gemini, OpenAI, Groq, Anthropic, OpenRouter, or a local OpenAI-compatible server), transcription, and rubric parsing
 - `src/lib/db/` — SQLite and Cloudflare D1

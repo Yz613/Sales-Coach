@@ -79,7 +79,7 @@ graph TD
 
 - Local mode uses SQLite. No account is required to read seeded calls or grade a pasted transcript.
 - Upload MP3, WAV, or M4A. Transcription uses Gemini, OpenAI, or Groq. Playback stays aligned with the transcript.
-- Model evaluations: Gemini, OpenAI, Groq, Anthropic, or OpenRouter. Or skip keys and use the built-in rubric.
+- Model evaluations: Gemini, OpenAI, Groq, Anthropic, or OpenRouter. Or a local OpenAI-compatible server such as Ollama or LM Studio. Or skip keys and use the built-in rubric.
 - Deal stages, talk-tracks, rep personas, and manager 1:1 notes.
 - Optional team sign-in and roles. Hosted sign-up on refreshqueue.com requires a paid plan before workspace data is shown.
 - Docker Compose, and a Cloudflare Workers plus D1 path for the hosted deployment.

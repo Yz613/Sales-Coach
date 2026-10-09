@@ -2,6 +2,7 @@ import { validateModelOutput } from "./output-validation";
 import { EVIDENCE_POLICY } from "./evidence";
 import { geminiGenerationConfig, geminiTextFromResponse, type GeminiSchemaMode } from "./gemini";
 import { extractJson } from "./json";
+import { openAiChatCompletionsUrl, privateModelUrlsAllowed } from "./localEndpoint";
 import { estimateCostUsd, getModel, getProvider, type ProviderId } from "./providers";
 
 // Credentialed requests use manual redirects: supported by Workers, with no key forwarding.
@@ -96,13 +97,16 @@ async function callGemini(
   return { text, usage, finishReason };
 }
 
+class OpenAiFormatError extends Error {}
+
 async function callOpenAiCompatible(
   url: string,
   apiKey: string,
   model: string,
   prompt: string,
   extraHeaders: Record<string, string> = {},
-  extraBody: Record<string, unknown> = {}
+  extraBody: Record<string, unknown> = {},
+  jsonObject = true
 ): Promise<{ text: string; usage?: LlmJsonResult["usage"] }> {
   const res = await fetch(url, {
     method: "POST", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(90000),
@@ -118,7 +122,7 @@ async function callOpenAiCompatible(
         { role: "user", content: prompt },
       ],
       temperature: 0.2,
-      response_format: { type: "json_object" },
+      ...(jsonObject ? { response_format: { type: "json_object" } } : {}),
       ...extraBody,
     }),
   });
@@ -129,6 +133,10 @@ async function callOpenAiCompatible(
     throw new Error(`Provider request failed (${res.status}). Check the provider configuration.`);
   }
   if (!res.ok || data?.error) {
+    const detail = JSON.stringify(data?.error || data || "");
+    if (jsonObject && res.status === 400 && /response_format|json_object|json_schema/i.test(detail)) {
+      throw new OpenAiFormatError(detail);
+    }
     throw new Error(`Provider request failed (${res.status}). Check the provider configuration.`);
   }
   const text = data?.choices?.[0]?.message?.content || "";
@@ -178,9 +186,14 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
   return { text, usage };
 }
 
-export async function pingProvider(providerId: ProviderId, apiKey: string, model: string): Promise<void> {
+export async function pingProvider(
+  providerId: ProviderId,
+  apiKey: string,
+  model: string,
+  baseUrl?: string | null
+): Promise<void> {
   const prompt = 'Respond with JSON: {"ok":true}';
-  await completeJson({ providerId, apiKey, model, prompt });
+  await completeJson({ providerId, apiKey, model, prompt, baseUrl });
 }
 
 export async function completeJson(opts: {
@@ -189,8 +202,11 @@ export async function completeJson(opts: {
   model: string;
   prompt: string;
   responseSchema?: Record<string, unknown>;
+  /** OpenAI-compatible base URL. Required for the local provider unless LOCAL_OPENAI_BASE_URL is set. */
+  baseUrl?: string | null;
 }): Promise<LlmJsonResult> {
   const { providerId, apiKey, model, prompt, responseSchema } = opts;
+  const baseUrl = opts.baseUrl || (providerId === "local" ? process.env.LOCAL_OPENAI_BASE_URL : undefined);
   let text = "";
   let usage: LlmJsonResult["usage"];
   let finishReason: string | undefined;
@@ -230,6 +246,17 @@ export async function completeJson(opts: {
       },
       { provider: { data_collection: "deny" } }
     ));
+  } else if (providerId === "local") {
+    if (!baseUrl) {
+      throw new Error("Set an OpenAI-compatible base URL before scoring with a local model.");
+    }
+    const endpoint = openAiChatCompletionsUrl(baseUrl, { allowPrivate: privateModelUrlsAllowed() });
+    try {
+      ({ text, usage } = await callOpenAiCompatible(endpoint, apiKey || "local", model, prompt));
+    } catch (err) {
+      if (!(err instanceof OpenAiFormatError)) throw err;
+      ({ text, usage } = await callOpenAiCompatible(endpoint, apiKey || "local", model, prompt, {}, {}, false));
+    }
   } else {
     throw new Error(`Unsupported provider: ${providerId}`);
   }

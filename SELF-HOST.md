@@ -65,6 +65,23 @@ If `CLEF_EVALUATION_MODE` is unset, scoring tries a hosted evaluator that needs 
 
 Set `CLEF_EVALUATION_MODE=off` so the key you saved does the scoring. Compose should pass that variable in `environment` (see the block above). For `npm run dev`, put the same line in `.env.local`. With no key at all, pasted transcripts still use the built-in rubric.
 
+## Local model server
+
+You can score and coach with an OpenAI-compatible server on your own machine, such as Ollama or LM Studio. In Admin, then Settings, choose Local, set the base URL (for Ollama that is `http://127.0.0.1:11434/v1`), and set the model name the server is serving. The API key can be any non-empty value, or left blank.
+
+The same base URL is used for call scoring and for coaching notes. Audio is separate. If you run a Whisper-compatible server, set its base URL (the path is `/v1`, and Sales Coach calls `/v1/audio/transcriptions`). That URL is used for recordings even when scoring uses another provider, and the scoring key is not sent to it. Leave it blank to keep using a Gemini, OpenAI, or Groq key for recordings. A key saved while Local is selected is stored apart from the hosted provider key.
+
+A localhost or LAN address is refused unless the process has `ALLOW_PRIVATE_MODEL_URLS=true`. Compose sets that. For `npm run dev`, add it to `.env.local`. From inside Compose, `127.0.0.1` is the container, not your machine. Point the base URL at the host, for example `http://host.docker.internal:11434/v1`.
+
+```yaml
+environment:
+  - CLEF_EVALUATION_MODE=off
+  - ALLOW_PRIVATE_MODEL_URLS=true
+  - LOCAL_OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+  - LOCAL_OPENAI_MODEL=llama3.1
+  # - LOCAL_WHISPER_BASE_URL=http://host.docker.internal:9000/v1
+```
+
 Keys saved only in Settings live in `sales_coach.db` inside the container. The Compose volume mounts `/app/data`, not that file, so a rebuild can drop UI-saved keys. Put keys you care about in `environment`.
 
 Node without Docker (`npm run setup`, then `npm run dev`) is Option 1 in the [README Quickstart](README.md#quickstart).
