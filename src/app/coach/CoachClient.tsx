@@ -8,6 +8,7 @@ import { DEFAULT_SANDLER_INSTRUCTIONS, SANDLER_ONBOARDING_ANSWERS } from "@/lib/
 import type { MethodId } from "@/lib/methodology";
 import { METHOD_CHOICES, checklistSections, methodById } from "@/lib/salesMethods";
 import { MAX_METRIC_WEIGHT, metricsForMethod, weightShare, weightsAreCustom } from "@/lib/scoreWeights";
+import Combobox from "@/components/Combobox";
 import { DIAL_OUTCOMES } from "@/lib/dialFunnel";
 import { BarChart, LiveChartPanel } from "@/components/charts/MetricCharts";
 import { ChipSelect, Segmented, SliderField, joinChoice, splitChoice } from "@/components/forms/ChoiceControls";
@@ -73,9 +74,14 @@ const QUESTIONS: { key: string; label: string; hint: string; placeholder: string
   },
 ];
 
+function sameWeights(current: Record<string, number>, saved: Record<string, number>, keys: string[]) {
+  return keys.every((key) => (current[key] ?? 1) === (saved[key] ?? 1));
+}
+
 function MethodologyProfile({
   methodId,
   weights,
+  savedWeights,
   onWeight,
   onSave,
   saving,
@@ -83,6 +89,7 @@ function MethodologyProfile({
 }: {
   methodId: MethodId;
   weights: Record<string, number>;
+  savedWeights: Record<string, number>;
   onWeight: (key: string, value: number) => void;
   onSave: () => void;
   saving: boolean;
@@ -91,6 +98,7 @@ function MethodologyProfile({
   const method = methodById(methodId);
   const metrics = metricsForMethod(method);
   const custom = weightsAreCustom(weights, method);
+  const dirty = !sameWeights(weights, savedWeights, metrics.map((metric) => metric.key));
   return (
     <div className="rounded-2xl glass-card p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -111,7 +119,7 @@ function MethodologyProfile({
           <button
             type="button"
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || !dirty}
             className="flex items-center gap-2 rounded-xl bg-[#007AFF] px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-[#0071E3] transition disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -231,8 +239,9 @@ export default function CoachPage({
   const [isDefault, setIsDefault] = useState(initial ? initial.isDefault : true);
   const [methodId, setMethodId] = useState<MethodId>(startingMethod);
   const [weights, setWeights] = useState<Record<string, number>>(initial?.weights || {});
+  const [savedWeights, setSavedWeights] = useState<Record<string, number>>(initial?.weights || {});
   const [savingWeights, setSavingWeights] = useState(false);
-  const [savedWeights, setSavedWeights] = useState(false);
+  const [weightsSaved, setWeightsSaved] = useState(false);
 
   const load = () => {
     fetch(apiPath("/api/coach"))
@@ -244,7 +253,9 @@ export default function CoachPage({
         setInstructions(instr);
         setIsDefault(Boolean(data.isDefault));
         setLessons(Array.isArray(data.lessons) ? data.lessons : []);
-        setWeights(data.weights && typeof data.weights === "object" ? data.weights : {});
+        const nextWeights = data.weights && typeof data.weights === "object" ? data.weights : {};
+        setWeights(nextWeights);
+        setSavedWeights(nextWeights);
         setView("editor");
       })
       .catch((err) => {
@@ -268,17 +279,23 @@ export default function CoachPage({
 
   const saveWeights = async () => {
     setSavingWeights(true);
-    setSavedWeights(false);
+    setWeightsSaved(false);
     try {
       const res = await fetch(apiPath("/api/coach"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ weights }),
       });
-      const data = await res.json();
-      if (data.weights && typeof data.weights === "object") setWeights(data.weights);
-      setSavedWeights(true);
-      setTimeout(() => setSavedWeights(false), 3000);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save weights.");
+      if (data.weights && typeof data.weights === "object") {
+        setWeights(data.weights);
+        setSavedWeights(data.weights);
+      } else {
+        setSavedWeights(weights);
+      }
+      setWeightsSaved(true);
+      setTimeout(() => setWeightsSaved(false), 3000);
     } catch (err) {
       console.error(err);
     } finally {
@@ -523,24 +540,23 @@ export default function CoachPage({
           <h2 className="text-sm font-semibold text-[#1d1d1f]">Sales method</h2>
           <p className="text-xs text-[#6e6e73] mt-1">Choosing one loads that method&apos;s narrative and checklist.</p>
         </div>
-        <select
+        <Combobox
+          label="Sales method"
+          className="w-full sm:w-64"
           value={methodId}
-          onChange={(e) => chooseMethod(e.target.value as MethodId)}
-          className="rounded-xl glass-inset border border-black/[0.08] bg-white px-3.5 py-2.5 text-sm text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none"
-        >
-          {METHOD_CHOICES.map((choice) => (
-            <option key={choice.id} value={choice.id}>{choice.name}</option>
-          ))}
-        </select>
+          options={METHOD_CHOICES.map((choice) => ({ value: choice.id, label: choice.name }))}
+          onChange={(value) => chooseMethod(value as MethodId)}
+        />
       </div>
 
       <MethodologyProfile
         methodId={methodId}
         weights={weights}
+        savedWeights={savedWeights}
         onWeight={(key, value) => setWeights((current) => ({ ...current, [key]: value }))}
         onSave={saveWeights}
         saving={savingWeights}
-        saved={savedWeights}
+        saved={weightsSaved}
       />
 
       {/* Coaching philosophy */}

@@ -33,9 +33,38 @@ export function formatDate(dateString: string | Date | null | undefined): string
   });
 }
 
+export function formatUpdated(dateString: string | Date | null | undefined): string {
+  return `Updated ${formatDate(dateString)}`;
+}
+
+/** "2 calls" — the number and the noun are always separated. */
+export function formatCount(count: number, singular: string, plural = `${singular}s`): string {
+  const n = Number.isFinite(count) ? Math.trunc(count) : 0;
+  return `${n.toLocaleString("en-US")} ${n === 1 ? singular : plural}`;
+}
+
+const MAX_DURATION_SECONDS = 99 * 3600 + 59 * 60 + 59;
+
 export function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  if (seconds == null || seconds === 0) return "0:00";
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_DURATION_SECONDS) return "—";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const clock = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  return hours > 0 ? `${hours}:${clock}` : `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+/** Shared money display. Whole amounts render as "$100,000". */
+export function formatCurrency(amount: number, currency = "USD"): string {
+  if (!Number.isFinite(amount)) return "—";
+  const code = /^[A-Z]{3}$/.test(currency) ? currency : "USD";
+  const whole = Math.abs(amount - Math.round(amount)) < 0.001;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: code,
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(whole ? Math.round(amount) : amount);
 }

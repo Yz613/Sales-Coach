@@ -65,7 +65,13 @@ h1 {
   width: 100%;
   max-width: 1140px;
   margin: 0 auto;
-  padding: 24px 20px calc(88px + env(safe-area-inset-bottom, 0px));
+  padding: 24px 20px calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 767px) {
+  .apple-content :is(a, button, input, select, textarea, summary, [role="combobox"], [tabindex]) {
+    scroll-margin-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (min-width: 768px) {

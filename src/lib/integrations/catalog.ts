@@ -138,6 +138,9 @@ export const INTEGRATION_TOOLS: IntegrationTool[] = [
 ];
 for (const tool of INTEGRATION_TOOLS) tool.oauth = supportedOAuthProvider(tool.id);
 
+/** These providers were left out of the OAuth rollout. Do not show a dead connect card. */
+export const RETIRED_OAUTH_CARDS = new Set(["gitlab", "discord", "attio"]);
+
 export function integrationTool(id: unknown): IntegrationTool | undefined { return INTEGRATION_TOOLS.find(tool => tool.id === id); }
 export function isCallTool(id: string): boolean { const tool = integrationTool(id); return Boolean(tool && (tool.category === "Calls" || tool.category === "Automation")); }
 export function isCalendarTool(id: string): boolean { return integrationTool(id)?.category === "Meetings"; }

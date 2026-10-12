@@ -22,7 +22,7 @@ export const calls = sqliteTable("calls", {
   durationSeconds: integer("duration_seconds").notNull(),
   transcriptText: text("transcript_text").notNull(),
   audioUrl: text("audio_url"),
-  status: text("status").notNull().default("completed"), // 'completed' | 'analyzing' | 'failed'
+  status: text("status").notNull().default("completed"), // 'completed' | 'analyzing' | 'failed' | 'not_applicable'
   createdAt: text("created_at").notNull(),
 });
 

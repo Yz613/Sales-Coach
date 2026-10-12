@@ -6,11 +6,11 @@ import { formatGroupedNumber, parseGroupedNumber, GOAL_PERIODS, type GoalPeriod 
 import { createGoalTeam, goalTeamMetrics, validateGoalTeams, type GoalRep, type GoalTeam } from "@/lib/goalTeams";
 import { BarChart, RateTrio } from "@/components/charts/MetricCharts";
 import { useAppAuth } from "@/lib/auth-context";
-import { apiPath } from "@/lib/utils";
+import { apiPath, formatCount, formatCurrency } from "@/lib/utils";
 
 const inputClass = "w-full rounded-xl glass-inset border border-black/[0.08] px-3 py-2.5 text-sm text-[#1d1d1f] focus:border-blue-500/50 focus:outline-none";
 const count = (value: number) => value.toLocaleString("en-US");
-const money = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+const money = (value: number) => formatCurrency(value);
 const rate = (value: number) => `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
 
 export default function RevenueGoal({ initialTeams, reps }: { initialTeams: GoalTeam[]; reps: GoalRep[] }) {
@@ -138,7 +138,7 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
                 <Label>Rates from every dial</Label>
                 <RateTrio connectRate={connectRate} closeRate={closeRate} closePerConnect={closePerConnect} dials={loggedCalls} connects={connects} closes={closes} />
-                <p className="text-[10px] text-[#86868b]">{count(loggedCalls)} dials · Close rate is closed won / every dial. Close per connect is closes / connects.</p>
+                <p className="text-[10px] text-[#86868b]">{formatCount(loggedCalls, "dial")} · Close rate is closed won / every dial. Close per connect is closes / connects.</p>
               </div>
               <NumberField label="Selling days / week" value={team.sellingDaysPerWeek} onChange={(value) => updateTeam(team.id, { sellingDaysPerWeek: value })} integer placeholder="5" />
               <div className="space-y-1.5">
@@ -155,7 +155,7 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
                 <Result label={`Per ${periodLabel}`} value={count(plan.callsPeriod)} hint="calls · team-rate estimate" />
                 <Result label="Per week" value={count(plan.callsWeek)} hint={team.period === "month" ? "4⅓ weeks per month" : `${plan.weeks} ${plan.weeks === 1 ? "week" : "weeks"}`} />
                 <Result label="Per selling day" value={count(plan.callsDay)} hint={`${team.sellingDaysPerWeek} selling days / week`} />
-                <Result label="Avg per rep / day" value={count(plan.callsPerRepDay)} hint={`${count(repCount)} planned ${repCount === 1 ? "rep" : "reps"}`} />
+                <Result label="Avg per rep / day" value={count(plan.callsPerRepDay)} hint={formatCount(repCount, "planned rep")} />
               </div>
               <BarChart bars={[
                 { label: `Calls this ${periodLabel}`, value: plan.callsPeriod },
@@ -167,7 +167,7 @@ export default function RevenueGoal({ initialTeams, reps }: { initialTeams: Goal
 
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-[#1d1d1f]">{team.name || "Team"} · Individual rep targets</h3>
-              <p className="text-xs text-[#6e6e73]">Team revenue is split equally across {count(repCount)} planned {repCount === 1 ? "rep" : "reps"}. Each assigned rep’s target uses their own close rate: closed won divided by every dial. All calls round up.</p>
+              <p className="text-xs text-[#6e6e73]">Team revenue is split equally across {formatCount(repCount, "planned rep")}. Each assigned rep’s target uses their own close rate: closed won divided by every dial. All calls round up.</p>
               {repCount !== members.length && <p className="text-xs text-[#C45500]">Planning for {count(repCount)} reps with {members.length} assigned. Match the roster and planning count for a complete team breakdown.</p>}
               {members.length > 0 && <div className="overflow-x-auto rounded-xl border border-black/[0.08]">
                 <table className="w-full text-left text-xs">

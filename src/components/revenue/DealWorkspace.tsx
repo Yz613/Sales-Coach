@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { dealDetail } from "@/lib/revenue/forecast";
 import { amountValue, CATEGORY_LABELS, FORECAST_CATEGORIES, MEDDICC, type DealReview, type Evidence, type PlaybookKey } from "@/lib/revenue/forecast-model";
 import type { Segment } from "@/lib/revenue/types";
-import { formatDuration } from "@/lib/utils";
+import { formatCurrency, formatDuration } from "@/lib/utils";
 import AskAnything from "./AskAnything";
 import { buttonClass, Card, fieldClass, Notice, request, secondaryClass } from "./ui";
 import { BarChart, LiveChartPanel } from "@/components/charts/MetricCharts";
@@ -47,44 +47,44 @@ function EvidencePicker({ deal, onChoose, onClose }: { deal: Detail["deal"]; onC
 
 export default function DealWorkspace({ initial }: { initial: Detail }) {
   const [data, setData] = useState(initial); const [review, setReview] = useState<DealReview>(initial.deal.review);
-  const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
+  const [dirty, setDirty] = useState(false); const [phase, setPhase] = useState<"idle" | "saving" | "discarding">("idle"); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const [evidenceKey, setEvidenceKey] = useState<PlaybookKey | null>(null);
   const deal = data.deal;
   const amount = amountValue(deal.amount);
   function change(next: DealReview) { setReview(next); setDirty(true); setMessage(""); }
   async function save() {
-    setBusy(true); setError(""); setMessage("");
+    setPhase("saving"); setError(""); setMessage("");
     try { const result = await request(`/api/deals/${encodeURIComponent(deal.id)}`, review, "PUT"); setReview(result.deal.review); setData(result); setDirty(false); setMessage("Deal review saved. Forecast totals now use this category and probability."); }
-    catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+    catch (err) { setError((err as Error).message); } finally { setPhase("idle"); }
   }
   async function reload() {
-    setBusy(true); setError("");
-    try { const latest = await request(`/api/deals/${encodeURIComponent(deal.id)}`); setData(latest); setReview(latest.deal.review); setDirty(false); setMessage("Latest deal and review loaded."); }
-    catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+    setPhase("discarding"); setError("");
+    try { const latest = await request(`/api/deals/${encodeURIComponent(deal.id)}`); setData(latest); setReview(latest.deal.review); setDirty(false); setMessage(dirty ? "Edits discarded. Latest deal and review loaded." : "Latest deal and review loaded."); }
+    catch (err) { setError((err as Error).message); } finally { setPhase("idle"); }
   }
   const confirmed = MEDDICC.filter(({ key }) => review.playbook[key].status === "confirmed").length;
   const next = splitChoice(review.nextStep, NEXT_STEPS);
   return <div className="space-y-5">
-    <div className="flex flex-wrap justify-between gap-4"><div><h1 className="text-2xl font-semibold">{deal.name}</h1><p className="text-sm text-[#6e6e73] mt-1">{deal.stage || "No stage"} · {deal.owner || "Unassigned"} · {deal.closed ? deal.won ? "Won" : "Closed" : "Open"}{deal.closeDate && ` · Closes ${deal.closeDate.slice(0, 10)}`}</p></div><div className="text-right"><p className="text-xl font-semibold">{amount === null ? "Amount unavailable" : `${amount.toLocaleString()} ${deal.currency || "Unspecified currency"}`}</p><Link href="/forecast" className="text-sm text-[#007AFF]">Open forecast →</Link></div></div>
+    <div className="flex flex-wrap justify-between gap-4"><div><h1 className="text-2xl font-semibold">{deal.name}</h1><p className="text-sm text-[#6e6e73] mt-1">{deal.stage || "No stage"} · {deal.owner || "Unassigned"} · {deal.closed ? deal.won ? "Won" : "Closed" : "Open"}{deal.closeDate && ` · Closes ${deal.closeDate.slice(0, 10)}`}</p></div><div className="text-right"><p className="text-xl font-semibold">{amount === null ? "Amount unavailable" : /^[A-Z]{3}$/.test(deal.currency || "") ? formatCurrency(amount, deal.currency!) : `${amount.toLocaleString("en-US")} ${deal.currency || "Unspecified currency"}`}</p><Link href="/forecast" className="text-sm text-[#007AFF]">Open forecast →</Link></div></div>
     <Notice error={error} message={message} />
     <AskAnything scope="deal" id={deal.id} />
     <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-5">
       <form className="space-y-5" onSubmit={e => { e.preventDefault(); void save(); }}>
-        <Card title="Manager deal review"><fieldset disabled={busy} className="space-y-4"><Segmented label="Forecast category" value={review.category} options={FORECAST_CATEGORIES.map(category => ({ value: category, label: CATEGORY_LABELS[category] }))} onChange={category => change({ ...review, category: category as DealReview["category"] })} />
+        <Card title="Manager deal review"><fieldset disabled={phase === "saving"} className="space-y-4"><Segmented label="Forecast category" value={review.category} options={FORECAST_CATEGORIES.map(category => ({ value: category, label: CATEGORY_LABELS[category] }))} onChange={category => change({ ...review, category: category as DealReview["category"] })} />
           <SliderField label="Estimated win probability" min={0} max={100} value={review.probability ?? 0} valueLabel={review.probability === null ? "Not estimated" : `${review.probability}%`} onChange={value => change({ ...review, probability: value })} />
           <button type="button" className={secondaryClass} onClick={() => change({ ...review, probability: null })}>Not estimated</button>
           <p className="text-xs text-[#86868b]">Manager estimates inform the weighted forecast. Closed results and deal amounts come from your CRM.</p>
           <ChipSelect label="Next step" options={NEXT_STEPS} selected={next.selected} other={next.other} onChange={selected => change({ ...review, nextStep: joinChoice(selected, next.other) })} onOther={other => change({ ...review, nextStep: joinChoice(next.selected, other) })} otherPlaceholder="Other next step" /><label className="block text-sm space-y-1">Next step due date<input className={fieldClass} type="date" value={review.nextStepDate || ""} onChange={e => change({ ...review, nextStepDate: e.target.value || null })} /></label>
           {deal.closed && <p className="text-sm text-[#6e6e73]">This deal is closed. Its CRM outcome takes precedence over forecast categories and probabilities.</p>}
         </fieldset></Card>
-        <Card title={`MEDDICC qualification · ${confirmed}/${MEDDICC.length} confirmed`}><p className="text-sm text-[#6e6e73]">Support each confirmed or missing item with a manager note or an exact moment from a linked conversation.</p><fieldset disabled={busy} className="space-y-5">{MEDDICC.map(({ key, label, prompt }) => {
+        <Card title={`MEDDICC qualification · ${confirmed}/${MEDDICC.length} confirmed`}><p className="text-sm text-[#6e6e73]">Support each confirmed or missing item with a manager note or an exact moment from a linked conversation.</p><fieldset disabled={phase === "saving"} className="space-y-5">{MEDDICC.map(({ key, label, prompt }) => {
           const item = review.playbook[key];
           const note = splitChoice(item.note, NOTE_PRESETS[key]);
           return <div key={key} className="border-t border-black/[.06] pt-4 space-y-3"><div><h3 className="text-sm font-semibold">{label}</h3><p className="text-xs text-[#86868b] mt-1">{prompt}</p></div><Segmented label={`${label} status`} value={item.status} options={[{ value: "unknown", label: "Unknown" }, { value: "confirmed", label: "Confirmed" }, { value: "missing", label: "Missing" }]} onChange={status => change({ ...review, playbook: { ...review.playbook, [key]: { ...item, status: status as typeof item.status } } })} /><ChipSelect label={`${label} note`} options={NOTE_PRESETS[key]} selected={note.selected} other={note.other} onChange={selected => change({ ...review, playbook: { ...review.playbook, [key]: { ...item, note: joinChoice(selected, note.other) } } })} onOther={other => change({ ...review, playbook: { ...review.playbook, [key]: { ...item, note: joinChoice(note.selected, other) } } })} otherPlaceholder="Other detail" />
             {item.evidence && <div className="rounded-lg bg-blue-50 p-3 text-sm space-y-2"><blockquote className="whitespace-pre-wrap">“{item.evidence.quote}”</blockquote><div className="flex justify-between gap-3"><Link href={`/calls/${encodeURIComponent(item.evidence.callId)}#t-${Math.floor(item.evidence.start)}`} className="text-xs text-[#007AFF]">View evidence at {formatDuration(item.evidence.start)} →</Link><button type="button" className="text-xs text-red-600" onClick={() => change({ ...review, playbook: { ...review.playbook, [key]: { ...item, evidence: null } } })}>Remove</button></div></div>}
             <button type="button" className={secondaryClass} disabled={!deal.linkedCalls.length} onClick={() => setEvidenceKey(key)}>{item.evidence ? "Replace transcript evidence" : "Add transcript evidence"}</button></div>;
         })}</fieldset></Card>
-        <div className="sticky bottom-20 md:bottom-4 rounded-xl border border-black/10 bg-white/95 p-4 flex flex-wrap items-center gap-3 shadow-sm"><button className={buttonClass} disabled={busy || !dirty}>{busy ? "Saving…" : "Save deal review"}</button><button type="button" className={secondaryClass} disabled={busy} onClick={() => void reload()}>{dirty ? "Discard edits & reload" : "Refresh deal"}</button><span className="text-xs text-[#86868b]">{dirty ? "Unsaved changes" : review.updatedAt ? `Reviewed ${new Date(review.updatedAt).toLocaleString()}` : "No manager review yet"}</span></div>
+        <div className="sticky bottom-20 md:bottom-4 rounded-xl border border-black/10 bg-white/95 p-4 flex flex-wrap items-center gap-3 shadow-sm"><button className={buttonClass} disabled={phase !== "idle" || !dirty}>{phase === "saving" ? "Saving…" : "Save deal review"}</button><button type="button" className={secondaryClass} disabled={phase !== "idle"} onClick={() => void reload()}>{phase === "discarding" ? "Discarding…" : dirty ? "Discard edits & reload" : "Refresh deal"}</button><span className="text-xs text-[#86868b]">{dirty ? "Unsaved changes" : review.updatedAt ? `Reviewed ${new Date(review.updatedAt).toLocaleString()}` : "No manager review yet"}</span></div>
       </form>
       <aside className="space-y-5">
         <LiveChartPanel title="Deal chart" subtitle="Moves as you set category, probability, and MEDDICC, before you save.">
