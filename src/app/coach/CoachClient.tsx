@@ -286,7 +286,8 @@ export default function CoachPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ weights }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save weights.");
       if (data.weights && typeof data.weights === "object") {
         setWeights(data.weights);
         setSavedWeights(data.weights);
