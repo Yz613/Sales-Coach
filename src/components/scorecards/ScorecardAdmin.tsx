@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ClipboardList, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
-import { apiPath } from "@/lib/utils";
+import { apiPath, formatCount } from "@/lib/utils";
 import {
   RUBRIC_LINKS,
   SCORECARD_SOURCES,
@@ -67,6 +67,7 @@ export default function ScorecardAdmin() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Template | null>(null);
 
   const load = async () => {
     const response = await fetch(apiPath("/api/admin/scorecards"), { cache: "no-store" });
@@ -155,7 +156,7 @@ export default function ScorecardAdmin() {
       const saved = next.find((template) => template.id === data.template.id) || data.template;
       edit(saved);
       const applied = Number(data.applied || 0);
-      setMessage(applied > 0 ? `Saved. Applied to ${applied} matching call${applied === 1 ? "" : "s"}.` : "Saved.");
+      setMessage(applied > 0 ? `Saved. Applied to ${formatCount(applied, "matching call")}.` : "Saved.");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -164,19 +165,23 @@ export default function ScorecardAdmin() {
   };
 
   const remove = async (template: Template) => {
-    const verb = template.applicationCount ? "Archive" : "Delete";
-    if (!confirm(`${verb} “${template.name}”?${template.applicationCount ? " Scores already on calls stay available." : ""}`)) return;
+    const previous = templates;
+    setTemplates((current) => current.filter((item) => item.id !== template.id));
+    if (selected === template.id) setSelected(null);
+    setPendingDelete(null);
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(apiPath(`/api/admin/scorecards/${template.id}`), { method: "DELETE" });
-      const data = await response.json();
+      const response = await fetch(apiPath(`/api/admin/scorecards/${template.id}`), { method: "DELETE", signal: AbortSignal.timeout(8000) });
+      const raw = await response.text();
+      let data: { error?: string; archived?: boolean } = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch { throw new Error("Could not remove the scorecard."); }
       if (!response.ok) throw new Error(data.error || "Could not remove the scorecard.");
-      await load();
-      setSelected(null);
       setMessage(data.archived ? "Archived. It will not apply to new calls." : "Deleted.");
+      void load().catch(() => {});
     } catch (err) {
-      setError((err as Error).message);
+      setTemplates(previous);
+      setError(err instanceof DOMException && err.name === "TimeoutError" ? "Deleting the scorecard timed out. It is still in the list." : (err as Error).message || "Could not remove the scorecard.");
     } finally {
       setBusy(false);
     }
@@ -199,6 +204,16 @@ export default function ScorecardAdmin() {
         <button className={button} onClick={startNew}>New scorecard</button>
       </div>
 
+      {pendingDelete && (
+        <div role="dialog" aria-modal="true" aria-labelledby="scorecard-delete-title" className="rounded-xl border border-black/10 bg-white p-4 shadow-lg">
+          <h2 id="scorecard-delete-title" className="text-sm font-semibold text-[#1d1d1f]">{pendingDelete.applicationCount ? "Archive" : "Delete"} “{pendingDelete.name}”?</h2>
+          <p className="mt-1 text-sm text-[#6e6e73]">{pendingDelete.applicationCount ? "Scores already on calls stay available. New calls will not use this scorecard." : "This removes the scorecard. This cannot be undone."}</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" className={button} disabled={busy} onClick={() => void remove(pendingDelete)}>{busy ? "Deleting…" : pendingDelete.applicationCount ? "Archive" : "Delete"}</button>
+            <button type="button" className={secondary} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">{message}</div>}
 
@@ -281,7 +296,7 @@ export default function ScorecardAdmin() {
 
             <div className="flex flex-wrap gap-2">
               <button className={button} disabled={busy} type="submit">{busy ? "Saving…" : "Save scorecard"}</button>
-              {current && <button type="button" className={secondary} disabled={busy} onClick={() => remove(current)}>{current.applicationCount ? "Archive" : "Delete"}</button>}
+              {current && <button type="button" className={secondary} disabled={busy} onClick={() => setPendingDelete(current)}>{current.applicationCount ? "Archive" : "Delete"}</button>}
             </div>
           </form>
         )}

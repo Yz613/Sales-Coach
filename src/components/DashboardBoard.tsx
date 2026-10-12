@@ -13,7 +13,8 @@ import {
   Clock,
   GraduationCap,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatCount, formatUpdated } from "@/lib/utils";
+import EvaluationStatus from "@/components/EvaluationStatus";
 import type { Call, SuperAdminReport } from "@/types";
 import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartySubtitle } from "@/lib/callLabel";
@@ -177,7 +178,7 @@ export default function DashboardBoard({
                         <span className="h-1.5 w-1.5 rounded-full bg-[#D70015]" /> Regressing
                       </span>
                     )}
-                    <span className="text-xs text-[#6e6e73] font-mono bg-black/[0.04] px-2.5 py-0.5 rounded-full border border-black/[0.06]">{rep.callsCount} calls reviewed</span>
+                    <span className="text-xs text-[#6e6e73] font-mono bg-black/[0.04] px-2.5 py-0.5 rounded-full border border-black/[0.06]">{formatCount(rep.callsCount, "call")} reviewed</span>
                   </div>
                   <p className="text-sm text-[#3a3a3c] leading-relaxed font-normal">"{rep.managerRationale}"</p>
                   <div className="flex items-center gap-2 pt-1 text-xs">
@@ -303,7 +304,7 @@ export default function DashboardBoard({
                           })}
                         </div>
                       ) : (
-                        <span className="text-xs text-[#86868b] font-mono">Analyzing...</span>
+                        <EvaluationStatus callId={call.id} status={call.status} createdAt={call.createdAt} hasLiveJob={call.hasLiveEvaluation} />
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -383,7 +384,7 @@ export default function DashboardBoard({
             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-[#007AFF] border border-blue-500/20">
               Super Admin Intelligence
             </span>
-            <span className="text-xs text-[#6e6e73] font-mono">Updated {formatDate(report.generatedAt)}</span>
+            <span className="text-xs text-[#6e6e73] font-mono">{formatUpdated(report.generatedAt)}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f]">
             Team Pipeline Execution & Rep Progression

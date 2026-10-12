@@ -60,15 +60,17 @@ export default function Navigation() {
       if (event.key === "Escape") setIsMobileMenuOpen(false);
     };
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("a")) return;
       if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
         setIsMobileMenuOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, []);
 
@@ -222,7 +224,7 @@ export default function Navigation() {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-[#F8F8F8] pb-[env(safe-area-inset-bottom)] md:hidden" aria-busy={authLoading}>
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/[0.08] bg-[#F8F8F8] pb-[env(safe-area-inset-bottom)] md:hidden" aria-busy={authLoading}>
         {authLoading ? (
           <div className="flex items-center justify-center py-3 text-[11px] text-[#86868b]">Loading</div>
         ) : (
@@ -267,7 +269,7 @@ export default function Navigation() {
       {isMobileMenuOpen && isAdmin && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/20 md:hidden"
+            className="fixed inset-x-0 top-0 z-40 bg-black/20 md:hidden bottom-[calc(60px+env(safe-area-inset-bottom,0px))]"
             onClick={() => setIsMobileMenuOpen(false)}
             aria-hidden="true"
           />
@@ -285,7 +287,6 @@ export default function Navigation() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[14px] transition-colors ${
                     active ? "bg-[#007AFF] text-white font-semibold" : "text-[#1d1d1f] font-medium hover:bg-black/[0.04]"
                   }`}

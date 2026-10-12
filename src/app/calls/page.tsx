@@ -15,6 +15,7 @@ import { getSalesMethodId, getScoreWeights } from "@/lib/db/service";
 import { methodById } from "@/lib/salesMethods";
 import { hasConnectedIntegrations } from "@/lib/revenue/connections";
 import LiveFeedRefresh from "@/components/revenue/LiveFeedRefresh";
+import EvaluationStatus from "@/components/EvaluationStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,7 @@ async function CallBankPage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs text-[#86868b] font-mono">Analyzing...</span>
+                        <EvaluationStatus callId={call.id} status={call.status} createdAt={call.createdAt} hasLiveJob={call.hasLiveEvaluation} hasApiKey={ai.hasKey} />
                       )}
                     </td>
 

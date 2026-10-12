@@ -1,7 +1,7 @@
 import { db } from "./index";
 import { isSecretSetting, sealSetting, openSetting } from "../setting-secrets";
-import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas } from "./schema";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { reps, calls, evaluations, repSnapshots, appSettings, scripts, repPersonas, processingJobs } from "./schema";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 import type {
   Rep,
   Call,
@@ -30,6 +30,7 @@ import { tallyCookbookFunnel } from "@/lib/cookbookFunnel";
 import { mergeCallStages, normalizeStageName, stagesEqual } from "@/lib/callStages";
 import { hydrateEvaluation, latestEvaluationRow, latestEvaluationsByCall, type EvaluationRow } from "@/lib/evaluations";
 import { isUnusableTranscript } from "@/lib/transcript";
+import { ANALYSIS_STALE_MS, isDialLog, outcomeForStatus, resolveNewCallStatus } from "@/lib/evaluationStatus";
 import { isMeetingBooked, normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
@@ -816,7 +817,39 @@ export async function getAllCalls(): Promise<Call[]> {
   return loadCalls(true);
 }
 
+/** Dial logs become not applicable. Analyzing rows older than 30 minutes with no live job fail. Returns calls that are still analyzing. */
+export async function settleCallEvaluations(): Promise<Set<string>> {
+  const cutoff = new Date(Date.now() - ANALYSIS_STALE_MS).toISOString();
+  const live = await db.select({ callId: processingJobs.callId }).from(processingJobs).where(and(
+    forTenant(processingJobs.orgId),
+    eq(processingJobs.kind, "evaluate"),
+    inArray(processingJobs.status, ["queued", "running"]),
+  )).all();
+  const liveIds = new Set(live.map((row: { callId: string | null }) => row.callId).filter((id: string | null): id is string => Boolean(id)));
+  const stillAnalyzing = new Set<string>();
+  const analyzing = await db.select({
+    id: calls.id,
+    audioUrl: calls.audioUrl,
+    transcriptText: calls.transcriptText,
+    coreOutcome: calls.coreOutcome,
+    createdAt: calls.createdAt,
+  }).from(calls).where(and(forTenant(calls.orgId), eq(calls.status, "analyzing"))).all();
+  for (const row of analyzing as { id: string; audioUrl: string | null; transcriptText: string; coreOutcome: string; createdAt: string }[]) {
+    const dial = isDialLog(row);
+    const stale = row.createdAt < cutoff && !liveIds.has(row.id);
+    if (!dial && !stale) {
+      stillAnalyzing.add(row.id);
+      continue;
+    }
+    const status = dial ? "not_applicable" : "failed";
+    await db.update(calls).set({ status, coreOutcome: outcomeForStatus(status, row.coreOutcome) })
+      .where(and(eq(calls.id, row.id), forTenant(calls.orgId), eq(calls.status, "analyzing"))).run();
+  }
+  return stillAnalyzing;
+}
+
 async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
+  const stillAnalyzing = await settleCallEvaluations();
   const [callRows, repRows, evalRows] = await Promise.all([
     includeTranscript
       ? db.select().from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all()
@@ -904,6 +937,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
       audioUrl: c.audioUrl || undefined,
       status: c.status as any,
       createdAt: c.createdAt,
+      hasLiveEvaluation: stillAnalyzing.has(c.id),
       evaluation: ev
         ? hydrateEvaluation(ev, {
             repName,
@@ -920,6 +954,7 @@ async function loadCalls(includeTranscript: boolean): Promise<Call[]> {
 }
 
 export async function getCallById(id: string): Promise<Call | null> {
+  const stillAnalyzing = await settleCallEvaluations();
   const c = await db.select().from(calls).where(and(eq(calls.id, id), forTenant(calls.orgId))).get();
   if (!c) return null;
 
@@ -953,6 +988,7 @@ export async function getCallById(id: string): Promise<Call | null> {
     audioUrl: c.audioUrl || undefined,
     status: c.status as any,
     createdAt: c.createdAt,
+    hasLiveEvaluation: stillAnalyzing.has(c.id),
     evaluation,
   };
 }
@@ -1166,8 +1202,11 @@ export async function insertCall(values: {
   status: string;
   createdAt: string;
 }): Promise<void> {
+  const status = resolveNewCallStatus(values);
   await db.insert(calls).values({
     ...values,
+    status,
+    coreOutcome: outcomeForStatus(status, values.coreOutcome),
     orgId: tenantId(),
   }).run();
   const { autoApplyScorecardsForCall } = await import("../scorecards");
@@ -1176,9 +1215,9 @@ export async function insertCall(values: {
 
 export async function updateCallStatus(
   id: string,
-  status: "completed" | "failed" | "analyzing",
+  status: "completed" | "failed" | "analyzing" | "not_applicable",
   coreOutcome?: string,
-  expectedStatus?: "completed" | "failed" | "analyzing"
+  expectedStatus?: "completed" | "failed" | "analyzing" | "not_applicable"
 ): Promise<void> {
   const patch: Record<string, any> = { status };
   if (coreOutcome !== undefined) patch.coreOutcome = coreOutcome;

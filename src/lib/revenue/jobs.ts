@@ -35,6 +35,7 @@ import { relinkConversations } from "./crm";
 import { revokeProviderGrant } from "../integrations/revocation";
 import { decryptCredentials } from "./security";
 import { stableId, RevenueError } from "./security";
+import { isDialLog } from "../evaluationStatus";
 import { parseJson, type ImportedMeeting, type SyncCursor, type CalendarProvider, type MailboxProvider } from "./types";
 
 type JobKind = "revoke-integration" | "sync" | "import" | "transcript" | "fetch-call" | "crm-event" | "evaluate" | "calendar-event" | "notify-slack" | "export-task" | "export-call" | "scan-alerts" | "write-crm-properties";
@@ -97,6 +98,10 @@ async function executeJob(job: any) {
   if (job.kind === "evaluate") {
     const call = await getCallById(job.callId);
     if (!call) return { skipped: "Call was deleted." };
+    if (call.status === "not_applicable" || isDialLog(call)) {
+      await db.update(calls).set({ status: "not_applicable" }).where(and(eq(calls.id, call.id), eq(calls.orgId, job.orgId))).run();
+      return { skipped: "not_applicable" };
+    }
     // A lease retry after successful evaluation must not bill or evaluate a second time.
     if (call.evaluation && call.status === "completed") return { alreadyEvaluated: true };
     const auth = { isClerkConfigured: job.orgId !== "local", orgId: job.orgId };

@@ -130,8 +130,10 @@ export interface Call {
   durationSeconds: number;
   transcriptText: string;
   audioUrl?: string;
-  status: 'completed' | 'analyzing' | 'failed';
+  status: 'completed' | 'analyzing' | 'failed' | 'not_applicable';
   createdAt: string;
+  /** True while an evaluate job is queued or running for this call. */
+  hasLiveEvaluation?: boolean;
   evaluation?: CallEvaluation;
 }
 

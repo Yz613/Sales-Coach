@@ -99,7 +99,11 @@ function joinDimensions(dims: string[]): string {
 // qualification, then the manager's top prescribed fix.
 export function getPrimaryIssue(call: Call): PrimaryIssue {
   const ev = call.evaluation;
-  if (!ev) return { text: "Awaiting evaluation", severity: "warn" };
+  if (!ev) {
+    if (call.status === "failed") return { text: "Evaluation failed", severity: "critical" };
+    if (call.status === "analyzing") return { text: "Awaiting evaluation", severity: "warn" };
+    return { text: "—", severity: "good" };
+  }
 
   const dims: Array<[string, SandlerStatus]> = [
     ["Pain", ev.sandlerBreakdown.pain.status],

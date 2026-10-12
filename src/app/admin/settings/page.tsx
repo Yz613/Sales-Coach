@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { apiPath } from "@/lib/utils";
+import { apiPath, formatCount } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import {
   AI_PROVIDERS,
@@ -494,7 +494,7 @@ export default function AdminSettingsPage() {
             <p className="text-xs text-[#6e6e73]">
               {billingUsage.unlimited
                 ? "This workspace is on the open-source / local plan — no hosted eval cap."
-                : `This cycle: ${billingUsage.creditsUsed} credit${billingUsage.creditsUsed === 1 ? "" : "s"} used${
+                : `This cycle: ${formatCount(billingUsage.creditsUsed, "credit")} used${
                     billingUsage.monthlyLimit != null ? ` of ${billingUsage.monthlyLimit}` : ""
                   }${billingUsage.overageCredits ? ` · ${billingUsage.overageCredits} overage ($${billingUsage.overageAmountUsd.toFixed(2)})` : ""}.`}
             </p>
