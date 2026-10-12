@@ -111,7 +111,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
         methodology,
         script: activeScript,
         coachContext,
-        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model } : undefined,
+        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model, baseUrl: ai.baseUrl } : undefined,
       });
       clefMetadata = (evaluationResult as any).clefMetadata;
     } catch (clefErr) {
@@ -148,6 +148,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
           ai.apiKey,
           ai.providerId,
           ai.model,
+          ai.baseUrl,
           coachContext,
           durationSeconds,
           methodology
@@ -197,7 +198,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
         methodology,
         script: activeScript,
         coachContext,
-        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model } : undefined,
+        aiSettings: ai.apiKey ? { apiKey: ai.apiKey, providerId: ai.providerId, model: ai.model, baseUrl: ai.baseUrl } : undefined,
       });
       const detResult = generateRuleBasedEvaluation(
         input,
@@ -239,6 +240,7 @@ export async function evaluateCall(input: EvaluationInput): Promise<CallEvaluati
           ai.apiKey,
           ai.providerId,
           ai.model,
+          ai.baseUrl,
           coachContext,
           durationSeconds,
           methodology
@@ -366,6 +368,7 @@ async function callLlmEvaluation(
   apiKey: string,
   providerId: Parameters<typeof completeJson>[0]["providerId"],
   model: string,
+  baseUrl: string | null,
   coachContext: string,
   durationSeconds: number,
   methodology: SalesMethodology
@@ -521,6 +524,7 @@ ${CORE_OUTCOME_RULES}
     providerId,
     apiKey,
     model,
+    baseUrl,
     prompt,
     responseSchema: providerId === "gemini" ? EVALUATION_RESPONSE_SCHEMA : undefined,
   });

@@ -2,13 +2,17 @@ import assert from "node:assert/strict";
 import { buildGoalReps, createGoalTeam, goalTeamMetrics, readGoalTeams, validateGoalTeams } from "./goalTeams";
 
 const reps = buildGoalReps([{ id: "a", name: "Rep A" }, { id: "b", name: "Rep B" }, { id: "new", name: "New rep" }], [
-  ...Array.from({ length: 20 }, (_, i) => ({ repId: "a", coreOutcome: i === 0 ? "Meeting booked" : "Dropped" })),
-  ...Array.from({ length: 20 }, (_, i) => ({ repId: "b", coreOutcome: i < 2 ? "Meeting booked" : "Dropped" })),
+  ...Array.from({ length: 20 }, (_, i) => ({ repId: "a", coreOutcome: i === 0 ? "Closed won" : "Dropped", hasConversation: true })),
+  ...Array.from({ length: 20 }, (_, i) => ({ repId: "b", coreOutcome: i < 2 ? "Closed won" : "Dropped", hasConversation: true })),
 ]);
 const core = { ...createGoalTeam("core", "Core team", ["a", "b"]), revenue: 20_000, averageRevenue: 1_000, period: "week" as const };
 const metrics = goalTeamMetrics(core, reps);
 assert.equal(metrics.loggedCalls, 40);
+assert.equal(metrics.connects, 40);
+assert.equal(metrics.closes, 3);
 assert.equal(metrics.closeRate, 7.5);
+assert.equal(metrics.connectRate, 100);
+assert.equal(metrics.closePerConnect, 7.5);
 assert.equal(metrics.repCount, 2);
 assert.equal(metrics.repPlans[0].closeRate, 5);
 assert.equal(metrics.repPlans[1].closeRate, 10);
@@ -35,7 +39,7 @@ assert.deepEqual(validateGoalTeams([aOnly, other], reps.map((rep) => rep.id)), [
 const newTeam = { ...core, repIds: ["new"] };
 assert.equal(goalTeamMetrics(newTeam, reps).plan, null);
 assert.equal(goalTeamMetrics(newTeam, reps).repPlans[0].plan, null);
-const zeroRate = [{ id: "a", name: "Rep A", loggedCalls: 20, bookedCalls: 0 }];
+const zeroRate = [{ id: "a", name: "Rep A", loggedCalls: 20, bookedCalls: 0, connects: 0, closes: 0 }];
 assert.equal(goalTeamMetrics(aOnly, zeroRate).plan, null);
 assert.equal(goalTeamMetrics({ ...aOnly, repIds: [] }, reps).repCount, 0);
 assert.equal(goalTeamMetrics({ ...aOnly, repIds: [] }, reps).plan, null);
@@ -60,4 +64,21 @@ assert.deepEqual(readGoalTeams(JSON.stringify([core, { ...other, repIds: [] }]),
 assert.deepEqual(readGoalTeams(JSON.stringify([core]), [{ id: "a" }])[0].repIds, ["a"], "deleted reps are pruned");
 assert.deepEqual(readGoalTeams(null, reps)[0].repIds, validIds);
 assert.equal(readGoalTeams("bad json", reps)[0].name, "Core team");
+
+const missed = buildGoalReps([{ id: "a", name: "Rep A" }], [
+  ...Array.from({ length: 80 }, () => ({ repId: "a", dialOutcome: "no_answer", hasConversation: false })),
+  ...Array.from({ length: 15 }, () => ({ repId: "a", dialOutcome: "connected_interested" })),
+  ...Array.from({ length: 5 }, () => ({ repId: "a", dialOutcome: "closed_won" })),
+]);
+const onlyConnects = buildGoalReps([{ id: "a", name: "Rep A" }], [
+  ...Array.from({ length: 15 }, () => ({ repId: "a", dialOutcome: "connected_interested" })),
+  ...Array.from({ length: 5 }, () => ({ repId: "a", dialOutcome: "closed_won" })),
+]);
+assert.equal(missed[0].loggedCalls, 100);
+assert.equal(missed[0].connects, 20);
+assert.equal(missed[0].closes, 5);
+assert.equal(missed[0].loggedCalls ? (missed[0].closes / missed[0].loggedCalls) * 100 : 0, 5);
+assert.equal(onlyConnects[0].loggedCalls, 20);
+assert.equal((onlyConnects[0].closes / onlyConnects[0].loggedCalls) * 100, 25);
+assert.notEqual(missed[0].closes / missed[0].loggedCalls, onlyConnects[0].closes / onlyConnects[0].loggedCalls);
 console.log("goal team checks passed");

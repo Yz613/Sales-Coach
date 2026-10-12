@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getAllReps } from "@/lib/db/service";
 import { CheckCircle2, Clock, XCircle, ArrowUpRight, TrendingUp, ShieldCheck } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
+import { FunnelChart, RateTrio } from "@/components/charts/MetricCharts";
+import { funnelStepsFromCounts } from "@/lib/dialFunnel";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +93,20 @@ async function RepsPage() {
                   <span className="text-base font-bold text-[#C45500]">{rep.avgScriptScore}</span>
                 </div>
               </div>
+
+              {rep.funnel && (
+                <div className="space-y-3">
+                  <RateTrio
+                    connectRate={rep.funnel.connectRate}
+                    closeRate={rep.funnel.closeRate}
+                    closePerConnect={rep.funnel.closePerConnect}
+                    dials={rep.funnel.dials}
+                    connects={rep.funnel.connects}
+                    closes={rep.funnel.closes}
+                  />
+                  <FunnelChart steps={funnelStepsFromCounts(rep.funnel)} />
+                </div>
+              )}
 
               <div className="pt-2 flex justify-end">
                 <Link

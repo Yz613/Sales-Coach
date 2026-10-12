@@ -1,6 +1,6 @@
 import { withWorkspaceApi } from "@/lib/workspace";
 import { NextResponse } from "next/server";
-import { getAllReps, getCallSummaries, getSetting, setSetting } from "@/lib/db/service";
+import { getAllReps, listDialFacts, getSetting, setSetting } from "@/lib/db/service";
 import { GOAL_TEAMS_SETTING_KEY, buildGoalReps, readGoalTeams, validateGoalTeams } from "@/lib/goalTeams";
 import { requireWorkspace, workspaceErrorResponse } from "@/lib/workspace";
 
@@ -12,8 +12,8 @@ async function requireGoalAdmin() {
 async function GETHandler() {
   try {
     await requireGoalAdmin();
-    const [reps, calls, saved] = await Promise.all([getAllReps(), getCallSummaries(), getSetting(GOAL_TEAMS_SETTING_KEY)]);
-    return NextResponse.json({ teams: readGoalTeams(saved, reps), reps: buildGoalReps(reps, calls) });
+    const [reps, dials, saved] = await Promise.all([getAllReps(), listDialFacts(), getSetting(GOAL_TEAMS_SETTING_KEY)]);
+    return NextResponse.json({ teams: readGoalTeams(saved, reps), reps: buildGoalReps(reps, dials) });
   } catch (err) {
     return workspaceErrorResponse(err);
   }

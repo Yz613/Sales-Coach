@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, TrendingUp, AlertTriangle, ShieldCheck, Flame, Users, ArrowUpRight, CheckCircle2, XCircle, Clock, Loader2, MonitorPlay } from "lucide-react";
+import { TrendingUp, ShieldCheck, Flame, Users, ArrowUpRight, Loader2 } from "lucide-react";
 import { apiPath } from "@/lib/utils";
 import { useAppAuth } from "@/lib/auth-context";
 import type { ExecutiveAnalytics } from "@/types";
+import { formatRate } from "@/lib/dialFunnel";
+import { BarChart, FunnelChart, RateTrio } from "@/components/charts/MetricCharts";
 
 export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytics | null }) {
   const router = useRouter();
@@ -58,72 +60,41 @@ export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytic
             Sales Performance & Pipeline Analytics
           </h1>
           <p className="text-xs text-[#6e6e73] mt-1.5">
-            Deep-dive metrics across rep execution, the cookbook funnel, and {data.methodologyName} qualification.
+            Connect and close rates count every dial, including misses. Qualification still uses {data.methodologyName}.
           </p>
-        </div>
-
-        <div className="flex items-center gap-3 font-mono">
-          <div className="rounded-2xl glass-card px-4 py-2.5">
-            <span className="text-[#6e6e73] uppercase block text-[10px] tracking-wider font-sans font-medium">Team Win Rate</span>
-            <span className="text-xl font-bold text-[#248A3D]">{data.winRate}%</span>
-          </div>
-          <div className="rounded-2xl glass-card px-4 py-2.5">
-            <span className="text-[#6e6e73] uppercase block text-[10px] tracking-wider font-sans font-medium">Total Calls Analyzed</span>
-            <span className="text-xl font-bold text-[#1d1d1f]">{data.totalCalls}</span>
-          </div>
         </div>
       </div>
 
-      {/* Outcome Distribution Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="rounded-2xl glass-card p-5 space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[#248A3D] flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4" /> Meeting Booked
-          </div>
-          <div className="text-2xl font-bold text-[#1d1d1f]">{outcomes.booked}</div>
-          <p className="text-xs text-[#6e6e73]">
-            {data.totalCalls ? Math.round((outcomes.booked / data.totalCalls) * 100) : 0}% calendar lock
-          </p>
-        </div>
+      <RateTrio
+        connectRate={data.connectRate}
+        closeRate={data.closeRate}
+        closePerConnect={data.closePerConnect}
+        dials={data.totalCalls}
+        connects={data.dialFunnel.find((step) => step.key === "connects")?.count || 0}
+        closes={data.dialFunnel.find((step) => step.key === "closes")?.count || 0}
+      />
 
-        <div className="rounded-2xl glass-card p-5 space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[#007AFF] flex items-center gap-1.5">
-            <MonitorPlay className="h-4 w-4" /> Demo Agreed
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl glass-card p-6 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 text-[#007AFF] text-xs font-medium uppercase tracking-wider">
+              <TrendingUp className="h-4 w-4" /> Full funnel
+            </div>
+            <h2 className="text-base font-semibold text-[#1d1d1f] mt-1">Dials to closes</h2>
+            <p className="text-xs text-[#6e6e73] mt-0.5">
+              Dials, connects, conversations, meetings, then closes. A later stage is a subset of the one before it. Closed lost is a meeting, not a close.
+            </p>
           </div>
-          <div className="text-2xl font-bold text-[#1d1d1f]">{outcomes.demoAgreed}</div>
-          <p className="text-xs text-[#6e6e73]">
-            {data.totalCalls ? Math.round((outcomes.demoAgreed / data.totalCalls) * 100) : 0}% yes, no calendar lock
-          </p>
+          <FunnelChart steps={data.dialFunnel} />
         </div>
-
-        <div className="rounded-2xl glass-card p-5 space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[#FF3B30] flex items-center gap-1.5">
-            <XCircle className="h-4 w-4" /> Calls Dropped / Folded
+        <div className="rounded-2xl glass-card p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-[#1d1d1f]">Dial outcomes</h2>
+            <p className="text-xs text-[#6e6e73] mt-0.5">
+              No answer, voicemail, and not-interested calls stay in the totals. Coaching labels still recorded {outcomes.booked} meetings, {outcomes.demoAgreed} demos, {outcomes.dropped} drops, {outcomes.unqualified} unqualified, and {outcomes.rescheduled} reschedules.
+            </p>
           </div>
-          <div className="text-2xl font-bold text-[#1d1d1f]">{outcomes.dropped}</div>
-          <p className="text-xs text-[#6e6e73]">
-            {data.totalCalls ? Math.round((outcomes.dropped / data.totalCalls) * 100) : 0}% surrendered early
-          </p>
-        </div>
-
-        <div className="rounded-2xl glass-card p-5 space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[#6e6e73] flex items-center gap-1.5">
-            <Clock className="h-4 w-4" /> Unqualified
-          </div>
-          <div className="text-2xl font-bold text-[#1d1d1f]">{outcomes.unqualified}</div>
-          <p className="text-xs text-[#6e6e73]">
-            {data.totalCalls ? Math.round((outcomes.unqualified / data.totalCalls) * 100) : 0}% no budget or authority
-          </p>
-        </div>
-
-        <div className="rounded-2xl glass-card p-5 space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[#007AFF] flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4" /> Rescheduled / Follow-up
-          </div>
-          <div className="text-2xl font-bold text-[#1d1d1f]">{outcomes.rescheduled}</div>
-          <p className="text-xs text-[#6e6e73]">
-            {data.totalCalls ? Math.round((outcomes.rescheduled / data.totalCalls) * 100) : 0}% locked for sync
-          </p>
+          <BarChart bars={data.dialOutcomeCounts.map((item) => ({ label: item.label, value: item.count }))} />
         </div>
       </div>
 
@@ -135,22 +106,10 @@ export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytic
             </div>
             <h2 className="text-base font-semibold text-[#1d1d1f] mt-1">Dials to proposals</h2>
             <p className="text-xs text-[#6e6e73] mt-0.5">
-              Leading indicators from calls logged here, so scorecards have volume context. Each stage is a subset of the one before it.
+              Leading indicators from coached calls. This is separate from the close rate.
             </p>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {data.cookbookFunnel.map((step, index) => (
-              <div key={step.key} className="rounded-2xl glass-inset border border-black/[0.08] p-4 space-y-1.5">
-                <div className="text-[11px] font-medium uppercase tracking-wider text-[#6e6e73]">
-                  {index + 1}. {step.label}
-                </div>
-                <div className="text-2xl font-bold text-[#1d1d1f]">{step.count}</div>
-                <p className="text-xs text-[#6e6e73]">
-                  {index === 0 ? "Logged calls" : `${step.rateFromPrevious}% of previous · ${step.rateFromStart}% of dials`}
-                </p>
-              </div>
-            ))}
-          </div>
+          <FunnelChart steps={data.cookbookFunnel} />
         </div>
       )}
 
@@ -162,7 +121,7 @@ export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytic
               <Users className="h-4 w-4 text-[#007AFF]" /> Rep Head-to-Head Leaderboard
             </h2>
             <p className="text-xs text-[#6e6e73] mt-0.5">
-              Ranked comparison of win rates, script adherence discipline, budget qualification, and early fold counts.
+              Ranked by close rate (closed won / every dial), then connect rate. Script adherence and budget qualification still use coached calls.
             </p>
           </div>
         </div>
@@ -174,7 +133,9 @@ export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytic
                 <th className="px-6 py-3.5">Rep & Role</th>
                 <th className="px-6 py-3.5">Trajectory</th>
                 <th className="px-6 py-3.5">Calls</th>
-                <th className="px-6 py-3.5">Booked %</th>
+                <th className="px-6 py-3.5">Connect rate</th>
+                <th className="px-6 py-3.5">Close rate</th>
+                <th className="px-6 py-3.5">Close / connect</th>
                 <th className="px-6 py-3.5">Script Adherence</th>
                 <th className="px-6 py-3.5">Budget Pass %</th>
                 <th className="px-6 py-3.5">Early Folds</th>
@@ -221,11 +182,13 @@ export default function AnalyticsPage({ initial }: { initial?: ExecutiveAnalytic
 
                   <td className="px-6 py-4 text-[#1d1d1f] font-bold">{rep.totalCalls}</td>
 
+                  <td className="px-6 py-4">{formatRate(rep.connectRate)}</td>
                   <td className="px-6 py-4">
-                    <span className={`font-bold ${rep.bookedRate >= 50 ? "text-[#248A3D]" : "text-[#3a3a3c]"}`}>
-                      {rep.bookedRate}% ({rep.meetingsBooked})
+                    <span className={`font-bold ${rep.closeRate > 0 ? "text-[#248A3D]" : "text-[#3a3a3c]"}`}>
+                      {formatRate(rep.closeRate)}
                     </span>
                   </td>
+                  <td className="px-6 py-4">{formatRate(rep.closePerConnect)}</td>
 
                   <td className="px-6 py-4">
                     <span className={`font-bold ${

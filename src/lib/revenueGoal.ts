@@ -29,7 +29,7 @@ export interface RevenueGoalInput {
   revenue: number;
   /** Average revenue per new customer. */
   averageRevenue: number;
-  /** Logged meeting-booking rate, as a percent (3 = 3%). */
+  /** Closed-won / every dial, as a percent (3 = 3%). */
   closeRatePercent: number;
   sellingDaysPerWeek: number;
   repCount: number;

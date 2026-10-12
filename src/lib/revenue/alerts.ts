@@ -393,7 +393,7 @@ export async function scanAlertJob(job: { orgId: string; callId?: string; payloa
       const auth = { isClerkConfigured: job.orgId !== "local", orgId: job.orgId };
       await assertEvaluationAllowed(auth, 1);
       const result = await completeJson({
-        providerId: settings.providerId, apiKey, model: settings.model,
+        providerId: settings.providerId, apiKey, model: settings.model, baseUrl: settings.baseUrl,
         prompt: conceptPrompt(trackers, segments),
         responseSchema: CONCEPT_SCHEMA,
       });

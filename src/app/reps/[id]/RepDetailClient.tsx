@@ -14,6 +14,8 @@ import { outcomeBadgeClass } from "@/lib/coreOutcome";
 import { callPartyLabel } from "@/lib/callLabel";
 import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { Rep, Call, RepPersona } from "@/types";
+import { FunnelChart, RateTrio } from "@/components/charts/MetricCharts";
+import { funnelStepsFromCounts, isQuickDialLog } from "@/lib/dialFunnel";
 
 export default function RepDetailPage({
   params,
@@ -216,6 +218,19 @@ export default function RepDetailPage({
             <span className="text-lg font-bold text-[#C45500]">{rep.decisionPassRate}%</span>
           </div>
         </div>
+        {rep.funnel && (
+          <div className="mt-5 space-y-3">
+            <RateTrio
+              connectRate={rep.funnel.connectRate}
+              closeRate={rep.funnel.closeRate}
+              closePerConnect={rep.funnel.closePerConnect}
+              dials={rep.funnel.dials}
+              connects={rep.funnel.connects}
+              closes={rep.funnel.closes}
+            />
+            <FunnelChart steps={funnelStepsFromCounts(rep.funnel)} />
+          </div>
+        )}
       </div>
 
       {talkTrack ? <ManagerTalkTrackCard repName={rep.name} talkTrack={talkTrack} /> : null}
@@ -272,12 +287,14 @@ export default function RepDetailPage({
                       </span>
                     )}
 
+                    {isQuickDialLog(c) ? null : (
                     <ReanalyzeButton
                       callId={c.id}
                       variant="compact"
                       usedLlm={usedLlmReview(ev)}
                       onComplete={fetchRepData}
                     />
+                    )}
                     <Link
                       href={`/calls/${c.id}`}
                       className="rounded-xl bg-blue-600/10 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-[#007AFF] hover:bg-[#0071E3] hover:text-white transition inline-flex items-center gap-1"

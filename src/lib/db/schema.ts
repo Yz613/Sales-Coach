@@ -18,6 +18,7 @@ export const calls = sqliteTable("calls", {
   prospectName: text("prospect_name").notNull(),
   callStage: text("call_stage").notNull(), // Call Stage Target (built-in or custom)
   coreOutcome: text("core_outcome").notNull(),
+  dialOutcome: text("dial_outcome"),
   durationSeconds: integer("duration_seconds").notNull(),
   transcriptText: text("transcript_text").notNull(),
   audioUrl: text("audio_url"),

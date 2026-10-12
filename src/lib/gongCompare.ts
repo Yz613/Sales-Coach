@@ -6,19 +6,18 @@ import {
 } from "./billing";
 
 /**
- * Gong list-price defaults for the marketing calculator.
+ * Editable comparison defaults. Gong does not publish list prices.
  *
- * Third-party summaries of 2025–2026 Gong quotes (not a Gong price sheet):
- * - Core / Foundations licence often about $1,300–$1,600 per user per year
- *   (~$108–$133 per user per month). Default seat: $1,500/user/year.
- * - A separate annual platform fee is often cited from $5,000 to $50,000.
- *   Default platform fee: $10,000/year.
- * - Add-ons often cited separately: Forecast about $700/user/year, Engage
- *   about $800/user/year. Both default off.
+ * Seat default ($1,500/user/year) sits inside the March 2026 buyer range of
+ * $1,200–$2,400/user/year:
+ * https://www.vendr.com/marketplace/gong
+ * Gong's pricing page does not list those amounts:
+ * https://www.gong.io/pricing
  *
- * Published summaries include revenue.io, tropicapp, oliv.ai, saasbluebook,
- * and roonly. Gong sells on a custom quote, so seats, $/seat/year, and the
- * platform fee stay editable.
+ * Platform fee default ($10,000/year) and optional Forecast ($700/user/year)
+ * and Engage ($800/user/year) add-ons are round starting points, not a price
+ * sheet. Both add-ons default off. Seats, price per seat, and the platform
+ * fee stay editable because every quote is custom.
  *
  * Self-host $/eval tiers are round estimates for one scored call (review-sized
  * model usage plus a modest transcription allowance): Fast $0.15, Balanced
@@ -32,7 +31,7 @@ export const GONG_FORECAST_USD_PER_USER_YEAR = 700;
 export const GONG_ENGAGE_USD_PER_USER_YEAR = 800;
 
 export const GONG_COMPARE_DISCLAIMER =
-  "Estimate based on public list pricing. Gong quotes custom. Change seats, price per seat, and the platform fee to match a quote you have.";
+  "Estimate based on third-party buyer data; Gong does not publish list prices. Gong quotes custom. Change seats, price per seat, and the platform fee to match a quote you have.";
 
 export const CALL_CREDIT_RULE_SHORT =
   "First 60 minutes counts as 1 evaluation credit. Each extra 30 minutes adds another.";

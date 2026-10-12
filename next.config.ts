@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: path.resolve(__dirname),
   // Next middleware matchers are scoped to `basePath`, so apex `/`, /pricing,
-  // /privacy, /calls, and /favicon.ico never hit `src/middleware.ts`. Config
+  // /privacy, /demo, /calls, and /favicon.ico never hit `src/middleware.ts`. Config
   // redirects with `basePath: false` run at the Next routing layer instead.
   // Next cannot internally rewrite `/` onto `/app/*` (invalid-external-rewrite),
   // so local `next dev` / `next start` 307 to `/app/marketing`. The Cloudflare
@@ -90,6 +90,24 @@ const nextConfig: NextConfig = {
       {
         source: "/privacy/",
         destination: `${APP_BASE_PATH}/privacy`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/demo",
+        destination: `${APP_BASE_PATH}/demo`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/demo/",
+        destination: `${APP_BASE_PATH}/demo`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/demo/:path*",
+        destination: `${APP_BASE_PATH}/demo/:path*`,
         permanent: false,
         basePath: false,
       },

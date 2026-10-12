@@ -174,6 +174,15 @@ describe("route classifiers", () => {
     assert.equal(isMarketingAppPath("/privacy"), true);
     assert.equal(isMarketingAppPath("/app/privacy"), true);
     assert.equal(isPublicMarketingPath("/privacy/notes"), false);
+    assert.equal(isPublicMarketingPath("/demo"), true);
+    assert.equal(isPublicMarketingPath("/demo/"), true);
+    assert.equal(isPublicMarketingPath("/app/demo"), true);
+    assert.equal(isPublicMarketingPath("/app/demo/harborline-cold"), true);
+    assert.equal(isPublicMarketingPath("/app/demo/harborline-cold/"), true);
+    assert.equal(isMarketingAppPath("/demo"), true);
+    assert.equal(isMarketingAppPath("/app/demo/harborline-cold"), true);
+    assert.equal(isPublicMarketingPath("/demonstration"), false);
+    assert.equal(isPublicMarketingPath("/demos"), false);
     assert.equal(isPublicMarketingPath("/robots.txt"), true);
     assert.equal(isPublicMarketingPath("/app/robots.txt"), true);
     assert.equal(isPublicMarketingPath("/sitemap.xml"), true);
@@ -255,6 +264,16 @@ describe("route classifiers", () => {
     );
     assert.equal(getApexPrivacyRewrite("https://refreshqueue.com/"), null);
     assert.equal(getApexContentRewrite("https://refreshqueue.com/privacy/extra"), null);
+    assert.equal(
+      getApexContentRewrite("https://refreshqueue.com/demo?ref=readme"),
+      "https://refreshqueue.com/app/demo?ref=readme"
+    );
+    assert.equal(
+      getApexContentRewrite("https://refreshqueue.com/demo/harborline-cold"),
+      "https://refreshqueue.com/app/demo/harborline-cold"
+    );
+    assert.equal(getApexContentRewrite("https://refreshqueue.com/demo/"), "https://refreshqueue.com/app/demo");
+    assert.equal(getApexContentRewrite("https://refreshqueue.com/app/demo"), null);
   });
 
   it("keeps query strings on the home page and does not redirect twice", () => {
@@ -274,6 +293,9 @@ describe("route classifiers", () => {
       "https://refreshqueue.com/integrations/",
       "https://refreshqueue.com/privacy",
       "https://refreshqueue.com/privacy/",
+      "https://refreshqueue.com/demo",
+      "https://refreshqueue.com/demo/",
+      "https://refreshqueue.com/demo/harborline-cold",
       "https://refreshqueue.com/robots.txt",
       "https://refreshqueue.com/sitemap.xml",
       "https://refreshqueue.com/favicon.ico",
@@ -304,6 +326,8 @@ describe("route classifiers", () => {
     assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/?utm_source=x"), null);
     assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/app/calls"), null);
     assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/privacy"), null);
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/demo"), null);
+    assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/demo/harborline-cold"), null);
     assert.equal(apexWorkerAction("https://refreshqueue.com/integrations/fathom.png").type, "not-found");
     assert.equal(apexWorkerAction("https://refreshqueue.com/app/icon.svg").type, "passthrough");
   });
@@ -319,8 +343,10 @@ describe("route classifiers", () => {
     assert.match(nextConfig, /source: "\/pricing"/);
     assert.match(nextConfig, /destination: "\/#pricing"/);
     assert.match(nextConfig, /source: "\/privacy"/);
+    assert.match(nextConfig, /source: "\/demo"/);
+    assert.match(nextConfig, /source: "\/demo\/:path\*"/);
     assert.doesNotMatch(nextConfig, /destination: "\/pricing"/);
-    assert.deepEqual([...PUBLIC_SITEMAP_PATHS], ["/", "/integrations", "/privacy"]);
+    assert.deepEqual([...PUBLIC_SITEMAP_PATHS], ["/", "/integrations", "/demo", "/privacy"]);
     const sitemap = readFileSync(new URL("../app/sitemap.ts", import.meta.url), "utf8");
     const robots = readFileSync(new URL("../app/robots.ts", import.meta.url), "utf8");
     assert.match(sitemap, /PUBLIC_SITEMAP_PATHS/);
