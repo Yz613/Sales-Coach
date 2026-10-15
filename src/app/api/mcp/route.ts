@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken } from "@/lib/apiTokens";
-import { MCP_TOOL_DEFINITIONS, executeTool } from "@/lib/mcp/tools";
-import { runWithAuth, publicGuestAuth } from "@/lib/auth";
+import { MCP_TOOL_DEFINITIONS, executeTool, resolveBotQuery } from "@/lib/mcp/tools";
+import { runWithAuth, publicGuestAuth, type AuthUser } from "@/lib/auth";
 import { runWithTenant, resolveTenantId, LOCAL_TENANT_ID } from "@/lib/tenant";
 import { localDevelopmentAllowed } from "@/lib/security-policy";
+import { requireWorkspace } from "@/lib/workspace";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -18,7 +19,17 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const authHeader = request.headers.get("authorization") || url.searchParams.get("key");
-  const auth = await authenticateApiToken(authHeader) || (localDevelopmentAllowed() ? publicGuestAuth() : null);
+  let auth: AuthUser | null = await authenticateApiToken(authHeader);
+
+  if (!auth) {
+    try {
+      auth = await requireWorkspace();
+    } catch {
+      if (localDevelopmentAllowed()) {
+        auth = publicGuestAuth();
+      }
+    }
+  }
 
   return NextResponse.json(
     {
@@ -32,8 +43,8 @@ export async function GET(request: Request) {
         description: t.description,
       })),
       usage: {
-        streamableHttp: "POST /api/mcp with Authorization: Bearer <TOKEN>",
-        grokCli: "grok mcp add --transport http sales-coach <HOST>/api/mcp?key=<TOKEN>",
+        streamableHttp: "POST /app/api/mcp with Authorization: Bearer <TOKEN>",
+        grokCli: "grok mcp add --transport http sales-coach <HOST>/app/api/mcp?key=<TOKEN>",
       },
     },
     { headers: CORS_HEADERS }
@@ -43,7 +54,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const url = new URL(request.url);
   const token = request.headers.get("authorization") || url.searchParams.get("key");
-  const auth = await authenticateApiToken(token) || (localDevelopmentAllowed() ? publicGuestAuth() : null);
+  let auth: AuthUser | null = await authenticateApiToken(token);
+
+  if (!auth) {
+    try {
+      auth = await requireWorkspace();
+    } catch {
+      if (localDevelopmentAllowed()) {
+        auth = publicGuestAuth();
+      }
+    }
+  }
 
   let body: any;
   try {
@@ -56,6 +77,48 @@ export async function POST(request: Request) {
   }
 
   const { jsonrpc, id, method, params } = body || {};
+
+  // Support direct query requests alongside MCP JSON-RPC protocol
+  if (body?.query && typeof body.query === "string") {
+    if (!auth) {
+      return NextResponse.json(
+        { error: "Authentication required. Provide a valid Bearer token, key parameter, or sign in to your workspace." },
+        { status: 401, headers: CORS_HEADERS }
+      );
+    }
+
+    try {
+      const result = await runWithAuth(auth, () =>
+        runWithTenant(resolveTenantId(auth), () =>
+          resolveBotQuery(body.query, auth!)
+        )
+      );
+
+      return NextResponse.json(
+        {
+          answer: result.text,
+          data: result.data,
+          jsonrpc: "2.0",
+          id: id ?? 1,
+          result: {
+            content: [
+              {
+                type: "text",
+                text: result.text,
+              },
+            ],
+            data: result.data,
+          },
+        },
+        { headers: CORS_HEADERS }
+      );
+    } catch (err: any) {
+      return NextResponse.json(
+        { error: err.message || "Failed to process query." },
+        { status: 500, headers: CORS_HEADERS }
+      );
+    }
+  }
 
   // MCP JSON-RPC protocol handling
   if (method === "initialize") {

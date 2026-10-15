@@ -61,6 +61,10 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   if (normalized === "/api/jobs/run" && verb === "POST") return true;
   if (normalized === INTEGRATION_REQUEST_API_PATH && verb === "POST") return true;
   if (normalized === VISITOR_COMPANY_API_PATH && (verb === "GET" || verb === "HEAD")) return true;
+  if (normalized === "/api/mcp" && (verb === "GET" || verb === "POST" || verb === "OPTIONS")) return true;
+  if (normalized === "/api/bot/query" && (verb === "POST" || verb === "OPTIONS")) return true;
+  if ((normalized === "/api/v1/chat/completions" || normalized === "/api/chat/completions") && (verb === "POST" || verb === "OPTIONS")) return true;
+  if ((normalized === "/api/v1/models" || normalized === "/api/models") && (verb === "GET" || verb === "OPTIONS")) return true;
   return false;
 }
 

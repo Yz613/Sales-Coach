@@ -129,6 +129,15 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/visitor-company", "HEAD"), true);
     assert.equal(isPublicApiRoute("/app/api/visitor-company", "POST"), false);
     assert.equal(isPublicApiRoute("/app/api/integrations", "POST"), false);
+    assert.equal(isPublicApiRoute("/app/api/mcp", "GET"), true);
+    assert.equal(isPublicApiRoute("/api/mcp", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/mcp", "OPTIONS"), true);
+    assert.equal(isPublicApiRoute("/app/api/bot/query", "POST"), true);
+    assert.equal(isPublicApiRoute("/api/bot/query", "GET"), false);
+    assert.equal(isPublicApiRoute("/app/api/v1/chat/completions", "POST"), true);
+    assert.equal(isPublicApiRoute("/app/api/v1/models", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/tokens", "GET"), false);
+    assert.equal(isPublicApiRoute("/app/api/tokens", "POST"), false);
   });
 
   it("detects API routes after stripping the base path", () => {

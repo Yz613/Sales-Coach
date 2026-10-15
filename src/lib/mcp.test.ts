@@ -323,12 +323,31 @@ test("MCP JSON-RPC endpoint POST /api/mcp handles initialize, tools/list, and to
   // Create a token for this test
   const tokenObj = await createApiToken("MCP Route Test Token", testAuth);
 
-  // Test GET status
+  // Test GET status & usage hints
   const getReq = new Request("http://localhost:3000/api/mcp", { method: "GET" });
   const getRes = await mcpGet(getReq);
   const getData = await getRes.json();
   assert.equal(getData.name, "sales-coach-mcp");
   assert.ok(getData.tools.length >= 5);
+  assert.ok(getData.usage.streamableHttp.includes("/app/api/mcp"));
+  assert.ok(getData.usage.grokCli.includes("/app/api/mcp"));
+
+  // Test POST direct query payload
+  const directQueryReq = new Request("http://localhost:3000/api/mcp", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenObj.token}`,
+    },
+    body: JSON.stringify({
+      query: "How many calls were ranked above a 5?",
+    }),
+  });
+  const directQueryRes = await mcpPost(directQueryReq);
+  const directQueryData = await directQueryRes.json();
+  assert.ok(directQueryData.answer.includes("Found 1 calls ranked at or above 5"));
+  assert.equal(directQueryData.data.totalCount, 1);
+  assert.equal(directQueryData.jsonrpc, "2.0");
 
   // Test POST initialize
   const initReq = new Request("http://localhost:3000/api/mcp", {
