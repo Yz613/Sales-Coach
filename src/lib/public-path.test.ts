@@ -138,6 +138,12 @@ describe("route classifiers", () => {
     assert.equal(isPublicApiRoute("/app/api/v1/models", "GET"), true);
     assert.equal(isPublicApiRoute("/app/api/tokens", "GET"), false);
     assert.equal(isPublicApiRoute("/app/api/tokens", "POST"), false);
+    assert.equal(isPublicApiRoute("/.well-known/ai-plugin.json", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/.well-known/ai-plugin.json", "GET"), true);
+    assert.equal(isPublicApiRoute("/api/openapi.json", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/openapi.json", "GET"), true);
+    assert.equal(isPublicApiRoute("/app/api/v1/messages", "POST"), true);
+    assert.equal(isPublicApiRoute("/api/messages", "POST"), true);
   });
 
   it("detects API routes after stripping the base path", () => {
@@ -339,6 +345,14 @@ describe("route classifiers", () => {
     assert.equal(getApexNotFoundRewrite("https://refreshqueue.com/demo/harborline-cold"), null);
     assert.equal(apexWorkerAction("https://refreshqueue.com/integrations/fathom.png").type, "not-found");
     assert.equal(apexWorkerAction("https://refreshqueue.com/app/icon.svg").type, "passthrough");
+    assert.deepEqual(apexWorkerAction("https://refreshqueue.com/.well-known/ai-plugin.json"), {
+      type: "rewrite",
+      url: "https://refreshqueue.com/app/.well-known/ai-plugin.json",
+    });
+    assert.deepEqual(apexWorkerAction("https://refreshqueue.com/api/openapi.json"), {
+      type: "rewrite",
+      url: "https://refreshqueue.com/app/api/openapi.json",
+    });
   });
 
   it("routes the whole apex through one worker pattern and lists /privacy in the sitemap", () => {

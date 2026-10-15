@@ -202,6 +202,9 @@ export default function McpHub() {
   const mcpEndpointUrl = `${hostUrl}${apiPath("/api/mcp")}`;
   const botEndpointUrl = `${hostUrl}${apiPath("/api/bot/query")}`;
   const openAiBaseUrl = `${hostUrl}${apiPath("/api/v1")}`;
+  const claudeBaseUrl = `${hostUrl}${apiPath("/api/v1")}`;
+  const openApiUrl = `${hostUrl}${apiPath("/api/openapi.json")}`;
+  const pluginManifestUrl = `${hostUrl}/.well-known/ai-plugin.json`;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -380,7 +383,7 @@ export default function McpHub() {
                         : "text-[#6e6e73] hover:bg-black/[0.05]"
                     }`}
                   >
-                    {guide === "grok" ? "Grok / Grokbot" : guide === "openai" ? "OpenAI API" : guide === "antigravity" ? "Antigravity" : guide}
+                    {guide === "grok" ? "Grok / Grokbot" : guide === "openai" ? "OpenAI / ChatGPT Plugin" : guide === "claude" ? "Claude / Anthropic" : guide === "antigravity" ? "Antigravity" : guide}
                   </button>
                 ))}
               </div>
@@ -409,13 +412,60 @@ export default function McpHub() {
             )}
 
             {activeGuide === "openai" && (
-              <div className="space-y-3">
-                <p className="text-xs text-[#6e6e73]">
-                  Connect any tool, framework, or agent using the official <strong>OpenAI SDK</strong> (Python, Node, LangChain, AutoGen, Custom GPTs):
-                </p>
-                <div className="text-xs font-semibold text-[#1d1d1f]">Python Example:</div>
-                <div className="relative bg-[#1d1d1f] text-[#f5f5f7] p-3.5 rounded-[8px] font-mono text-xs overflow-x-auto">
-                  <pre>{`from openai import OpenAI
+              <div className="space-y-4">
+                {/* ChatGPT Plugin & Custom GPT Action */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-[#1d1d1f] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#007AFF]" />
+                    ChatGPT Plugin & Custom GPT Action:
+                  </div>
+                  <p className="text-xs text-[#6e6e73]">
+                    Add Sales Coach as an Action to any Custom GPT or ChatGPT workspace:
+                  </p>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between bg-black/[0.03] p-2.5 rounded-[8px] border border-black/[0.08]">
+                      <div className="min-w-0 pr-2">
+                        <span className="text-[11px] font-semibold text-[#1d1d1f] block">OpenAPI Schema URL (Import in GPT):</span>
+                        <code className="text-[11px] text-[#6e6e73] font-mono truncate block select-all">{openApiUrl}</code>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(openApiUrl, "openapi-url")}
+                        className="px-2 py-1 bg-white hover:bg-black/[0.05] border border-black/[0.1] rounded-[6px] text-xs font-medium text-[#1d1d1f] transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        {copiedKey === "openapi-url" ? <Check className="w-3 h-3 text-[#34C759]" /> : <Copy className="w-3 h-3" />}
+                        Copy URL
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-black/[0.03] p-2.5 rounded-[8px] border border-black/[0.08]">
+                      <div className="min-w-0 pr-2">
+                        <span className="text-[11px] font-semibold text-[#1d1d1f] block">Plugin Manifest URL:</span>
+                        <code className="text-[11px] text-[#6e6e73] font-mono truncate block select-all">{pluginManifestUrl}</code>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(pluginManifestUrl, "manifest-url")}
+                        className="px-2 py-1 bg-white hover:bg-black/[0.05] border border-black/[0.1] rounded-[6px] text-xs font-medium text-[#1d1d1f] transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        {copiedKey === "manifest-url" ? <Check className="w-3 h-3 text-[#34C759]" /> : <Copy className="w-3 h-3" />}
+                        Copy URL
+                      </button>
+                    </div>
+
+                    <div className="text-[11px] text-[#6e6e73] space-y-1 bg-[#F5F5F7] p-3 rounded-[8px]">
+                      <div className="font-semibold text-[#1d1d1f]">Setup Steps in ChatGPT:</div>
+                      <div>1. In ChatGPT, open <strong>Explore GPTs</strong> &rarr; <strong>Create a GPT</strong> &rarr; <strong>Configure</strong>.</div>
+                      <div>2. Under <strong>Actions</strong>, click <strong>Create new action</strong>.</div>
+                      <div>3. Click <strong>Import from URL</strong>, paste the OpenAPI Schema URL above, and click Import.</div>
+                      <div>4. Under <strong>Authentication</strong>, select <strong>API Key</strong>, choose <strong>Bearer</strong>, and paste your Sales Coach token.</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OpenAI SDK Python Example */}
+                <div className="space-y-2 pt-2 border-t border-black/[0.06]">
+                  <div className="text-xs font-semibold text-[#1d1d1f]">Python Example (OpenAI SDK):</div>
+                  <div className="relative bg-[#1d1d1f] text-[#f5f5f7] p-3.5 rounded-[8px] font-mono text-xs overflow-x-auto">
+                    <pre>{`from openai import OpenAI
 
 client = OpenAI(
     base_url="${openAiBaseUrl}",
@@ -427,37 +477,65 @@ completion = client.chat.completions.create(
     messages=[{"role": "user", "content": "How many calls were ranked above a 5?"}],
 )
 print(completion.choices[0].message.content)`}</pre>
-                  <button
-                    onClick={() => copyToClipboard(`from openai import OpenAI\n\nclient = OpenAI(\n    base_url="${openAiBaseUrl}",\n    api_key="${revealedToken || sampleToken}",\n)\n\ncompletion = client.chat.completions.create(\n    model="sales-coach",\n    messages=[{"role": "user", "content": "How many calls were ranked above a 5?"}],\n)\nprint(completion.choices[0].message.content)`, "openai-py")}
-                    className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
-                  >
-                    {copiedKey === "openai-py" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <div className="text-[11px] text-[#6e6e73]">
-                  • Base URL: <code>{openAiBaseUrl}</code> · Model: <code>sales-coach</code>
+                    <button
+                      onClick={() => copyToClipboard(`from openai import OpenAI\n\nclient = OpenAI(\n    base_url="${openAiBaseUrl}",\n    api_key="${revealedToken || sampleToken}",\n)\n\ncompletion = client.chat.completions.create(\n    model="sales-coach",\n    messages=[{"role": "user", "content": "How many calls were ranked above a 5?"}],\n)\nprint(completion.choices[0].message.content)`, "openai-py")}
+                      className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
+                    >
+                      {copiedKey === "openai-py" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-[#6e6e73]">
+                    • Base URL: <code>{openAiBaseUrl}</code> · Model: <code>sales-coach</code>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeGuide === "claude" && (
-              <div className="space-y-3">
-                <p className="text-xs text-[#6e6e73]">
-                  Add to your <strong>Claude Desktop</strong> (<code>claude_desktop_config.json</code>) or <strong>Cursor</strong> MCP configuration:
-                </p>
-                <div className="relative bg-[#1d1d1f] text-[#f5f5f7] p-3.5 rounded-[8px] font-mono text-xs overflow-x-auto">
-                  <pre>{JSON.stringify({
-                    mcpServers: {
-                      "sales-coach": {
-                        url: mcpEndpointUrl,
-                        headers: {
-                          Authorization: `Bearer ${revealedToken || sampleToken}`
-                        }
-                      }
-                    }
-                  }, null, 2)}</pre>
-                  <button
-                    onClick={() => copyToClipboard(JSON.stringify({
+              <div className="space-y-4">
+                {/* Anthropic Claude Messages API */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-[#1d1d1f] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#007AFF]" />
+                    Anthropic Claude SDK:
+                  </div>
+                  <p className="text-xs text-[#6e6e73]">
+                    Query Sales Coach using the official <strong>Anthropic Python / Node SDK</strong> via our Claude-compatible Messages endpoint:
+                  </p>
+                  <div className="relative bg-[#1d1d1f] text-[#f5f5f7] p-3.5 rounded-[8px] font-mono text-xs overflow-x-auto">
+                    <pre>{`from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="${claudeBaseUrl}",
+    api_key="${revealedToken || sampleToken}",
+)
+
+message = client.messages.create(
+    model="sales-coach",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "What is our pipeline forecast and quota gap?"}],
+)
+print(message.content[0].text)`}</pre>
+                    <button
+                      onClick={() => copyToClipboard(`from anthropic import Anthropic\n\nclient = Anthropic(\n    base_url="${claudeBaseUrl}",\n    api_key="${revealedToken || sampleToken}",\n)\n\nmessage = client.messages.create(\n    model="sales-coach",\n    max_tokens=1024,\n    messages=[{"role": "user", "content": "What is our pipeline forecast and quota gap?"}],\n)\nprint(message.content[0].text)`, "claude-py")}
+                      className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
+                    >
+                      {copiedKey === "claude-py" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-[#6e6e73]">
+                    • Base URL: <code>{claudeBaseUrl}</code> · Header: <code>x-api-key: {sampleToken}</code>
+                  </div>
+                </div>
+
+                {/* Claude Desktop MCP */}
+                <div className="space-y-2 pt-2 border-t border-black/[0.06]">
+                  <div className="text-xs font-semibold text-[#1d1d1f]">Claude Desktop MCP Configuration:</div>
+                  <p className="text-xs text-[#6e6e73]">
+                    Add to your <strong>Claude Desktop</strong> config (<code>claude_desktop_config.json</code>):
+                  </p>
+                  <div className="relative bg-[#1d1d1f] text-[#f5f5f7] p-3.5 rounded-[8px] font-mono text-xs overflow-x-auto">
+                    <pre>{JSON.stringify({
                       mcpServers: {
                         "sales-coach": {
                           url: mcpEndpointUrl,
@@ -466,11 +544,23 @@ print(completion.choices[0].message.content)`}</pre>
                           }
                         }
                       }
-                    }, null, 2), "claude-json")}
-                    className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
-                  >
-                    {copiedKey === "claude-json" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                    }, null, 2)}</pre>
+                    <button
+                      onClick={() => copyToClipboard(JSON.stringify({
+                        mcpServers: {
+                          "sales-coach": {
+                            url: mcpEndpointUrl,
+                            headers: {
+                              Authorization: `Bearer ${revealedToken || sampleToken}`
+                            }
+                          }
+                        }
+                      }, null, 2), "claude-json")}
+                      className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
+                    >
+                      {copiedKey === "claude-json" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
