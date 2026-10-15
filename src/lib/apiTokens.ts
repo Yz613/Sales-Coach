@@ -36,6 +36,16 @@ export async function createApiToken(
   const id = `tok_${randomUUID()}`;
   const createdAt = new Date().toISOString();
 
+  const role = auth.role || (auth.isAdmin ? "admin" : "member");
+  const canViewAllCalls = auth.canViewAllCalls ? 1 : 0;
+  const metadata = JSON.stringify({
+    isAdmin: Boolean(auth.isAdmin),
+    isMember: Boolean(auth.isMember),
+    canViewAllCalls: Boolean(auth.canViewAllCalls),
+    email: auth.email || null,
+    name: auth.name || null,
+  });
+
   await db.insert(apiTokens).values({
     id,
     orgId,
@@ -43,6 +53,9 @@ export async function createApiToken(
     name: trimmedName,
     tokenHash,
     tokenPrefix: prefix,
+    role,
+    canViewAllCalls,
+    metadata,
     createdAt,
     lastUsedAt: null,
     expiresAt: null,
@@ -129,14 +142,29 @@ export async function authenticateApiToken(tokenHeaderOrParam: string | null): P
       // non-fatal
     }
 
+    let meta: any = {};
+    try {
+      meta = (matched as any).metadata ? JSON.parse((matched as any).metadata) : {};
+    } catch {
+      meta = {};
+    }
+
+    const isAdmin = meta.isAdmin ?? ((matched as any).role === "admin");
+    const canViewAllCalls = meta.canViewAllCalls ?? ((matched as any).canViewAllCalls === 1 || isAdmin);
+    const email = meta.email || undefined;
+    const name = meta.name || undefined;
+    const role: UserRole = (matched as any).role === "admin" ? "admin" : "member";
+
     return {
       userId: matched.userId,
-      role: "admin",
-      isAdmin: true,
-      isMember: false,
+      role,
+      isAdmin,
+      isMember: !isAdmin,
       isClerkConfigured: false,
       orgId: matched.orgId,
-      canViewAllCalls: true,
+      canViewAllCalls,
+      email,
+      name,
       tenantId: matched.orgId,
       clerkPlanId: null,
       billingPaid: true,

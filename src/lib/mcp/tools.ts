@@ -7,8 +7,9 @@ import { forecastWorkspace } from "../revenue/forecast";
 import { conversationDetail } from "../revenue/conversations";
 import { answerCallQuestion } from "../revenue/ask";
 import { parseJson } from "../revenue/types";
-import { canViewCall } from "../call-access";
+import { canViewCall, ownRepIds, isOwnRep } from "../call-access";
 import { toCallViewer } from "../viewer-calls";
+import { listRepIdentities } from "../db/service";
 
 export interface ToolDefinition {
   name: string;
@@ -205,8 +206,37 @@ export async function executeTool(
         );
       }
 
+      if (!auth.canViewAllCalls) {
+        const allReps = await listRepIdentities();
+        const allowedRepIds = Array.from(ownRepIds(allReps, toCallViewer(auth)));
+        if (allowedRepIds.length === 0) {
+          conditions.push(sql`1 = 0`);
+        } else {
+          conditions.push(inArray(calls.repId, allowedRepIds));
+        }
+      }
+
       const limit = Math.min(Math.max(1, Number(args.limit) || 25), 100);
       const whereClause = and(...conditions);
+
+      // Compute total count and aggregate average across ALL matching calls before pagination limit
+      const aggregateResult = await db
+        .select({
+          totalCount: sql<number>`count(*)`,
+          scoredCount: sql<number>`count(${evaluations.scriptAdherenceScore})`,
+          avgScore: sql<number>`avg(${evaluations.scriptAdherenceScore})`,
+        })
+        .from(calls)
+        .leftJoin(evaluations, eq(calls.id, evaluations.callId))
+        .leftJoin(reps, eq(calls.repId, reps.id))
+        .where(whereClause)
+        .all();
+
+      const totalCount = Number(aggregateResult[0]?.totalCount) || 0;
+      const rawAvg = aggregateResult[0]?.avgScore;
+      const averageScore = (rawAvg != null && !isNaN(Number(rawAvg)))
+        ? Math.round(Number(rawAvg) * 10) / 10
+        : null;
 
       const rows = await db
         .select({
@@ -230,13 +260,6 @@ export async function executeTool(
         .orderBy(desc(calls.createdAt))
         .limit(limit)
         .all();
-
-      // Compute aggregates
-      const totalCount = rows.length;
-      const scoredRows = rows.filter((r: any) => typeof r.score === "number" && !isNaN(r.score));
-      const averageScore = scoredRows.length > 0
-        ? Math.round((scoredRows.reduce((sum: number, r: any) => sum + (r.score || 0), 0) / scoredRows.length) * 10) / 10
-        : null;
 
       // Format text
       const scoreFilterText = args.minScore != null && args.maxScore != null
@@ -287,6 +310,13 @@ export async function executeTool(
         .get();
 
       if (!call) throw new Error(`Call not found: ${callId}`);
+
+      if (!auth.canViewAllCalls) {
+        const allReps = await listRepIdentities();
+        if (!canViewCall(call, allReps, toCallViewer(auth))) {
+          throw new Error(`You do not have permission to view call: ${callId}`);
+        }
+      }
 
       const evalRow = await db
         .select()
@@ -343,10 +373,21 @@ export async function executeTool(
         repConditions.push(sql`instr(lower(${reps.name}), ${args.repName.trim().toLowerCase()}) > 0`);
       }
 
-      const repList = await db.select().from(reps).where(and(...repConditions)).all();
+      const rawRepList = await db.select().from(reps).where(and(...repConditions)).all();
+      let repList = rawRepList;
+
+      if (!auth.canViewAllCalls) {
+        const allReps = await listRepIdentities();
+        const viewer = toCallViewer(auth);
+        repList = rawRepList.filter((r) => isOwnRep(r, viewer));
+      }
+
       const snapshots = await db.select().from(repSnapshots).where(eq(repSnapshots.orgId, orgId)).all();
 
       const lines: string[] = ["### Sales Rep Coaching & Performance Summaries:"];
+      if (repList.length === 0) {
+        lines.push("- No sales rep profiles found or accessible with your permissions.");
+      }
       const repSummaries = [];
 
       for (const r of repList) {
@@ -401,6 +442,17 @@ export async function executeTool(
       }
 
       // If general question across calls: search matching calls and summarize
+      const askConditions: any[] = [eq(calls.orgId, orgId)];
+      if (!auth.canViewAllCalls) {
+        const allReps = await listRepIdentities();
+        const allowedRepIds = Array.from(ownRepIds(allReps, toCallViewer(auth)));
+        if (allowedRepIds.length === 0) {
+          askConditions.push(sql`1 = 0`);
+        } else {
+          askConditions.push(inArray(calls.repId, allowedRepIds));
+        }
+      }
+
       const matchingCalls = await db
         .select({
           id: calls.id,
@@ -413,7 +465,7 @@ export async function executeTool(
         })
         .from(calls)
         .leftJoin(evaluations, eq(calls.id, evaluations.callId))
-        .where(eq(calls.orgId, orgId))
+        .where(and(...askConditions))
         .orderBy(desc(calls.createdAt))
         .limit(10)
         .all();

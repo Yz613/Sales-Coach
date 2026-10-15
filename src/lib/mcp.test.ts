@@ -256,6 +256,65 @@ test("query_calls filters calls by minScore and computes count and averages", as
   );
   assert.equal(resultAll.data.totalCount, 2);
   assert.equal(resultAll.data.averageScore, 6); // (8 + 4) / 2 = 6.0
+
+  // Test pagination: when limit is 1, totalCount must report total matches (2), not the truncated page size (1)
+  const resultLimited = await runWithTenant(orgId, () =>
+    executeTool("query_calls", { limit: 1 }, testAuth)
+  );
+  assert.equal(resultLimited.data.totalCount, 2, "totalCount must reflect all matching calls across pages");
+  assert.equal(resultLimited.data.calls.length, 1, "calls array must respect the limit");
+  assert.equal(resultLimited.data.averageScore, 6, "averageScore must be calculated from all matches");
+});
+
+test("Member permissions are restored on token auth and enforced across tools", async () => {
+  const orgId = "tenant-mcp-test";
+
+  const memberBob: AuthUser = {
+    userId: "user-bob-rep",
+    role: "member",
+    isAdmin: false,
+    isMember: true,
+    isClerkConfigured: false,
+    canViewAllCalls: false,
+    tenantId: orgId,
+    orgId: orgId,
+    clerkPlanId: null,
+    billingPaid: true,
+    email: "bob@other.com",
+    name: "Bob Other",
+  };
+
+  // Create token with member
+  const bobToken = await createApiToken("Bob Member Bot", memberBob);
+  const bobAuth = await authenticateApiToken(bobToken.token);
+  assert.ok(bobAuth);
+  assert.equal(bobAuth.isAdmin, false, "Member token must not restore as admin");
+  assert.equal(bobAuth.canViewAllCalls, false, "Member token must preserve canViewAllCalls: false");
+  assert.equal(bobAuth.role, "member");
+
+  // Bob cannot see Sam's calls in query_calls
+  const bobCallQuery = await runWithTenant(orgId, () =>
+    executeTool("query_calls", {}, bobAuth)
+  );
+  assert.equal(bobCallQuery.data.totalCount, 0, "Member without rep ownership cannot see other reps calls");
+
+  // Bob cannot view call details of Sam's call
+  await assert.rejects(
+    runWithTenant(orgId, () => executeTool("get_call_details", { callId: "call-mcp-high" }, bobAuth)),
+    (err: Error) => /permission/i.test(err.message)
+  );
+
+  // Bob cannot view other reps performance
+  const bobRepPerf = await runWithTenant(orgId, () =>
+    executeTool("get_rep_performance", {}, bobAuth)
+  );
+  assert.equal(bobRepPerf.data.length, 0, "Member cannot view other reps performance");
+
+  // Bob cannot access forecast
+  await assert.rejects(
+    runWithTenant(orgId, () => executeTool("get_forecast", {}, bobAuth)),
+    (err: any) => /admin/i.test(err.message)
+  );
 });
 
 test("MCP JSON-RPC endpoint POST /api/mcp handles initialize, tools/list, and tools/call", async () => {
