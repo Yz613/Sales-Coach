@@ -17,6 +17,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import type { ApiTokenInfo } from "@/lib/apiTokens";
+import { apiPath } from "@/lib/utils";
 
 export default function McpHub() {
   const [tokens, setTokens] = useState<ApiTokenInfo[]>([]);
@@ -24,6 +25,7 @@ export default function McpHub() {
   const [isCreating, setIsCreating] = useState(false);
   const [tokenName, setTokenName] = useState("");
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [activeGuide, setActiveGuide] = useState<"grok" | "openai" | "claude" | "slack" | "antigravity" | "curl">("grok");
 
@@ -41,12 +43,27 @@ export default function McpHub() {
 
   async function fetchTokens() {
     setLoading(true);
+    setTokenError("");
     try {
-      const res = await fetch("/api/tokens");
+      const res = await fetch(apiPath("/api/tokens"));
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let errMsg = `Failed to load tokens (${res.status})`;
+        if (contentType.includes("application/json")) {
+          const errData = await res.json().catch(() => null);
+          if (errData?.error) errMsg = errData.error;
+        }
+        setTokenError(errMsg);
+        return;
+      }
+      if (!contentType.includes("application/json")) {
+        setTokenError("Invalid server response loading tokens.");
+        return;
+      }
       const data = await res.json();
       if (data.tokens) setTokens(data.tokens);
-    } catch {
-      // non-fatal
+    } catch (err: any) {
+      setTokenError(err.message || "Failed to fetch tokens.");
     } finally {
       setLoading(false);
     }
@@ -56,18 +73,40 @@ export default function McpHub() {
     e.preventDefault();
     if (!tokenName.trim()) return;
     setIsCreating(true);
+    setTokenError("");
     try {
-      const res = await fetch("/api/tokens", {
+      const res = await fetch(apiPath("/api/tokens"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tokenName.trim() }),
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let errMsg = `Failed to create token (${res.status})`;
+        if (contentType.includes("application/json")) {
+          const errData = await res.json().catch(() => null);
+          if (errData?.error) errMsg = errData.error;
+        } else {
+          const errText = await res.text().catch(() => "");
+          if (errText) errMsg = errText.slice(0, 150);
+        }
+        setTokenError(errMsg);
+        return;
+      }
+      if (!contentType.includes("application/json")) {
+        setTokenError("Server returned non-JSON response creating token.");
+        return;
+      }
       const data = await res.json();
       if (data.token) {
         setRevealedToken(data.token.token);
         setTokenName("");
-        fetchTokens();
+        await fetchTokens();
+      } else {
+        setTokenError("Server response did not include a valid token.");
       }
+    } catch (err: any) {
+      setTokenError(err.message || "Failed to create API token.");
     } finally {
       setIsCreating(false);
     }
@@ -75,15 +114,26 @@ export default function McpHub() {
 
   async function handleRevokeToken(id: string) {
     if (!confirm("Are you sure you want to revoke this API token? Any bots using it will be disconnected.")) return;
+    setTokenError("");
     try {
-      await fetch("/api/tokens", {
+      const res = await fetch(apiPath("/api/tokens"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      fetchTokens();
-    } catch {
-      // non-fatal
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let errMsg = `Failed to revoke token (${res.status})`;
+        if (contentType.includes("application/json")) {
+          const errData = await res.json().catch(() => null);
+          if (errData?.error) errMsg = errData.error;
+        }
+        setTokenError(errMsg);
+        return;
+      }
+      await fetchTokens();
+    } catch (err: any) {
+      setTokenError(err.message || "Failed to revoke token.");
     }
   }
 
@@ -105,16 +155,41 @@ export default function McpHub() {
         headers["Authorization"] = `Bearer ${revealedToken}`;
       }
 
-      const res = await fetch("/api/bot/query", {
+      const res = await fetch(apiPath("/api/mcp"), {
         method: "POST",
         headers,
         body: JSON.stringify({ query: playgroundQuery.trim() }),
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get("content-type") || "";
       if (!res.ok) {
-        setPlaygroundError(data.error || "Query failed");
+        let errMsg = `Query failed (${res.status})`;
+        if (contentType.includes("application/json")) {
+          const errData = await res.json().catch(() => null);
+          if (errData?.error?.message) errMsg = errData.error.message;
+          else if (errData?.error) errMsg = typeof errData.error === "string" ? errData.error : JSON.stringify(errData.error);
+        } else {
+          const errText = await res.text().catch(() => "");
+          if (errText) errMsg = errText.slice(0, 150);
+        }
+        setPlaygroundError(errMsg);
+        return;
+      }
+
+      if (!contentType.includes("application/json")) {
+        const text = await res.text().catch(() => "");
+        setPlaygroundError(text ? `Non-JSON response: ${text.slice(0, 150)}` : "Server returned non-JSON response");
+        return;
+      }
+
+      const data = await res.json();
+      const answer = data.answer || data.result?.content?.[0]?.text || (typeof data.result === "string" ? data.result : null);
+      if (answer) {
+        setPlaygroundResult({ answer, data: data.data || data.result?.data });
+      } else if (data.error) {
+        setPlaygroundError(typeof data.error === "object" ? data.error.message || JSON.stringify(data.error) : String(data.error));
       } else {
-        setPlaygroundResult(data);
+        setPlaygroundResult({ answer: JSON.stringify(data, null, 2) });
       }
     } catch (err: any) {
       setPlaygroundError(err.message || "Failed to contact query endpoint.");
@@ -124,8 +199,9 @@ export default function McpHub() {
   }
 
   const sampleToken = tokens[0]?.prefix || "sc_live_your_token_here";
-  const mcpEndpointUrl = `${hostUrl}/api/mcp`;
-  const botEndpointUrl = `${hostUrl}/api/bot/query`;
+  const mcpEndpointUrl = `${hostUrl}${apiPath("/api/mcp")}`;
+  const botEndpointUrl = `${hostUrl}${apiPath("/api/bot/query")}`;
+  const openAiBaseUrl = `${hostUrl}${apiPath("/api/v1")}`;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -207,6 +283,20 @@ export default function McpHub() {
                 </button>
               </div>
             </form>
+
+            {tokenError && (
+              <div className="flex items-center gap-2 text-xs text-[#FF3B30] bg-[#FFF2F0] p-3 rounded-[8px]">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{tokenError}</span>
+                <button
+                  type="button"
+                  onClick={() => setTokenError("")}
+                  className="text-xs font-semibold hover:opacity-75"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <div className="divide-y divide-black/[0.06] pt-2">
               {loading ? (
@@ -328,7 +418,7 @@ export default function McpHub() {
                   <pre>{`from openai import OpenAI
 
 client = OpenAI(
-    base_url="${hostUrl}/api/v1",
+    base_url="${openAiBaseUrl}",
     api_key="${revealedToken || sampleToken}",
 )
 
@@ -338,14 +428,14 @@ completion = client.chat.completions.create(
 )
 print(completion.choices[0].message.content)`}</pre>
                   <button
-                    onClick={() => copyToClipboard(`from openai import OpenAI\n\nclient = OpenAI(\n    base_url="${hostUrl}/api/v1",\n    api_key="${revealedToken || sampleToken}",\n)\n\ncompletion = client.chat.completions.create(\n    model="sales-coach",\n    messages=[{"role": "user", "content": "How many calls were ranked above a 5?"}],\n)\nprint(completion.choices[0].message.content)`, "openai-py")}
+                    onClick={() => copyToClipboard(`from openai import OpenAI\n\nclient = OpenAI(\n    base_url="${openAiBaseUrl}",\n    api_key="${revealedToken || sampleToken}",\n)\n\ncompletion = client.chat.completions.create(\n    model="sales-coach",\n    messages=[{"role": "user", "content": "How many calls were ranked above a 5?"}],\n)\nprint(completion.choices[0].message.content)`, "openai-py")}
                     className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[6px] text-white transition-colors"
                   >
                     {copiedKey === "openai-py" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
                 <div className="text-[11px] text-[#6e6e73]">
-                  • Base URL: <code>{hostUrl}/api/v1</code> · Model: <code>sales-coach</code>
+                  • Base URL: <code>{openAiBaseUrl}</code> · Model: <code>sales-coach</code>
                 </div>
               </div>
             )}
