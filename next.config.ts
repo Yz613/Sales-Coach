@@ -195,6 +195,12 @@ const nextConfig: NextConfig = {
         permanent: false,
         basePath: false,
       },
+      {
+        source: "/v1/messages",
+        destination: `${APP_BASE_PATH}/api/v1/messages`,
+        permanent: false,
+        basePath: false,
+      },
     ];
   },
 };

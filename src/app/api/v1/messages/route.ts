@@ -70,7 +70,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const { model = "sales-coach", messages = [], stream = false } = body || {};
+  const { model = "sales-coach", messages = [], max_tokens, stream = false } = body || {};
+
+  if (max_tokens !== undefined && (typeof max_tokens !== "number" || max_tokens <= 0 || !Number.isInteger(max_tokens))) {
+    return NextResponse.json(
+      {
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "'max_tokens' must be a positive integer.",
+        },
+      },
+      { status: 400, headers: CORS_HEADERS }
+    );
+  }
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json(
@@ -120,7 +133,22 @@ export async function POST(request: Request) {
 
     const messageId = `msg_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
     const inputTokens = Math.max(1, Math.ceil(query.length / 4));
-    const outputTokens = Math.max(1, Math.ceil(result.text.length / 4));
+
+    let outputText = result.text;
+    let stopReason: "end_turn" | "max_tokens" = "end_turn";
+
+    if (typeof max_tokens === "number" && max_tokens > 0) {
+      const maxChars = max_tokens * 4;
+      if (outputText.length > maxChars) {
+        outputText = outputText.slice(0, maxChars);
+        stopReason = "max_tokens";
+      }
+    }
+
+    const outputTokens =
+      stopReason === "max_tokens" && typeof max_tokens === "number"
+        ? max_tokens
+        : Math.max(1, Math.ceil(outputText.length / 4));
 
     // Handle Streaming (SSE Anthropic protocol)
     if (stream) {
@@ -159,7 +187,7 @@ export async function POST(request: Request) {
           const blockDelta = {
             type: "content_block_delta",
             index: 0,
-            delta: { type: "text_delta", text: result.text },
+            delta: { type: "text_delta", text: outputText },
           };
           controller.enqueue(
             encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(blockDelta)}\n\n`)
@@ -177,7 +205,7 @@ export async function POST(request: Request) {
           // message_delta
           const messageDelta = {
             type: "message_delta",
-            delta: { stop_reason: "end_turn", stop_sequence: null },
+            delta: { stop_reason: stopReason, stop_sequence: null },
             usage: { output_tokens: outputTokens },
           };
           controller.enqueue(
@@ -214,10 +242,10 @@ export async function POST(request: Request) {
         content: [
           {
             type: "text",
-            text: result.text,
+            text: outputText,
           },
         ],
-        stop_reason: "end_turn",
+        stop_reason: stopReason,
         stop_sequence: null,
         usage: {
           input_tokens: inputTokens,

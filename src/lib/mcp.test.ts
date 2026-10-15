@@ -670,5 +670,40 @@ test("Anthropic Claude-compatible API: POST /api/v1/messages", async () => {
   assert.ok(claudeStreamText.includes("event: content_block_delta"));
   assert.ok(claudeStreamText.includes("event: message_delta"));
   assert.ok(claudeStreamText.includes("event: message_stop"));
+
+  // max_tokens truncation enforcement
+  const truncateReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": tokenObj.token,
+    },
+    body: JSON.stringify({
+      model: "sales-coach",
+      max_tokens: 5,
+      messages: [{ role: "user", content: "How many calls were ranked above a 5?" }],
+    }),
+  });
+  const truncateRes = await messagesPost(truncateReq);
+  assert.equal(truncateRes.status, 200);
+  const truncateData = await truncateRes.json();
+  assert.equal(truncateData.stop_reason, "max_tokens");
+  assert.ok(truncateData.content[0].text.length <= 20);
+  assert.equal(truncateData.usage.output_tokens, 5);
+
+  // Invalid max_tokens returns 400
+  const invalidMaxTokensReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": tokenObj.token,
+    },
+    body: JSON.stringify({
+      max_tokens: -10,
+      messages: [{ role: "user", content: "hello" }],
+    }),
+  });
+  const invalidMaxTokensRes = await messagesPost(invalidMaxTokensReq);
+  assert.equal(invalidMaxTokensRes.status, 400);
 });
 

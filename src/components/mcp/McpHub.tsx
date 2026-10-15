@@ -202,7 +202,7 @@ export default function McpHub() {
   const mcpEndpointUrl = `${hostUrl}${apiPath("/api/mcp")}`;
   const botEndpointUrl = `${hostUrl}${apiPath("/api/bot/query")}`;
   const openAiBaseUrl = `${hostUrl}${apiPath("/api/v1")}`;
-  const claudeBaseUrl = `${hostUrl}${apiPath("/api/v1")}`;
+  const claudeBaseUrl = `${hostUrl}${apiPath("/api")}`;
   const openApiUrl = `${hostUrl}${apiPath("/api/openapi.json")}`;
   const pluginManifestUrl = `${hostUrl}/.well-known/ai-plugin.json`;
 
