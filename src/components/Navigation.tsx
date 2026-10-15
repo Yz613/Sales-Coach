@@ -18,6 +18,7 @@ import {
   Plug,
   Briefcase,
   ClipboardList,
+  Bot,
 } from "lucide-react";
 import { useAppAuth } from "@/lib/auth-context";
 import TeamSwitcher from "./TeamSwitcher";
@@ -90,6 +91,7 @@ export default function Navigation() {
       : [
           { label: "Conversations", href: "/conversations", icon: PhoneCall },
           { label: "Library", href: "/library", icon: BookOpen },
+          { label: "AI Bots & MCP", href: "/mcp", icon: Bot },
           ...(isClerkConfigured ? [{ label: "Invite", href: "/invite", icon: UserPlus }] : []),
         ];
 
@@ -105,6 +107,7 @@ export default function Navigation() {
     { label: "Forecast", href: "/forecast", icon: BarChart3 },
     { label: "Call scorecards", href: "/calls", icon: PhoneCall },
     { label: "Coaching library", href: "/library", icon: BookOpen },
+    { label: "AI Bots & MCP", href: "/mcp", icon: Bot },
     { label: "Scorecards", href: "/admin/scorecards", icon: ClipboardList },
     { label: "Integrations", href: "/admin/integrations", icon: Plug },
     { label: "Data & privacy", href: "/admin/privacy", icon: ShieldCheck },
