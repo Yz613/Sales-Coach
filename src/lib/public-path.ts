@@ -65,6 +65,9 @@ export function isPublicApiRoute(pathname: string, method: string): boolean {
   if (normalized === "/api/bot/query" && (verb === "POST" || verb === "OPTIONS")) return true;
   if ((normalized === "/api/v1/chat/completions" || normalized === "/api/chat/completions") && (verb === "POST" || verb === "OPTIONS")) return true;
   if ((normalized === "/api/v1/models" || normalized === "/api/models") && (verb === "GET" || verb === "OPTIONS")) return true;
+  if (normalized === "/.well-known/ai-plugin.json" && (verb === "GET" || verb === "OPTIONS" || verb === "HEAD")) return true;
+  if ((normalized === "/api/openapi.json" || normalized === "/api/v1/openapi.json" || normalized === "/openapi.json") && (verb === "GET" || verb === "OPTIONS" || verb === "HEAD")) return true;
+  if ((normalized === "/api/v1/messages" || normalized === "/api/messages") && (verb === "POST" || verb === "OPTIONS")) return true;
   return false;
 }
 
@@ -291,6 +294,41 @@ export function getApexSitemapRewrite(requestUrl: string): string | null {
   return rewriteExactApex(requestUrl, isApexSitemapPath, SITEMAP_PATH);
 }
 
+export function getApexAiPluginRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (url.pathname === "/.well-known/ai-plugin.json") {
+    const dest = new URL(toAppPath("/.well-known/ai-plugin.json"), url.origin);
+    dest.search = url.search;
+    return dest.href;
+  }
+  return null;
+}
+
+export function getApexOpenApiRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (url.pathname === "/api/openapi.json" || url.pathname === "/openapi.json") {
+    const dest = new URL(toAppPath("/api/openapi.json"), url.origin);
+    dest.search = url.search;
+    return dest.href;
+  }
+  if (url.pathname === "/api/v1/openapi.json") {
+    const dest = new URL(toAppPath("/api/v1/openapi.json"), url.origin);
+    dest.search = url.search;
+    return dest.href;
+  }
+  return null;
+}
+
+export function getApexMessagesRewrite(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  if (url.pathname === "/api/v1/messages" || url.pathname === "/api/messages") {
+    const dest = new URL(toAppPath(url.pathname), url.origin);
+    dest.search = url.search;
+    return dest.href;
+  }
+  return null;
+}
+
 /** Internal rewrite that keeps the browser on the apex URL. */
 export function getApexContentRewrite(requestUrl: string): string | null {
   return (
@@ -299,7 +337,10 @@ export function getApexContentRewrite(requestUrl: string): string | null {
     getApexPrivacyRewrite(requestUrl) ||
     getApexDemoRewrite(requestUrl) ||
     getApexRobotsRewrite(requestUrl) ||
-    getApexSitemapRewrite(requestUrl)
+    getApexSitemapRewrite(requestUrl) ||
+    getApexAiPluginRewrite(requestUrl) ||
+    getApexOpenApiRewrite(requestUrl) ||
+    getApexMessagesRewrite(requestUrl)
   );
 }
 

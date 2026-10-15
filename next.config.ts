@@ -159,6 +159,48 @@ const nextConfig: NextConfig = {
         permanent: true,
         basePath: false,
       },
+      {
+        source: "/.well-known/ai-plugin.json",
+        destination: `${APP_BASE_PATH}/.well-known/ai-plugin.json`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/api/openapi.json",
+        destination: `${APP_BASE_PATH}/api/openapi.json`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/openapi.json",
+        destination: `${APP_BASE_PATH}/api/openapi.json`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/api/v1/openapi.json",
+        destination: `${APP_BASE_PATH}/api/v1/openapi.json`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/api/v1/messages",
+        destination: `${APP_BASE_PATH}/api/v1/messages`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/api/messages",
+        destination: `${APP_BASE_PATH}/api/messages`,
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/v1/messages",
+        destination: `${APP_BASE_PATH}/api/v1/messages`,
+        permanent: false,
+        basePath: false,
+      },
     ];
   },
 };

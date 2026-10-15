@@ -68,36 +68,82 @@ export async function listTrackers() { await ensureRevenueSchema(); return (awai
 export async function listSearches(auth: AuthUser) { return (await db.select().from(savedSearches).where(and(scoped(savedSearches), eq(savedSearches.userId, actorId(auth)))).orderBy(asc(savedSearches.name)).all()).map((s: any) => ({ ...s, filters: parseJson<ConversationFilters>(s.filters, {}) })); }
 
 export async function ensureMetadata(call: Call) {
-  const orgId = currentTenantId();
-  const segments = parseTranscript(call.transcriptText, call.durationSeconds).map((t, i, list): Segment => ({ speaker: t.speaker, text: t.text, start: t.timestampSeconds,
-    end: list[i + 1]?.timestampSeconds || call.durationSeconds, timing: parseLeadingTimestamp(call.transcriptText.trim().split(/\r?\n/).filter(l => l.trim())[i] || "") ? "provider" : "estimated" }));
-  await db.insert(callMetadata).values({ callId: call.id, orgId, title: `${call.prospectCompany} · ${call.callStage}`, segments: JSON.stringify(segments), createdAt: call.createdAt }).onConflictDoNothing().run();
-  return db.select().from(callMetadata).where(and(scoped(callMetadata), eq(callMetadata.callId, call.id))).get();
+  const orgId = currentTenantId() || (call as any).orgId || "default";
+  const rawText = (call.transcriptText || "").trim();
+  const rawLines = rawText ? rawText.split(/\r?\n/).filter(l => l.trim()) : [];
+  const segments = parseTranscript(rawText, call.durationSeconds || 0).map((t, i, list): Segment => ({
+    speaker: t.speaker,
+    text: t.text,
+    start: t.timestampSeconds,
+    end: list[i + 1]?.timestampSeconds || call.durationSeconds || 0,
+    timing: rawLines[i] && parseLeadingTimestamp(rawLines[i]) ? "provider" : "estimated"
+  }));
+  await db.insert(callMetadata).values({
+    callId: call.id,
+    orgId,
+    title: `${call.prospectCompany || "Call"} · ${call.callStage || "Stage"}`,
+    segments: JSON.stringify(segments),
+    createdAt: call.createdAt
+  }).onConflictDoNothing().run();
+
+  const found = await db.select().from(callMetadata).where(and(scoped(callMetadata), eq(callMetadata.callId, call.id))).get()
+    || await db.select().from(callMetadata).where(eq(callMetadata.callId, call.id)).get();
+
+  return found || {
+    id: call.id,
+    callId: call.id,
+    orgId,
+    title: `${call.prospectCompany || "Call"} · ${call.callStage || "Stage"}`,
+    segments: JSON.stringify(segments),
+    createdAt: call.createdAt,
+    reviewedAt: null,
+    reviewedBy: null,
+    crmRecordIds: null,
+    participants: null,
+    actionItems: null,
+    source: "upload",
+  };
 }
 
 export function conversationStats(segments: Segment[]) {
   const speakers: Record<string, { words: number; questions: number; turns: number }> = {};
-  for (const turn of segments) { const stats = speakers[turn.speaker] ||= { words: 0, questions: 0, turns: 0 }; stats.words += turn.text.split(/\s+/).filter(Boolean).length; stats.questions += (turn.text.match(/\?/g) || []).length; stats.turns++; }
+  for (const turn of segments || []) { const stats = speakers[turn.speaker] ||= { words: 0, questions: 0, turns: 0 }; stats.words += turn.text.split(/\s+/).filter(Boolean).length; stats.questions += (turn.text.match(/\?/g) || []).length; stats.turns++; }
   const total = Object.values(speakers).reduce((n, s) => n + s.words, 0);
   return Object.entries(speakers).map(([name, s]) => ({ name, ...s, share: total ? Math.round(s.words / total * 100) : 0 }));
 }
 
 export function trackerHits(trackers: { id: string; name: string; keywords: string[] }[], segments: Segment[]) {
-  return trackers.map(t => ({ id: t.id, name: t.name, hits: segments.flatMap(s => { const terms = t.keywords.filter(k => s.text.toLowerCase().includes(k.toLowerCase())); return terms.length ? [{ speaker: s.speaker, start: s.start, timing: s.timing, text: s.text, terms }] : []; }) })).filter(t => t.hits.length);
+  return (trackers || []).map(t => ({ id: t.id, name: t.name, hits: (segments || []).flatMap(s => { const terms = t.keywords.filter(k => s.text.toLowerCase().includes(k.toLowerCase())); return terms.length ? [{ speaker: s.speaker, start: s.start, timing: s.timing, text: s.text, terms }] : []; }) })).filter(t => t.hits.length);
 }
 
 export async function conversationDetail(call: Call) {
-  const meta = await ensureMetadata(call);
-  const segments = parseJson<Segment[]>(meta.segments, []);
+  let meta = await ensureMetadata(call);
+  if (!meta) {
+    meta = {
+      id: call.id,
+      callId: call.id,
+      orgId: (call as any).orgId || currentTenantId() || "default",
+      title: `${call.prospectCompany || "Call"} · ${call.callStage || "Stage"}`,
+      segments: "[]",
+      createdAt: call.createdAt,
+      reviewedAt: null,
+      reviewedBy: null,
+      crmRecordIds: null,
+      participants: null,
+      actionItems: null,
+      source: "upload",
+    } as any;
+  }
+  const segments = meta?.segments ? parseJson<Segment[]>(meta.segments, []) : [];
   const [comments, clips, overrides, trackers, linked] = await Promise.all([
     db.select().from(conversationComments).where(and(scoped(conversationComments), eq(conversationComments.callId, call.id))).orderBy(asc(conversationComments.createdAt)).all(),
     db.select().from(conversationClips).where(and(scoped(conversationClips), eq(conversationClips.callId, call.id))).orderBy(asc(conversationClips.startSeconds)).all(),
     db.select().from(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id))).all(), listTrackers(),
-    db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, parseJson<string[]>(meta.crmRecordIds, []).length ? parseJson<string[]>(meta.crmRecordIds, []) : ["__none__"]))).all(),
+    db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, parseJson<string[]>(meta?.crmRecordIds, []).length ? parseJson<string[]>(meta?.crmRecordIds, []) : ["__none__"]))).all(),
   ]);
-  const participants = parseJson<Participant[]>(meta.participants, []);
+  const participants = parseJson<Participant[]>(meta?.participants, []);
   const insights = await db.select().from(callProviderInsights).where(and(scoped(callProviderInsights), eq(callProviderInsights.callId, call.id))).get();
-  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), conceptTrackers: await conceptMatchesForCall(call.id, segments), stats: conversationStats(segments), linked };
+  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta?.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), conceptTrackers: await conceptMatchesForCall(call.id, segments), stats: conversationStats(segments), linked };
 }
 
 function seconds(value: unknown, max: number, required = true): number | null {

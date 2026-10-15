@@ -330,12 +330,17 @@ export async function executeTool(
         .where(eq(reps.id, call.repId))
         .get();
 
-      const detail = await conversationDetail(call);
+      let detail: any = null;
+      try {
+        detail = await conversationDetail(call);
+      } catch {
+        detail = { segments: [] };
+      }
 
       const lines: string[] = [
-        `### Call Review: ${call.prospectCompany} (${rep?.name || "Rep"} · ${call.callStage})`,
-        `- **Date**: ${new Date(call.createdAt).toLocaleDateString()}`,
-        `- **Duration**: ${Math.round(call.durationSeconds / 60)} minutes`,
+        `### Call Review: ${call.prospectCompany || "Prospect"} (${rep?.name || "Rep"} · ${call.callStage || "Call"})`,
+        `- **Date**: ${call.createdAt ? new Date(call.createdAt).toLocaleDateString() : "Unknown"}`,
+        `- **Duration**: ${call.durationSeconds ? Math.round(call.durationSeconds / 60) : 0} minutes`,
       ];
 
       if (evalRow) {
@@ -345,24 +350,52 @@ export async function executeTool(
         lines.push(`- **Budget Status**: ${evalRow.budgetStatus} — ${evalRow.budgetEvidence}`);
         lines.push(`- **Decision Status**: ${evalRow.decisionStatus} — ${evalRow.decisionEvidence}`);
 
-        const topFixes = parseJson<string[]>(evalRow.topFixes, []);
+        const extended = parseJson<any>(evalRow.extendedReview, null);
+        if (Array.isArray(extended?.scorecard) && extended.scorecard.length > 0) {
+          lines.push(`\n**Scorecard Rubric:**`);
+          for (const metric of extended.scorecard) {
+            lines.push(`- **${metric.label || metric.key}**: ${metric.status || metric.score || "N/A"}${metric.evidence ? ` — ${metric.evidence}` : ""}`);
+          }
+        }
+
+        const topFixes = parseJson<any[]>(evalRow.topFixes, []);
         if (topFixes.length > 0) {
           lines.push(`\n**Top Priority Fixes:**`);
           for (const fix of topFixes) {
-            lines.push(`- ${typeof fix === "string" ? fix : (fix as any).fix || JSON.stringify(fix)}`);
+            if (typeof fix === "string") {
+              lines.push(`- ${fix}`);
+            } else if (fix?.title) {
+              lines.push(`- **${fix.title}**: ${fix.description || ""}`);
+            } else if (fix?.fix) {
+              lines.push(`- ${fix.fix}`);
+            } else {
+              lines.push(`- ${JSON.stringify(fix)}`);
+            }
           }
         }
       } else {
         lines.push("- Call has not been evaluated yet.");
       }
 
+      const segments = Array.isArray(detail?.segments) ? detail.segments : [];
+      if (segments.length > 0) {
+        lines.push(`\n**Transcript:** (${segments.length} dialogue turns)`);
+      } else {
+        lines.push(`\n*No transcript available for this call.*`);
+      }
+
+      const extended = evalRow ? parseJson<any>(evalRow.extendedReview, null) : null;
       return {
         text: lines.join("\n"),
         data: {
           call,
-          evaluation: evalRow,
+          evaluation: evalRow ? {
+            ...evalRow,
+            scorecard: extended?.scorecard || [],
+          } : null,
           rep,
-          detail,
+          detail: detail || { segments: [] },
+          hasTranscript: segments.length > 0,
         },
       };
     }

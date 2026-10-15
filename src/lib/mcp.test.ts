@@ -192,7 +192,13 @@ test("query_calls filters calls by minScore and computes count and averages", as
     scriptAdherenceScore: 8,
     scriptFeedback: "Great job maintaining flow.",
     missedOpportunities: "[]",
-    topFixes: "[]",
+    topFixes: JSON.stringify([{ title: "Anchor pricing early", description: "State ROI figures before quote." }]),
+    extendedReview: JSON.stringify({
+      scorecard: [
+        { key: "pain_discovery", label: "Pain Discovery", status: "Pass", score: 9, evidence: "Uncovered operational bottleneck." },
+        { key: "decision_process", label: "Decision Process", status: "Pass", score: 8, evidence: "Mapped approval committee." },
+      ]
+    }),
     createdAt: new Date().toISOString(),
   }).onConflictDoNothing().run();
 
@@ -264,6 +270,88 @@ test("query_calls filters calls by minScore and computes count and averages", as
   assert.equal(resultLimited.data.totalCount, 2, "totalCount must reflect all matching calls across pages");
   assert.equal(resultLimited.data.calls.length, 1, "calls array must respect the limit");
   assert.equal(resultLimited.data.averageScore, 6, "averageScore must be calculated from all matches");
+});
+
+test("get_call_details returns scorecard details and handles calls with/without transcripts safely", async () => {
+  const { db } = await import("./db");
+  const schema = await import("./db/schema");
+  const orgId = "tenant-mcp-test";
+
+  // Call 1 has transcript text and evaluation
+  const detailsHigh = await runWithTenant(orgId, () =>
+    executeTool("get_call_details", { callId: "call-mcp-high" }, testAuth)
+  );
+  assert.ok(detailsHigh.text.includes("Script Adherence Score"));
+  assert.ok(detailsHigh.text.includes("8/10"));
+  assert.ok(detailsHigh.text.includes("Customer stated critical need."));
+  assert.ok(detailsHigh.text.includes("Budget verified for Q4."));
+  assert.ok(detailsHigh.text.includes("Alice is economic buyer."));
+  assert.ok(detailsHigh.text.includes("Scorecard Rubric:"));
+  assert.ok(detailsHigh.text.includes("Pain Discovery"));
+  assert.ok(detailsHigh.text.includes("Uncovered operational bottleneck."));
+  assert.ok(detailsHigh.text.includes("Top Priority Fixes:"));
+  assert.ok(detailsHigh.text.includes("Anchor pricing early"));
+  assert.ok(detailsHigh.text.includes("State ROI figures before quote."));
+  assert.ok(detailsHigh.text.includes("Transcript:"));
+  assert.equal(detailsHigh.data.evaluation?.scorecard?.length, 2);
+
+  // Seed Call 3 with NO transcript text (empty string) in isolated tenant
+  const noTranscriptOrg = "tenant-mcp-no-transcript";
+  const call3Id = "call-mcp-no-transcript";
+  await db.insert(schema.calls).values({
+    id: call3Id,
+    orgId: noTranscriptOrg,
+    repId: "rep-mcp-1",
+    prospectCompany: "Gamma LLC",
+    prospectName: "George Prospect",
+    callStage: "Closing",
+    coreOutcome: "Closed Won",
+    durationSeconds: 1200,
+    transcriptText: "",
+    status: "completed",
+    createdAt: new Date().toISOString(),
+  }).onConflictDoNothing().run();
+
+  await db.insert(schema.evaluations).values({
+    id: "eval-mcp-no-transcript",
+    orgId: noTranscriptOrg,
+    callId: call3Id,
+    repId: "rep-mcp-1",
+    bottomLine: "Strong closing execution.",
+    painStatus: "Pass",
+    painEvidence: "Confirmed pain solved.",
+    budgetStatus: "Pass",
+    budgetEvidence: "Signed contract in place.",
+    decisionStatus: "Pass",
+    decisionEvidence: "Board approved.",
+    scriptAdherenceScore: 9,
+    scriptFeedback: "Flawless closing.",
+    missedOpportunities: "[]",
+    topFixes: "[]",
+    createdAt: new Date().toISOString(),
+  }).onConflictDoNothing().run();
+
+  const authNoTranscript: AuthUser = {
+    ...testAuth,
+    orgId: noTranscriptOrg,
+    tenantId: noTranscriptOrg,
+  };
+
+  // Test get_call_details on call without transcript
+  const detailsNoTranscript = await runWithTenant(noTranscriptOrg, () =>
+    executeTool("get_call_details", { callId: call3Id }, authNoTranscript)
+  );
+  assert.ok(detailsNoTranscript.text.includes("Script Adherence Score"));
+  assert.ok(detailsNoTranscript.text.includes("9/10"));
+  assert.ok(detailsNoTranscript.text.includes("Strong closing execution."));
+  assert.ok(detailsNoTranscript.text.includes("No transcript available for this call."));
+  assert.equal(detailsNoTranscript.data.hasTranscript, false);
+
+  // Test get_call_details with bad ID
+  await assert.rejects(
+    runWithTenant(orgId, () => executeTool("get_call_details", { callId: "nonexistent-call-id" }, testAuth)),
+    (err: Error) => /Call not found: nonexistent-call-id/.test(err.message)
+  );
 });
 
 test("Member permissions are restored on token auth and enforced across tools", async () => {
@@ -483,3 +571,139 @@ test("OpenAI-compatible API: GET /api/v1/models and POST /api/v1/chat/completion
   assert.ok(streamText.includes("chat.completion.chunk"));
   assert.ok(streamText.includes("data: [DONE]"));
 });
+
+test("OpenAI Plugin manifest and OpenAPI schema: GET /.well-known/ai-plugin.json and GET /api/openapi.json", async () => {
+  const { GET: pluginGet } = await import("../app/.well-known/ai-plugin.json/route");
+  const { GET: openApiGet } = await import("../app/api/openapi.json/route");
+
+  const pluginReq = new Request("https://refreshqueue.com/.well-known/ai-plugin.json");
+  const pluginRes = await pluginGet(pluginReq);
+  const pluginData = await pluginRes.json();
+  assert.equal(pluginData.schema_version, "v1");
+  assert.equal(pluginData.name_for_model, "sales_coach");
+  assert.equal(pluginData.auth.type, "user_http");
+  assert.equal(pluginData.auth.authorization_type, "bearer");
+  assert.ok(pluginData.api.url.includes("/app/api/openapi.json"));
+
+  const openApiReq = new Request("https://refreshqueue.com/app/api/openapi.json");
+  const openApiRes = await openApiGet(openApiReq);
+  const openApiData = await openApiRes.json();
+  assert.equal(openApiData.openapi, "3.1.0");
+  assert.equal(openApiData.info.title, "Sales Coach AI API");
+  assert.ok(openApiData.paths["/api/bot/query"]);
+  assert.ok(openApiData.paths["/api/v1/chat/completions"]);
+  assert.ok(openApiData.paths["/api/v1/messages"]);
+  assert.ok(openApiData.components.securitySchemes.BearerAuth);
+});
+
+test("Anthropic Claude-compatible API: POST /api/v1/messages", async () => {
+  const { POST: messagesPost } = await import("../app/api/v1/messages/route");
+
+  const tokenObj = await createApiToken("Claude Test Token", testAuth);
+
+  // Invalid token request
+  const unauthReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": "sc_live_invalid_token",
+    },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: "How many calls were ranked above 5?" }],
+    }),
+  });
+  const unauthRes = await messagesPost(unauthReq);
+  assert.equal(unauthRes.status, 401);
+  const unauthData = await unauthRes.json();
+  assert.equal(unauthData.type, "error");
+  assert.equal(unauthData.error.type, "authentication_error");
+
+  // Non-streaming with x-api-key header
+  const claudeReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": tokenObj.token,
+    },
+    body: JSON.stringify({
+      model: "sales-coach",
+      max_tokens: 1024,
+      messages: [
+        { role: "user", content: "How many calls were ranked above a 5?" },
+      ],
+    }),
+  });
+
+  const claudeRes = await messagesPost(claudeReq);
+  assert.equal(claudeRes.status, 200);
+  const claudeData = await claudeRes.json();
+  assert.ok(claudeData.id.startsWith("msg_"));
+  assert.equal(claudeData.type, "message");
+  assert.equal(claudeData.role, "assistant");
+  assert.equal(claudeData.model, "sales-coach");
+  assert.ok(claudeData.content[0].text.includes("ranked at or above 5"));
+  assert.equal(claudeData.stop_reason, "end_turn");
+  assert.ok(claudeData.usage.input_tokens > 0);
+  assert.ok(claudeData.usage.output_tokens > 0);
+
+  // Streaming with Authorization: Bearer
+  const claudeStreamReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenObj.token}`,
+    },
+    body: JSON.stringify({
+      model: "sales-coach",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: "What is my forecast from Sales Coach?" }],
+      stream: true,
+    }),
+  });
+
+  const claudeStreamRes = await messagesPost(claudeStreamReq);
+  assert.equal(claudeStreamRes.status, 200);
+  assert.equal(claudeStreamRes.headers.get("content-type"), "text/event-stream; charset=utf-8");
+  const claudeStreamText = await claudeStreamRes.text();
+  assert.ok(claudeStreamText.includes("event: message_start"));
+  assert.ok(claudeStreamText.includes("event: content_block_start"));
+  assert.ok(claudeStreamText.includes("event: content_block_delta"));
+  assert.ok(claudeStreamText.includes("event: message_delta"));
+  assert.ok(claudeStreamText.includes("event: message_stop"));
+
+  // max_tokens truncation enforcement
+  const truncateReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": tokenObj.token,
+    },
+    body: JSON.stringify({
+      model: "sales-coach",
+      max_tokens: 5,
+      messages: [{ role: "user", content: "How many calls were ranked above a 5?" }],
+    }),
+  });
+  const truncateRes = await messagesPost(truncateReq);
+  assert.equal(truncateRes.status, 200);
+  const truncateData = await truncateRes.json();
+  assert.equal(truncateData.stop_reason, "max_tokens");
+  assert.ok(truncateData.content[0].text.length <= 20);
+  assert.equal(truncateData.usage.output_tokens, 5);
+
+  // Invalid max_tokens returns 400
+  const invalidMaxTokensReq = new Request("http://localhost:3000/api/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": tokenObj.token,
+    },
+    body: JSON.stringify({
+      max_tokens: -10,
+      messages: [{ role: "user", content: "hello" }],
+    }),
+  });
+  const invalidMaxTokensRes = await messagesPost(invalidMaxTokensReq);
+  assert.equal(invalidMaxTokensRes.status, 400);
+});
+
