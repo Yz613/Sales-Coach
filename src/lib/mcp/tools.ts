@@ -379,7 +379,7 @@ export async function executeTool(
       if (!auth.canViewAllCalls) {
         const allReps = await listRepIdentities();
         const viewer = toCallViewer(auth);
-        repList = rawRepList.filter((r) => isOwnRep(r, viewer));
+        repList = rawRepList.filter((r: any) => isOwnRep(r, viewer));
       }
 
       const snapshots = await db.select().from(repSnapshots).where(eq(repSnapshots.orgId, orgId)).all();

@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { db, ensureRevenueSchema } from "./db";
 import { apiTokens } from "./db/schema";
-import type { AuthUser } from "./auth";
+import type { AuthUser, UserRole } from "./auth";
 import { currentTenantId, LOCAL_TENANT_ID } from "./tenant";
 import { localDevelopmentAllowed } from "./security-policy";
 import { RevenueError } from "./revenue/security";
