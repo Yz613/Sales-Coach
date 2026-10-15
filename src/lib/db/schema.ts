@@ -329,3 +329,18 @@ export const scorecardAnswers = sqliteTable("scorecard_answers", {
   authorName: text("author_name").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const apiTokens = sqliteTable("api_tokens", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  tokenPrefix: text("token_prefix").notNull(),
+  role: text("role").notNull().default("member"),
+  canViewAllCalls: integer("can_view_all_calls").notNull().default(0),
+  metadata: text("metadata").notNull().default("{}"),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+  expiresAt: text("expires_at"),
+});

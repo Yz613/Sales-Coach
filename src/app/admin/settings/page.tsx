@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail, CreditCard } from "lucide-react";
+import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Sparkles, Lock, Users, RefreshCw, Mail, CreditCard, Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiPath, formatCount } from "@/lib/utils";
@@ -636,6 +636,31 @@ export default function AdminSettingsPage() {
               )}
             </p>
           </div>
+        </div>
+
+        <div className="rounded-2xl glass-card p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-black/[0.08] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#AF52DE]">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-[#1d1d1f]">AI Bots, MCP & OpenAI API</h2>
+                <p className="text-xs text-[#6e6e73]">
+                  Connect Grokbot, Slack bots, RockBot, Claude Desktop, Cursor, or OpenAI SDKs to pull live data.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/mcp"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-medium text-white hover:bg-purple-700 transition shrink-0 self-start sm:self-auto"
+            >
+              Manage Bots & Tokens →
+            </Link>
+          </div>
+          <p className="text-xs text-[#6e6e73]">
+            Generate API tokens (<code>sc_live_...</code>), copy connection commands for Grokbot or OpenAI Python SDK, and test queries in the live playground.
+          </p>
         </div>
 
         <div className="rounded-2xl glass-card p-6 space-y-5">

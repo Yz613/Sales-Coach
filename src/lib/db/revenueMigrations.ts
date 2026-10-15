@@ -189,4 +189,12 @@ export const REVENUE_MIGRATIONS = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_email_messages_source ON email_messages(org_id, connection_id, external_id)`,
   `CREATE INDEX IF NOT EXISTS idx_email_messages_org_sent ON email_messages(org_id, sent_at)`,
+  `CREATE TABLE IF NOT EXISTS api_tokens (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL,
+    token_hash TEXT NOT NULL, token_prefix TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member',
+    can_view_all_calls INTEGER NOT NULL DEFAULT 0, metadata TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL, last_used_at TEXT, expires_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_api_tokens_org ON api_tokens(org_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash)`,
 ];

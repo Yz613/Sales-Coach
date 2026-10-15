@@ -58,6 +58,17 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
       // Column may already exist
     }
   }
+  for (const col of [
+    "role TEXT NOT NULL DEFAULT 'member'",
+    "can_view_all_calls INTEGER NOT NULL DEFAULT 0",
+    "metadata TEXT NOT NULL DEFAULT '{}'",
+  ]) {
+    try {
+      await d1.prepare(`ALTER TABLE api_tokens ADD COLUMN ${col}`).run();
+    } catch {
+      // Column may already exist
+    }
+  }
 }
 
 let _db: any = null;
@@ -135,6 +146,22 @@ function initLocalSqlite() {
       }
       if (!oCols.some((c: { name: string }) => c.name === "metadata")) {
         sqlite.exec("ALTER TABLE score_overrides ADD COLUMN metadata TEXT");
+      }
+    }
+  } catch {
+    // Table may not exist yet
+  }
+  try {
+    const tokenCols = sqlite.prepare("PRAGMA table_info(api_tokens)").all();
+    if (tokenCols.length > 0) {
+      if (!tokenCols.some((c: { name: string }) => c.name === "role")) {
+        sqlite.exec("ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+      }
+      if (!tokenCols.some((c: { name: string }) => c.name === "can_view_all_calls")) {
+        sqlite.exec("ALTER TABLE api_tokens ADD COLUMN can_view_all_calls INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!tokenCols.some((c: { name: string }) => c.name === "metadata")) {
+        sqlite.exec("ALTER TABLE api_tokens ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
       }
     }
   } catch {
