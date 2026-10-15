@@ -61,6 +61,11 @@ export async function listApiTokens(auth: AuthUser): Promise<ApiTokenInfo[]> {
   await ensureRevenueSchema();
   const orgId = auth.orgId || auth.tenantId || currentTenantId() || LOCAL_TENANT_ID;
 
+  const conditions = [eq(apiTokens.orgId, orgId)];
+  if (!auth.isAdmin && auth.userId) {
+    conditions.push(eq(apiTokens.userId, auth.userId));
+  }
+
   const rows = await db
     .select({
       id: apiTokens.id,
@@ -70,7 +75,7 @@ export async function listApiTokens(auth: AuthUser): Promise<ApiTokenInfo[]> {
       lastUsedAt: apiTokens.lastUsedAt,
     })
     .from(apiTokens)
-    .where(eq(apiTokens.orgId, orgId))
+    .where(and(...conditions))
     .orderBy(desc(apiTokens.createdAt))
     .all();
 
@@ -81,9 +86,14 @@ export async function revokeApiToken(id: string, auth: AuthUser): Promise<boolea
   await ensureRevenueSchema();
   const orgId = auth.orgId || auth.tenantId || currentTenantId() || LOCAL_TENANT_ID;
 
+  const conditions = [eq(apiTokens.id, id), eq(apiTokens.orgId, orgId)];
+  if (!auth.isAdmin && auth.userId) {
+    conditions.push(eq(apiTokens.userId, auth.userId));
+  }
+
   const result = await db
     .delete(apiTokens)
-    .where(and(eq(apiTokens.id, id), eq(apiTokens.orgId, orgId)))
+    .where(and(...conditions))
     .run();
 
   return Boolean(result);

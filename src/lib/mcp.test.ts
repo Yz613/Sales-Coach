@@ -67,6 +67,68 @@ test("API Token lifecycle: create, authenticate, list, and revoke", async () => 
   assert.equal(revokedAuth, null);
 });
 
+test("API Token ownership: non-admin member cannot list or revoke another user's tokens", async () => {
+  const user1: AuthUser = {
+    userId: "user-alice",
+    role: "member",
+    isAdmin: false,
+    isMember: true,
+    isClerkConfigured: false,
+    canViewAllCalls: false,
+    tenantId: "tenant-mcp-test",
+    orgId: "tenant-mcp-test",
+    clerkPlanId: null,
+    billingPaid: true,
+    name: "Alice",
+  };
+
+  const user2: AuthUser = {
+    userId: "user-bob",
+    role: "member",
+    isAdmin: false,
+    isMember: true,
+    isClerkConfigured: false,
+    canViewAllCalls: false,
+    tenantId: "tenant-mcp-test",
+    orgId: "tenant-mcp-test",
+    clerkPlanId: null,
+    billingPaid: true,
+    name: "Bob",
+  };
+
+  const aliceToken = await createApiToken("Alice Bot", user1);
+  const bobToken = await createApiToken("Bob Bot", user2);
+
+  // Alice lists tokens -> should only see her own
+  const aliceList = await listApiTokens(user1);
+  assert.ok(aliceList.some((t) => t.id === aliceToken.id));
+  assert.ok(!aliceList.some((t) => t.id === bobToken.id));
+
+  // Bob lists tokens -> should only see his own
+  const bobList = await listApiTokens(user2);
+  assert.ok(bobList.some((t) => t.id === bobToken.id));
+  assert.ok(!bobList.some((t) => t.id === aliceToken.id));
+
+  // Admin lists tokens -> sees both
+  const adminList = await listApiTokens(testAuth);
+  assert.ok(adminList.some((t) => t.id === aliceToken.id));
+  assert.ok(adminList.some((t) => t.id === bobToken.id));
+
+  // Alice attempts to revoke Bob's token -> fails / does nothing
+  const aliceRevokedBob = await revokeApiToken(bobToken.id, user1);
+  // Bob's token should still be active
+  const bobAuth = await authenticateApiToken(bobToken.token);
+  assert.ok(bobAuth, "Bob's token should not have been revoked by Alice");
+
+  // Bob revokes Bob's token -> succeeds
+  await revokeApiToken(bobToken.id, user2);
+  const bobAuthAfter = await authenticateApiToken(bobToken.token);
+  assert.equal(bobAuthAfter, null);
+
+  // Cleanup Alice token
+  await revokeApiToken(aliceToken.id, user1);
+});
+
 test("MCP Tool definitions include all required tools with schemas", () => {
   const toolNames = MCP_TOOL_DEFINITIONS.map((t) => t.name);
   assert.ok(toolNames.includes("query_calls"));

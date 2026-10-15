@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { authenticateApiToken } from "@/lib/apiTokens";
 import { executeTool, resolveBotQuery } from "@/lib/mcp/tools";
-import { runWithAuth, publicGuestAuth } from "@/lib/auth";
+import { runWithAuth, publicGuestAuth, type AuthUser } from "@/lib/auth";
 import { runWithTenant, resolveTenantId, LOCAL_TENANT_ID } from "@/lib/tenant";
 import { localDevelopmentAllowed } from "@/lib/security-policy";
+import { requireWorkspace } from "@/lib/workspace";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -18,11 +19,21 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   const url = new URL(request.url);
   const token = request.headers.get("authorization") || url.searchParams.get("key");
-  const auth = await authenticateApiToken(token) || (localDevelopmentAllowed() ? publicGuestAuth() : null);
+  let auth: AuthUser | null = await authenticateApiToken(token);
+
+  if (!auth) {
+    try {
+      auth = await requireWorkspace();
+    } catch {
+      if (localDevelopmentAllowed()) {
+        auth = publicGuestAuth();
+      }
+    }
+  }
 
   if (!auth) {
     return NextResponse.json(
-      { error: "Authentication required. Provide a valid Bearer token or key parameter." },
+      { error: "Authentication required. Provide a valid Bearer token, key parameter, or sign in to your workspace." },
       { status: 401, headers: CORS_HEADERS }
     );
   }

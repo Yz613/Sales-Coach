@@ -100,9 +100,14 @@ export default function McpHub() {
     setPlaygroundResult(null);
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (revealedToken) {
+        headers["Authorization"] = `Bearer ${revealedToken}`;
+      }
+
       const res = await fetch("/api/bot/query", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ query: playgroundQuery.trim() }),
       });
       const data = await res.json();
