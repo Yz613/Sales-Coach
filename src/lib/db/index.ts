@@ -1,6 +1,13 @@
 import * as schema from "./schema";
 import { REVENUE_MIGRATIONS } from "./revenueMigrations";
 
+const HOT_PATH_INDEXES = [
+  "CREATE INDEX IF NOT EXISTS idx_calls_org_rep ON calls(org_id, rep_id)",
+  "CREATE INDEX IF NOT EXISTS idx_calls_org_status ON calls(org_id, status)",
+  "CREATE INDEX IF NOT EXISTS idx_evaluations_org_call ON evaluations(org_id, call_id)",
+  "CREATE INDEX IF NOT EXISTS idx_evaluations_org_rep ON evaluations(org_id, rep_id)",
+];
+
 const TENANT_TABLES = [
   "reps",
   "calls",
@@ -25,6 +32,13 @@ function addOrgIdColumnSqlite(sqlite: {
       // Table may not exist yet; schema.sql creates it with the column.
     }
   }
+  for (const statement of HOT_PATH_INDEXES) {
+    try {
+      sqlite.exec(statement);
+    } catch {
+      // Calls or evaluations may not exist yet on the first pass.
+    }
+  }
 }
 
 async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Promise<unknown> } }) {
@@ -38,6 +52,13 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
       await d1.prepare(`CREATE INDEX IF NOT EXISTS idx_${table}_org_id ON ${table}(org_id)`).run();
     } catch {
       // Index may already exist.
+    }
+  }
+  for (const statement of HOT_PATH_INDEXES) {
+    try {
+      await d1.prepare(statement).run();
+    } catch {
+      // Table or column may not exist on a partially migrated database.
     }
   }
   try {

@@ -56,11 +56,14 @@ export async function searchConversations(auth: AuthUser, filters: ConversationF
     conditions.push(sql`exists (select 1 from ai_tracker_hits where ai_tracker_hits.org_id = ${currentTenantId()} and ai_tracker_hits.call_id = ${calls.id} and ai_tracker_hits.tracker_id = ${filters.aiTracker})`);
   }
   const where = and(...conditions);
-  const total = await db.select({ count: sql<number>`count(*)` }).from(calls).leftJoin(callMetadata, eq(calls.id, callMetadata.callId)).leftJoin(reps, eq(calls.repId, reps.id)).where(where).get();
-  const rows = await db.select({ id: calls.id, repId: calls.repId, repName: reps.name, title: callMetadata.title, prospectName: calls.prospectName, company: calls.prospectCompany,
+  const list = db.select({ id: calls.id, repId: calls.repId, repName: reps.name, title: callMetadata.title, prospectName: calls.prospectName, company: calls.prospectCompany,
     stage: calls.callStage, outcome: calls.coreOutcome, duration: calls.durationSeconds, status: calls.status, source: callMetadata.source, reviewedAt: callMetadata.reviewedAt, createdAt: calls.createdAt,
     snippet: filters.q ? sql<string>`substr(${calls.transcriptText}, max(1, instr(lower(${calls.transcriptText}), ${filters.q.toLowerCase()}) - 80), 240)` : sql<string>`substr(${calls.transcriptText}, 1, 180)` })
-    .from(calls).leftJoin(callMetadata, eq(calls.id, callMetadata.callId)).leftJoin(reps, eq(calls.repId, reps.id)).where(where).orderBy(desc(calls.createdAt)).limit(25).offset(((filters.page || 1) - 1) * 25).all();
+    .from(calls).leftJoin(callMetadata, eq(calls.id, callMetadata.callId)).leftJoin(reps, eq(calls.repId, reps.id)).where(where).orderBy(desc(calls.createdAt)).limit(25).offset(((filters.page || 1) - 1) * 25);
+  const [total, rows] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(calls).leftJoin(callMetadata, eq(calls.id, callMetadata.callId)).leftJoin(reps, eq(calls.repId, reps.id)).where(where).get(),
+    list.all(),
+  ]);
   return { rows, total: Number(total?.count || 0), page: filters.page || 1, pageSize: 25 };
 }
 
@@ -135,15 +138,19 @@ export async function conversationDetail(call: Call) {
     } as any;
   }
   const segments = meta?.segments ? parseJson<Segment[]>(meta.segments, []) : [];
-  const [comments, clips, overrides, trackers, linked] = await Promise.all([
+  const participants = parseJson<Participant[]>(meta?.participants, []);
+  const crmIds = parseJson<string[]>(meta?.crmRecordIds, []);
+  const [comments, clips, overrides, trackers, linked, insights, meetings, conceptTrackers] = await Promise.all([
     db.select().from(conversationComments).where(and(scoped(conversationComments), eq(conversationComments.callId, call.id))).orderBy(asc(conversationComments.createdAt)).all(),
     db.select().from(conversationClips).where(and(scoped(conversationClips), eq(conversationClips.callId, call.id))).orderBy(asc(conversationClips.startSeconds)).all(),
-    db.select().from(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id))).all(), listTrackers(),
-    db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, parseJson<string[]>(meta?.crmRecordIds, []).length ? parseJson<string[]>(meta?.crmRecordIds, []) : ["__none__"]))).all(),
+    db.select().from(scoreOverrides).where(and(scoped(scoreOverrides), eq(scoreOverrides.callId, call.id))).all(),
+    listTrackers(),
+    db.select().from(crmRecords).where(and(scoped(crmRecords), inArray(crmRecords.id, crmIds.length ? crmIds : ["__none__"]))).all(),
+    db.select().from(callProviderInsights).where(and(scoped(callProviderInsights), eq(callProviderInsights.callId, call.id))).get(),
+    meetingContextForCall(call, participants),
+    conceptMatchesForCall(call.id, segments),
   ]);
-  const participants = parseJson<Participant[]>(meta?.participants, []);
-  const insights = await db.select().from(callProviderInsights).where(and(scoped(callProviderInsights), eq(callProviderInsights.callId, call.id))).get();
-  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings: await meetingContextForCall(call, participants), actionItems: parseJson<ActionItem[]>(meta?.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), conceptTrackers: await conceptMatchesForCall(call.id, segments), stats: conversationStats(segments), linked };
+  return { ...meta, providerInsights: parseJson(insights?.data, null), participants, meetings, actionItems: parseJson<ActionItem[]>(meta?.actionItems, []), segments, comments, clips, overrides, trackers: trackerHits(trackers, segments), conceptTrackers, stats: conversationStats(segments), linked };
 }
 
 function seconds(value: unknown, max: number, required = true): number | null {
