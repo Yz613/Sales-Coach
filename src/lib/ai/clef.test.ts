@@ -458,16 +458,28 @@ async function runTests() {
     createdAt: new Date().toISOString(),
   }).run();
 
-  // In local test environment, without Cloudflare credentials or binding, Clef fails and triggers fallback
-  const fallbackResult = await evaluateCall({
-    callId: testCallId,
-    repId: testRepId,
-    transcriptText: "Sam: Hello Jordan. Jordan: I'm busy. Sam: Okay no problem, bye.",
-    callStage: "Discovery",
-    prospectCompany: "Fallback Co",
-    prospectName: "Jordan",
-    durationSeconds: 60,
-  });
+  // Deploy injects Cloudflare credentials. Hide them so this case always exercises the rules fallback.
+  const savedAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const savedToken = process.env.CLOUDFLARE_API_TOKEN;
+  delete process.env.CLOUDFLARE_ACCOUNT_ID;
+  delete process.env.CLOUDFLARE_API_TOKEN;
+  let fallbackResult;
+  try {
+    fallbackResult = await evaluateCall({
+      callId: testCallId,
+      repId: testRepId,
+      transcriptText: "Sam: Hello Jordan. Jordan: I'm busy. Sam: Okay no problem, bye.",
+      callStage: "Discovery",
+      prospectCompany: "Fallback Co",
+      prospectName: "Jordan",
+      durationSeconds: 60,
+    });
+  } finally {
+    if (savedAccount === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = savedAccount;
+    if (savedToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = savedToken;
+  }
 
   assert.equal(fallbackResult.evaluatedWith?.provider, "clef");
   assert.equal(fallbackResult.evaluatedWith?.fallback, "rules");
