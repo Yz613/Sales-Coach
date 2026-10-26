@@ -94,7 +94,11 @@ CREATE TABLE IF NOT EXISTS rep_personas (
 
 CREATE INDEX IF NOT EXISTS idx_reps_org_id ON reps(org_id);
 CREATE INDEX IF NOT EXISTS idx_calls_org_id ON calls(org_id);
+CREATE INDEX IF NOT EXISTS idx_calls_org_rep ON calls(org_id, rep_id);
+CREATE INDEX IF NOT EXISTS idx_calls_org_status ON calls(org_id, status);
 CREATE INDEX IF NOT EXISTS idx_evaluations_org_id ON evaluations(org_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_org_call ON evaluations(org_id, call_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_org_rep ON evaluations(org_id, rep_id);
 CREATE INDEX IF NOT EXISTS idx_rep_snapshots_org_id ON rep_snapshots(org_id);
 CREATE INDEX IF NOT EXISTS idx_scripts_org_id ON scripts(org_id);
 CREATE INDEX IF NOT EXISTS idx_rep_personas_org_id ON rep_personas(org_id);

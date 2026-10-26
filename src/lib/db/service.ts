@@ -45,6 +45,7 @@ import { ANALYSIS_STALE_MS, isDialLog, outcomeForStatus, resolveNewCallStatus } 
 import { normalizeCoreOutcome, tallyOutcomeBucket } from "@/lib/coreOutcome";
 import { buildManagerTalkTrack } from "@/lib/managerTalkTrack";
 import type { ManagerTalkTrack } from "@/lib/managerTalkTrack";
+import { GOAL_TEAMS_SETTING_KEY } from "@/lib/goalTeams";
 import {
   LOCAL_TENANT_ID,
   currentTenantId,
@@ -109,6 +110,45 @@ export async function getSetting(key: string): Promise<string | null> {
   return null;
 }
 
+/** One round trip for several settings. Same scoped-then-legacy fallback as getSetting. */
+export async function getSettings(keys: string[]): Promise<Map<string, string | null>> {
+  const unique = [...new Set(keys)];
+  const result = new Map<string, string | null>();
+  if (!unique.length) return result;
+  const org = tenantId();
+  const scopedKey = new Map<string, string>();
+  const queryKeys = new Set<string>();
+  for (const key of unique) {
+    if (isGlobalSettingKey(key)) {
+      scopedKey.set(key, key);
+      queryKeys.add(key);
+      continue;
+    }
+    const storageKey = settingStorageKey(org, key);
+    scopedKey.set(key, storageKey);
+    queryKeys.add(storageKey);
+    if (canReadUnprefixedSettings(org)) queryKeys.add(key);
+  }
+  const rows = await db.select().from(appSettings).where(inArray(appSettings.key, [...queryKeys])).all();
+  const opened = new Map<string, string>();
+  await Promise.all((rows as { key: string; value: string }[]).map(async (row) => {
+    opened.set(row.key, await openAndUpgradeSetting(row.key, row.value));
+  }));
+  for (const key of unique) {
+    const storageKey = scopedKey.get(key)!;
+    if (opened.has(storageKey)) {
+      result.set(key, opened.get(storageKey)!);
+      continue;
+    }
+    if (!isGlobalSettingKey(key) && canReadUnprefixedSettings(org) && opened.has(key)) {
+      result.set(key, opened.get(key)!);
+      continue;
+    }
+    result.set(key, null);
+  }
+  return result;
+}
+
 export async function setSetting(key: string, value: string): Promise<void> {
   if (isGlobalSettingKey(key)) {
     await writeRawSetting(key, value);
@@ -151,17 +191,21 @@ export async function setGlobalSetting(key: string, value: string): Promise<void
 export async function getAllSettings(): Promise<Record<string, string>> {
   const org = tenantId();
   const rows = await db.select().from(appSettings).all();
-  const res: Record<string, string> = {};
-  for (const r of rows as { key: string; value: string }[]) {
-    if (isGlobalSettingKey(r.key)) continue;
-    const scopedKey = parseTenantSettingKey(r.key, org);
+  const opened = await Promise.all((rows as { key: string; value: string }[]).map(async (row) => {
+    if (isGlobalSettingKey(row.key)) return null;
+    const scopedKey = parseTenantSettingKey(row.key, org);
     if (scopedKey) {
-      res[scopedKey] = await openAndUpgradeSetting(r.key, r.value) || "";
-      continue;
+      return { key: scopedKey, value: (await openAndUpgradeSetting(row.key, row.value)) || "", scoped: true };
     }
-    if (!r.key.startsWith("t:") && canReadUnprefixedSettings(org) && res[r.key] === undefined) {
-      res[r.key] = await openAndUpgradeSetting(r.key, r.value) || "";
+    if (!row.key.startsWith("t:") && canReadUnprefixedSettings(org)) {
+      return { key: row.key, value: (await openAndUpgradeSetting(row.key, row.value)) || "", scoped: false };
     }
+    return null;
+  }));
+  const res: Record<string, string> = {};
+  for (const item of opened) {
+    if (!item) continue;
+    if (item.scoped || res[item.key] === undefined) res[item.key] = item.value;
   }
   return res;
 }
@@ -215,8 +259,7 @@ export async function coachUsesDefaultSandler(): Promise<boolean> {
   return stored === narrative || isDefaultSandlerInstructions(stored);
 }
 
-export async function getCoachLessons(): Promise<CoachLesson[]> {
-  const raw = await getSetting("coach_lessons");
+function parseCoachLessons(raw: string | null | undefined): CoachLesson[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -224,6 +267,10 @@ export async function getCoachLessons(): Promise<CoachLesson[]> {
   } catch {
     return [];
   }
+}
+
+export async function getCoachLessons(): Promise<CoachLesson[]> {
+  return parseCoachLessons(await getSetting("coach_lessons"));
 }
 
 async function saveCoachLessons(lessons: CoachLesson[]): Promise<void> {
@@ -250,20 +297,22 @@ export async function deleteCoachLesson(id: string): Promise<void> {
 
 // Builds the manager's coaching directives block injected into every evaluation.
 export async function getCoachContext(): Promise<string> {
-  const instructions = (await getCoachInstructions()).trim();
-  const lessons = await getCoachLessons();
+  const settings = await getSettings(["coach_instructions", "coach_methodology", "coach_lessons", SCORE_WEIGHTS_KEY]);
+  const method = methodById(settings.get("coach_methodology"));
+  const stored = settings.get("coach_instructions") || "";
+  const instructions = (stored.trim() ? stored : method.narrative || DEFAULT_SANDLER_INSTRUCTIONS).trim();
   const parts: string[] = [];
   if (instructions) {
     parts.push(`Coaching philosophy & what matters most to this manager:\n${instructions}`);
   }
+  const lessons = parseCoachLessons(settings.get("coach_lessons"));
   if (lessons.length) {
     parts.push(
       `Specific lessons the manager has taught (apply these when judging the call):\n` +
         lessons.map((l, i) => `${i + 1}. ${l.text}`).join("\n")
     );
   }
-  const method = methodById(await getSalesMethodId());
-  const weightDirective = formatWeightDirective(method, await getScoreWeights(method));
+  const weightDirective = formatWeightDirective(method, weightsForMethod(readStoredWeights(settings.get(SCORE_WEIGHTS_KEY)), method));
   if (weightDirective) parts.push(weightDirective);
   return parts.join("\n\n");
 }
@@ -283,8 +332,31 @@ export async function getAllScripts(): Promise<SalesScript[]> {
 }
 
 export async function getActiveScriptForStage(stage: string): Promise<SalesScript | null> {
-  const all = await getAllScripts();
-  return all.find((s) => s.stage.toLowerCase() === stage.toLowerCase() && s.isActive) || null;
+  const rows = await db
+    .select()
+    .from(scripts)
+    .where(and(forTenant(scripts.orgId), eq(scripts.isActive, true), sql`lower(${scripts.stage}) = ${stage.toLowerCase()}`))
+    .limit(1)
+    .all();
+  const match = rows[0] as {
+    id: string;
+    stage: string;
+    title: string;
+    content: string;
+    keyMilestones: string;
+    isActive: boolean;
+    updatedAt: string;
+  } | undefined;
+  if (!match) return null;
+  return {
+    id: match.id,
+    stage: match.stage as CallStage,
+    title: match.title,
+    content: match.content,
+    keyMilestones: JSON.parse(match.keyMilestones || "[]"),
+    isActive: Boolean(match.isActive),
+    updatedAt: match.updatedAt,
+  };
 }
 
 export async function saveScript(scriptData: Omit<SalesScript, "updatedAt">): Promise<SalesScript> {
@@ -394,16 +466,19 @@ export async function renameCallStage(from: string, to: string): Promise<string[
   const next = current.map((s) => (stagesEqual(s, source) ? target : s));
   await persistCallStages(next);
 
-  const matchingScripts = (await getAllScripts()).filter((s) => stagesEqual(s.stage, source));
-  for (const script of matchingScripts) {
-    await db.update(scripts).set({ stage: target, updatedAt: new Date().toISOString() }).where(and(eq(scripts.id, script.id), forTenant(scripts.orgId))).run();
+  const scriptRows = await db.select({ id: scripts.id, stage: scripts.stage }).from(scripts).where(forTenant(scripts.orgId)).all();
+  const scriptIds = (scriptRows as { id: string; stage: string }[]).filter((row) => stagesEqual(row.stage, source)).map((row) => row.id);
+  if (scriptIds.length) {
+    const updatedAt = new Date().toISOString();
+    for (const chunk of chunksOf(scriptIds, 80)) {
+      await db.update(scripts).set({ stage: target, updatedAt }).where(and(inArray(scripts.id, chunk), forTenant(scripts.orgId))).run();
+    }
   }
 
-  const matchingCalls = await db.select().from(calls).where(forTenant(calls.orgId)).all();
-  for (const call of matchingCalls) {
-    if (stagesEqual(call.callStage, source)) {
-      await db.update(calls).set({ callStage: target }).where(and(eq(calls.id, call.id), forTenant(calls.orgId))).run();
-    }
+  const callRows = await db.select({ id: calls.id, callStage: calls.callStage }).from(calls).where(forTenant(calls.orgId)).all();
+  const callIds = (callRows as { id: string; callStage: string }[]).filter((row) => stagesEqual(row.callStage, source)).map((row) => row.id);
+  for (const chunk of chunksOf(callIds, 80)) {
+    await db.update(calls).set({ callStage: target }).where(and(inArray(calls.id, chunk), forTenant(calls.orgId))).run();
   }
 
   return next;
@@ -900,15 +975,20 @@ export async function getRepById(id: string): Promise<{
 
 export async function deleteCallsWithoutTranscript(): Promise<string[]> {
   const rows = await db.select({ id: calls.id, transcriptText: calls.transcriptText, dialOutcome: calls.dialOutcome }).from(calls).where(forTenant(calls.orgId)).all();
-  const removed: string[] = [];
-  for (const row of rows) {
-    if (row.dialOutcome) continue;
-    if (!isUnusableTranscript(row.transcriptText)) continue;
-    await db.delete(evaluations).where(and(eq(evaluations.callId, row.id), forTenant(evaluations.orgId))).run();
-    await db.delete(calls).where(and(eq(calls.id, row.id), forTenant(calls.orgId))).run();
-    removed.push(row.id);
+  const removed = (rows as { id: string; transcriptText: string; dialOutcome: string | null }[])
+    .filter((row) => !row.dialOutcome && isUnusableTranscript(row.transcriptText))
+    .map((row) => row.id);
+  for (const chunk of chunksOf(removed, 80)) {
+    await db.delete(evaluations).where(and(inArray(evaluations.callId, chunk), forTenant(evaluations.orgId))).run();
+    await db.delete(calls).where(and(inArray(calls.id, chunk), forTenant(calls.orgId))).run();
   }
   return removed;
+}
+
+function chunksOf<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
 }
 
 export async function getCallSummaries(): Promise<Call[]> {
@@ -1099,17 +1179,224 @@ export async function getCallById(id: string): Promise<Call | null> {
   };
 }
 
+type HomeSnapshot = {
+  report: SuperAdminReport;
+  calls: Call[];
+  reps: Rep[];
+  coachInstructions: string;
+  salesMethodId: import("@/lib/methodology").MethodId;
+  savedTeams: string | null;
+  dialFacts: ({ repId: string; outcome: DialOutcome } & DialFact)[];
+};
+
+/**
+ * One settled read for the home dashboard.
+ * Team rates use the same call filter as the call list. Badge fields come from
+ * status columns, so extended reviews and transcript bodies stay in the database.
+ */
+export async function getHomeDashboard(): Promise<HomeSnapshot> {
+  const stillAnalyzing = await settleCallEvaluations();
+  const [callRows, evalRows, repRows, snapshotRows, settings] = await Promise.all([
+    db.select({
+      id: calls.id,
+      repId: calls.repId,
+      prospectCompany: calls.prospectCompany,
+      prospectName: calls.prospectName,
+      callStage: calls.callStage,
+      coreOutcome: calls.coreOutcome,
+      dialOutcome: calls.dialOutcome,
+      durationSeconds: calls.durationSeconds,
+      audioUrl: calls.audioUrl,
+      status: calls.status,
+      createdAt: calls.createdAt,
+      transcriptProbe: sql<string>`substr(${calls.transcriptText}, 1, 2000)`,
+    }).from(calls).where(forTenant(calls.orgId)).orderBy(desc(calls.createdAt)).all(),
+    db.select({
+      id: evaluations.id,
+      callId: evaluations.callId,
+      repId: evaluations.repId,
+      painStatus: evaluations.painStatus,
+      budgetStatus: evaluations.budgetStatus,
+      decisionStatus: evaluations.decisionStatus,
+      scriptAdherenceScore: evaluations.scriptAdherenceScore,
+      createdAt: evaluations.createdAt,
+    }).from(evaluations).where(forTenant(evaluations.orgId)).all(),
+    db.select().from(reps).where(forTenant(reps.orgId)).all(),
+    db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all(),
+    getSettings(["coach_instructions", "coach_methodology", GOAL_TEAMS_SETTING_KEY]),
+  ]);
+
+  type Probe = {
+    id: string;
+    repId: string;
+    prospectCompany: string;
+    prospectName: string;
+    callStage: string;
+    coreOutcome: string;
+    dialOutcome: string | null;
+    durationSeconds: number;
+    audioUrl: string | null;
+    status: string;
+    createdAt: string;
+    transcriptProbe: string;
+  };
+  type LightEval = {
+    id: string;
+    callId: string;
+    repId: string;
+    painStatus: string;
+    budgetStatus: string;
+    decisionStatus: string;
+    scriptAdherenceScore: number;
+    createdAt: string;
+  };
+  const probes = callRows as Probe[];
+  const evalByCall = latestEvalByCall((evalRows as LightEval[]).map((row) => ({
+    ...row,
+    bottomLine: "",
+    painEvidence: "",
+    budgetEvidence: "",
+    decisionEvidence: "",
+    scriptFeedback: "",
+    missedOpportunities: "[]",
+    topFixes: "[]",
+  })));
+  const repNameById = new Map<string, string>();
+  for (const row of repRows as { id: string; name: string }[]) repNameById.set(row.id, row.name);
+
+  const usableIds = new Set<string>();
+  const factsByRep = new Map<string, DialFact[]>();
+  const dialFacts: HomeSnapshot["dialFacts"] = [];
+  for (const row of probes) {
+    const fact = dialFactFromRow(row);
+    if (isDialAttempt(fact)) {
+      const list = factsByRep.get(row.repId);
+      if (list) list.push(fact);
+      else factsByRep.set(row.repId, [fact]);
+      dialFacts.push({ repId: row.repId, ...fact, outcome: resolveDialOutcome(fact) });
+    }
+    if (!isUnusableTranscript(row.transcriptProbe) && !isQuickDialLog({ dialOutcome: row.dialOutcome, transcriptText: row.transcriptProbe })) {
+      usableIds.add(row.id);
+    }
+  }
+
+  const scoresByRep = new Map<string, number[]>();
+  for (const [callId, ev] of evalByCall) {
+    if (!usableIds.has(callId)) continue;
+    const list = scoresByRep.get(ev.repId);
+    if (list) list.push(ev.scriptAdherenceScore);
+    else scoresByRep.set(ev.repId, [ev.scriptAdherenceScore]);
+  }
+
+  const snapshotByRep = new Map<string, { overallTrajectory?: string; managerRationale?: string }>();
+  for (const row of snapshotRows as { repId: string; overallTrajectory?: string; managerRationale?: string }[]) {
+    snapshotByRep.set(row.repId, row);
+  }
+
+  const allReps: Rep[] = (repRows as {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatarUrl: string | null;
+    createdAt: string;
+  }[]).map((rep) => {
+    const rates = funnelFields(factsByRep.get(rep.id) || []);
+    const scores = scoresByRep.get(rep.id) || [];
+    const snapshot = snapshotByRep.get(rep.id);
+    const avgScriptScore = scores.length ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10 : 0;
+    return {
+      id: rep.id,
+      name: rep.name,
+      email: rep.email,
+      role: rep.role,
+      avatarUrl: rep.avatarUrl || undefined,
+      createdAt: rep.createdAt,
+      trajectory: (snapshot?.overallTrajectory as RepTrajectory) || "stagnant",
+      trajectoryReason: snapshot?.managerRationale || "Baseline evaluation in progress.",
+      totalCalls: rates.totalCalls,
+      avgScriptScore,
+      bookedRate: rates.bookedRate,
+      connectRate: rates.connectRate,
+      closeRate: rates.closeRate,
+      closePerConnect: rates.closePerConnect,
+      funnel: rates.funnel,
+    };
+  });
+
+  const allCalls: Call[] = [];
+  for (const row of probes) {
+    if (isUnusableTranscript(row.transcriptProbe) && !row.dialOutcome) continue;
+    const repName = repNameById.get(row.repId) || "Unknown Rep";
+    const coreOutcome = isDialOutcome(row.dialOutcome) ? dialOutcomeLabel(row.dialOutcome) : normalizeCoreOutcome(row.coreOutcome);
+    const ev = evalByCall.get(row.id);
+    allCalls.push({
+      id: row.id,
+      repId: row.repId,
+      repName,
+      prospectCompany: row.prospectCompany,
+      prospectName: row.prospectName,
+      callStage: row.callStage as Call["callStage"],
+      coreOutcome,
+      dialOutcome: row.dialOutcome || null,
+      durationSeconds: row.durationSeconds,
+      transcriptText: "",
+      audioUrl: row.audioUrl || undefined,
+      status: row.status as Call["status"],
+      createdAt: row.createdAt,
+      hasLiveEvaluation: stillAnalyzing.has(row.id),
+      evaluation: ev
+        ? hydrateEvaluation(ev, { repName, callStage: row.callStage, coreOutcome, durationSeconds: row.durationSeconds })
+        : undefined,
+    });
+  }
+
+  const storedMethod = settings.get("coach_methodology");
+  const salesMethodId = isMethodId(storedMethod) ? storedMethod : "sandler";
+  const methodology = methodById(salesMethodId);
+  const storedCoach = settings.get("coach_instructions") || "";
+  const coachInstructions = storedCoach.trim() ? storedCoach : methodology.narrative || DEFAULT_SANDLER_INSTRUCTIONS;
+  const snapshots = snapshotRows as {
+    repId: string;
+    overallTrajectory?: string;
+    managerRationale?: string;
+    topActiveStruggle?: string;
+    recentScriptScore?: number;
+  }[];
+
+  return {
+    report: buildSuperAdminReport(allReps, allCalls, snapshots, methodology),
+    calls: allCalls,
+    reps: allReps,
+    coachInstructions,
+    salesMethodId,
+    savedTeams: settings.get(GOAL_TEAMS_SETTING_KEY) ?? null,
+    dialFacts,
+  };
+}
+
 export async function getDashboardSnapshot(): Promise<{ report: SuperAdminReport; calls: Call[]; reps: Rep[] }> {
-  const [allReps, allCalls] = await Promise.all([getAllReps(), getCallSummaries()]);
-  return { report: await buildSuperAdminReport(allReps, allCalls), calls: allCalls, reps: allReps };
+  const { report, calls, reps } = await getHomeDashboard();
+  return { report, calls, reps };
 }
 
 export async function getSuperAdminReport(): Promise<SuperAdminReport> {
-  const { report } = await getDashboardSnapshot();
+  const { report } = await getHomeDashboard();
   return report;
 }
 
-async function buildSuperAdminReport(allReps: Rep[], allCalls: Call[]): Promise<SuperAdminReport> {
+function buildSuperAdminReport(
+  allReps: Rep[],
+  allCalls: Call[],
+  snapshots: {
+    repId: string;
+    overallTrajectory?: string;
+    managerRationale?: string;
+    topActiveStruggle?: string;
+    recentScriptScore?: number;
+  }[],
+  methodology: SalesMethodology,
+): SuperAdminReport {
   const completedCalls = allCalls.filter((c) => c.evaluation);
 
   const totalCalls = completedCalls.length;
@@ -1125,8 +1412,7 @@ async function buildSuperAdminReport(allReps: Rep[], allCalls: Call[]): Promise<
     totalScriptScore += c.evaluation?.sandlerBreakdown.scriptAdherence.score || 0;
   });
 
-  const snapshots = await db.select().from(repSnapshots).where(forTenant(repSnapshots.orgId)).all();
-  const snapshotByRep = new Map(snapshots.map((row: { repId: string }) => [row.repId, row]));
+  const snapshotByRep = new Map(snapshots.map((row) => [row.repId, row]));
   const repTrajectories = allReps.map((r) => {
     const snapshot = snapshotByRep.get(r.id) as
       | {
@@ -1147,7 +1433,6 @@ async function buildSuperAdminReport(allReps: Rep[], allCalls: Call[]): Promise<
     };
   });
 
-  const methodology = methodById(await getSalesMethodId());
   const pillarByKey = Object.fromEntries(methodology.pillars.map((pillar) => [pillar.key, pillar]));
   // Systemic leaks are derived from real qualification miss-rates, not hardcoded.
   const teamLeaks: SuperAdminReport["systemicTeamLeaks"] = [];
@@ -1186,7 +1471,12 @@ async function buildSuperAdminReport(allReps: Rep[], allCalls: Call[]): Promise<
 }
 
 export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
-  const [allCalls, allReps] = await Promise.all([getCallSummaries(), getAllReps()]);
+  const [allCalls, allReps, dialFacts, salesMethodId] = await Promise.all([
+    getCallSummaries(),
+    getAllReps(),
+    listDialFacts(),
+    getSalesMethodId(),
+  ]);
 
   let booked = 0;
   let demoAgreed = 0;
@@ -1229,7 +1519,6 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     }
   });
 
-  const dialFacts = await listDialFacts();
   const dialSummary = tallyDialFunnel(dialFacts);
   const repLeaderboard = allReps.map((r) => {
     return {
@@ -1250,7 +1539,7 @@ export async function getExecutiveAnalytics(): Promise<ExecutiveAnalytics> {
     };
   }).sort((a, b) => b.closeRate - a.closeRate || b.connectRate - a.connectRate || b.avgScriptScore - a.avgScriptScore);
 
-  const methodology = methodById(await getSalesMethodId());
+  const methodology = methodById(salesMethodId);
   const cookbookFunnel = tallyCookbookFunnel(allCalls.map((call) => ({
     callStage: call.callStage,
     coreOutcome: call.coreOutcome,

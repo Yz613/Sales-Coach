@@ -1,5 +1,5 @@
 import { withWorkspacePage } from "@/lib/workspace";
-import { getDashboardSnapshot, getCoachInstructions, getSalesMethodId, getSetting, listDialFacts } from "@/lib/db/service";
+import { getHomeDashboard } from "@/lib/db/service";
 import { requireAdmin } from "@/lib/auth";
 import DashboardBoard from "@/components/DashboardBoard";
 import { methodById } from "@/lib/salesMethods";
@@ -10,13 +10,7 @@ export const dynamic = "force-dynamic";
 
 async function SuperAdminDashboard() {
   const auth = await requireAdmin();
-  const [{ report, calls: allCalls, reps }, coachInstructions, salesMethodId, savedTeams, dialFacts] = await Promise.all([
-    getDashboardSnapshot(),
-    getCoachInstructions(),
-    getSalesMethodId(),
-    getSetting(GOAL_TEAMS_SETTING_KEY),
-    listDialFacts(),
-  ]);
+  const { report, calls: allCalls, reps, coachInstructions, salesMethodId, savedTeams, dialFacts } = await getHomeDashboard();
   const recentCalls = allCalls.slice(0, 6);
   const needsCoachSetup = !coachInstructions.trim();
   const methodology = methodById(salesMethodId);

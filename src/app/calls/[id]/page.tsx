@@ -1,7 +1,7 @@
 import { withWorkspacePage } from "@/lib/workspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveScriptForStage, getSalesMethodId, getScoreWeights } from "@/lib/db/service";
+import { getActiveScriptForStage, getCallSummaries, getSalesMethodId, getScoreWeights, listRepIdentities } from "@/lib/db/service";
 import { rankCalls, divergenceSummary } from "@/lib/callInsights";
 import { ArrowLeft, CheckCircle2, XCircle, Flame, UserCheck, Calendar, Clock, MessageSquareQuote, ClipboardList, Trophy, MinusCircle } from "lucide-react";
 import { formatDate, formatDuration, mediaPath } from "@/lib/utils";
@@ -28,7 +28,8 @@ import { deriveCoachingBrief, scoreMicroSkills } from "@/lib/methodology";
 import { methodById, scoreMethodDebrief } from "@/lib/salesMethods";
 import SandlerDebrief from "@/components/SandlerDebrief";
 import CallReviewSwitcher from "@/components/CallReviewSwitcher";
-import { getVisibleCallById, getVisibleCalls } from "@/lib/viewer-calls";
+import { filterCallsForViewer } from "@/lib/call-access";
+import { getVisibleCallById, toCallViewer } from "@/lib/viewer-calls";
 import { ensureRevenueSchema } from "@/lib/db";
 import { conversationDetail } from "@/lib/revenue/conversations";
 import { crmOverview } from "@/lib/revenue/crm";
@@ -54,15 +55,25 @@ async function CallReviewPage({
 }) {
   const { id } = await params;
   const { auth, call } = await getVisibleCallById(id);
-  const ai = await resolveAiSettings();
 
   if (!call) {
     notFound();
   }
 
+  await ensureRevenueSchema();
+  const methodIdPromise = getSalesMethodId();
+  const [ai, salesMethodId, officialScript, conversation, visibleCalls, reps, weights, dealOverview] = await Promise.all([
+    resolveAiSettings(),
+    methodIdPromise,
+    getActiveScriptForStage(call.callStage),
+    conversationDetail(call),
+    getCallSummaries(),
+    listRepIdentities(),
+    methodIdPromise.then((methodId) => getScoreWeights(methodById(methodId))),
+    auth.isAdmin ? crmOverview() : Promise.resolve(null),
+  ]);
   const ev = call.evaluation;
-  const methodology = methodById(await getSalesMethodId());
-  const officialScript = await getActiveScriptForStage(call.callStage);
+  const methodology = methodById(salesMethodId);
   const divergence = ev?.scriptDivergence;
   const divSummary = divergenceSummary(divergence);
   const walkthrough = ev
@@ -92,14 +103,12 @@ async function CallReviewPage({
         (skill) => !baseScorecard.some((metric) => metric.key === skill.key)
       )
     : [];
-  await ensureRevenueSchema();
-  const conversation = await conversationDetail(call);
   const recordingParts = conversation.source === "quo" && call.audioUrl ? await readCallAudioParts(call.id) : 1;
   const scorecard = [...baseScorecard, ...skillScores].map(metric => {
     const correction = conversation.overrides.find((o: any) => o.metricKey === metric.key);
     return correction ? { ...metric, score: correction.score, status: (correction.score >= 7 ? "Pass" : correction.score >= 4 ? "Incomplete" : "Fail") as "Pass" | "Incomplete" | "Fail", evidence: `Human correction by ${correction.authorName}: ${correction.reason}` } : metric;
   });
-  const deals = auth.isAdmin ? (await crmOverview()).deals.map((d: any) => ({ id: d.id, name: d.name, stage: d.stage })) : [];
+  const deals = (dealOverview?.deals ?? []).map((deal) => ({ id: deal.id, name: deal.name, stage: deal.stage }));
   const coachingBrief = ev
     ? ev.coachingBrief || deriveCoachingBrief({
         wins: scorecard.filter((metric) => metric.status === "Pass" && metric.evidence).map((metric) => `${metric.label}: ${metric.evidence}`),
@@ -118,8 +127,7 @@ async function CallReviewPage({
     .map((mark) => ({ id: mark.id, label: mark.label, done: mark.status === "Handled", evidence: mark.evidence }));
 
   // Where this call ranks against every other call in the bank.
-  const { calls: visibleCalls } = await getVisibleCalls();
-  const ranked = rankCalls(visibleCalls, { weights: await getScoreWeights(methodology), method: methodology });
+  const ranked = rankCalls(filterCallsForViewer(visibleCalls, reps, toCallViewer(auth)), { weights, method: methodology });
   const thisRank = ranked.find((r) => r.id === call.id);
 
   return (
