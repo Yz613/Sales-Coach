@@ -1,6 +1,6 @@
-# Sales Coach: the open-source Gong alternative for call coaching and rubrics.
+# Sales Coach: an open-source, self-hostable Gong alternative.
 
-Score a call against your rubric, then coach the rep from the transcript, the scorecard, and the moments that mattered.
+Sales Coach is MIT-licensed conversation intelligence you can run yourself. Score calls with evidence from a built-in rules engine, or from a model you connect, including one that runs locally. It keeps coaching notes and scorecards, keyword and concept trackers, deal and forecast tracking, and full-funnel connect and close rates. Integrations include HubSpot writeback, Google Meet, Microsoft Teams, Quo, and Gmail or Outlook, along with an MCP server and API. Customer content is never used to train models.
 
 ![Sample call review with a transcript, rubric scorecard, coaching notes, and trackers](docs/demo-call-review.png)
 
