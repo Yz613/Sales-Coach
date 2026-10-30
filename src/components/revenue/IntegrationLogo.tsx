@@ -1,3 +1,4 @@
+import React from "react";
 import type { ProviderId } from "@/lib/revenue/types";
 import { integrationTool } from "@/lib/integrations/catalog";
 import { apiPath } from "@/lib/utils";
