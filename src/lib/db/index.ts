@@ -94,6 +94,7 @@ async function addOrgIdColumnD1(d1: { prepare: (sql: string) => { run: () => Pro
 
 let _db: any = null;
 let _d1MigratePromise: Promise<void> | null = null;
+let _usingD1 = false;
 
 export async function ensureD1Migrated(): Promise<void> {
   getDb();
@@ -200,6 +201,7 @@ export function getDb() {
   // An explicit local path must win even before the file exists; next dev can inject an empty D1 binding.
   if (process.env.SALES_COACH_DB_PATH || fs.existsSync(dbPath)) {
     try {
+      _usingD1 = false;
       _db = initLocalSqlite();
       return _db;
     } catch (e) {
@@ -218,6 +220,7 @@ export function getDb() {
           throw err;
         });
       }
+      _usingD1 = true;
       _db = drizzle(ctx.env.DB, { schema });
       return _db;
     }
@@ -226,6 +229,7 @@ export function getDb() {
   }
 
   try {
+    _usingD1 = false;
     _db = initLocalSqlite();
     return _db;
   } catch (e) {
@@ -241,9 +245,10 @@ export async function ensureRevenueSchema(): Promise<void> {
   if (!revenueReady) {
     revenueReady = (async () => {
       getDb();
+      if (!_usingD1) return;
       let d1: any;
       try { d1 = require("@opennextjs/cloudflare").getCloudflareContext()?.env?.DB; } catch { /* local */ }
-      if (d1 && !process.env.SALES_COACH_DB_PATH) {
+      if (d1) {
         if (_d1MigratePromise) await _d1MigratePromise;
         await d1.batch(REVENUE_MIGRATIONS.map((statement) => d1.prepare(statement)));
       }

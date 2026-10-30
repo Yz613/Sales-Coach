@@ -8,6 +8,12 @@ export function revenueRuntime(): { env: Record<string, unknown>; cloudflare: bo
   // An explicit SQLite preview/test uses local secrets even when Next initializes Miniflare.
   if (process.env.SALES_COACH_DB_PATH) return { env: process.env, cloudflare: false };
   try {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const dbPath = path.resolve(process.cwd(), "sales_coach.db");
+    if (fs.existsSync(dbPath)) return { env: process.env, cloudflare: false };
+  } catch { /* Worker isolate has no node:fs */ }
+  try {
     const context = require("@opennextjs/cloudflare").getCloudflareContext();
     if (context?.env?.DB) return { env: context.env, cloudflare: true };
   } catch { /* Node and test runtime. */ }
