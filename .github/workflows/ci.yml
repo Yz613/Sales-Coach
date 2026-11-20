@@ -8,9 +8,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-  # Detect newly published advisories before the next application change.
-  schedule:
-    - cron: '17 10 * * *'
 
 concurrency:
   # PRs share a group; every other event keeps its own pending run.
